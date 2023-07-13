@@ -30,7 +30,11 @@ A framework to develop and manage solid projects in Python
 Features
 --------
 
-* TODO
+* Develop using SolidPython and CadQuery combined
+* Filesystem monitoring triggering transpilation to openscad and stl building
+* Background optimization
+
+This is pre-alpha, just releasing something
 
 Credits
 -------
