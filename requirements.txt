@@ -1,3 +1,4 @@
 solidpython2==2.0.2
 cadquery==2.3.1
 cadquery-ocp==7.7.0
+trimesh==3.22.3

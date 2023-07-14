@@ -1,7 +1,8 @@
 from .base import AbstractBaseNode
+from .spatial import SpatialNodeMixin
 
 
-class LeafNode(AbstractBaseNode):
+class LeafNode(AbstractBaseNode, SpatialNodeMixin):
 
     @property
     def time(self):

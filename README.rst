@@ -33,8 +33,9 @@ Features
 * Develop using SolidPython and CadQuery combined
 * Filesystem monitoring triggering transpilation to openscad and stl building
 * Background optimization
+* Spatial calculations trimesh
 
-This is pre-alpha, just releasing something
+This is pre-alpha, just releasing something.
 
 Credits
 -------
