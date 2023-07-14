@@ -9,10 +9,12 @@ class InternalNode(AbstractBaseNode):
                                   "must deal with animation time")
 
     def as_scad(self, children):
+        self.children = children
+
         scads = []
 
         for child in children:
-            scads.append(child.assemble())
+            scads.append(child.assemble(self.root))
             self.files.update(child.files)
             self.rigid = self.rigid and child.rigid
 

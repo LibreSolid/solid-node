@@ -60,6 +60,8 @@ class AbstractBaseNode:
         # Holds the result of render()
         self.model = None
 
+        self.root = self.basedir
+
         # Assembled is done only once
         self._assembled = False
 
@@ -82,21 +84,23 @@ class AbstractBaseNode:
         self.operations.append(operation)
         return self
 
-    def assemble(self, base=None):
+    def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""
         if self._assembled:
             return self._assembled
 
-        base = base or os.path.dirname(self.src)
+        if root:
+            self.root = root
 
         rendered = self.render()
+
         self.validate(rendered)
 
         self.model = self.as_scad(rendered)
         self.generate_scad()
 
-        assembled = self.import_optimized(base)
+        assembled = self.import_optimized()
 
         for operation in self.operations:
             assembled = operation(assembled)
@@ -105,11 +109,10 @@ class AbstractBaseNode:
 
         return assembled
 
-    def import_optimized(self, base):
+    def import_optimized(self):
         if self.rigid and self._up_to_date(self.stl_file):
-            basedir = os.path.relpath(self.basedir, base)
+            basedir = os.path.relpath(self.basedir, self.root)
             local_stl = os.path.join(basedir, self.local_stl)
-
             return import_stl(local_stl)
         return self.model
 
@@ -163,6 +166,7 @@ class AbstractBaseNode:
             return False
 
     def generate_stl(self):
+
         if self._up_to_date(self.stl_file) or \
            not self.rigid or \
            self._stl_generation_locked:
