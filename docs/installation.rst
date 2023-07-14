@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/lfagundes/solid_node
+    $ git clone git@github.com:LibreSolid/solid_node
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/lfagundes/solid_node/tarball/master
+    $ curl -OJL https://github.com/LibreSolid/solid_node/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
