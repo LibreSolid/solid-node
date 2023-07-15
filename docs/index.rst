@@ -1,14 +1,13 @@
-Welcome to Solid Framework's documentation!
-======================================
+Welcome to SolidNode's documentation!
+=====================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   readme
+   background
    installation
-   usage
-   modules
+   tutorial
    contributing
    history
 
