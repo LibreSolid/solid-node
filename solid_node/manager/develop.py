@@ -1,9 +1,55 @@
 import os
+import sys
+import time
+import inspect
 import asyncio
-import traceback
 import pyinotify
+import traceback
 from asyncio import Future
+from importlib import import_module
+from multiprocessing import Process
+from subprocess import Popen
 from solid_node.core import load_node
+
+
+class Develop:
+    """Monitor filesystem and executes transpilations and compilations on background"""
+
+    def add_arguments(self, parser):
+        parser.add_argument('-d', '--debug', action='store_true',
+                            help='Debug mode supports breakpoints, but reload is not automatic')
+
+
+    def openscad(self):
+        from solid_node.viewers.openscad import OpenScadViewer
+        OpenScadViewer(self.path).start()
+
+
+    def monitor(self):
+        task = Monitor(self.path, self.debug).run()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(task)
+
+    def handle(self, args):
+        self.path = args.path
+        self.debug = args.debug
+
+        scad_proc = Process(target=self.openscad)
+        scad_proc.start()
+
+        if args.debug:
+            return self.monitor()
+
+        while True:
+            p = Process(target=self.monitor)
+            p.start()
+            try:
+                p.join()
+            except KeyboardInterrupt:
+                sys.exit(0)
+
+        print(f"Exiting...")
+
 
 class Monitor(pyinotify.ProcessEvent):
     """Monitors .py files and generate STLs, and exit on any change"""

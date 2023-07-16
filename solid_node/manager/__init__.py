@@ -1,55 +1,44 @@
-import os
-import sys
-import time
-import inspect
-import asyncio
 import argparse
-import pyinotify
-import traceback
-from importlib import import_module
-from multiprocessing import Process
-from subprocess import Popen
+from solid_node.manager.develop import Develop
+from solid_node.manager.test import Test
 
-
+commands = [
+    Develop(),
+    Test(),
+]
 
 def manage():
-    parser = argparse.ArgumentParser(description='Renders solid models into optimized scads and updates on changes')
+    parser = argparse.ArgumentParser(description='Solid Node')
 
-    parser.add_argument('path', type=str,
-                        help='Path of the python source file for a Renderable to work on')
+    parser.add_argument(
+        'path',
+        type=str,
+        help='Path of the python source file for a Node to work on',
+    )
 
-    parser.add_argument('-d', '--debug', action='store_true',
-                        help='Debug mode supports breakpoints, but reload is not automatic')
+    subparsers = parser.add_subparsers(
+        dest='command',
+
+        title='Commands',
+        description='Pick an action to do on Node',
+        help='use -h {command} for more options',
+    )
+
+    index = {}
+    for command in commands:
+        name = command.__class__.__name__.lower()
+        command_parser = subparsers.add_parser(
+            name,
+            help=command.__doc__,
+        )
+        command.add_arguments(command_parser)
+        index[name] = command
+
     args = parser.parse_args()
 
-    def openscad():
-        from solid_node.viewers.openscad import OpenScadViewer
-        OpenScadViewer(args.path).start()
+    if args.command is None:
+        return parser.print_help()
 
+    command = index[args.command]
 
-    def monitor(debug=False):
-        # Import is done after fork
-        from solid_node.manager.monitor import Monitor
-        # Avoid racing openscad()
-        #time.sleep(0.5)
-
-        task = Monitor(args.path, debug).run()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(task)
-
-    scad_proc = Process(target=openscad)
-    scad_proc.start()
-
-    if args.debug:
-        monitor(True)
-
-    # Run forever if not in debug mode
-    while not args.debug:
-        p = Process(target=monitor)
-        p.start()
-        try:
-            p.join()
-        except KeyboardInterrupt:
-            sys.exit(0)
-
-    print(f"Exiting...")
+    command.handle(args)
