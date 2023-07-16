@@ -4,24 +4,34 @@ import time
 import inspect
 import importlib
 import pyinotify
+import trimesh
+import numpy as np
 from subprocess import Popen
 from solid2 import (scad_render, import_scad, import_stl,
                     translate, rotate, union, color,
                     get_animation_time)
 
+MESH_CACHE = {}
 
 class AbstractBaseNode:
 
     # The rendering colors
     color = None
 
+    # This determines if stl can be generated for this Node
+    rigid = True
+
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
     def __init__(self, *args, name=None):
-        # Name uniquely identifies a set of parameters of an instance.
+        # name uniquely identifies a set of parameters of an instance.
+        # self.name is used to refer to nodes in tests
         if not name:
             name = ','.join([str(arg) for arg in args])
+            self.name = self.__class__.__name__
+        else:
+            self.name = name
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after
@@ -45,17 +55,26 @@ class AbstractBaseNode:
         basename = f'{script}-{name}' if name else script
         basepath = os.path.join(self.build_dir, basename)
 
+        # The base scad file, and respective rendered stl,
+        # without transformations, used for building and assembling
+        # on parent node
         self.scad_file = f'{basepath}.scad'
         self.stl_file = f'{basepath}.stl'
+
+        # A scad file and mesh with transformations applied,
+        # used for mesh generation for spatial calculations, specially tests
+        self.mesh_scad_file = f'{basepath}.mesh.scad'
+        self.mesh_stl_file = f'{basepath}.mesh.stl'
+
+        # Lock file for stl, for concurrency management (not implemented yet)
         self.lock_file = f'{basepath}.stl.lock'
+
+        # Used to build a local path for importing relative stls
         self.local_stl = f'{basename}.stl'
+        self.basepath = basepath
 
         # Track source of this node and all children
         self.files = set([self.src])
-
-
-        # This determines if stl can be generated for this Node
-        self.rigid = True
 
         # Holds the result of render()
         self.model = None
@@ -71,17 +90,15 @@ class AbstractBaseNode:
     def time(self):
         raise NotImplementedError
 
-    #####################################################
-    # Transformations that can be applied to Node after
-    # optimization
+    ##############################################
+    # Transformations that can be applied to Node
+    # before or after optimization
     def rotate(self, angle, axis):
-        return self.transform(rotate(angle, axis))
+        self.operations.append(rotate(angle, axis))
+        return self
 
-    def translate(self, *argz):
-        return self.transform(translate(*argz))
-
-    def transform(self, operation):
-        self.operations.append(operation)
+    def translate(self, translation):
+        self.operations.append(translate(translation))
         return self
 
     def assemble(self, root=None):
@@ -103,6 +120,7 @@ class AbstractBaseNode:
         assembled = self.import_optimized()
 
         for operation in self.operations:
+            # Apply scad operation
             assembled = operation(assembled)
 
         self._assembled = assembled
@@ -166,7 +184,6 @@ class AbstractBaseNode:
             return False
 
     def generate_stl(self):
-
         if self._up_to_date(self.stl_file) or \
            not self.rigid or \
            self._stl_generation_locked:
@@ -185,6 +202,51 @@ class AbstractBaseNode:
         fh.close()
 
         raise StlRenderStart(proc, self.stl_file, self.mtime, self.lock_file)
+
+    def generate_mesh(self):
+        basedir = os.path.relpath(self.basedir, self.root)
+        local_stl = os.path.join(basedir, self.local_stl)
+        return import_stl(local_stl)
+
+        return trimesh.load(self.stl_file)
+
+    @property
+    def mesh(self):
+        if self._up_to_date(self.mesh_stl_file):
+            try:
+                return MESH_CACHE[self.mesh_stl_file]
+            except KeyError:
+                mesh = trimesh.load(self.mesh_stl_file)
+                MESH_CACHE[self.mesh_stl_file] = mesh
+                return mesh
+        # Attention: operations are modified once they are applied,
+        # so last operation carry last state. This property is
+        # state-dependent and works for tests at least.
+        # To fix that, we would need to copy operation before applying.
+        model = self.operations[-1]
+        scad_code = scad_render(model)
+        open(self.mesh_scad_file, 'w').write(scad_code)
+        proc = Popen([
+            'openscad', self.mesh_scad_file, '-o', self.mesh_stl_file
+        ])
+        proc.wait()
+        os.utime(self.mesh_stl_file, (time.time(), self.mtime))
+        return trimesh.load(self.mesh_stl_file)
+
+    def intersects(self, node):
+        self_mesh = self.mesh
+        node_mesh = node.mesh
+
+        return self.mesh.intersection(node.mesh).volume > 0
+
+    def ensure_stl(self):
+        while True:
+            try:
+                self.generate_stl()
+                return
+            except StlRenderStart as job:
+                job.wait()
+
 
     def _up_to_date(self, path):
         return (

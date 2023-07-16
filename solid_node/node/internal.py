@@ -1,5 +1,5 @@
 from .base import AbstractBaseNode
-from solid2 import union
+from solid2 import union, get_animation_time
 
 class InternalNode(AbstractBaseNode):
 
@@ -48,8 +48,21 @@ class FusionNode(InternalNode):
 
 class AssemblyNode(InternalNode):
 
+    rigid = False
+    """The number of steps in this assembly, used for tests.
+    Can be overriden by the test runner, as AssmblyNodes should work with
+    any number of steps
+    """
+    test_steps = 10
+
+    def set_testing_step(self, step):
+        """Set a fixed time to run tests"""
+        self._time = (step % self.test_steps) / (self.test_steps - 1)
+
     @property
     def time(self):
         """The $t variable, the animation time from 0 to 1"""
-        self.rigid = False
-        return get_animation_time()
+        try:
+            return self._time
+        except AttributeError:
+            return get_animation_time()
