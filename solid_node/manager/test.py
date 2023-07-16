@@ -1,6 +1,7 @@
-import traceback
 import sys
+import bdb
 import time
+import traceback
 from termcolor import colored
 from solid_node.core.loader import load_test
 
@@ -43,6 +44,9 @@ class Test:
                             method()
                             step_pass += 1
                             dot_color = 'green'
+                        except bdb.BdbQuit:
+                            print("Developer quit!")
+                            return
                         except Exception as e:
                             error = e
                             step_fail += 1

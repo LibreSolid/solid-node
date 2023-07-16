@@ -186,6 +186,25 @@ class AbstractBaseNode:
 
         raise StlRenderStart(proc, self.stl_file, self.mtime, self.lock_file)
 
+    @property
+    def mesh(self):
+        import trimesh
+        self.ensure_mesh()
+        mesh = trimesh.load(self.stl_file)
+        import ipdb; ipdb.set_trace()
+        return mesh
+
+    def intersects(node):
+        return self.mesh.intersection(node.mesh).volume > 0
+
+    def ensure_mesh(self):
+        while True:
+            try:
+                return self.generate_stl()
+            except StlRenderStart as job:
+                job.wait()
+
+
     def _up_to_date(self, path):
         return (
             os.path.exists(path) and

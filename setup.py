@@ -21,7 +21,6 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU Affero General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
@@ -35,7 +34,7 @@ setup(
         ],
     },
     install_requires=requirements,
-    license="GNU Affero General Public License v3",
+    license='GNU Affero General Public License v3 or later',
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='solid_node',

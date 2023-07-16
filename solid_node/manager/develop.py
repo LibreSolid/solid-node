@@ -10,6 +10,7 @@ from importlib import import_module
 from multiprocessing import Process
 from subprocess import Popen
 from solid_node.core import load_node
+from solid_node.node.base import StlRenderStart
 
 
 class Develop:
@@ -97,9 +98,7 @@ class Monitor(pyinotify.ProcessEvent):
         except StlRenderStart as job:
             sys.stdout.write(f"Building {job.stl_file}... ")
             sys.stdout.flush()
-            while job.proc.poll() is None:
-                await asyncio.sleep(0.2)
-            job.finish()
+            job.wait()
             print("done, reloading")
             self.bye()
         except Exception as e:

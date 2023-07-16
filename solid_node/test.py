@@ -1,6 +1,8 @@
 import re
 import inspect
 from unittest import TestCase as BaseTestCase
+from solid_node.node.base import StlRenderStart
+
 
 def get_node_file(path):
     path = path.split('/')
@@ -9,6 +11,16 @@ def get_node_file(path):
         raise Exception("Test file should start with test_")
     path.append(test_file[5:])  # remove test_ prefix
     return '/'.join(path)
+
+
+def build_stls(node):
+    while True:
+        try:
+            node.trigger_stl()
+            return
+        except StlRenderStart as job:
+            job.wait()
+
 
 
 class TestCase(BaseTestCase):
@@ -22,12 +34,14 @@ class TestCase(BaseTestCase):
         attr_name = re.sub(
             r'(?<=[a-z])(?=[A-Z])', '_',
             self.__class__.__name__,
-        )
+        ).lower().replace('_test', '')
 
         setattr(self, attr_name, node)
 
         rendered = node.render()
         node.assemble()
+
+        build_stls(node)
 
         if issubclass(node.__class__, InternalNode):
             self.children = rendered
