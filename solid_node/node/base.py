@@ -15,6 +15,9 @@ class AbstractBaseNode:
     # The rendering colors
     color = None
 
+    # This determines if stl can be generated for this Node
+    rigid = True
+
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
@@ -49,13 +52,10 @@ class AbstractBaseNode:
         self.stl_file = f'{basepath}.stl'
         self.lock_file = f'{basepath}.stl.lock'
         self.local_stl = f'{basename}.stl'
+        self.basepath = basepath
 
         # Track source of this node and all children
         self.files = set([self.src])
-
-
-        # This determines if stl can be generated for this Node
-        self.rigid = True
 
         # Holds the result of render()
         self.model = None
