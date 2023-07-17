@@ -1,9 +1,10 @@
+import re
 import sys
 import bdb
 import time
 import traceback
 from termcolor import colored
-from solid_node.core.loader import load_test
+from solid_node.core.loader import load_test, load_node
 
 class Test:
     """Run a node's tests"""
@@ -19,28 +20,57 @@ class Test:
         pass
 
     def handle(self, args):
-        self.test_case = load_test(args.path)
+        self.node = self.build_node(args.path)
+        self.test_case = self.build_test_case(args.path)
         self.run_tests()
+
+    def build_node(self, path):
+        node = load_node(path)
+        node.set_testing_step(0)
+        rendered = node.render()
+        node.assemble()
+        node.build_stls()
+        return node
+
+    def build_test_case(self, path):
+        test_case = load_test(path)
+        test_case.node = self.node
+
+        # Set an alias convert CamelCase class to snake_case attribute
+        attr_name = re.sub(
+            r'(?<=[a-z])(?=[A-Z])', '_',
+            test_case.__class__.__name__,
+        ).lower().replace('_test', '')
+
+        setattr(test_case, attr_name, self.node)
+
+        return test_case
 
     def run_tests(self):
         start_time = time.time()
 
-        self.test_case.setUpClass()
-
-        node = self.test_case.node
-
-        for method_name in dir(self.test_case):
-            if method_name.startswith("test"):
-                self.num_tests += 1
-                method = getattr(self.test_case, method_name)
-                self.run_test(method_name, method, node)
-
-        if hasattr(self.test_case, "tearDownClass"):
-            self.test_case.tearDownClass()
+        self.run_class_tests(self.node, self.node)
+        if self.test_case:
+            self.run_class_tests(self.test_case, self.node)
 
         end_time = time.time()
         total_time = end_time - start_time
         sys.stdout.write(f"\nRan {self.num_tests} tests in {total_time:.2f} seconds: {self.num_passed} passed, {self.num_failed} failed\n")
+
+    # node is kept as argument so that we can use for recursion into children later
+    def run_class_tests(self, klass, node):
+        if hasattr(klass, "setUpClass"):
+            klass.setUpClass()
+
+        for method_name in dir(klass):
+            if method_name.startswith("test_"):
+                method = getattr(klass, method_name)
+                if callable(method):
+                    self.num_tests += 1
+                    self.run_test(method_name, method, node)
+
+        if hasattr(klass, "tearDownClass"):
+            klass.tearDownClass()
 
     def run_test(self, name, method, node):
         try:
@@ -50,12 +80,8 @@ class Test:
             sys.stdout.flush()
             step_pass = 0
             step_fail = 0
-            try:
-                test_steps = self.test_case.test_steps
-            except:
-                test_steps = node.test_steps
             error = None
-            for step in range(test_steps):
+            for step in range(node.test_steps):
                 try:
                     node.set_testing_step(step)
                     method()

@@ -18,7 +18,8 @@ def load_test(path):
     parts[-1] = f'test_{parts[-1]}'
     path = '/'.join(parts)
 
-    return load_instance(path, TestCase)
+    if os.path.exists(path):
+        return load_instance(path, TestCase)
 
 def load_instance(path, BaseClass):
     path = os.path.realpath(path)

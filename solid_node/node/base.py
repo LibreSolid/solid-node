@@ -239,14 +239,13 @@ class AbstractBaseNode:
 
         return self.mesh.intersection(node.mesh).volume > 0
 
-    def ensure_stl(self):
+    def build_stls(node):
         while True:
             try:
-                self.generate_stl()
+                node.trigger_stl()
                 return
             except StlRenderStart as job:
                 job.wait()
-
 
     def _up_to_date(self, path):
         return (
