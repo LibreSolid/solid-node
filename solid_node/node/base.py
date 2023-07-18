@@ -6,6 +6,7 @@ import importlib
 import pyinotify
 import trimesh
 import numpy as np
+from decimal import Decimal
 from subprocess import Popen
 from solid2 import (scad_render, import_scad, import_stl,
                     translate, rotate, union, color,
@@ -121,7 +122,7 @@ class AbstractBaseNode:
 
         for operation in self.operations:
             # Apply scad operation
-            assembled = operation(assembled)
+            assembled = operation[0](assembled)
 
         self._assembled = assembled
 
@@ -148,6 +149,11 @@ class AbstractBaseNode:
     def as_scad(self, rendered):
         """Converts the output of render() to solid2 object"""
         raise NotImplementedError
+
+    def as_number(self, n):
+        if type(n) not in (int, float, Decimal):
+            raise TypeError(f'{n} is not a number')
+        return n
 
     @property
     def scad_code(self):
@@ -210,28 +216,40 @@ class AbstractBaseNode:
 
         return trimesh.load(self.stl_file)
 
+    ##############################################
+    # Transformations that can be applied to Node
+    # before or after optimization
+    def rotate(self, angle, axis):
+        scad_t = rotate(angle, axis)
+
+        def mesh_t(mesh):
+            matrix = trimesh.transformations.rotation_matrix(
+                np.radians(angle),
+                axis,
+            )
+            mesh.apply_transform(matrix)
+
+        self.operations.append((scad_t, mesh_t))
+
+        return self
+
+    def translate(self, translation):
+        scad_t = translate(translation)
+
+        def mesh_t(mesh):
+            translation_n = [ self.as_number(n) for n in translation ]
+            mesh.apply_translation(translation_n)
+
+        self.operations.append((scad_t, mesh_t))
+
+        return self
+
     @property
     def mesh(self):
-        if self._up_to_date(self.mesh_stl_file):
-            try:
-                return MESH_CACHE[self.mesh_stl_file]
-            except KeyError:
-                mesh = trimesh.load(self.mesh_stl_file)
-                MESH_CACHE[self.mesh_stl_file] = mesh
-                return mesh
-        # Attention: operations are modified once they are applied,
-        # so last operation carry last state. This property is
-        # state-dependent and works for tests at least.
-        # To fix that, we would need to copy operation before applying.
-        model = self.operations[-1]
-        scad_code = scad_render(model)
-        open(self.mesh_scad_file, 'w').write(scad_code)
-        proc = Popen([
-            'openscad', self.mesh_scad_file, '-o', self.mesh_stl_file
-        ])
-        proc.wait()
-        os.utime(self.mesh_stl_file, (time.time(), self.mtime))
-        return trimesh.load(self.mesh_stl_file)
+        model = trimesh.load(self.stl_file)
+        for operation in self.operations:
+            operation[1](model)
+        return model
 
     def intersects(self, node):
         self_mesh = self.mesh

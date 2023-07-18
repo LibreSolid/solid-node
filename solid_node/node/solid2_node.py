@@ -1,4 +1,13 @@
+import os
+import re
+import tempfile
+from subprocess import Popen
+from solid2 import scad_render
 from .leaf import LeafNode
+
+
+def mktemp(suffix):
+    return tempfile.NamedTemporaryFile(delete=True, suffix=suffix)
 
 
 class Solid2Node(LeafNode):
@@ -7,3 +16,40 @@ class Solid2Node(LeafNode):
 
     def as_scad(self, rendered):
         return rendered
+
+    def as_number(self, n):
+        if type(n).__module__.startswith('solid2'):
+            # This is very clumsy, but it works. Trimesh cannot load
+            # translated / rotated mesh, and transforming meshes after loading
+            # requires knowing the final number in python memory.
+            # If it's a scad function, then we need to get from OpenScad.
+
+            lines = scad_render(n).split('\n')
+            code = []
+            while lines[0].startswith('include'):
+                code.append(lines.pop(0))
+            while not lines[0].strip():
+                lines.pop(0)
+            code.append('echo(')
+            while lines:
+                line = lines.pop(0)
+                if line.strip():
+                    code.append(line)
+            code = '\n'.join(code)
+            code = re.sub(r";$", ");", code)
+
+            scad_file = tempfile.mktemp(suffix='.scad')
+            result_file = tempfile.mktemp('.echo')
+
+            try:
+                open(scad_file, 'w').write(code)
+                proc = Popen(['openscad', '-o', result_file, scad_file])
+                proc.wait()
+                result = open(result_file).read()
+                result = result.replace('ECHO: ', '').strip()
+                n = int(result)
+            finally:
+                os.remove(scad_file)
+                os.remove(result_file)
+
+        return n
