@@ -58,10 +58,10 @@ class Monitor(pyinotify.ProcessEvent):
         super().__init__()
 
         try:
-            self.instance = load_node(path)
+            self.node = load_node(path)
         except Exception as e:
             traceback.print_exc()
-            self.instance = None
+            self.node = None
 
         self.debug = debug
 
@@ -70,16 +70,16 @@ class Monitor(pyinotify.ProcessEvent):
         pyinotify.AsyncioNotifier(wm, loop, default_proc_fun=self)
 
 
-        if self.instance:
+        if self.node:
             try:
-                self.instance.assemble()
+                self.node.assemble()
                 print("Rendered!")
             except Exception as e:
                 traceback.print_exc()
 
             mask = pyinotify.IN_CLOSE_WRITE
 
-            for path in self.instance.files:
+            for path in self.node.files:
                 print(f'watching {path}')
                 wm.add_watch(path, mask)
 
@@ -92,7 +92,7 @@ class Monitor(pyinotify.ProcessEvent):
 
     async def generate_stl(self):
         try:
-            self.instance.trigger_stl()
+            self.node.trigger_stl()
             self.stl_task = None
             print("All STLs built!")
         except StlRenderStart as job:

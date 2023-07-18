@@ -11,7 +11,7 @@ class OpenScadViewer:
     def __init__(self, path):
         self.pid_file = OPENSCAD_PID
         self.path = path
-        self.instance = load_node(path)
+        self.node = load_node(path)
         self.proc = None
 
     @property
@@ -45,7 +45,7 @@ class OpenScadViewer:
     def start(self):
         if self.running:
             return
-        self.proc = Popen(['openscad', self.instance.scad_file])
+        self.proc = Popen(['openscad', self.node.scad_file])
         open(self.pid_file, 'w').write(f'{self.proc.pid}')
 
     def quit(self):
