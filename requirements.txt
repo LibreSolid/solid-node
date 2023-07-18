@@ -3,3 +3,5 @@ cadquery-ocp==7.7.0
 pyinotify==0.9.6
 solidpython2==2.0.2
 trimesh==3.22.3
+fastapi==0.100.0
+uvicorn==0.23.1

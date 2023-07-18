@@ -126,6 +126,14 @@ class AbstractBaseNode:
         return self.model
 
     @property
+    def stl(self):
+        if not self.rigid:
+            raise Exception(f'{self.name} is not rigid, cannot generate stl')
+        if not self._up_to_date(self.stl_file):
+            return
+        return self.stl_file
+
+    @property
     def mtime(self):
         """Maximum mtime in source file of all nodes rendered inside this one"""
         return max([
@@ -192,7 +200,11 @@ class AbstractBaseNode:
         except FileNotFoundError:
             pass
 
-        proc = Popen(['openscad', self.scad_file, '-o', self.stl_file])
+        proc = Popen([
+            'openscad', self.scad_file,
+            '-o', self.stl_file,
+            '--export-format', 'binstl',
+        ])
 
         fh.write(f'{proc.pid}')
         fh.close()

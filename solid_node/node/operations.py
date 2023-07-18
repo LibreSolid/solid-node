@@ -11,6 +11,11 @@ class Rotation:
         self.angle = angle
         self.axis = axis
 
+    @property
+    def serialized(self):
+        return ['r', self.angle, self.axis]
+
+    @property
     def reversed(self):
         return Rotation(-self.angle, self.axis)
 
@@ -24,15 +29,17 @@ class Rotation:
         )
         mesh.apply_transform(matrix)
 
-    def serialized(self):
-        return ['r', self.angle, self.axis]
-
 
 class Translation:
     def __init__(self, node, translation):
         self.node = node
         self.translation = translation
 
+    @property
+    def serialized(self):
+        return ['t', self.translation]
+
+    @property
     def reversed(self):
         return Translation(
             [ -x for x in self.translation ]
@@ -44,9 +51,6 @@ class Translation:
     def mesh(self, mesh):
         translation_n = [ self.node.as_number(n) for n in self.translation ]
         mesh.apply_translation(translation_n)
-
-    def serialized(self):
-        return ['t', self.translation]
 
 
 _operations = {
