@@ -11,6 +11,7 @@ from subprocess import Popen
 from solid2 import (scad_render, import_scad, import_stl,
                     translate, rotate, union, color,
                     get_animation_time)
+from .operations import Rotation, Translation
 
 MESH_CACHE = {}
 
@@ -91,17 +92,6 @@ class AbstractBaseNode:
     def time(self):
         raise NotImplementedError
 
-    ##############################################
-    # Transformations that can be applied to Node
-    # before or after optimization
-    def rotate(self, angle, axis):
-        self.operations.append(rotate(angle, axis))
-        return self
-
-    def translate(self, translation):
-        self.operations.append(translate(translation))
-        return self
-
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""
@@ -122,7 +112,7 @@ class AbstractBaseNode:
 
         for operation in self.operations:
             # Apply scad operation
-            assembled = operation[0](assembled)
+            assembled = operation.scad(assembled)
 
         self._assembled = assembled
 
@@ -220,35 +210,18 @@ class AbstractBaseNode:
     # Transformations that can be applied to Node
     # before or after optimization
     def rotate(self, angle, axis):
-        scad_t = rotate(angle, axis)
-
-        def mesh_t(mesh):
-            matrix = trimesh.transformations.rotation_matrix(
-                np.radians(angle),
-                axis,
-            )
-            mesh.apply_transform(matrix)
-
-        self.operations.append((scad_t, mesh_t))
-
+        self.operations.append(Rotation(angle, axis))
         return self
 
     def translate(self, translation):
-        scad_t = translate(translation)
-
-        def mesh_t(mesh):
-            translation_n = [ self.as_number(n) for n in translation ]
-            mesh.apply_translation(translation_n)
-
-        self.operations.append((scad_t, mesh_t))
-
+        self.operations.append(Translation(self, translation))
         return self
 
     @property
     def mesh(self):
         model = trimesh.load(self.stl_file)
         for operation in self.operations:
-            operation[1](model)
+            operation.mesh(model)
         return model
 
     def intersects(self, node):
