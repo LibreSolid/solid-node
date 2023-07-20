@@ -87,3 +87,27 @@ class TestCaseMixin(TestCase):
     def set_node(self, node):
         """Override TestCase setup, self and node are the same"""
         pass
+
+
+def testing_instant(instant):
+
+    def decorator(method):
+        method.testing_instants = [instant]
+        return method
+
+    return decorator
+
+
+def testing_steps(steps, start=0, end=1):
+    if steps < 2:
+        raise AssertionError("Expected at least 2 steps, for single step use @testing_instant instead")
+
+    duration = end - start
+    step = duration / (steps - 1)
+    instants = [ i * step for i in range(steps) ]
+
+    def decorator(method):
+        method.testing_instants = instants
+        return method
+
+    return decorator

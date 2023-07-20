@@ -28,7 +28,7 @@ class Test:
 
     def build_node(self, path):
         node = load_node(path)
-        node.set_testing_step(0)
+        node.set_testing_time(0)
         rendered = node.render()
         node.assemble()
         node.build_stls()
@@ -55,23 +55,28 @@ class Test:
                 method = getattr(klass, method_name)
                 if callable(method):
                     self.num_tests += 1
-                    self.run_test(method_name, method, node)
+                    self.run_test(klass, method_name, method, node)
 
         if hasattr(klass, "tearDownClass"):
             klass.tearDownClass()
 
-    def run_test(self, name, method, node):
+    def run_test(self, klass, name, method, node):
         try:
             if hasattr(self.test_case, "setUp"):
                 self.test_case.setUp()
-            sys.stdout.write(f"Running {name}")
+            try:
+                class_name = klass.__name__
+            except AttributeError:
+                class_name = klass.__class__.__name__
+            sys.stdout.write(f"Running {class_name}.{name}")
             sys.stdout.flush()
             step_pass = 0
             step_fail = 0
             error = None
-            for step in range(node.test_steps):
+            instants = getattr(method, 'testing_instants', [0])
+            for instant in instants:
                 try:
-                    node.set_testing_step(step)
+                    node.set_testing_time(instant)
                     method()
                     step_pass += 1
                     dot_color = 'green'

@@ -49,15 +49,10 @@ class FusionNode(InternalNode):
 class AssemblyNode(InternalNode):
 
     rigid = False
-    """The number of steps in this assembly, used for tests.
-    Can be overriden by the test runner, as AssmblyNodes should work with
-    any number of steps
-    """
-    test_steps = 10
 
-    def set_testing_step(self, step):
+    def set_testing_time(self, time):
         """Set a fixed time to run tests"""
-        self._time = (step % self.test_steps) / (self.test_steps - 1)
+        self._time = time
 
     @property
     def time(self):
