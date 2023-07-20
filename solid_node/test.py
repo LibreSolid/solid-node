@@ -5,9 +5,21 @@ from unittest import TestCase as BaseTestCase
 from solid_node.node.base import StlRenderStart
 
 
-
-
 class TestCase(BaseTestCase):
+
+    def set_node(self, node):
+        """This sets the "node" property on the test, and also an alias
+        matching the class name, for testing convenience.
+        """
+        self.node = node
+
+        # Set an alias convert CamelCase class to snake_case attribute
+        attr_name = re.sub(
+            r'(?<=[a-z])(?=[A-Z])', '_',
+            self.__class__.__name__,
+        ).lower().replace('_test', '')
+
+        setattr(self, attr_name, node)
 
     ########################################
     # Assertion methods for mesh operations
@@ -19,7 +31,7 @@ class TestCase(BaseTestCase):
         intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
         if not intersection.is_empty:
             raise AssertionError(
-                f"{node1.name} should not intersect {node2.name}"
+                f"{node1.name} should not intersect {node2.name} "
                 f"(intersection volume {intersection.volume})"
             )
 
@@ -66,3 +78,12 @@ class TestCase(BaseTestCase):
             raise AssertionError(
                 f"The intersection volume of {node1.name} and {node2.name} "
                 f"should be below {max_volume}")
+
+
+class TestCaseMixin(TestCase):
+    """For convenience, simple nodes can inherit TestCaseMixin to implement
+    tests together with rendering logic.
+    """
+    def set_node(self, node):
+        """Override TestCase setup, self and node are the same"""
+        pass

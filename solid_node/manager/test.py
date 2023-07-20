@@ -5,6 +5,7 @@ import time
 import traceback
 from termcolor import colored
 from solid_node.core.loader import load_test, load_node
+from solid_node.test import TestCase
 
 class Test:
     """Run a node's tests"""
@@ -21,7 +22,8 @@ class Test:
 
     def handle(self, args):
         self.node = self.build_node(args.path)
-        self.test_case = self.build_test_case(args.path)
+        self.test_case = load_test(args.path)
+        self.test_case.set_node(self.node)
         self.run_tests()
 
     def build_node(self, path):
@@ -31,20 +33,6 @@ class Test:
         node.assemble()
         node.build_stls()
         return node
-
-    def build_test_case(self, path):
-        test_case = load_test(path)
-        test_case.node = self.node
-
-        # Set an alias convert CamelCase class to snake_case attribute
-        attr_name = re.sub(
-            r'(?<=[a-z])(?=[A-Z])', '_',
-            test_case.__class__.__name__,
-        ).lower().replace('_test', '')
-
-        setattr(test_case, attr_name, self.node)
-
-        return test_case
 
     def run_tests(self):
         start_time = time.time()
@@ -57,7 +45,7 @@ class Test:
         total_time = end_time - start_time
         sys.stdout.write(f"\nRan {self.num_tests} tests in {total_time:.2f} seconds: {self.num_passed} passed, {self.num_failed} failed\n")
 
-    # node is kept as argument so that we can use for recursion into children later
+    # node is kept as argument to be used for recursion into children later
     def run_class_tests(self, klass, node):
         if hasattr(klass, "setUpClass"):
             klass.setUpClass()
