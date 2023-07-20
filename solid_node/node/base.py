@@ -263,11 +263,7 @@ class AbstractBaseNode:
             build_dirs.append(path.pop(0))
             build_dir = '/'.join(build_dirs)
             if not os.path.exists(build_dir):
-                try:
-                    os.mkdir(build_dir)
-                except:
-                    import ipdb; ipdb.set_trace()
-                    pass
+                os.mkdir(build_dir)
 
 
 class StlRenderStart(Exception):
