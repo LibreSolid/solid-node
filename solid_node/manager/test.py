@@ -68,6 +68,7 @@ class Test:
                 class_name = klass.__name__
             except AttributeError:
                 class_name = klass.__class__.__name__
+            node._testMethodName = name
             sys.stdout.write(f"Running {class_name}.{name}")
             sys.stdout.flush()
             step_pass = 0
