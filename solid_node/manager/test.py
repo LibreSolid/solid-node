@@ -10,20 +10,22 @@ from solid_node.test import TestCase
 class Test:
     """Run a node's tests"""
 
-    fail_fast = False
-
     def __init__(self):
         self.num_tests = 0
         self.num_passed = 0
         self.num_failed = 0
+        self.failfast = False
 
     def add_arguments(self, parser):
-        pass
+        parser.add_argument('--failfast',
+                            action='store_true',
+                            help='Stop the test run on the first error.')
 
     def handle(self, args):
         self.node = self.build_node(args.path)
         self.test_case = load_test(args.path)
         self.test_case.set_node(self.node)
+        self.failfast = args.failfast
         self.run_tests()
 
     def build_node(self, path):
@@ -99,7 +101,7 @@ class Test:
                     dot_color = 'red'
                 sys.stdout.write(colored('.', dot_color))
                 sys.stdout.flush()
-                if self.fail_fast:
+                if self.failfast:
                     break
             if not step_fail:
                 sys.stdout.write(colored(" passed\n", "green"))

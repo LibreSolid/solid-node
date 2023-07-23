@@ -31,7 +31,7 @@ setup(
     description="A framework to develop and manage solid projects in Python",
     entry_points={
         'console_scripts': [
-            'solid=solid_node.manager:manage',
+            'solid=solid_node.cli:manage',
         ],
     },
     install_requires=requirements,
