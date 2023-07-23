@@ -223,7 +223,7 @@ class AbstractBaseNode:
 
     ##############################################
     # Transformations that can be applied to Node
-    # before or after optimization
+    # model or mesh
     def rotate(self, angle, axis):
         self.operations.append(Rotation(angle, axis))
         return self
@@ -234,16 +234,10 @@ class AbstractBaseNode:
 
     @property
     def mesh(self):
-        model = trimesh.load(self.stl_file)
+        mesh = trimesh.load(self.stl_file)
         for operation in self.operations:
-            operation.mesh(model)
-        return model
-
-    def intersects(self, node):
-        self_mesh = self.mesh
-        node_mesh = node.mesh
-
-        return self.mesh.intersection(node.mesh).volume > 0
+            operation.mesh(mesh)
+        return mesh
 
     def build_stls(node):
         while True:
