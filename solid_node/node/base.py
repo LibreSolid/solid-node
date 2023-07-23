@@ -40,6 +40,9 @@ class AbstractBaseNode:
         # optimization.
         self.operations = []
 
+        # An index on self.operations to which the state can be restored to
+        self.checkpoint = None
+
         # The source file for this Node is stored and used as
         # a base for scad and stl file paths
         self.src = inspect.getfile(self.__class__)
@@ -249,6 +252,19 @@ class AbstractBaseNode:
                 return
             except StlRenderStart as job:
                 job.wait()
+
+    def save_checkpoint(self):
+        """Sets a checkpoint on self.operations, so that state can
+        be restored to that point"""
+        self.checkpoint = len(self.operations)
+
+    def restore_checkpoint(self):
+        """Restore the state of self.operations, and return the
+        discarded operations, in reverse order"""
+        to_revert = self.operations[self.checkpoint:]
+        self.operations = self.operations[:self.checkpoint]
+        return reversed(to_revert)
+
 
     def _up_to_date(self, path):
         return (

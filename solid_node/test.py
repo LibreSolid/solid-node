@@ -26,8 +26,6 @@ class TestCase(BaseTestCase):
     #
 
     def assertNotIntersecting(self, node1, node2):
-        mesh_a = node1.mesh
-        mesh_b = node2.mesh
         intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
         if not intersection.is_empty:
             raise AssertionError(

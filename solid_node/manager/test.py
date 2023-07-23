@@ -63,6 +63,9 @@ class Test:
             klass.tearDownClass()
 
     def run_test(self, klass, name, method, node):
+        node._testMethodName = name
+        self.save_children_checkpoints(node)
+
         try:
             if hasattr(self.test_case, "setUp"):
                 self.test_case.setUp()
@@ -70,7 +73,6 @@ class Test:
                 class_name = klass.__name__
             except AttributeError:
                 class_name = klass.__class__.__name__
-            node._testMethodName = name
             sys.stdout.write(f"Running {class_name}.{name}")
             sys.stdout.flush()
             step_pass = 0
@@ -113,3 +115,13 @@ class Test:
         finally:
             if hasattr(self.test_case, "tearDown"):
                 self.test_case.tearDown()
+            self.restore_children_checkpoints(node)
+
+    def save_children_checkpoints(self, node):
+        for child in node.children:
+            child.save_checkpoint()
+
+    def restore_children_checkpoints(self, node):
+        for child in node.children:
+            for operation in child.restore_checkpoint():
+                operation.mesh(child.mesh)
