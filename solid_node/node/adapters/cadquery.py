@@ -2,10 +2,13 @@ import os
 import time
 import cadquery as cq
 from solid2 import import_stl
-from .leaf import LeafNode
+from solid_node.node.leaf import LeafNode
 
 
 class CadQueryNode(LeafNode):
+    """
+    Represents a 3D object created using the CadQuery tool.
+    """
 
     namespace = 'cadquery.cq'
 

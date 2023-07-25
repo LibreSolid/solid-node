@@ -3,7 +3,7 @@ import re
 import tempfile
 from subprocess import Popen
 from solid2 import scad_render
-from .leaf import LeafNode
+from solid_node.node.leaf import LeafNode
 
 
 def mktemp(suffix):
@@ -11,6 +11,9 @@ def mktemp(suffix):
 
 
 class Solid2Node(LeafNode):
+    """
+    Represents a 3D object created using the SolidPython2 tool.
+    """
 
     namespace = 'solid2'
 

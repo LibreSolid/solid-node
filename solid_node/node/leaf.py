@@ -12,7 +12,6 @@ class LeafNode(AbstractBaseNode):
     def children(self):
         return tuple()
 
-    @property
     def as_scad(self, rendered):
         raise NotImplementedError(f"LeafNode subclass {self.__class__} must "
                                   "be able to output scad")
@@ -29,7 +28,7 @@ class LeafNode(AbstractBaseNode):
 
         if not type(rendered).__module__.startswith(self.namespace):
             raise Exception(f"{self.__class__} is a LeafNode and should render "
-                            f"as {self.namespace} child, not {type(child)}")
+                            f"as {self.namespace} child, not {type(rendered)}")
 
     def collect_files(self):
         pass

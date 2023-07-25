@@ -1,13 +1,15 @@
 import os
+import sys
 import inspect
 from importlib import import_module
 from solid_node.node.base import AbstractBaseNode
 from solid_node.test import TestCase
 
+sys.path.append(os.getcwd())
+
 def load_node(path):
     if not path.endswith('.py'):
         raise Exception("Can only load .py files")
-
     return load_instance(path, AbstractBaseNode)
 
 def load_test(path):
@@ -31,7 +33,6 @@ def load_instance(path, BaseClass):
 def import_module_from_path(path):
     relative_path = os.path.relpath(path)
     module_name = relative_path.replace('/', '.')[:-3]
-
     return import_module(module_name)
 
 

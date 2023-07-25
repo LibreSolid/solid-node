@@ -1,6 +1,7 @@
 from .base import AbstractBaseNode
 from solid2 import union, get_animation_time
 
+
 class InternalNode(AbstractBaseNode):
 
     @property
@@ -37,27 +38,3 @@ class InternalNode(AbstractBaseNode):
             if type(child) is type(self):
                 raise Exception(f"{self.__class__}.render() cannot return its "
                                 "own type")
-
-
-class FusionNode(InternalNode):
-
-    @property
-    def time(self):
-        raise Exception(f"FusionNode cannot rely on time, use AssemblyNode for animation")
-
-
-class AssemblyNode(InternalNode):
-
-    rigid = False
-
-    def set_testing_time(self, time):
-        """Set a fixed time to run tests"""
-        self._time = time
-
-    @property
-    def time(self):
-        """The $t variable, the animation time from 0 to 1"""
-        try:
-            return self._time
-        except AttributeError:
-            return get_animation_time()

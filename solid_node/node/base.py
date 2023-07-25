@@ -15,6 +15,10 @@ from .operations import Rotation, Translation
 
 MESH_CACHE = {}
 
+def _build_uniq_id(args, kwargs):
+    all_args = list(args) + list(kwargs.values())
+    return ','.join(str(a) for a in all_args)
+
 class AbstractBaseNode:
 
     # The rendering colors
@@ -26,14 +30,15 @@ class AbstractBaseNode:
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
-    def __init__(self, *args, name=None):
-        # name uniquely identifies a set of parameters of an instance.
+    def __init__(self, *args, name=None, **kwargs):
+        # self.uniq_id uniquely identifies a set of parameters of an instance.
         # self.name is used to refer to nodes in tests
         if not name:
-            name = ','.join([str(arg) for arg in args])
+            self.uniq_id = _build_uniq_id(args, kwargs)
             self.name = self.__class__.__name__
         else:
             self.name = name
+            self.uniq_id = name
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after
@@ -45,7 +50,7 @@ class AbstractBaseNode:
 
         # The source file for this Node is stored and used as
         # a base for scad and stl file paths
-        self.src = inspect.getfile(self.__class__)
+        self.src = self.get_source_file()
 
         build_dir = os.environ.get('SOLID_BUILD_DIR', "_build")
 
@@ -56,8 +61,9 @@ class AbstractBaseNode:
             os.path.relpath(self.basedir),
         )
 
-        script = self.src.split('/')[-1][:-3]
-        basename = f'{script}-{name}' if name else script
+        script = self.src.split('/')[-1]
+        script = '.'.join(script.split('.')[:-1])  # remove extension
+        basename = f'{script}-{self.uniq_id}' if self.uniq_id else script
         basepath = os.path.join(self.build_dir, basename)
 
         # The base scad file, and respective rendered stl,
@@ -91,6 +97,9 @@ class AbstractBaseNode:
 
         self._make_build_dirs()
 
+    def get_source_file(self):
+        return inspect.getfile(self.__class__)
+
     @property
     def time(self):
         raise NotImplementedError
@@ -107,7 +116,6 @@ class AbstractBaseNode:
         rendered = self.render()
 
         self.validate(rendered)
-
         self.model = self.as_scad(rendered)
         self.generate_scad()
 
@@ -203,16 +211,20 @@ class AbstractBaseNode:
         except FileNotFoundError:
             pass
 
-        proc = Popen([
-            'openscad', self.scad_file,
-            '-o', self.stl_file,
-            '--export-format', 'binstl',
-        ])
+        proc = Popen(self.stl_builder_command)
 
         fh.write(f'{proc.pid}')
         fh.close()
 
         raise StlRenderStart(proc, self.stl_file, self.mtime, self.lock_file)
+
+    @property
+    def stl_builder_command(self):
+        return [
+            'openscad', self.scad_file,
+            '-o', self.stl_file,
+            '--export-format', 'binstl',
+        ]
 
     def generate_mesh(self):
         basedir = os.path.relpath(self.basedir, self.root)
