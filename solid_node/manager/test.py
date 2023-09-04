@@ -28,9 +28,9 @@ class Test:
         self.failfast = args.failfast
         self.run_tests()
 
-    def build_node(self, path):
+    def build_node(self, path, time=0):
         node = load_node(path)
-        node.set_testing_time(0)
+        node.set_testing_time(time)
         rendered = node.render()
         node.assemble()
         node.build_stls()

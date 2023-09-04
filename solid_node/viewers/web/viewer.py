@@ -1,7 +1,11 @@
+import os
 import threading
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
+from solid_node.core import load_node
 
 
 class WebViewer:
@@ -12,20 +16,19 @@ class WebViewer:
         self.basedir = os.path.dirname(
             os.path.realpath(__file__)
         )
-        self.frontend_dir = os.path.join(self.basedir, 'frontend')
+        self.frontend_dir = os.path.join(self.basedir, 'src')
 
         self.app = FastAPI()
         self.root = NodeAPI(self.node)
-
-        self.app.mount(f'/api/{self.root.name}', self.root)
+        self.app.mount(f'/api/{self.root.name}', self.root.app)
         self.app.mount(f'/',
                        StaticFiles(directory=self.frontend_dir),
                        name="frontend")
 
-    def run(self):
+    def start(self):
         uvicorn.run(self.app, host="0.0.0.0", port=8000)
 
-    def start(self):
+    def __start(self):
         threading.Thread(target=self.run).start()
 
 
@@ -44,7 +47,7 @@ class NodeAPI:
         ]
 
         self.subapps = []
-        self.children = None
+        self.children = []
 
         if self.node.rigid:
             self.app.add_api_route(f'/{self.name}.stl', self.stl)
@@ -57,7 +60,7 @@ class NodeAPI:
 
         for child in children:
             subapp = NodeAPI(child)
-            self.app.mount(f'/{child.name}', subapp)
+            self.app.mount(f'/{child.name}', subapp.app)
             self.subapps.append(subapp)
             self.children.append(child.name)
 
@@ -82,7 +85,7 @@ class NodeAPI:
             filename=f'{self.name}.stl',
         )
 
-    async def wait_for_file(self, file_path)
+    async def wait_for_file(self, file_path):
         future = asyncio.Future()
         wm = WatchManager()
         mask = EventsCodes.ALL_FLAGS['IN_CREATE']

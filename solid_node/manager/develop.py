@@ -11,6 +11,8 @@ from multiprocessing import Process
 from subprocess import Popen
 from solid_node.core import load_node
 from solid_node.node.base import StlRenderStart
+from solid_node.viewers.openscad import OpenScadViewer
+from solid_node.viewers.web import WebViewer
 
 
 class Develop:
@@ -19,12 +21,17 @@ class Develop:
     def add_arguments(self, parser):
         parser.add_argument('-d', '--debug', action='store_true',
                             help='Debug mode supports breakpoints, but reload is not automatic')
+        parser.add_argument('--openscad', action='store_true',
+                            help='Show project in OpenSCAD (default)')
+        parser.add_argument('--web', action='store_true',
+                            help='Start a webserver to view project in browser')
 
 
     def openscad(self):
-        from solid_node.viewers.openscad import OpenScadViewer
         OpenScadViewer(self.path).start()
 
+    def web(self):
+        WebViewer(self.path).start()
 
     def monitor(self):
         task = Monitor(self.path, self.debug).run()
@@ -35,8 +42,13 @@ class Develop:
         self.path = args.path
         self.debug = args.debug
 
-        scad_proc = Process(target=self.openscad)
-        scad_proc.start()
+        if args.openscad or not args.web:
+            scad_proc = Process(target=self.openscad)
+            scad_proc.start()
+
+        if args.web:
+            web_proc = Process(target=self.web)
+            web_proc.start()
 
         if args.debug:
             return self.monitor()
