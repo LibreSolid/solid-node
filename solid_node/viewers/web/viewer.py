@@ -16,11 +16,15 @@ class WebViewer:
         self.basedir = os.path.dirname(
             os.path.realpath(__file__)
         )
-        self.frontend_dir = os.path.join(self.basedir, 'src')
+        self.frontend_dir = os.path.join(self.basedir, 'OpenJSCAD.org/packages/desktop/')
 
         self.app = FastAPI()
         self.root = NodeAPI(self.node)
         self.app.mount(f'/api/{self.root.name}', self.root.app)
+        @self.app.get("/")
+        async def read_root():
+            return FileResponse(os.path.join(self.frontend_dir, 'index.html'))
+
         self.app.mount(f'/',
                        StaticFiles(directory=self.frontend_dir),
                        name="frontend")

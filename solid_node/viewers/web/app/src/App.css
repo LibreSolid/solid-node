@@ -1,0 +1,34 @@
+.app-container {
+  display: flex;
+  height: 100vh; /* occupy full viewport height */
+}
+
+.left-nav {
+  flex: 1;
+  background-color: #; /* adjust as per preference */
+  overflow-y: auto; /* to make it scrollable if content overflows */
+}
+
+.right-area {
+  flex: 4; /* occupy more space than the left-nav */
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer {
+  flex: 5; /* occupy maximum space */
+  background-color: #ecf0f1; /* adjust as per preference */
+  overflow: hidden; /* to prevent unwanted scrollbars */
+  position: relative;
+}
+
+.control-bar {
+  flex: 0.5; /* a thin bar for controls, adjust as required */
+  background-color: #34495e; /* adjust as per preference */
+}
+
+.console {
+  flex: 2; /* adjust as required based on preference */
+  background-color: #7f8c8d; /* adjust as per preference */
+  overflow-y: auto; /* to make it scrollable if content overflows */
+}
