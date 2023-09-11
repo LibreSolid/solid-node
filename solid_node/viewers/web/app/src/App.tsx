@@ -1,11 +1,14 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useState,  } from 'react';
+import * as THREE from 'three';
 import logo from './logo.svg';
 import './App.css';
 import { Resizable } from 're-resizable';
 import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
+import ControlCube from './viewer/ControlCube';
 
 function App() {
   const stlViewerRef = useRef<STLViewerHandles | null>(null);
+  const [rotation, setRotation] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, 100));
 
   const handleViewerResize = () => {
     stlViewerRef.current?.handleResize();
@@ -41,7 +44,12 @@ function App() {
           enable={{ top: false, right: false, bottom: true, left: false, topRight: false, bottomRight: false, bottomLeft: false, topLeft: false }}
           onResize={handleViewerResize}
         >
-          <STLViewer ref={stlViewerRef} stlPath="/demo.stl" />
+          <STLViewer rotation={rotation} ref={stlViewerRef} stlPath="/demo.stl" />
+          <div style={{position: 'relative'}}>
+            <ControlCube
+              onRotate={setRotation}
+            />
+          </div>
         </Resizable>
 
         <div style={{ flex: 1 }}>

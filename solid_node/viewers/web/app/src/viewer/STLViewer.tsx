@@ -7,6 +7,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
 type STLViewerProps = {
   stlPath: string;
+  rotation: THREE.Vector3,
 };
 
 
@@ -20,6 +21,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const sceneRef = useRef<THREE.Scene>();
+  const controlsRef = useRef<OrbitControls>();
 
   const [size, setSize] = useState<number>(150);
 
@@ -49,7 +51,8 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       containerRef.current.appendChild(renderer.domElement);
     }
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = new OrbitControls(camera, renderer.domElement);
+    const controls = controlsRef.current;
 
     controls.rotateSpeed = 0.5;
     controls.zoomSpeed = 1;
@@ -96,6 +99,19 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       window.removeEventListener('resize', handleResize);
     };
   }, [props.stlPath]);
+
+  useEffect(() => {
+    if (!cameraRef.current || !props.rotation)
+      return;
+
+    const newRotation = props.rotation.clone();
+    const scale = cameraRef.current.position.length() / props.rotation.length();
+
+    newRotation.multiplyScalar(scale);
+
+    cameraRef.current.position.copy(newRotation);
+
+  }, [props.rotation, cameraRef.current]);
 
 
   const handleResize = () => {
