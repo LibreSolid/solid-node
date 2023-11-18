@@ -2,6 +2,7 @@ import os
 import threading
 import uvicorn
 import httpx
+import inspect
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
@@ -112,6 +113,9 @@ class NodeAPI:
             state['children'] = self.children
         else:
             state['model'] = f'{self.name}.stl'
+
+        state['code'] = inspect.getsource(inspect.getmodule(self.node))
+
         return state
 
     async def stl(self):

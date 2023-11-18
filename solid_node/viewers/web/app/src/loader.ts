@@ -1,16 +1,29 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
-export class MeshLoader {
+export class NodeLoader {
   meshes: THREE.Mesh[];
-  scene: THREE.Scene;
-  loader: STLLoader;
+  scene: THREE.Scene | undefined;
+  stlLoader: STLLoader;
+  code: string;
+  newCode: string;
 
-  constructor(scene: THREE.Scene) {
-    this.scene = scene;
-    this.loader = new STLLoader();
+  constructor() {
+    this.stlLoader = new STLLoader();
     this.meshes = [];
+    this.code = '';
+    this.newCode = this.code;
+  }
 
+  setScene(scene: THREE.Scene) {
+    this.scene = scene;
+    for (const mesh of this.meshes) {
+      this.scene.add(mesh);
+    }
+  }
+
+  setCode(code: string) {
+    this.newCode = code;
   }
 
   loadRoot(nodePath: string) {
@@ -31,23 +44,27 @@ export class MeshLoader {
         this.loadNode(`${nodePath}/${child}`);
       });
     }
-
-
-
+    if (result.code) {
+      this.code = result.code;
+    }
   }
 
   load(stlPath: string) {
-    this.loader.load(`api${stlPath}`, (geometry) => {
+    this.stlLoader.load(`api${stlPath}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
-      this.scene.add(mesh);
+      if (this.scene) {
+        this.scene.add(mesh);
+      }
       this.meshes.push(mesh);
     });
   }
 
   clear() {
     for (const mesh of this.meshes) {
-      this.scene.remove(mesh);
+      if (this.scene) {
+        this.scene.remove(mesh);
+      }
     }
     this.meshes = [];
   }

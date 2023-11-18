@@ -3,14 +3,14 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 //import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { MeshLoader } from './loader';
 import { RotationControl } from  './viewer.d';
+import { NodeLoader } from '../loader';
 
 
 type STLViewerProps = {
-  stlPath: string;
   controlId: number;
   rotation: RotationControl;
+  loader: NodeLoader | undefined;
   setRotation: (r: RotationControl) => void;
 };
 
@@ -27,18 +27,17 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   const sceneRef = useRef<THREE.Scene>();
   const controlsRef = useRef<OrbitControls>();
   const location = useLocation();
-  const [ loader, setLoader ] = useState<MeshLoader>();
 
   const [size, setSize] = useState<number>(150);
 
   useEffect(() => {
-    if (loader) {
-      loader.loadRoot(location.pathname);
+    if (props.loader) {
+      props.loader.loadRoot(location.pathname);
     }
-  }, [location, loader]);
+  }, [location, props.loader]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !props.loader) return;
 
     const width = containerRef.current.offsetWidth;
     const height = containerRef.current.offsetHeight;
@@ -53,7 +52,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       rendererRef.current = new THREE.WebGLRenderer({ antialias: true });
       rendererRef.current.setSize(width, height);
 
-      setLoader(new MeshLoader(sceneRef.current));
+      props.loader.setScene(sceneRef.current);
     }
 
     const scene = sceneRef.current!;
@@ -109,7 +108,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       renderer.dispose(); // Clean up on component unmount
       window.removeEventListener('resize', handleResize);
     };
-  }, [props.stlPath]);
+  }, [props.loader]);
 
   useEffect(() => {
     if (!cameraRef.current || props.rotation?.source === props.controlId)
