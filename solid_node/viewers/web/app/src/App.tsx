@@ -4,11 +4,11 @@ import './App.css';
 import { Resizable } from 're-resizable';
 import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
 //import { ControlCube } from './viewer/ControlCube';
-import CodeEditor from './CodeEditor';
 import { NodeLoader } from './loader';
 import { RotationControl } from './viewer/viewer.d';
-
 import { BrowserRouter as Router } from 'react-router-dom';
+import CodeEditor from './CodeEditor';
+import NavigationTree from './NavigationTree';
 
 const App = () => {
   const stlViewerRef = useRef<STLViewerHandles | null>(null);
@@ -27,26 +27,36 @@ const App = () => {
     setLoader(new NodeLoader());
   }, []);
 
+  const fontSize = 15;
+  const editorWidth = fontSize * 80 / 2;
+
   return (
     <Router>
-      <div style={{ display: 'flex', height: '100vh' }}>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <CodeEditor
-            loader={loader}
-          />
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="app">
+        <div className="top">
+          <Resizable
+            defaultSize={{ width: '12%', height: '100%' }}
+            className="pane left"
+            enable={{ right: true }}
+          >
+            <NavigationTree/>
+          </Resizable>
 
           <Resizable
-            defaultSize={{
-              width: '100%',
-              height: '80%'
-            }}
-            maxHeight="95%"
-            minHeight="5%"
-            enable={{ top: false, right: true, bottom: true, left: false, topRight: false, bottomRight: false, bottomLeft: false, topLeft: false }}
-            onResize={handleViewerResize}
+            className="pane center"
+            defaultSize={{ width: '46.4%', height: '100%' }}
+            enable={{ right: true }}
+          >
+            <CodeEditor
+              loader={loader}
+              fontSize={fontSize}
+            />
+          </Resizable>
+
+          <Resizable
+            className="pane right"
+            defaultSize={{ width: '41.6%', height: '100%' }}
+            enable={{ right: true }}
           >
             <STLViewer
               controlId={1}
@@ -62,12 +72,46 @@ const App = () => {
                 rotation={rotation}
                 setRotation={setRotation}
               />
-               */}
+              */}
             </div>
+          </Resizable>
+        </div>
+
+        <Resizable defaultSize={{ width: '100%', height: '30%' }} className="pane bottom">
+          <h3>Console</h3>
+        </Resizable>
+      </div>
+      {/*
+      <div style={{ display: 'flex', height: '100vh' }}>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Resizable
+            defaultSize={{
+              width: '100%',
+              height: '80%'
+            }}
+            maxHeight="95%"
+            minHeight="5%"
+            enable={{ top: false, right: true, bottom: true, left: false, topRight: false, bottomRight: false, bottomLeft: false, topLeft: false }}
+            onResize={handleViewerResize}
+          >
+          </Resizable>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+
+          <Resizable
+            defaultSize={{
+              width: '100%',
+              height: '80%'
+            }}
+            maxHeight="95%"
+            minHeight="5%"
+            enable={{ top: false, right: true, bottom: true, left: false, topRight: false, bottomRight: false, bottomLeft: false, topLeft: false }}
+            onResize={handleViewerResize}
+          >
           </Resizable>
 
           <div style={{ flex: 1 }}>
-            {/* Your console content goes here */}
             Console
           </div>
         </div>
@@ -82,12 +126,9 @@ const App = () => {
           enable={{ top: false, right: false, bottom: false, left: true, topRight: false, bottomRight: false, bottomLeft: false, topLeft: false }}
           onResize={handleViewerResize}
         >
-          <nav>
-            Navigation
-          </nav>
         </Resizable>
 
-      </div>
+      </div>*/}
     </Router>
   );
 }

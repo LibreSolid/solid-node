@@ -1,34 +1,27 @@
-.app-container {
-  display: flex;
-  height: 100vh; /* occupy full viewport height */
+/* App.css */
+
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
-.left-nav {
-  flex: 1;
-  background-color: #; /* adjust as per preference */
-  overflow-y: auto; /* to make it scrollable if content overflows */
+.top {
+    display: flex;
+    flex: 1;
 }
 
-.right-area {
-  flex: 4; /* occupy more space than the left-nav */
-  display: flex;
-  flex-direction: column;
+.pane {
+    border: 1px solid #ccc;
+    overflow: hidden;
 }
 
-.viewer {
-  flex: 5; /* occupy maximum space */
-  background-color: #ecf0f1; /* adjust as per preference */
-  overflow: hidden; /* to prevent unwanted scrollbars */
-  position: relative;
+.left, .right, .center {
+    height: 100%;
+    box-sizing: border-box;
 }
 
-.control-bar {
-  flex: 0.5; /* a thin bar for controls, adjust as required */
-  background-color: #34495e; /* adjust as per preference */
-}
-
-.console {
-  flex: 2; /* adjust as required based on preference */
-  background-color: #7f8c8d; /* adjust as per preference */
-  overflow-y: auto; /* to make it scrollable if content overflows */
+.bottom {
+    width: 100%;
 }

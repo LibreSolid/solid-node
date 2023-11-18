@@ -22,8 +22,8 @@ export class NodeLoader {
     }
   }
 
-  setCode(code: string) {
-    this.newCode = code;
+  setCodi(code: string) {
+    //this.newCode = code;
   }
 
   loadRoot(nodePath: string) {
@@ -44,7 +44,7 @@ export class NodeLoader {
         this.loadNode(`${nodePath}/${child}`);
       });
     }
-    if (result.code) {
+    if (result.code && !this.code) {
       this.code = result.code;
     }
   }
@@ -66,6 +66,7 @@ export class NodeLoader {
         this.scene.remove(mesh);
       }
     }
+    this.code = '';
     this.meshes = [];
   }
 }
