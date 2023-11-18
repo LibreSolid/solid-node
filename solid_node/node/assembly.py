@@ -13,8 +13,8 @@ class AssemblyNode(InternalNode):
 
     rigid = False
 
-    def set_testing_time(self, time):
-        """Set a fixed time to run tests"""
+    def set_keyframe(self, time):
+        """Set a fixed time for keyframes and tests"""
         self._time = time
 
     @property

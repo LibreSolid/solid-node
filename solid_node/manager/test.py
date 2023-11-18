@@ -30,7 +30,7 @@ class Test:
 
     def build_node(self, path, time=0):
         node = load_node(path)
-        node.set_testing_time(time)
+        node.set_keyframe(time)
         rendered = node.render()
         node.assemble()
         node.build_stls()
@@ -81,7 +81,7 @@ class Test:
             instants = getattr(method, 'testing_instants', [0])
             for instant in instants:
                 try:
-                    node.set_testing_time(instant)
+                    node.set_keyframe(instant)
                     method()
                     step_pass += 1
                     dot_color = 'green'
