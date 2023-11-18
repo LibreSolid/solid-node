@@ -47,8 +47,11 @@ class Develop:
             scad_proc.start()
 
         if args.web:
-            web_proc = Process(target=self.web)
-            web_proc.start()
+            if not args.debug:
+                web_proc = Process(target=self.web)
+                web_proc.start()
+            else:
+                return self.web()
 
         if args.debug:
             return self.monitor()

@@ -1,26 +1,41 @@
 import os
 import threading
 import uvicorn
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
 from solid_node.core import load_node
 
 
 class WebViewer:
-    def __init__(self, path):
+    def __init__(self, path, dev=True):
         self.path = path
         self.node = load_node(path)
 
         self.basedir = os.path.dirname(
             os.path.realpath(__file__)
         )
-        self.frontend_dir = os.path.join(self.basedir, 'OpenJSCAD.org/packages/desktop/')
+        self.frontend_dir = os.path.join(self.basedir, 'app/build')
 
         self.app = FastAPI()
         self.root = NodeAPI(self.node)
+
         self.app.mount(f'/api/{self.root.name}', self.root.app)
+
+        if dev:
+            self._setup_proxy_server()
+        else:
+            self._setup_frontend_server()
+
+
+    def start(self):
+        uvicorn.run(self.app, host="0.0.0.0", port=8000)
+
+    def _setup_frontend_server(self):
+        # Serve a static application.
+        # It's generated with "npm run build" inside app/ application
         @self.app.get("/")
         async def read_root():
             return FileResponse(os.path.join(self.frontend_dir, 'index.html'))
@@ -29,11 +44,32 @@ class WebViewer:
                        StaticFiles(directory=self.frontend_dir),
                        name="frontend")
 
-    def start(self):
-        uvicorn.run(self.app, host="0.0.0.0", port=8000)
 
-    def __start(self):
-        threading.Thread(target=self.run).start()
+    def _setup_proxy_server(self):
+        # This makes a proxy to a running "npm start" development server
+        # inside app/ application.
+        # It's cumbersome because FastAPI was not meant for this. Couldn't find
+        # a way to get full URI with it.
+
+        @self.app.get('/')
+        async def proxy_root():#, request: Request):
+            return await _proxy('/')
+
+        @self.app.get('/{path}')
+        async def proxy_path(path: str):
+            return await _proxy(f'/{path}')
+
+        @self.app.get('/static/js/{path}')
+        async def proxy_static_js(path: str):
+            return await _proxy(f'/static/js/{path}')
+
+        async def _proxy(path: str):
+            async with httpx.AsyncClient() as client:
+                response = await client.request('GET', f'http://localhost:3000{path}')
+                return Response(
+                    content=response.content,
+                    media_type=response.headers.get('content-type'),
+                )
 
 
 class NodeAPI:

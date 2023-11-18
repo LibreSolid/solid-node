@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 //import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+import { MeshLoader } from './loader';
 import { RotationControl } from  './viewer.d';
 
 
@@ -25,8 +26,16 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const sceneRef = useRef<THREE.Scene>();
   const controlsRef = useRef<OrbitControls>();
+  const location = useLocation();
+  const [ loader, setLoader ] = useState<MeshLoader>();
 
   const [size, setSize] = useState<number>(150);
+
+  useEffect(() => {
+    if (loader) {
+      loader.loadRoot(location.pathname);
+    }
+  }, [location, loader]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -43,6 +52,8 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       cameraRef.current.up.set(0, 0, 1);
       rendererRef.current = new THREE.WebGLRenderer({ antialias: true });
       rendererRef.current.setSize(width, height);
+
+      setLoader(new MeshLoader(sceneRef.current));
     }
 
     const scene = sceneRef.current!;
@@ -78,15 +89,6 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
     scene.add(xAxis);
     scene.add(yAxis);
     scene.add(zAxis);
-
-    const loader = new STLLoader();
-
-    loader.load(props.stlPath, (geometry) => {
-      const material = new THREE.MeshNormalMaterial();
-      const mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-      });
-
 
     const animate = () => {
       requestAnimationFrame(animate);
