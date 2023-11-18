@@ -3,6 +3,7 @@ import threading
 import uvicorn
 import httpx
 import inspect
+from datetime import datetime
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
@@ -127,16 +128,30 @@ class NodeAPI:
         open(source, 'wb').write(body)
         return Response(status_code=201)
 
-    async def stl(self):
+    async def stl(self, request: Request):
         stl = self.node.stl
         if not stl:
             stl = await self.wait_for_file(stl)
 
-        return FileResponse(
+        last_modified_time = datetime.utcfromtimestamp(os.path.getmtime(stl))
+
+        # Check 'If-Modified-Since' header in the request
+        if_modified_since = request.headers.get('if-modified-since')
+        if if_modified_since:
+            if_modified_since_time = datetime.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
+            if last_modified_time <= if_modified_since_time:
+                return Response(status_code=304)
+
+        response = FileResponse(
             stl,
             media_type='application/octet-stream',
             filename=f'{self.name}.stl',
         )
+
+        last_modified_str = last_modified_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        response.headers['Last-Modified'] = last_modified_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+        return response
 
     async def wait_for_file(self, file_path):
         future = asyncio.Future()
