@@ -25,6 +25,8 @@ class Develop:
                             help='Show project in OpenSCAD (default)')
         parser.add_argument('--web', action='store_true',
                             help='Start a webserver to view project in browser')
+        parser.add_argument('--debug-web', action='store_true',
+                            help='Debug mode to support breakpoints in webserver')
 
 
     def openscad(self):
@@ -47,7 +49,7 @@ class Develop:
             scad_proc.start()
 
         if args.web:
-            if not args.debug:
+            if not args.debug_web:
                 web_proc = Process(target=self.web)
                 web_proc.start()
             else:
