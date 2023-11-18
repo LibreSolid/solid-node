@@ -1,13 +1,15 @@
 import os
+import asyncio
 import threading
 import uvicorn
 import httpx
 import inspect
 from datetime import datetime
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
+from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 
 
@@ -21,8 +23,9 @@ class WebViewer:
         )
         self.frontend_dir = os.path.join(self.basedir, 'app/build')
 
+        self.stl_index = {}
         self.app = FastAPI()
-        self.root = NodeAPI(self.node)
+        self.root = NodeAPI(self.node, self.stl_index, f'/{self.node.name}')
 
         self.app.mount(f'/api/{self.root.name}', self.root.app)
 
@@ -31,9 +34,23 @@ class WebViewer:
         else:
             self._setup_frontend_server()
 
+        self._setup_websocket()
+
 
     def start(self):
         uvicorn.run(self.app, host="0.0.0.0", port=8000)
+
+    def _setup_websocket(self):
+        @self.app.websocket("/ws")
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+            monitoring = set()
+            try:
+                while True:
+                    path = await websocket.receive_text()
+                    monitoring.add(path)
+            except WebSocketDisconnect:
+                return
 
     def _setup_frontend_server(self):
         # Serve a static application.
@@ -76,7 +93,7 @@ class WebViewer:
 
 class NodeAPI:
 
-    def __init__(self, node):
+    def __init__(self, node, stl_index, prefix):
         self.node = node
         self.name = self.node.name
 
@@ -93,7 +110,10 @@ class NodeAPI:
         self.children = []
 
         if self.node.rigid:
-            self.app.add_api_route(f'/{self.name}.stl', self.stl)
+            stl_path = f'/{self.name}.stl'
+            key = f'{prefix}{stl_path}'
+            stl_index[key] = self.node.stl
+            self.app.add_api_route(stl_path, self.stl)
             return
 
         children = self.node.render()
@@ -102,8 +122,9 @@ class NodeAPI:
             return
 
         for child in children:
-            subapp = NodeAPI(child)
-            self.app.mount(f'/{child.name}', subapp.app)
+            child_path = f'/{child.name}'
+            subapp = NodeAPI(child, stl_index, child_path)
+            self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
             self.children.append(child.name)
 

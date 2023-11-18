@@ -1,26 +1,74 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
+interface Shape {
+  mesh: THREE.Mesh;
+  path: string;
+}
+
 export class NodeLoader {
-  meshes: THREE.Mesh[];
+
+  // Singleton
+  private static instance: NodeLoader;
+
+  shapes: Shape[];
+  ws: WebSocket;
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
   root: string;
   code: string;
   newCode: string;
+  location: string;
 
-  constructor() {
+  constructor(location: string) {
+    this.location = location;
     this.stlLoader = new STLLoader();
-    this.meshes = [];
+    this.shapes = [];
     this.root = '';
     this.code = '';
     this.newCode = this.code;
+    this.ws = this.watch();
+  }
+
+  // Static method that controls access to the singleton instance
+  public static getInstance(location: string): NodeLoader {
+    if (!NodeLoader.instance) {
+      NodeLoader.instance = new NodeLoader(location);
+      console.log(new Date().getTime());
+    }
+    return NodeLoader.instance;
+  }
+
+  watch() {
+    const parts = this.location.split('/');
+    const protocol = parts[0].replace('http', 'ws');
+    const domain = parts[2];
+
+    const ws = new WebSocket(`${protocol}//${domain}/ws`);
+
+    ws.onopen = () => {
+        console.log('WebSocket Connected');
+    };
+
+    ws.onmessage = (event) => {
+        console.log('File change detected:', event.data);
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket Connection Closed');
+    };
+
+    return ws;
   }
 
   setScene(scene: THREE.Scene) {
     this.scene = scene;
-    for (const mesh of this.meshes) {
-      this.scene.add(mesh);
+    for (const shape of this.shapes) {
+      this.scene.add(shape.mesh);
     }
   }
 
@@ -52,14 +100,15 @@ export class NodeLoader {
     }
   }
 
-  load(stlPath: string) {
-    this.stlLoader.load(`api${stlPath}`, (geometry) => {
+  load(path: string) {
+    this.stlLoader.load(`api${path}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
       if (this.scene) {
         this.scene.add(mesh);
+        this.ws.send(path);
       }
-      this.meshes.push(mesh);
+      this.shapes.push({ mesh, path });
     });
   }
 
@@ -80,12 +129,12 @@ export class NodeLoader {
   }
 
   clear() {
-    for (const mesh of this.meshes) {
+    for (const shape of this.shapes) {
       if (this.scene) {
-        this.scene.remove(mesh);
+        this.scene.remove(shape.mesh);
       }
     }
     this.code = '';
-    this.meshes = [];
+    this.shapes = [];
   }
 }

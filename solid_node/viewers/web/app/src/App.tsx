@@ -13,19 +13,16 @@ import NavigationTree from './NavigationTree';
 const App = () => {
   const stlViewerRef = useRef<STLViewerHandles | null>(null);
   const [control, setControl] = useState<number>(0);
-  const [loader, setLoader] = useState<NodeLoader>();
   const [rotation, setRotation] = useState<RotationControl>({
     source: 0,
     rotation: new THREE.Vector3(0, 0, 100),
   });
 
+  const loader = NodeLoader.getInstance(window.location.href);
+
   const handleViewerResize = () => {
     stlViewerRef.current?.handleResize();
   };
-
-  useEffect(() => {
-    setLoader(new NodeLoader());
-  }, []);
 
   const fontSize = 15;
   const editorWidth = fontSize * 80 / 2;
