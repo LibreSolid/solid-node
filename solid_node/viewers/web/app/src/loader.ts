@@ -37,7 +37,7 @@ export class NodeLoader {
   async loadNode(nodePath: string) {
     const response = await fetch(`/api${nodePath}/`);
     const result = await response.json();
-    console.log(result);
+
     if (result.model) {
       this.load(`${nodePath}/${result.model}`);
     }
