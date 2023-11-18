@@ -81,7 +81,8 @@ class NodeAPI:
 
         self.app = FastAPI()
 
-        self.app.add_api_route('/', self.state)
+        self.app.add_api_route('/', self.state, methods=["GET"])
+        self.app.add_api_route('/', self.save_source_code, methods=["POST"])
 
         self.operations = [
             op.serialized for op in self.node.operations
@@ -117,6 +118,14 @@ class NodeAPI:
         state['code'] = inspect.getsource(inspect.getmodule(self.node))
 
         return state
+
+    async def save_source_code(self, request: Request):
+        body = await request.body()
+        source = inspect.getfile(inspect.getmodule(self.node))
+        bak = f'{source}.bak'
+        open(bak, 'wb').write(open(source, 'rb').read())
+        open(source, 'wb').write(body)
+        return Response(status_code=201)
 
     async def stl(self):
         stl = self.node.stl

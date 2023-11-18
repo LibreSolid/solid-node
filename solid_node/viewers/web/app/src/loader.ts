@@ -5,12 +5,14 @@ export class NodeLoader {
   meshes: THREE.Mesh[];
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
+  root: string;
   code: string;
   newCode: string;
 
   constructor() {
     this.stlLoader = new STLLoader();
     this.meshes = [];
+    this.root = '';
     this.code = '';
     this.newCode = this.code;
   }
@@ -22,12 +24,13 @@ export class NodeLoader {
     }
   }
 
-  setCodi(code: string) {
-    //this.newCode = code;
+  setCode(code: string) {
+    this.newCode = code;
   }
 
   loadRoot(nodePath: string) {
     this.clear();
+    this.root = nodePath;
     this.loadNode(nodePath);
   }
 
@@ -58,6 +61,22 @@ export class NodeLoader {
       }
       this.meshes.push(mesh);
     });
+  }
+
+  async saveCode() {
+    const response = await fetch(
+      `/api${this.root}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: this.newCode,
+      }
+    );
+    if (response.ok) {
+      console.log('File saved!');
+    }
   }
 
   clear() {
