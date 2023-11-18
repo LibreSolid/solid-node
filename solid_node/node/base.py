@@ -21,6 +21,8 @@ def _build_uniq_id(args, kwargs):
 
 class AbstractBaseNode:
 
+    fn = None
+
     # The rendering colors
     color = None
 
@@ -167,6 +169,8 @@ class AbstractBaseNode:
     @property
     def scad_code(self):
         code = scad_render(self.model)
+        if self.fn:
+            code = f'$fn = {self.fn};\n\n{code}'
         return code
 
     def generate_scad(self):
