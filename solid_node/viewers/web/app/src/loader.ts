@@ -101,7 +101,8 @@ export class NodeLoader {
   }
 
   load(path: string) {
-    this.stlLoader.load(`api${path}`, (geometry) => {
+    const tstamp = new Date().getTime(); // avoid cache
+    this.stlLoader.load(`api${path}?t={tstamp}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
       if (this.scene) {
