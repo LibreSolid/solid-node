@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
-interface Shape {
-  mesh: THREE.Mesh;
-  path: string;
+interface MeshDictionary {
+    [path: string]: THREE.Mesh;
 }
 
 export class NodeLoader {
@@ -11,10 +10,10 @@ export class NodeLoader {
   // Singleton
   private static instance: NodeLoader;
 
-  shapes: Shape[];
-  ws: WebSocket;
+  shapes: MeshDictionary;
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
+  ws: WebSocket | undefined;
   root: string;
   code: string;
   newCode: string;
@@ -23,11 +22,12 @@ export class NodeLoader {
   constructor(location: string) {
     this.location = location;
     this.stlLoader = new STLLoader();
-    this.shapes = [];
+    this.shapes = {};
     this.root = '';
     this.code = '';
     this.newCode = this.code;
-    this.ws = this.watch();
+
+    this.watch();
   }
 
   // Static method that controls access to the singleton instance
@@ -44,31 +44,38 @@ export class NodeLoader {
     const protocol = parts[0].replace('http', 'ws');
     const domain = parts[2];
 
-    const ws = new WebSocket(`${protocol}//${domain}/ws`);
+    if (this.ws) return;
 
-    ws.onopen = () => {
-        console.log('WebSocket Connected');
+    this.ws = new WebSocket(`${protocol}//${domain}/ws`);
+
+    this.ws.onmessage = (event) => {
+      if (event.data == "reload") {
+        this.reload();
+      }
     };
 
-    ws.onmessage = (event) => {
-        console.log('File change detected:', event.data);
+    this.ws.onclose = () => {
+      this.ws = undefined;
+      this.watch();
     };
 
-    ws.onerror = (error) => {
-        console.error('WebSocket Error:', error);
-    };
+  }
 
-    ws.onclose = () => {
-        console.log('WebSocket Connection Closed');
-    };
-
-    return ws;
+  reload() {
+    console.log('Reload!');
+    for (const path in this.shapes) {
+      if (this.shapes.hasOwnProperty(path)) {
+        this.load(path);
+      }
+    }
   }
 
   setScene(scene: THREE.Scene) {
     this.scene = scene;
-    for (const shape of this.shapes) {
-      this.scene.add(shape.mesh);
+    for (const path in this.shapes) {
+      if (this.shapes.hasOwnProperty(path)) {
+        this.scene.add(this.shapes[path]);
+      }
     }
   }
 
@@ -102,14 +109,16 @@ export class NodeLoader {
 
   load(path: string) {
     const tstamp = new Date().getTime(); // avoid cache
-    this.stlLoader.load(`api${path}?t={tstamp}`, (geometry) => {
+    this.stlLoader.load(`api${path}?t=${tstamp}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
       if (this.scene) {
+        if (this.shapes[path]) {
+          this.scene.remove(this.shapes[path]);
+        }
         this.scene.add(mesh);
-        this.ws.send(path);
       }
-      this.shapes.push({ mesh, path });
+      this.shapes[path] = mesh;
     });
   }
 
@@ -125,17 +134,19 @@ export class NodeLoader {
       }
     );
     if (response.ok) {
-      console.log('File saved!');
+      this.code = this.newCode;
     }
   }
 
   clear() {
-    for (const shape of this.shapes) {
-      if (this.scene) {
-        this.scene.remove(shape.mesh);
+    for (const path in this.shapes) {
+      if (this.shapes.hasOwnProperty(path)) {
+        if (this.scene) {
+          this.scene.remove(this.shapes[path]);
+        }
       }
     }
     this.code = '';
-    this.shapes = [];
+    this.shapes = {};
   }
 }

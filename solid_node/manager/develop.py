@@ -45,24 +45,32 @@ class Develop:
         self.debug = args.debug
 
         if args.openscad or not args.web:
-            scad_proc = Process(target=self.openscad)
-            scad_proc.start()
+            viewer_target = self.openscad
 
-        if args.web:
+        else:
             if not args.debug_web:
-                web_proc = Process(target=self.web)
-                web_proc.start()
+                viewer_target = self.web
             else:
                 return self.web()
 
         if args.debug:
             return self.monitor()
 
+        viewer_proc = None
+
         while True:
-            p = Process(target=self.monitor)
-            p.start()
+            monitor_proc = Process(target=self.monitor)
+            monitor_proc.start()
+
+            if viewer_proc is not None:
+                viewer_proc.terminate()
+                viewer_proc.join()
+
+            viewer_proc = Process(target=viewer_target)
+            viewer_proc.start()
+
             try:
-                p.join()
+                monitor_proc.join()
             except KeyboardInterrupt:
                 sys.exit(0)
 
@@ -129,5 +137,4 @@ class Monitor(pyinotify.ProcessEvent):
         self.bye()
 
     def bye(self):
-        print('BYE!')
         self.future.set_result(None)

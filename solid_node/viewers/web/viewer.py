@@ -36,7 +36,6 @@ class WebViewer:
 
         self._setup_websocket()
 
-
     def start(self):
         uvicorn.run(self.app, host="0.0.0.0", port=8000)
 
@@ -44,6 +43,7 @@ class WebViewer:
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
+            await websocket.send_text("reload")
             monitoring = set()
             try:
                 while True:
