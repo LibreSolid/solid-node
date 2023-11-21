@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-
-interface MeshDictionary {
-    [path: string]: THREE.Mesh;
-}
+import { MeshDictionary, RawOperation, Operation, OperationDictionary } from './loader.d';
+import { evaluate } from './evaluator';
 
 export class NodeLoader {
 
@@ -11,6 +9,7 @@ export class NodeLoader {
   private static instance: NodeLoader;
 
   shapes: MeshDictionary;
+  operations: OperationDictionary;
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
   ws: WebSocket | undefined;
@@ -27,6 +26,8 @@ export class NodeLoader {
     this.code = '';
     this.newCode = this.code;
 
+    this.operations = {};
+
     this.watch();
   }
 
@@ -34,7 +35,6 @@ export class NodeLoader {
   public static getInstance(location: string): NodeLoader {
     if (!NodeLoader.instance) {
       NodeLoader.instance = new NodeLoader(location);
-      console.log(new Date().getTime());
     }
     return NodeLoader.instance;
   }
@@ -65,7 +65,7 @@ export class NodeLoader {
     console.log('Reload!');
     for (const path in this.shapes) {
       if (this.shapes.hasOwnProperty(path)) {
-        this.load(path);
+        this.load(path, this.operations[path]);
       }
     }
   }
@@ -92,9 +92,9 @@ export class NodeLoader {
   async loadNode(nodePath: string) {
     const response = await fetch(`/api${nodePath}/`);
     const result = await response.json();
-
+    const operations = evaluate(result.operations as RawOperation[], 0);
     if (result.model) {
-      this.load(`${nodePath}/${result.model}`);
+      this.load(`${nodePath}/${result.model}`, operations);
     }
     if (result.children) {
       const children = result.children as string[];
@@ -107,11 +107,12 @@ export class NodeLoader {
     }
   }
 
-  load(path: string) {
+  load(path: string, operations: Operation[]) {
     const tstamp = new Date().getTime(); // avoid cache
     this.stlLoader.load(`api${path}?t=${tstamp}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
+      this.applyOperations(mesh, operations);
       if (this.scene) {
         if (this.shapes[path]) {
           this.scene.remove(this.shapes[path]);
@@ -119,6 +120,7 @@ export class NodeLoader {
         this.scene.add(mesh);
       }
       this.shapes[path] = mesh;
+      this.operations[path] = operations;
     });
   }
 
@@ -148,5 +150,22 @@ export class NodeLoader {
     }
     this.code = '';
     this.shapes = {};
+    this.operations = {};
+  }
+
+  applyOperations(mesh: THREE.Mesh, operations: Operation[]) {
+    for (const op of operations) {
+      if (op[0] == "r") {
+        const quaternion = new THREE.Quaternion();
+        const ax = op[2];
+        const axis = new THREE.Vector3(ax[0], ax[1], ax[2]);
+        quaternion.setFromAxisAngle(axis, op[1] * Math.PI / 180)
+        mesh.applyQuaternion(quaternion);
+      }
+      if (op[0] == "t") {
+        const v = op[1];
+        mesh.position.add(new THREE.Vector3(v[0], v[1], v[2]));
+      }
+    }
   }
 }

@@ -13,7 +13,7 @@ class Rotation:
 
     @property
     def serialized(self):
-        return ['r', self.angle, self.axis]
+        return ['r', str(self.angle), self.axis]
 
     @property
     def reversed(self):
@@ -37,7 +37,8 @@ class Translation:
 
     @property
     def serialized(self):
-        return ['t', self.translation]
+        translation = [ str(x) for x in self.translation ]
+        return ['t', translation]
 
     @property
     def reversed(self):
