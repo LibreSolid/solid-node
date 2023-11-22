@@ -1,7 +1,3 @@
-export interface MeshDictionary {
-    [path: string]: THREE.Mesh;
-}
-
 // The "Raw" operations come as strings and have to be evaluated to numbers
 type RotationRawOperation = [
   "r", string, [number, number, number]
@@ -23,7 +19,14 @@ export type TranslationOperation = [
 
 export type Operation = RotationOperation | TranslationOperation;
 
-export interface OperationDictionary {
+export interface MeshDictionary {
+    [path: string]: THREE.Mesh;
+}
 
+export interface OperationDictionary {
   [path: string]: Operation[];
+}
+
+export interface RawOperationDictionary {
+  [path: string]: RawOperation[];
 }

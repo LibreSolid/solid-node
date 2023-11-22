@@ -26,7 +26,9 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const sceneRef = useRef<THREE.Scene>();
   const controlsRef = useRef<OrbitControls>();
+  const timeRef = useRef<number>(0);
   const location = useLocation();
+
 
   const [size, setSize] = useState<number>(150);
 
@@ -70,6 +72,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
     controls.zoomSpeed = 1;
 
     // Grid
+    /*
     const mmGrid = new THREE.GridHelper(size, size, 0xDDDDDD, 0xDDDDDD);
     const cmGrid = new THREE.GridHelper(size, size / 10, 0xBBBBBB, 0xBBBBBB);
     cmGrid.rotation.x = Math.PI / 2;
@@ -77,6 +80,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
 
     scene.add(mmGrid);
     scene.add(cmGrid);
+     */
 
     // RGB Axes
     const arrowLength = 50;
@@ -89,9 +93,21 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
     scene.add(yAxis);
     scene.add(zAxis);
 
+    const step = 1/2000;
+    timeRef.current = 0;
+
     const animate = () => {
       requestAnimationFrame(animate);
       controls.update();
+
+      timeRef.current += step;
+
+      if (timeRef.current > 1) {
+        timeRef.current -= 1;
+      }
+
+      props.loader?.setTime(timeRef.current);
+      console.log('aqui');
       renderer.render(scene, camera);
     };
 

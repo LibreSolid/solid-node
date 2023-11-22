@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { MeshDictionary, RawOperation, Operation, OperationDictionary } from './loader.d';
+import { MeshDictionary,
+         RawOperation,
+         Operation,
+         RawOperationDictionary,
+         OperationDictionary,
+       } from './loader.d';
 import { evaluate } from './evaluator';
 
 export class NodeLoader {
@@ -10,6 +15,7 @@ export class NodeLoader {
 
   shapes: MeshDictionary;
   operations: OperationDictionary;
+  rawOperations: RawOperationDictionary;
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
   ws: WebSocket | undefined;
@@ -17,16 +23,20 @@ export class NodeLoader {
   code: string;
   newCode: string;
   location: string;
+  time: number;
 
   constructor(location: string) {
     this.location = location;
     this.stlLoader = new STLLoader();
-    this.shapes = {};
     this.root = '';
     this.code = '';
     this.newCode = this.code;
 
+    this.shapes = {};
     this.operations = {};
+    this.rawOperations = {};
+
+    this.time = 0;
 
     this.watch();
   }
@@ -62,10 +72,9 @@ export class NodeLoader {
   }
 
   reload() {
-    console.log('Reload!');
     for (const path in this.shapes) {
       if (this.shapes.hasOwnProperty(path)) {
-        this.load(path, this.operations[path]);
+        this.loadNode(path);
       }
     }
   }
@@ -92,9 +101,9 @@ export class NodeLoader {
   async loadNode(nodePath: string) {
     const response = await fetch(`/api${nodePath}/`);
     const result = await response.json();
-    const operations = evaluate(result.operations as RawOperation[], 0);
     if (result.model) {
-      this.load(`${nodePath}/${result.model}`, operations);
+      this.load(`${nodePath}/${result.model}`,
+                result.operations as RawOperation[]);
     }
     if (result.children) {
       const children = result.children as string[];
@@ -107,8 +116,10 @@ export class NodeLoader {
     }
   }
 
-  load(path: string, operations: Operation[]) {
+  load(path: string, rawOperations: RawOperation[]) {
     const tstamp = new Date().getTime(); // avoid cache
+    const operations = evaluate(rawOperations, this.time);
+
     this.stlLoader.load(`api${path}?t=${tstamp}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
@@ -121,7 +132,21 @@ export class NodeLoader {
       }
       this.shapes[path] = mesh;
       this.operations[path] = operations;
+      this.rawOperations[path] = rawOperations;
     });
+  }
+
+  setTime(time: number) {
+    this.time = time;
+
+    for (const path in this.shapes) {
+      const mesh = this.shapes[path];
+      const raw = this.rawOperations[path];
+      const operations = evaluate(raw, time);
+      this.unapplyOperations(mesh, this.operations[path]);
+      this.applyOperations(mesh, operations);
+      this.operations[path] = operations;
+    }
   }
 
   async saveCode() {
@@ -151,6 +176,7 @@ export class NodeLoader {
     this.code = '';
     this.shapes = {};
     this.operations = {};
+    this.rawOperations = {};
   }
 
   applyOperations(mesh: THREE.Mesh, operations: Operation[]) {
@@ -168,4 +194,31 @@ export class NodeLoader {
       }
     }
   }
+
+  unapplyOperations(mesh: THREE.Mesh, operations: Operation[]) {
+    // Iterate through the operations in reverse order
+    for (let i = operations.length - 1; i >= 0; i--) {
+      const op = operations[i];
+
+      if (op[0] === "r" && op[2]) {
+        // Reverse the rotation
+        const quaternion = new THREE.Quaternion();
+        const ax = op[2];
+        const axis = new THREE.Vector3(ax[0], ax[1], ax[2]);
+
+        // Invert the angle for reverse rotation
+        quaternion.setFromAxisAngle(axis, -(op[1] as number) * Math.PI / 180);
+        mesh.applyQuaternion(quaternion);
+      }
+
+      if (op[0] === "t") {
+        // Reverse the translation
+        const v = op[1] as number[];
+
+        // Subtract the translation vector
+        mesh.position.sub(new THREE.Vector3(v[0], v[1], v[2]));
+      }
+    }
+  }
+
 }
