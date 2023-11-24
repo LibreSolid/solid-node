@@ -18,7 +18,8 @@ export class NodeLoader {
   rawOperations: RawOperationDictionary;
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
-  ws: WebSocket | undefined;
+  reloadTrigger: WebSocket | undefined;
+  //compileError: WebSocket | undefined;
   root: string;
   code: string;
   newCode: string;
@@ -54,18 +55,18 @@ export class NodeLoader {
     const protocol = parts[0].replace('http', 'ws');
     const domain = parts[2];
 
-    if (this.ws) return;
+    if (this.reloadTrigger) return;
 
-    this.ws = new WebSocket(`${protocol}//${domain}/ws`);
+    this.reloadTrigger = new WebSocket(`${protocol}//${domain}/ws/reload`);
 
-    this.ws.onmessage = (event) => {
+    this.reloadTrigger.onmessage = (event) => {
       if (event.data == "reload") {
         this.reload();
       }
     };
 
-    this.ws.onclose = () => {
-      this.ws = undefined;
+    this.reloadTrigger.onclose = () => {
+      this.reloadTrigger = undefined;
       this.watch();
     };
 

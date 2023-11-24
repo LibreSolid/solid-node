@@ -1,15 +1,20 @@
 import os
 import sys
 import time
+import socket
 import inspect
 import asyncio
-import pyinotify
 import traceback
-from asyncio import Future
 from importlib import import_module
 from multiprocessing import Process
 from subprocess import Popen
 from solid_node.core import load_node
+from solid_node.core.broker import (BrokerServer,
+                                    BrokerClient,
+                                    HOST as BROKER_HOST,
+                                    PORT as BROKER_PORT)
+from solid_node.core.builder import Builder, BUILD_CHANGED
+from solid_node.core.git import GitRepo
 from solid_node.node.base import StlRenderStart
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer
@@ -35,106 +40,64 @@ class Develop:
     def web(self):
         WebViewer(self.path).start()
 
-    def monitor(self):
-        task = Monitor(self.path, self.debug).run()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(task)
+    def broker(self):
+        BrokerServer().start()
+
+    def builder(self):
+        Builder(self.path, self.debug).start()
 
     def handle(self, args):
         self.path = args.path
         self.debug = args.debug
 
-        if args.openscad or not args.web:
-            viewer_target = self.openscad
+        broker_proc = Process(target=self.broker)
+        broker_proc.start()
 
-        else:
-            if not args.debug_web:
-                viewer_target = self.web
-            else:
+        self.wait_for_broker()
+
+        builder_proc = None
+        web_proc = None
+        openscad_proc = None
+
+        if args.openscad:
+            openscad_proc = Process(target=self.openscad)
+
+        if not args.openscad or args.web:
+            if args.debug_web:
                 return self.web()
 
-        if args.debug:
-            return self.monitor()
+            web_proc = Process(target=self.web)
+            web_proc.start()
 
-        viewer_proc = None
+
+        if args.debug:
+            return self.builder()
 
         while True:
-            monitor_proc = Process(target=self.monitor)
-            monitor_proc.start()
+            if web_proc and \
+               builder_proc and \
+               builder_proc.exitcode == BUILD_CHANGED:
 
-            if viewer_proc is not None:
-                viewer_proc.terminate()
-                viewer_proc.join()
+                web_proc.terminate()
+                web_proc.join()
+                web_proc = Process(target=self.web)
+                web_proc.start()
 
-            viewer_proc = Process(target=viewer_target)
-            viewer_proc.start()
+            builder_proc = Process(target=self.builder)
+            builder_proc.start()
 
             try:
-                monitor_proc.join()
+                builder_proc.join()
             except KeyboardInterrupt:
                 sys.exit(0)
 
         print(f"Exiting...")
 
-
-class Monitor(pyinotify.ProcessEvent):
-    """Monitors .py files and generate STLs, and exit on any change"""
-    def __init__(self, path, debug):
-        super().__init__()
-
-        try:
-            self.node = load_node(path)
-        except Exception as e:
-            traceback.print_exc()
-            self.node = None
-
-        self.debug = debug
-
-        wm = pyinotify.WatchManager()
-        loop = asyncio.get_event_loop()
-        pyinotify.AsyncioNotifier(wm, loop, default_proc_fun=self)
-
-
-        if self.node:
-            try:
-                self.node.assemble()
-                print("Rendered!")
-            except Exception as e:
-                traceback.print_exc()
-
-            mask = pyinotify.IN_CLOSE_WRITE
-
-            for path in self.node.files:
-                print(f'watching {path}')
-                wm.add_watch(path, mask)
-
-        self.stl_task = None
-        self.future = Future()
-
-    async def run(self):
-        self.stl_task = asyncio.create_task(self.generate_stl())
-        await self.future
-
-    async def generate_stl(self):
-        try:
-            self.node.trigger_stl()
-            self.stl_task = None
-            print("All STLs built!")
-        except StlRenderStart as job:
-            sys.stdout.write(f"Building {job.stl_file}... ")
-            sys.stdout.flush()
-            job.wait()
-            print("done, reloading")
-            self.bye()
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-
-    def process_default(self, event):
-        if not event.maskname == 'IN_CLOSE_WRITE':
-            return
-        print(f'{event.pathname} changed, reloading')
-        self.bye()
-
-    def bye(self):
-        self.future.set_result(None)
+    def wait_for_broker(self):
+        def is_port_open():
+            """Check if a port is open on a given host."""
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex((BROKER_HOST, BROKER_PORT)) == 0
+        while not is_port_open():
+            time.sleep(0.1)
+        print('Broker ready!')

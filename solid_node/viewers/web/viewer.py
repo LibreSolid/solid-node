@@ -4,19 +4,24 @@ import threading
 import uvicorn
 import httpx
 import inspect
+from git import Repo
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
 from starlette.websockets import WebSocketDisconnect
+from solid_node.node.base import StlRenderStart
 from solid_node.core import load_node
+from solid_node.core.git import GitRepo
+from solid_node.core.broker import BROKER_URL
 
 
 class WebViewer:
     def __init__(self, path, dev=True):
         self.path = path
         self.node = load_node(path)
+        self.repo = GitRepo(path)
 
         self.basedir = os.path.dirname(
             os.path.realpath(__file__)
@@ -25,7 +30,11 @@ class WebViewer:
 
         self.stl_index = {}
         self.app = FastAPI()
-        self.root = NodeAPI(self.node, self.stl_index, f'/{self.node.name}')
+        self.root = NodeAPI(self.node,
+                            self.repo,
+                            self.stl_index,
+                            f'/{self.node.name}',
+                            )
 
         self.app.mount(f'/api/{self.root.name}', self.root.app)
 
@@ -34,13 +43,15 @@ class WebViewer:
         else:
             self._setup_frontend_server()
 
-        self._setup_websocket()
+        self._setup_reload_websocket()
+        self._setup_compile_feedback()
 
     def start(self):
+        print("Webserver started")
         uvicorn.run(self.app, host="0.0.0.0", port=8000)
 
-    def _setup_websocket(self):
-        @self.app.websocket("/ws")
+    def _setup_reload_websocket(self):
+        @self.app.websocket("/ws/reload")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             await websocket.send_text("reload")
@@ -51,6 +62,24 @@ class WebViewer:
                     monitoring.add(path)
             except WebSocketDisconnect:
                 return
+
+    def _setup_compile_feedback(self):
+        @self.app.websocket("/ws/compile")
+        async def compile_feedback_endpoint(websocket: WebSocket):
+            await websocket.accept()
+            while True:
+                try:
+                    # Connect to the broker's "compile" topic
+                    async with websockets.connect(f'{BROKER_URL}/compile') as broker_websocket:
+                        async for message in broker_websocket:
+                            # Relay message to the connected client
+                            await websocket.send_text(message)
+                except WebSocketDisconnect:
+                    # Broker has disconnected, let's just reconnect
+                    pass
+                except websockets.exceptions.ConnectionClosed:
+                    # Client has disconnected, finish request
+                    return
 
     def _setup_frontend_server(self):
         # Serve a static application.
@@ -93,9 +122,10 @@ class WebViewer:
 
 class NodeAPI:
 
-    def __init__(self, node, stl_index, prefix):
+    def __init__(self, node, repo, stl_index, prefix):
         self.node = node
         self.name = self.node.name
+        self.repo = repo
 
         self.app = FastAPI()
 
@@ -123,7 +153,7 @@ class NodeAPI:
 
         for child in children:
             child_path = f'/{child.name}'
-            subapp = NodeAPI(child, stl_index, child_path)
+            subapp = NodeAPI(child, self.repo, stl_index, child_path)
             self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
             self.children.append(child.name)
@@ -144,15 +174,13 @@ class NodeAPI:
     async def save_source_code(self, request: Request):
         body = await request.body()
         source = inspect.getfile(inspect.getmodule(self.node))
-        bak = f'{source}.bak'
-        open(bak, 'wb').write(open(source, 'rb').read())
         open(source, 'wb').write(body)
         return Response(status_code=201)
 
     async def stl(self, request: Request):
         stl = self.node.stl
         if not stl:
-            stl = await self.wait_for_file(stl)
+            stl = await self.wait_for_file(self.node.stl_file)
 
         last_modified_time = datetime.utcfromtimestamp(os.path.getmtime(stl))
 
