@@ -1,8 +1,13 @@
+asgiref==3.7.2
 cadquery==2.3.1
 cadquery-ocp==7.7.0
+fastapi==0.104.1
+httpx==0.25.1
 pyinotify==0.9.6
-solidpython2==2.0.2
-trimesh==3.22.3
-fastapi==0.100.0
-uvicorn==0.23.1
+solidpython2==2.1.0
 termcolor==2.3.0
+trimesh==4.0.4
+websockets==12.0
+termcolor==2.3.0
+uvicorn==0.23.1
+GitPython==3.1.40
