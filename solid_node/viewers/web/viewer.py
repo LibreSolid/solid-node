@@ -4,6 +4,7 @@ import threading
 import uvicorn
 import httpx
 import inspect
+import logging
 from git import Repo
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
@@ -11,10 +12,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
 from starlette.websockets import WebSocketDisconnect
-from solid_node.node.base import StlRenderStart
 from solid_node.core import load_node
+from solid_node.core.logging import uvicorn_config
 from solid_node.core.git import GitRepo
 from solid_node.core.broker import BROKER_URL
+
+
+logger = logging.getLogger('viewer.web')
 
 
 class WebViewer:
@@ -47,8 +51,9 @@ class WebViewer:
         self._setup_compile_feedback()
 
     def start(self):
-        print("Webserver started")
-        uvicorn.run(self.app, host="0.0.0.0", port=8000)
+        logger.info("STARTED")
+        uvicorn.run(self.app, host="0.0.0.0", port=8000,
+                    log_config=uvicorn_config)
 
     def _setup_reload_websocket(self):
         @self.app.websocket("/ws/reload")

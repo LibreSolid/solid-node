@@ -2,6 +2,8 @@ import sys
 import pyinotify
 import asyncio
 import traceback
+import logging
+from asgiref.sync import async_to_sync
 from asyncio import Future
 from .loader import load_node
 from .git import GitRepo
@@ -12,6 +14,9 @@ from solid_node.node.base import StlRenderStart
 # Exit codes
 BUILD_PRESERVED = 0
 BUILD_CHANGED = 1
+
+logger = logging.getLogger('core.builder')
+
 
 class Builder(pyinotify.ProcessEvent):
     """Monitors .py files and generate STLs, and exit on any change"""
@@ -33,7 +38,7 @@ class Builder(pyinotify.ProcessEvent):
         loop.run_until_complete(task)
 
     async def _start(self):
-        print('Builder start')
+        logger.info('START')
         self.broker = BrokerClient()
 
         async with self.repo.lock():
@@ -68,8 +73,7 @@ class Builder(pyinotify.ProcessEvent):
             self.node.trigger_stl()
             return
         except StlRenderStart as job:
-            sys.stdout.write(f"Building {job.stl_file}... ")
-            sys.stdout.flush()
+            logger.info(f"Building {job.stl_file}... ")
             job.wait()
             sys.exit(BUILD_CHANGED)
 
@@ -81,6 +85,10 @@ class Builder(pyinotify.ProcessEvent):
     def process_default(self, event):
         if not event.maskname == 'IN_CLOSE_WRITE':
             return
-        self.repo.add(event.pathname)
-        print(f'{event.pathname} changed, reloading')
+        task = self.repo.add(event.pathname)
+        async_to_sync(task)
+        logging.info(f'{event.pathname} changed, reloading')
         self.file_changed.set_result(True)
+
+    async def add_file(self, path):
+        self.repo.add(path)

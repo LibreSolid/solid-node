@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import inspect
+import logging
 import importlib
 import pyinotify
 import trimesh
@@ -12,6 +13,10 @@ from solid2 import (scad_render, import_scad, import_stl,
                     translate, rotate, union, color,
                     get_animation_time)
 from .operations import Rotation, Translation
+
+
+logger = logging.getLogger('node.base')
+
 
 MESH_CACHE = {}
 
@@ -176,7 +181,7 @@ class AbstractBaseNode:
     def generate_scad(self):
         open(self.scad_file, 'w').write(self.scad_code)
         os.utime(self.scad_file, (time.time(), self.mtime))
-        print(f"{self.scad_file} generated with {self.mtime}!")
+        logger.info(f"{self.scad_file} generated with {self.mtime}!")
 
     def trigger_stl(self):
         self.assemble()
@@ -303,11 +308,11 @@ class StlRenderStart(Exception):
 
     def finish(self):
         os.utime(self.stl_file, (time.time(), self.mtime))
-        print(f"{self.stl_file} generated with {self.mtime}!")
+        logger.info(f"{self.stl_file} generated with {self.mtime}!")
         if os.path.exists(self.lock_file):
             os.remove(self.lock_file)
 
     def wait(self):
-        print(f"{self.stl_file}")
+        logger.info(f"{self.scad_file} -> {self.stl_file} ...")
         self.proc.wait()
         self.finish()

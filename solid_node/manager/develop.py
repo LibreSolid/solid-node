@@ -3,6 +3,7 @@ import sys
 import time
 import socket
 import inspect
+import logging
 import asyncio
 import traceback
 from importlib import import_module
@@ -18,6 +19,9 @@ from solid_node.core.git import GitRepo
 from solid_node.node.base import StlRenderStart
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer
+
+
+logger = logging.getLogger('manager.develop')
 
 
 class Develop:
@@ -100,4 +104,4 @@ class Develop:
                 return s.connect_ex((BROKER_HOST, BROKER_PORT)) == 0
         while not is_port_open():
             time.sleep(0.1)
-        print('Broker ready!')
+        logger.info(f'Broker is ready and listening on port {BROKER_PORT}')

@@ -2,6 +2,7 @@ import asyncio
 import websockets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import Dict, Set
+from solid_node.core.logging import logging, uvicorn_config
 
 
 HOST = '127.0.0.1'
@@ -10,6 +11,8 @@ LOCK_PATH = '/lock'
 
 BROKER_URL = f'ws://{HOST}:{PORT}'
 LOCK_URL = f'{BROKER_URL}{LOCK_PATH}'
+
+logger = logging.getLogger('core.broker')
 
 
 class BrokerServer:
@@ -65,9 +68,9 @@ class BrokerServer:
 
     def start(self):
         import uvicorn
-        print("starting broker")
-        uvicorn.run(self.app, host=HOST, port=PORT)
-
+        logger.info("START")
+        uvicorn.run(self.app, host=HOST, port=PORT,
+                    log_config=uvicorn_config)
 
 class BrokerClient:
     def __init__(self):
