@@ -14,7 +14,7 @@ from solid_node.core.broker import (BrokerServer,
                                     BrokerClient,
                                     HOST as BROKER_HOST,
                                     PORT as BROKER_PORT)
-from solid_node.core.builder import Builder, BUILD_CHANGED
+from solid_node.core.builder import Builder
 from solid_node.core.git import GitRepo
 from solid_node.node.base import StlRenderStart
 from solid_node.viewers.openscad import OpenScadViewer
@@ -76,10 +76,8 @@ class Develop:
             return self.builder()
 
         while True:
-            if web_proc and \
-               builder_proc and \
-               builder_proc.exitcode == BUILD_CHANGED:
-
+            if web_proc and builder_proc:
+                logger.info('Restarting WEB')
                 web_proc.terminate()
                 web_proc.join()
                 web_proc = Process(target=self.web)

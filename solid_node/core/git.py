@@ -21,25 +21,25 @@ class GitRepo:
     def locked(self):
         return self._lock.locked
 
-    async def add(self, file_path):
-        self._debug('add')
+    def add(self, file_path):
+        self._assert_lock('add')
         self.repo.git.add(file_path)
 
-    async def commit(self):
-        self._debug('commit')
+    def commit(self, message):
+        self._assert_lock('commit')
         self.repo.index.commit(message)
 
-    async def revert_last_commit(self):
-        self._debug('revert')
+    def revert_last_commit(self):
+        self._assert_lock('revert')
         try:
             self.repo.git.revert('HEAD', no_edit=True)
             logger.info("Reverted the last commit.")
         except GitCommandError as e:
             logger.error(f"Failed to revert the last commit: {e}")
 
-    def _debug(self, operation):
+    def _assert_lock(self, operation):
         assert self.locked
-        logger.info(f'{operation} by {self._lock.source}')
+        logger.debug(f'{operation} by {self._lock.source}')
 
 
 class RepoLock:

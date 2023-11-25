@@ -173,7 +173,8 @@ class NodeAPI:
             state['model'] = f'{self.name}.stl'
 
         state['code'] = inspect.getsource(inspect.getmodule(self.node))
-
+        import json
+        op = json.dumps(self.operations)
         return state
 
     async def save_source_code(self, request: Request):
@@ -181,8 +182,8 @@ class NodeAPI:
         source = inspect.getfile(inspect.getmodule(self.node))
         async with self.repo.lock(f'VIEWER - {source}'):
             open(source, 'wb').write(body)
-            await self.repo.add(source)
-            await self.repo.commit(f'Saving file')
+            self.repo.add(source)
+            self.repo.commit(f'Saving file')
         return Response(status_code=201)
 
     async def stl(self, request: Request):

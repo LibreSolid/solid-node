@@ -11,10 +11,6 @@ from .broker import BrokerClient
 from solid_node.node.base import StlRenderStart
 
 
-# Exit codes
-BUILD_PRESERVED = 0
-BUILD_CHANGED = 1
-
 logger = logging.getLogger('core.builder')
 
 
@@ -67,7 +63,7 @@ class Builder(pyinotify.ProcessEvent):
                 await self.rollback(error_message)
 
         await self.file_changed
-        sys.exit(BUILD_PRESERVED)
+        sys.exit(0)
 
     async def generate_stl(self):
         try:
@@ -77,20 +73,15 @@ class Builder(pyinotify.ProcessEvent):
             logger.info(f"Building {job.stl_file} by pid {job.proc.pid}")
             job.wait()
             logger.info(f"{job.stl_file} done!")
-            sys.exit(BUILD_CHANGED)
+            sys.exit(0)
 
     async def rollback(self, error_message):
         await self.broker.post('compile', error_message)
-        await self.repo.revert_last_commit()
-        sys.exit(BUILD_PRESERVED)
+        self.repo.revert_last_commit()
+        sys.exit(0)
 
     def process_default(self, event):
         if not event.maskname == 'IN_CLOSE_WRITE':
             return
-        task = self.repo.add(event.pathname)
-        async_to_sync(task)
         logging.info(f'{event.pathname} changed, reloading')
         self.file_changed.set_result(True)
-
-    async def add_file(self, path):
-        self.repo.add(path)
