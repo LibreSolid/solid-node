@@ -20,10 +20,9 @@ logger = logging.getLogger('core.builder')
 
 class Builder(pyinotify.ProcessEvent):
     """Monitors .py files and generate STLs, and exit on any change"""
-    def __init__(self, path, debug):
+    def __init__(self, path):
         super().__init__()
         self.path = path
-        self.debug = debug
 
         self.repo = GitRepo(path)
         self.file_changed = Future()
@@ -41,17 +40,19 @@ class Builder(pyinotify.ProcessEvent):
         logger.info('START')
         self.broker = BrokerClient()
 
-        async with self.repo.lock():
+        async with self.repo.lock('BUILDER'):
             try:
                 self.node = load_node(self.path)
             except Exception as e:
                 error_message = traceback.format_exc()
+                logger.error(error_message)
                 await self.rollback(error_message)
 
             try:
                 self.node.assemble()
             except Exception as e:
                 error_message = traceback.format_exc()
+                logger.error(error_message)
                 await self.rollback(error_message)
 
             for path in self.node.files:
@@ -60,9 +61,9 @@ class Builder(pyinotify.ProcessEvent):
 
             try:
                 await self.generate_stl()
-                await self.repo.commit()
             except Exception as e:
                 error_message = traceback.format_exc()
+                logger.error(error_message)
                 await self.rollback(error_message)
 
         await self.file_changed
@@ -73,13 +74,14 @@ class Builder(pyinotify.ProcessEvent):
             self.node.trigger_stl()
             return
         except StlRenderStart as job:
-            logger.info(f"Building {job.stl_file}... ")
+            logger.info(f"Building {job.stl_file} by pid {job.proc.pid}")
             job.wait()
+            logger.info(f"{job.stl_file} done!")
             sys.exit(BUILD_CHANGED)
 
     async def rollback(self, error_message):
         await self.broker.post('compile', error_message)
-        await self.repo.discard_changes()
+        await self.repo.revert_last_commit()
         sys.exit(BUILD_PRESERVED)
 
     def process_default(self, event):

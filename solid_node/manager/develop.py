@@ -28,12 +28,12 @@ class Develop:
     """Monitor filesystem and executes transpilations and compilations on background"""
 
     def add_arguments(self, parser):
-        parser.add_argument('-d', '--debug', action='store_true',
-                            help='Debug mode supports breakpoints, but reload is not automatic')
         parser.add_argument('--openscad', action='store_true',
                             help='Show project in OpenSCAD (default)')
         parser.add_argument('--web', action='store_true',
                             help='Start a webserver to view project in browser')
+        parser.add_argument('--debug-builder', action='store_true',
+                            help='Debug mode supports breakpoints, but reload is not automatic')
         parser.add_argument('--debug-web', action='store_true',
                             help='Debug mode to support breakpoints in webserver')
 
@@ -48,11 +48,10 @@ class Develop:
         BrokerServer().start()
 
     def builder(self):
-        Builder(self.path, self.debug).start()
+        Builder(self.path).start()
 
     def handle(self, args):
         self.path = args.path
-        self.debug = args.debug
 
         broker_proc = Process(target=self.broker)
         broker_proc.start()
@@ -69,12 +68,11 @@ class Develop:
         if not args.openscad or args.web:
             if args.debug_web:
                 return self.web()
-
             web_proc = Process(target=self.web)
             web_proc.start()
 
 
-        if args.debug:
+        if args.debug_builder:
             return self.builder()
 
         while True:
@@ -103,5 +101,6 @@ class Develop:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 return s.connect_ex((BROKER_HOST, BROKER_PORT)) == 0
         while not is_port_open():
+            logger.info('port closed')
             time.sleep(0.1)
         logger.info(f'Broker is ready and listening on port {BROKER_PORT}')

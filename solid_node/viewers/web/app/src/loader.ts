@@ -73,11 +73,18 @@ export class NodeLoader {
   }
 
   reload() {
-    for (const path in this.shapes) {
-      if (this.shapes.hasOwnProperty(path)) {
-        this.loadNode(path);
+    const oldShapes = Object.assign({}, this.shapes);
+    this.shapes = {};
+    this.loadNode(this.root);
+
+    setTimeout(() => {
+      // Garbage collect for deleted children
+      for (const path in oldShapes) {
+        if (oldShapes.hasOwnProperty(path)) {
+          this.scene?.remove(oldShapes[path]);
+        }
       }
-    }
+    }, 200);
   }
 
   setScene(scene: THREE.Scene) {

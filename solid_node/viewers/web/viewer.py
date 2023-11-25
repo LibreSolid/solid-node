@@ -51,7 +51,7 @@ class WebViewer:
         self._setup_compile_feedback()
 
     def start(self):
-        logger.info("STARTED")
+        logger.info("START - will listen on port 8000")
         uvicorn.run(self.app, host="0.0.0.0", port=8000,
                     log_config=uvicorn_config)
 
@@ -179,13 +179,18 @@ class NodeAPI:
     async def save_source_code(self, request: Request):
         body = await request.body()
         source = inspect.getfile(inspect.getmodule(self.node))
-        open(source, 'wb').write(body)
+        async with self.repo.lock(f'VIEWER - {source}'):
+            open(source, 'wb').write(body)
+            await self.repo.add(source)
+            await self.repo.commit(f'Saving file')
         return Response(status_code=201)
 
     async def stl(self, request: Request):
         stl = self.node.stl
         if not stl:
+            logger.info(f'Waiting for {self.node.stl_file} to be available')
             stl = await self.wait_for_file(self.node.stl_file)
+            logger.info(f'Got {self.node.stl_file}')
 
         last_modified_time = datetime.utcfromtimestamp(os.path.getmtime(stl))
 

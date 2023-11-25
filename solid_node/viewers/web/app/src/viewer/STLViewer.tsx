@@ -107,7 +107,6 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       }
 
       props.loader?.setTime(timeRef.current);
-      console.log('aqui');
       renderer.render(scene, camera);
     };
 

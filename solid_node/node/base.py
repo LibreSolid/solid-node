@@ -185,8 +185,10 @@ class AbstractBaseNode:
 
     def trigger_stl(self):
         self.assemble()
+        logger.info('Triggering children')
         for child in self.children:
             child.trigger_stl()
+        logger.info('Generating stl')
         self.generate_stl()
 
     @property
@@ -208,10 +210,12 @@ class AbstractBaseNode:
             return False
 
     def generate_stl(self):
-        if self._up_to_date(self.stl_file) or \
-           not self.rigid or \
-           self._stl_generation_locked:
-            return
+        if self._up_to_date(self.stl_file):
+            return logger.info('STL up to date')
+        if not self.rigid:
+            return logger.info('Non rigid node, no STL to generate')
+        if self._stl_generation_locked:
+            return logger.info('Cannot generate, locked')
 
         fh = open(self.lock_file, 'w')
 
@@ -224,7 +228,7 @@ class AbstractBaseNode:
 
         fh.write(f'{proc.pid}')
         fh.close()
-
+        logger.info(f'Job started with pid {proc.pid}')
         raise StlRenderStart(proc, self.stl_file, self.mtime, self.lock_file)
 
     @property
@@ -313,6 +317,7 @@ class StlRenderStart(Exception):
             os.remove(self.lock_file)
 
     def wait(self):
-        logger.info(f"{self.scad_file} -> {self.stl_file} ...")
+        logger.info(f"waiting for {self.stl_file} ...")
         self.proc.wait()
+        logger.info(f"{self.stl_file} done!")
         self.finish()

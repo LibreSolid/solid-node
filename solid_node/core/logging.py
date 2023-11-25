@@ -3,7 +3,7 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(levelname)s - %(name)15s - %(message)s'
+    format='%(levelname)5s - %(name)15s - %(message)s'
 )
 
 uvicorn_config = {
@@ -12,7 +12,7 @@ uvicorn_config = {
     "formatters": {
         "access": {
             "()": "uvicorn.logging.DefaultFormatter",
-            "fmt": "%(levelname)s - %(name)15s - %(message)s",
+            "fmt": "%(levelname)5s - %(name)15s - %(message)s",
             "use_colors": True,
         },
     },
@@ -24,8 +24,8 @@ uvicorn_config = {
         },
     },
     "loggers": {
-        "uvicorn": {"handlers": ["default"], "level": "INFO"},
-        "uvicorn.error": {"handlers": ["default"], "level": "INFO"},
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"handlers": ["default"], "level": "INFO", "propagate": False},
         "uvicorn.access": {"handlers": ["default"], "level": "INFO", "propagate": False},
     },
 }
