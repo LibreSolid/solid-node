@@ -10,7 +10,6 @@ from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
-from pyinotify import WatchManager, EventsCodes, Notifier, ProcessEvent
 from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 from solid_node.core.logging import uvicorn_config
@@ -214,27 +213,7 @@ class NodeAPI:
         return response
 
     async def wait_for_file(self, file_path):
-        future = asyncio.Future()
-        wm = WatchManager()
-        mask = EventsCodes.ALL_FLAGS['IN_CREATE']
-        handler = EventHandler(future, file_path)
-        notifier = Notifier(wm, default_proc_fun=handler)
-        wm.add_watch(os.path.dirname(file_path), mask)
-
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, notifier.loop)
-        await future
-
-        notifier.stop()
-
-        return file_path
-
-
-class EventHandler(ProcessEvent):
-    def __init__(self, future, filename):
-        self.future = future
-        self.filename = filename
-
-    def process_IN_CREATE(self, event):
-        if event.pathname == self.filename:
-            self.future.set_result(True)
+        while True:
+            if os.path.exists(file_path):
+                return
+            await asyncio.sleep(0.1)
