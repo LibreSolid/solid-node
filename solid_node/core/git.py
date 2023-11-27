@@ -11,10 +11,14 @@ logger = logging.getLogger('core.git')
 class GitRepo:
     def __init__(self, file_path):
         self.repo = _find_repo_root(file_path)
-        self._ock = None
+        self._lock = None
 
-    def lock(self, source):
-        self._lock = RepoLock(source)
+    def async_lock(self, source):
+        self._lock = RepoAsyncLock(source)
+        return self._lock
+
+    def sync_lock(self, source):
+        self._lock = RepoSyncLock(source)
         return self._lock
 
     @property
@@ -42,7 +46,7 @@ class GitRepo:
         logger.debug(f'{operation} by {self._lock.source}')
 
 
-class RepoLock:
+class RepoAsyncLock:
 
     def __init__(self, source):
         self.source = source
@@ -67,6 +71,30 @@ class RepoLock:
             await websocket.send("release")
             await websocket.recv()
             logger.info(f'RELEASE from {self.source} ')
+
+
+class RepoSyncLock:
+
+    def __init__(self, source):
+        self.source = source
+        self.locked = False
+
+    def __enter__(self):
+        self.acquire_lock()
+        self.locked = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release_lock()
+        self.locked = False
+
+    def acquire_lock(self):
+        # Synchronous code to acquire lock
+        logger.info(f'SYNC LOCK from {self.source}')
+
+    def release_lock(self):
+        # Synchronous code to release lock
+        logger.info(f'SYNC RELEASE from {self.source}')
 
 
 def _find_repo_root(file_path):

@@ -8,6 +8,7 @@ from asyncio import Future
 from .loader import load_node
 from .git import GitRepo
 from .broker import BrokerClient
+from solid_node.core.refactor import RefactorRequest
 from solid_node.node.base import StlRenderStart
 
 
@@ -36,7 +37,7 @@ class Builder(pyinotify.ProcessEvent):
         logger.info('START')
         self.broker = BrokerClient()
 
-        async with self.repo.lock('BUILDER'):
+        async with self.repo.async_lock('BUILDER'):
             try:
                 self.node = load_node(self.path)
             except Exception as e:
@@ -46,6 +47,8 @@ class Builder(pyinotify.ProcessEvent):
 
             try:
                 self.node.assemble()
+            except RefactorRequest as request:
+                await self.execute_refactor(request)
             except Exception as e:
                 error_message = traceback.format_exc()
                 logger.error(error_message)
@@ -57,6 +60,8 @@ class Builder(pyinotify.ProcessEvent):
 
             try:
                 await self.generate_stl()
+            except RefactorRequest as request:
+                await self.execute_refactor(request)
             except Exception as e:
                 error_message = traceback.format_exc()
                 logger.error(error_message)
@@ -64,6 +69,15 @@ class Builder(pyinotify.ProcessEvent):
 
         await self.file_changed
         sys.exit(0)
+
+    async def execute_refactor(self, request):
+        try:
+            request.refactor()
+            sys.exit(0)
+        except Exception as e:
+            error_message = traceback.format_exc()
+            logger.error(error_message)
+            await self.rollback("Could not execute refactor\n\nerror_message")
 
     async def generate_stl(self):
         try:

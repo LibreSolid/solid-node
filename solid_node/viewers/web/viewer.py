@@ -179,7 +179,7 @@ class NodeAPI:
     async def save_source_code(self, request: Request):
         body = await request.body()
         source = inspect.getfile(inspect.getmodule(self.node))
-        async with self.repo.lock(f'VIEWER - {source}'):
+        async with self.repo.async_lock(f'VIEWER - {source}'):
             open(source, 'wb').write(body)
             self.repo.add(source)
             self.repo.commit(f'Saving file')
