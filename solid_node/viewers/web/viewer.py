@@ -9,12 +9,12 @@ from git import Repo
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 from solid_node.core.logging import uvicorn_config
 from solid_node.core.git import GitRepo
-from solid_node.core.broker import BROKER_URL
+from solid_node.core.broker import BrokerClient
 
 
 logger = logging.getLogger('viewer.web')
@@ -39,7 +39,11 @@ class WebViewer:
                             f'/{self.node.name}',
                             )
 
+        self.broker = BrokerClient()
+
         self.app.mount(f'/api/{self.root.name}', self.root.app)
+
+        self._setup_build_error()
 
         if dev:
             self._setup_proxy_server()
@@ -47,7 +51,6 @@ class WebViewer:
             self._setup_frontend_server()
 
         self._setup_reload_websocket()
-        self._setup_compile_feedback()
 
     def start(self):
         logger.info("START - will listen on port 8000")
@@ -67,23 +70,11 @@ class WebViewer:
             except WebSocketDisconnect:
                 return
 
-    def _setup_compile_feedback(self):
-        @self.app.websocket("/ws/compile")
-        async def compile_feedback_endpoint(websocket: WebSocket):
-            await websocket.accept()
-            while True:
-                try:
-                    # Connect to the broker's "compile" topic
-                    async with websockets.connect(f'{BROKER_URL}/compile') as broker_websocket:
-                        async for message in broker_websocket:
-                            # Relay message to the connected client
-                            await websocket.send_text(message)
-                except WebSocketDisconnect:
-                    # Broker has disconnected, let's just reconnect
-                    pass
-                except websockets.exceptions.ConnectionClosed:
-                    # Client has disconnected, finish request
-                    return
+    def _setup_build_error(self):
+        @self.app.get("/_build_error")
+        async def get_status():
+            error = await self.broker.get('build_error')
+            return JSONResponse(error)
 
     def _setup_frontend_server(self):
         # Serve a static application.

@@ -3,6 +3,7 @@ import pyinotify
 import asyncio
 import traceback
 import logging
+import time
 from asgiref.sync import async_to_sync
 from asyncio import Future
 from .loader import load_node
@@ -44,6 +45,7 @@ class Builder(pyinotify.ProcessEvent):
                 error_message = traceback.format_exc()
                 logger.error(error_message)
                 await self.rollback(error_message)
+                sys.exit(0)
 
             try:
                 self.node.assemble()
@@ -53,6 +55,7 @@ class Builder(pyinotify.ProcessEvent):
                 error_message = traceback.format_exc()
                 logger.error(error_message)
                 await self.rollback(error_message)
+                sys.exit(0)
 
             for path in self.node.files:
                 mask = pyinotify.IN_CLOSE_WRITE
@@ -66,6 +69,7 @@ class Builder(pyinotify.ProcessEvent):
                 error_message = traceback.format_exc()
                 logger.error(error_message)
                 await self.rollback(error_message)
+                sys.exit(0)
 
         await self.file_changed
         sys.exit(0)
@@ -77,7 +81,7 @@ class Builder(pyinotify.ProcessEvent):
         except Exception as e:
             error_message = traceback.format_exc()
             logger.error(error_message)
-            await self.rollback("Could not execute refactor\n\nerror_message")
+            await self.rollback(f"Could not execute refactor\n\n{error_message}")
 
     async def generate_stl(self):
         try:
@@ -90,7 +94,10 @@ class Builder(pyinotify.ProcessEvent):
             sys.exit(0)
 
     async def rollback(self, error_message):
-        await self.broker.post('compile', error_message)
+        await self.broker.put('build_error', {
+            'error': error_message,
+            'tstamp': time.time(),
+        })
         self.repo.revert_last_commit()
         sys.exit(0)
 

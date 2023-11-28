@@ -5,8 +5,11 @@ import { MeshDictionary,
          Operation,
          RawOperationDictionary,
          OperationDictionary,
+         BuildError,
        } from './loader.d';
 import { evaluate } from './evaluator';
+
+type SetErrorType = React.Dispatch<React.SetStateAction<string>>;
 
 export class NodeLoader {
 
@@ -19,15 +22,20 @@ export class NodeLoader {
   scene: THREE.Scene | undefined;
   stlLoader: STLLoader;
   reloadTrigger: WebSocket | undefined;
-  //compileError: WebSocket | undefined;
   root: string;
   code: string;
   newCode: string;
   location: string;
   time: number;
 
-  constructor(location: string) {
+  setError: SetErrorType;
+  errorTstamp: number | null = null;
+
+  firstCheck: boolean;
+
+  constructor(location: string, setError: SetErrorType) {
     this.location = location;
+    this.setError = setError;
     this.stlLoader = new STLLoader();
     this.root = '';
     this.code = '';
@@ -39,15 +47,7 @@ export class NodeLoader {
 
     this.time = 0;
 
-    this.watch();
-  }
-
-  // Static method that controls access to the singleton instance
-  public static getInstance(location: string): NodeLoader {
-    if (!NodeLoader.instance) {
-      NodeLoader.instance = new NodeLoader(location);
-    }
-    return NodeLoader.instance;
+    this.firstCheck = true;
   }
 
   watch() {
@@ -61,7 +61,7 @@ export class NodeLoader {
 
     this.reloadTrigger.onmessage = (event) => {
       if (event.data === "reload") {
-        this.reload();
+        this.checkBuild();
       }
     };
 
@@ -70,6 +70,21 @@ export class NodeLoader {
       this.watch();
     };
 
+  }
+
+  async checkBuild() {
+    const response = await fetch('/_build_error');
+    const result = await response.json() as BuildError;
+    if (!result.error || result.tstamp == this.errorTstamp) {
+      this.setError('');
+      if (!this.firstCheck)
+        this.reload();
+    } else {
+      this.errorTstamp = result.tstamp;
+      if (!this.firstCheck)
+        this.setError(result.error);
+    }
+    this.firstCheck = false;
   }
 
   reload() {

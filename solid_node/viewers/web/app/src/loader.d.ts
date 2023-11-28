@@ -30,3 +30,8 @@ export interface OperationDictionary {
 export interface RawOperationDictionary {
   [path: string]: RawOperation[];
 }
+
+export interface BuildError {
+  error: string;
+  tstamp: number;
+}

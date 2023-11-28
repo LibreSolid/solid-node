@@ -68,9 +68,10 @@ class EvolveAssembly(RefactorRequest):
             code += [
                 f'    {name} = {class_name}()'
             ]
+        code.append('')
 
         code += [
-            f'    def render(self):',
+            f'    def render(self):\n',
             f'        return [',
         ]
         for name in new_classes.keys():

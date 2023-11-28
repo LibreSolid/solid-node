@@ -1,6 +1,8 @@
 import asyncio
 import websockets
+import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from typing import Dict, Set
 from solid_node.core.logging import logging, uvicorn_config
 
@@ -16,14 +18,23 @@ logger = logging.getLogger('core.broker')
 
 
 class BrokerServer:
-    # Static declaration of topics
-    topics = ['compile']
+
+    # This is not being used, because it does not work for the builder.
+    # But for the assistant it probably will, so it was kept
+    topics = []
+
+    keys = [
+        'build_error',
+    ]
+
+    data = {}
 
     def __init__(self):
         self.app = FastAPI()
         self.global_lock = asyncio.Event()
         self.global_lock.set()  # Initially, the lock is available
         self.topic_connections: Dict[str, Set[WebSocket]] = {topic: set() for topic in self.topics}
+        self.data = {key: {} for key in self.keys}
         self.initialize_endpoints()
 
     def initialize_endpoints(self):
@@ -31,7 +42,16 @@ class BrokerServer:
         async def lock_endpoint(websocket: WebSocket):
             await self.lock_handler(websocket)
 
-        for topic in self.topic_connections.keys():
+        for key in self.keys:
+            @self.app.put(f'/{key}')
+            async def update_key(data: dict):
+                self.data[key] = data
+
+            @self.app.get(f'/{key}')
+            async def get_key():
+                return JSONResponse(self.data[key])
+
+        for topic in self.topics:
             @self.app.websocket(f'/{topic}')
             async def topic_endpoint(websocket: WebSocket, topic=topic):
                 await self.topic_handler(websocket, topic)
@@ -83,3 +103,13 @@ class BrokerClient:
     async def post(self, topic, message):
         async with websockets.connect(f'{BROKER_URL}/{topic}') as websocket:
             await websocket.send(message)
+
+    async def put(self, key, data):
+        async with httpx.AsyncClient() as client:
+            response = await client.put((f'{BROKER_URL}/{key}'), json=data)
+            return response.json()
+
+    async def get(self, key):
+        async with httpx.AsyncClient() as client:
+            response = await client.get((f'{BROKER_URL}/{key}'))
+            return response.json()
