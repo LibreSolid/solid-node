@@ -7,6 +7,7 @@ import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
 import { NodeLoader } from './loader';
 import { RotationControl } from './viewer/viewer.d';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { loadNode, Node } from './node';
 import CodeEditor from './CodeEditor';
 import NavigationTree from './NavigationTree';
 
@@ -15,17 +16,24 @@ const App = () => {
   //const [control, setControl] = useState<number>(0);
   const [error, setError] = useState<string>('');
   const [loader, setLoader] = useState<NodeLoader>();
+  const [root, setRoot] = useState<Node>();
   const [rotation, setRotation] = useState<RotationControl>({
     source: 0,
     rotation: new THREE.Vector3(0, 0, 100),
   });
 
+  if (!root) {
+    loadNode('__root__', {time: 0});
+  }
+  /*
   if (!loader) {
     setLoader(new NodeLoader(
       window.location.href,
       setError,
     ));
   }
+   */
+
 
   useEffect(() => {
     loader?.watch();

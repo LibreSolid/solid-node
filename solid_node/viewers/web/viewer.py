@@ -122,6 +122,7 @@ class NodeAPI:
         self.name = self.node.name
         self.repo = repo
 
+        logger.info(f'Prefix {prefix} to {node.name}')
         self.app = FastAPI()
 
         self.app.add_api_route('/', self.state, methods=["GET"])
@@ -149,6 +150,7 @@ class NodeAPI:
         for child in children:
             child_path = f'/{child.name}'
             subapp = NodeAPI(child, self.repo, stl_index, child_path)
+            logger.info(f'Mounting {child_path}')
             self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
             self.children.append(child.name)
