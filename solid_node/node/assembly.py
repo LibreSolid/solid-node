@@ -11,6 +11,7 @@ class AssemblyNode(InternalNode):
     The render method of this class returns a list of its child nodes.
     """
 
+    _type = 'AssemblyNode'
     rigid = False
 
     def set_keyframe(self, time):

@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 import threading
 import uvicorn
@@ -41,7 +42,7 @@ class WebViewer:
 
         self.broker = BrokerClient()
 
-        self.app.mount(f'/api/{self.root.name}', self.root.app)
+        self.app.mount(f'/root', self.root.app)
 
         self._setup_build_error()
 
@@ -158,6 +159,7 @@ class NodeAPI:
     async def state(self):
         state =  {
             'operations': self.operations,
+            'type': self.node._type,
         }
         if self.children:
             state['children'] = self.children
@@ -165,7 +167,7 @@ class NodeAPI:
             state['model'] = f'{self.name}.stl'
 
         state['code'] = inspect.getsource(inspect.getmodule(self.node))
-        import json
+        state['mtime'] = self.node.mtime
         op = json.dumps(self.operations)
         return state
 

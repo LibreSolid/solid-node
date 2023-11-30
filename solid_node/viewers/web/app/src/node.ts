@@ -4,11 +4,27 @@ import {
   Operation,
 } from './operations.d';
 import { evaluate } from './evaluator';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 
+type SetErrorType = React.Dispatch<React.SetStateAction<string>>;
 
-interface Context {
+export interface Context {
   time: number;
+  scene: THREE.Scene;
+  setError: SetErrorType;
 }
+
+interface NodeData {
+  type: string;
+  name: string;
+  model?: string;
+  children?: string[];
+  code: string;
+  mtime: number;
+  operations: RawOperation[];
+}
+
+const stlLoader = new STLLoader();
 
 export abstract class Node {
   // A string matching the subclass name
@@ -16,15 +32,22 @@ export abstract class Node {
 
   // The name identifying this node for its parent
   name: string;
-  // The path for the api, is based on name, not sure if necessary
+
+  // The name of all parents joined by /
   path: string;
 
   // Model is the path of the mesh
   model?: string;
   mesh?: THREE.Mesh;
 
+  // The source code for this node
+  code: string;
+  newCode: string | undefined;
+
   children: Node[];
   context: Context;
+
+  mtime: number;
 
   // Operations matrix.
   // Each layer of the tree has a list of operations
@@ -33,11 +56,14 @@ export abstract class Node {
   rawOperations: RawOperation[][];
   operations: Operation[][];
 
-  constructor(type: string, name: string, path: string, context: Context) {
+  constructor(type: string, path: string, data: NodeData, context: Context) {
     this.type = type;
-    this.name = name;
     this.path = path;
+    this.name = data.name;
+    this.mtime = data.mtime;
+    this.code = data.code;
     this.context = context;
+    this.children = [];
     this.rawOperations = [];
     this.operations = [];
   }
@@ -50,10 +76,65 @@ export abstract class Node {
     }
   }
 
-  setTime(time: number) {
-    this.context.time = time;
+  setContext(context: Context) {
+    this.context = context;
+
+    for (const child of this.children) {
+      child.setContext(context);
+    }
+
     this.unapplyOperations();
+    this.setOperations(this.rawOperations[0]);
     this.applyOperations();
+  }
+
+  setCode(code: string) {
+    this.newCode = code;
+  }
+
+  async saveCode() {
+    if (!this.newCode) {
+      alert('no code to save');
+      return;
+    }
+    const response = await fetch(
+      `/root${this.path}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: this.newCode,
+      }
+    );
+    if (response.ok) {
+      this.code = this.newCode;
+    }
+  }
+
+  async reload() {
+    this.loadModel();
+    //const nodeData = await loadNodeData(this.path);
+  }
+
+  loadModel() {
+    if (!this.model)
+      return;
+    const tstamp = new Date().getTime(); // avoid cache
+
+    stlLoader.load(`/root${this.path}${this.model}?t=${tstamp}`, (geometry) => {
+      const material = new THREE.MeshNormalMaterial();
+      const mesh = new THREE.Mesh(geometry, material);
+      if (this.context.scene) {
+        if (this.mesh) {
+          this.context.scene.remove(this.mesh);
+        }
+        this.context.scene.add(mesh);
+      }
+      this.mesh = mesh;
+      this.applyOperations();
+    });
+
   }
 
   applyOperations() {
@@ -118,56 +199,67 @@ export abstract class Node {
 abstract class InternalNode extends Node {
   children: Node[];
 
-  constructor(type: string, name: string, path: string, children: Node[], context: Context) {
-    super(type, name, path, context);
+  constructor(type: string, path: string, data: NodeData, children: Node[], context: Context) {
+    super(type, path, data, context);
     this.children = children;
   }
 }
 
 
-class FusionNode extends InternalNode {
-  constructor(name: string, path: string, model: string, children: Node[], context: Context) {
-    super("FusionNode", name, path, children, context);
-    this.model = model;
+export class FusionNode extends InternalNode {
+  constructor(path: string, data: NodeData, children: Node[], context: Context) {
+    super("FusionNode", path, data, children, context);
+    this.model = data.model;
+    this.loadModel();
   }
 }
 
 
-class AssemblyNode extends InternalNode {
-  constructor(name: string, path: string, children: Node[], context: Context) {
-    super("AssemblyNode", name, path, children, context);
+export class AssemblyNode extends InternalNode {
+  constructor(path: string, data: NodeData, children: Node[], context: Context) {
+    super("AssemblyNode", path, data, children, context);
   }
 }
 
 
-class LeafNode extends Node {
+export class LeafNode extends Node {
 
-  constructor(name: string, path: string, model: string, context: Context) {
-    super("LeafNode", name, path, context);
-    this.model = model;
+  constructor(path: string, data: NodeData, context: Context) {
+    super("LeafNode", path, data, context);
+    this.model = data.model;
+    this.loadModel();
   }
 
+}
+
+export const loadRoot = async (context: Context): Promise<Node> => {
+  return loadNode('/', context);
+}
+
+const loadNodeData = async (path: string): Promise<NodeData> => {
+  const tstamp = new Date().getTime(); // avoid cache
+  const response = await fetch(`/root${path}?t=${tstamp}`);
+  return await response.json() as NodeData;
 }
 
 // Factory function
-export const loadNode = async (path: string, context: Context): Promise<Node> {
-  const tstamp = new Date().getTime(); // avoid cache
-  const response = await fetch(`/api${path}?t=${tstamp}`);
-  const data = await response.json();
+export const loadNode = async (path: string, context: Context): Promise<Node> => {
+  const data = await loadNodeData(path);
 
-  let node: Node;
+  let node: Node | undefined;
 
   if (data.type === "LeafNode") {
-    node = new LeafNode(data.name, data.path, data.model, context);
+    node = new LeafNode(path, data, context);
   } else {
-    const childrenPromises = data.children.map((childPath: string) => {
-      loadNode(childPath, context);
+    const childrenPromises = data.children!.map((child: string) => {
+      const childPath = `${path}${child}/`;
+      return loadNode(childPath, context);
     });
     const children = await Promise.all(childrenPromises);
     if (data.type === "FusionNode") {
-      node = new FusionNode(data.name, data.path, data.model, children, context);
+      node = new FusionNode(path, data, children, context);
     } else if (data.type === "AssemblyNode") {
-      node = new AssemblyNode(data.name, data.path, children, context);
+      node = new AssemblyNode(path, data, children, context);
     }
   }
 

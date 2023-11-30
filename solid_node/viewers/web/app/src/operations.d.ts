@@ -18,20 +18,3 @@ export type TranslationOperation = [
 ];
 
 export type Operation = RotationOperation | TranslationOperation;
-
-export interface MeshDictionary {
-    [path: string]: THREE.Mesh;
-}
-
-export interface OperationDictionary {
-  [path: string]: Operation[];
-}
-
-export interface RawOperationDictionary {
-  [path: string]: RawOperation[];
-}
-
-export interface BuildError {
-  error: string;
-  tstamp: number;
-}

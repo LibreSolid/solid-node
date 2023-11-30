@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import AceEditor from 'react-ace';
 import { IAceEditor } from 'react-ace/lib/types';
-import { NodeLoader } from './loader';
+import { Node } from './node';
 import { useLocation } from 'react-router-dom';
 
 import "ace-builds/src-noconflict/mode-python";
@@ -12,7 +12,7 @@ import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/keybinding-emacs";
 
 type CodeEditorProps = {
-  loader: NodeLoader | undefined;
+  node: Node | undefined;
   fontSize: number;
 }
 
@@ -22,9 +22,9 @@ const CodeEditor = (props: CodeEditorProps) => {
 
 
   useEffect(() => {
-    if (aceEditorRef.current && props.loader) {
+    if (aceEditorRef.current && props.node) {
       const saveFile = () => {
-        props.loader?.saveCode();
+        props.node?.saveCode();
       };
 
       const editor: IAceEditor = aceEditorRef.current.editor;
@@ -34,7 +34,7 @@ const CodeEditor = (props: CodeEditorProps) => {
         exec: saveFile
       });
     }
-  }, [aceEditorRef.current, props.loader]);
+  }, [aceEditorRef.current, props.node]);
 
   return (
     <div>
@@ -42,8 +42,8 @@ const CodeEditor = (props: CodeEditorProps) => {
         ref={aceEditorRef}
         mode="python"
         theme="monokai"
-        value={props.loader?.code}
-        onChange={(code) => props.loader?.setCode(code)}
+        value={props.node?.code}
+        onChange={(code) => props.node?.setCode(code)}
         name="code-editor"
         fontSize={16}
         editorProps={{ $blockScrolling: true }}
