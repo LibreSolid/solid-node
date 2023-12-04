@@ -3,6 +3,8 @@ from .base import AbstractBaseNode
 
 class LeafNode(AbstractBaseNode):
 
+    _type = 'LeafNode'
+
     @property
     def time(self):
         raise Exception(f"Leaf node cannot rely on time, animation should be "

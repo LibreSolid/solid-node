@@ -12,6 +12,7 @@
     "@types/react-dom": "^18.2.7",
     "@types/three": "^0.156.0",
     "ace-builds": "^1.31.2",
+    "jokenizer": "^0.4.5",
     "re-resizable": "^6.9.11",
     "react": "^18.2.0",
     "react-ace": "^10.1.0",

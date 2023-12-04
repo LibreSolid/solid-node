@@ -1,15 +1,15 @@
 import { tokenize, evaluate as _evaluate } from 'jokenizer';
-import { RawOperation, Operation, TranslationOperation, RotationOperation } from './loader.d';
+import { RawOperation, Operation, TranslationOperation, RotationOperation } from './operations.d';
 
 export const evaluate = (operations: RawOperation[], time: number): Operation[] => {
   return operations.map((operation) => {
-    if (operation[0] == "r") {
+    if (operation[0] === "r") {
       return ["r",
               evaluateExpression(operation[1], time),
               operation[2],
              ] as RotationOperation;
     }
-    if (operation[0] == "t") {
+    if (operation[0] === "t") {
       return ["t",
               operation[1].map(t => evaluateExpression(t, time)),
              ] as TranslationOperation;

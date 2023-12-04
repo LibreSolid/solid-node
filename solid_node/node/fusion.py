@@ -10,6 +10,8 @@ class FusionNode(InternalNode):
     The render method of this class returns a list of its child nodes.
     """
 
+    _type = 'FusionNode'
+
     @property
     def time(self):
         raise Exception(f"FusionNode cannot rely on time, use AssemblyNode for animation")

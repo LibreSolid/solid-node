@@ -4,13 +4,13 @@ import * as THREE from 'three';
 //import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { RotationControl } from  './viewer.d';
-import { NodeLoader } from '../loader';
+import { Context } from '../node';
 
 
 type STLViewerProps = {
   controlId: number;
   rotation: RotationControl;
-  loader: NodeLoader | undefined;
+  context: Context;
   setRotation: (r: RotationControl) => void;
 };
 
@@ -24,42 +24,35 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const sceneRef = useRef<THREE.Scene>();
   const controlsRef = useRef<OrbitControls>();
-  const timeRef = useRef<number>(0);
   const location = useLocation();
 
 
   const [size, setSize] = useState<number>(150);
 
-  useEffect(() => {
-    if (props.loader) {
-      props.loader.loadRoot(location.pathname);
-    }
-  }, [location, props.loader]);
+  const context = props.context;
 
   useEffect(() => {
-    if (!containerRef.current || !props.loader) return;
+    if (!containerRef.current || !context.scene)
+      return;
 
     const width = containerRef.current.offsetWidth;
     const height = containerRef.current.offsetHeight;
 
-    if (!sceneRef.current) {
-      sceneRef.current = new THREE.Scene();
-      sceneRef.current.background = new THREE.Color(0xe5e5e5);
+    if (!rendererRef.current) {
+      rendererRef.current = new THREE.WebGLRenderer({ antialias: true });
+      rendererRef.current.setSize(width, height);
+    }
 
+    if (!cameraRef.current) {
       cameraRef.current = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
       cameraRef.current.position.z = 200;
       cameraRef.current.up.set(0, 0, 1);
-      rendererRef.current = new THREE.WebGLRenderer({ antialias: true });
-      rendererRef.current.setSize(width, height);
-
-      props.loader.setScene(sceneRef.current);
     }
 
-    const scene = sceneRef.current!;
-    const camera = cameraRef.current!;
+    const scene = context.scene!;
     const renderer = rendererRef.current!;
+    const camera = cameraRef.current!;
 
     if (!containerRef.current.firstChild) {
       containerRef.current.appendChild(renderer.domElement);
@@ -80,9 +73,9 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
 
     scene.add(mmGrid);
     scene.add(cmGrid);
-     */
-
+    */
     // RGB Axes
+    /*
     const arrowLength = 50;
 
     const xAxis = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), arrowLength, 0xff0000);
@@ -92,23 +85,8 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
     scene.add(xAxis);
     scene.add(yAxis);
     scene.add(zAxis);
-
+    */
     const step = 1/2000;
-    timeRef.current = 0;
-
-    const animate = () => {
-      requestAnimationFrame(animate);
-      controls.update();
-
-      timeRef.current += step;
-
-      if (timeRef.current > 1) {
-        timeRef.current -= 1;
-      }
-
-      props.loader?.setTime(timeRef.current);
-      renderer.render(scene, camera);
-    };
 
     controls.addEventListener('change', () => {
       props.setRotation({
@@ -116,14 +94,26 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
         rotation: camera.position.clone(),
       });
     });
-
-    animate();
-
+    //animate();
+    rendererRef.current.render(context.scene, cameraRef.current);
     return () => {
       renderer.dispose(); // Clean up on component unmount
       window.removeEventListener('resize', handleResize);
     };
-  }, [props.loader]);
+  }, [context.scene, containerRef.current]);
+
+  useEffect(() => {
+    if (!rendererRef.current || !cameraRef.current || !controlsRef.current) {
+      return;
+    }
+    const controls = controlsRef.current;
+    const renderer = rendererRef.current;
+    const scene = context.scene;
+    const camera = cameraRef.current;
+
+    renderer.render(scene, camera);
+
+  }, [context.time, rendererRef.current, cameraRef.current, controlsRef.current]);
 
   useEffect(() => {
     if (!cameraRef.current || props.rotation?.source === props.controlId)
@@ -138,7 +128,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
   }, [props.rotation, cameraRef.current]);
 
   const handleResize = () => {
-    if (rendererRef.current && containerRef.current && cameraRef.current && sceneRef.current) {
+    if (rendererRef.current && containerRef.current && cameraRef.current && context.scene) {
       const width = containerRef.current.offsetWidth;
       const height = containerRef.current.offsetHeight;
 
@@ -146,7 +136,7 @@ export const STLViewer = forwardRef<STLViewerHandles, STLViewerProps>((props, re
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
 
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
+      rendererRef.current.render(context.scene, cameraRef.current);
     }
   };
 

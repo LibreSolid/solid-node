@@ -4,32 +4,59 @@ import './App.css';
 import { Resizable } from 're-resizable';
 import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
 //import { ControlCube } from './viewer/ControlCube';
-import { NodeLoader } from './loader';
+//import { NodeProvider } from './context';
 import { RotationControl } from './viewer/viewer.d';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { Node, Context, loadNode } from './node';
+import { Reloader } from './reloader';
+import { Animator } from './animator';
 import CodeEditor from './CodeEditor';
 import NavigationTree from './NavigationTree';
 
 const App = () => {
   const stlViewerRef = useRef<STLViewerHandles | null>(null);
-  //const [control, setControl] = useState<number>(0);
+  const [time, setTime] = useState<number>(0);
   const [error, setError] = useState<string>('');
-  const [loader, setLoader] = useState<NodeLoader>();
+  const [node, setNode] = useState<Node>();
+  const [animator, setAnimator] = useState<Animator>();
+  const [context, setContext] = useState<Context>({
+    time: time,
+    setError,
+    scene: new THREE.Scene(),
+  });
+  const [reloader, setReloader] = useState<Reloader>();
+
   const [rotation, setRotation] = useState<RotationControl>({
     source: 0,
     rotation: new THREE.Vector3(0, 0, 100),
   });
 
-  if (!loader) {
-    setLoader(new NodeLoader(
-      window.location.href,
-      setError,
-    ));
-  }
+  useEffect(() => {
+    if (node) {
+      const newContext = Object.assign({}, context, { time });
+      node.setContext(newContext);
+      setContext(newContext);
+    }
+  }, [time, node]);
 
   useEffect(() => {
-    loader?.watch();
-  }, [loader]);
+    context.scene.background = new THREE.Color(0xe5e5e5);
+    context.scene.clear();
+    const path = window.location.pathname;
+    loadNode(path, context).then((node) => {
+      setNode(node);
+      setAnimator(Animator.getInstance(setTime));
+      setReloader(new Reloader(setError, () => {
+        node.reload();
+      }));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (animator) {
+      animator.setAnimation(30, 360);
+    }
+  }, [animator]);
 
   /*
   const handleViewerResize = () => {
@@ -38,7 +65,6 @@ const App = () => {
   */
 
   const fontSize = 15;
-  //const editorWidth = fontSize * 80 / 2;
 
   return (
     <Router>
@@ -49,7 +75,7 @@ const App = () => {
             className="pane left"
             enable={{ right: true }}
           >
-            <NavigationTree/>
+            <NavigationTree />
           </Resizable>
 
           <Resizable
@@ -58,7 +84,7 @@ const App = () => {
             enable={{ right: true }}
           >
             <CodeEditor
-              loader={loader}
+              node={node}
               fontSize={fontSize}
             />
           </Resizable>
@@ -69,15 +95,15 @@ const App = () => {
             enable={{ right: true }}
           >
             {!error &&
-            <STLViewer
-              controlId={1}
-              rotation={rotation}
-              loader={loader}
-              setRotation={setRotation}
-            />
+              <STLViewer
+                controlId={1}
+                rotation={rotation}
+                context={context}
+                setRotation={setRotation}
+              />
             }
             {error &&
-            <div><pre>{error}</pre></div>
+              <div><pre>{error}</pre></div>
             }
             <div style={{ position: 'relative' }}>
               {/*
