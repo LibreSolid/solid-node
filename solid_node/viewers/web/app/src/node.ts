@@ -66,6 +66,7 @@ export abstract class Node {
     this.children = [];
     this.rawOperations = [];
     this.operations = [];
+    this.newCode = this.code;
   }
 
   setOperations(op: RawOperation[], level: number = 0) {
@@ -245,7 +246,6 @@ const loadNodeData = async (path: string): Promise<NodeData> => {
 // Factory function
 export const loadNode = async (path: string, context: Context): Promise<Node> => {
   const data = await loadNodeData(path);
-
   let node: Node | undefined;
 
   if (data.type === "LeafNode") {

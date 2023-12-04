@@ -22,6 +22,7 @@ const CodeEditor = (props: CodeEditorProps) => {
 
 
   useEffect(() => {
+    console.log('changed');
     if (aceEditorRef.current && props.node) {
       const saveFile = () => {
         props.node?.saveCode();
@@ -42,7 +43,7 @@ const CodeEditor = (props: CodeEditorProps) => {
         ref={aceEditorRef}
         mode="python"
         theme="monokai"
-        value={props.node?.code}
+        value={props.node?.newCode}
         onChange={(code) => props.node?.setCode(code)}
         name="code-editor"
         fontSize={16}

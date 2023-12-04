@@ -13,6 +13,7 @@ import { Animator } from './animator';
 import CodeEditor from './CodeEditor';
 import NavigationTree from './NavigationTree';
 
+
 const App = () => {
   const stlViewerRef = useRef<STLViewerHandles | null>(null);
   const [time, setTime] = useState<number>(0);
@@ -40,8 +41,10 @@ const App = () => {
   }, [time, node]);
 
   useEffect(() => {
+    // Avoid react double rendering bug
+    if (context.scene.background) return;
+
     context.scene.background = new THREE.Color(0xe5e5e5);
-    context.scene.clear();
     const path = window.location.pathname;
     loadNode(path, context).then((node) => {
       setNode(node);
