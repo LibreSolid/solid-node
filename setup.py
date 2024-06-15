@@ -4,14 +4,6 @@
 
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
-    readme = readme_file.read()
-
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
-requirements = [ ]
-
 test_requirements = ['pytest>=3', ]
 
 setup(
@@ -24,9 +16,10 @@ setup(
         'License :: OSI Approved :: GNU Affero General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
     ],
     description="A framework to develop and manage solid projects in Python",
     entry_points={
@@ -34,9 +27,21 @@ setup(
             'solid=solid_node.cli:manage',
         ],
     },
-    install_requires=requirements,
+    install_requires=[
+        "pyinotify==0.9.6",
+        "trimesh==4.4.*",
+        "solidpython2==2.1.*",
+        "cadquery==2.4.*",
+        "unicorn==2.0.*",
+        "httpx==0.27.*",
+        "fastapi==0.111.*",
+        "termcolor==2.4.*",
+        "websockets==12.*",
+        "GitPython==3.1.*",
+        "asgiref==3.8.*",
+        "uvicorn==0.30.*"
+    ],
     license="GNU Affero General Public License v3",
-    long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='solid_node',
     name='solid_node',
