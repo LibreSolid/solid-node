@@ -17,7 +17,7 @@ class DistWithFrontend(sdist):
 setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
-    version='0.0.4',
+    version='0.0.5',
     python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -47,7 +47,8 @@ setup(
         "websockets==12.*",
         "GitPython==3.1.*",
         "asgiref==3.8.*",
-        "uvicorn==0.30.*"
+        "uvicorn==0.30.*",
+        "numpy<2",
     ],
     license="GNU Affero General Public License v3",
     include_package_data=True,
