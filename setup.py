@@ -9,11 +9,10 @@ test_requirements = ['pytest>=3', ]
 setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU Affero General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.8',
@@ -21,7 +20,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
     ],
-    description="A framework to develop and manage solid projects in Python",
+    description="A framework to develop and manage mechanical projects in Python",
     entry_points={
         'console_scripts': [
             'solid=solid_node.cli:manage',
@@ -49,6 +48,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/lfagundes/solid_node',
-    version='0.0.1',
+    version='0.0.3',
     zip_safe=False,
 )
