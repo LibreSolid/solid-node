@@ -2,6 +2,7 @@
 
 """The setup script."""
 
+import subprocess
 from setuptools import setup, find_packages
 from setuptools.command.sdist import sdist
 
@@ -11,7 +12,7 @@ class DistWithFrontend(sdist):
         viewer_dir = 'solid_node/viewers/web/app/'
         subprocess.check_call(['npm', 'install'], cwd=viewer_dir)
         subprocess.check_call(['npm', 'run', 'build'], cwd=viewer_dir)
-        _sdist.run(self)
+        sdist.run(self)
 
 setup(
     author="Luis Fagundes",
@@ -54,7 +55,7 @@ setup(
     name='solid_node',
     packages=find_packages(include=['solid_node', 'solid_node.*']),
     test_suite='tests',
-    tests_require=['pytest>=3']
+    tests_require=['pytest>=3'],
     url='https://github.com/lfagundes/solid_node',
     cmdclass={
         'sdist': DistWithFrontend,
