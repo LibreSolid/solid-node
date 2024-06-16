@@ -3,12 +3,20 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
+from setuptools.command.sdist import sdist
 
-test_requirements = ['pytest>=3', ]
+class DistWithFrontend(sdist):
+    # Build the web application inside the python library
+    def run(self):
+        viewer_dir = 'solid_node/viewers/web/app/'
+        subprocess.check_call(['npm', 'install'], cwd=viewer_dir)
+        subprocess.check_call(['npm', 'run', 'build'], cwd=viewer_dir)
+        _sdist.run(self)
 
 setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
+    version='0.0.3',
     python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -46,8 +54,10 @@ setup(
     name='solid_node',
     packages=find_packages(include=['solid_node', 'solid_node.*']),
     test_suite='tests',
-    tests_require=test_requirements,
+    tests_require=['pytest>=3']
     url='https://github.com/lfagundes/solid_node',
-    version='0.0.3',
+    cmdclass={
+        'sdist': DistWithFrontend,
+    },
     zip_safe=False,
 )
