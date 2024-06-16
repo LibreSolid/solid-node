@@ -6,6 +6,7 @@ import uvicorn
 import httpx
 import inspect
 import logging
+import subprocess
 from git import Repo
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
@@ -19,6 +20,22 @@ from solid_node.core.broker import BrokerClient
 
 
 logger = logging.getLogger('viewer.web')
+basedir = os.path.dirname(
+    os.path.realpath(__file__)
+)
+
+class WebDevServer:
+
+    def __init__(self, path, dev=True):
+        self.path = path
+        self.app_dir = os.path.join(basedir, 'app')
+
+    def start(self):
+        proc = subprocess.Popen(
+            ['npm', 'run', 'start'],
+            cwd=self.app_dir,
+        )
+        proc.communicate()
 
 
 class WebViewer:
@@ -27,10 +44,7 @@ class WebViewer:
         self.node = load_node(path)
         self.repo = GitRepo(path)
 
-        self.basedir = os.path.dirname(
-            os.path.realpath(__file__)
-        )
-        self.frontend_dir = os.path.join(self.basedir, 'app/build')
+        self.frontend_dir = os.path.join(basedir, 'app/build')
 
         self.stl_index = {}
         self.app = FastAPI()
@@ -46,12 +60,12 @@ class WebViewer:
 
         self._setup_build_error()
 
+        self._setup_reload_websocket()
+
         if dev:
             self._setup_proxy_server()
         else:
             self._setup_frontend_server()
-
-        self._setup_reload_websocket()
 
     def start(self):
         logger.info("START - will listen on port 8000")
@@ -92,9 +106,6 @@ class WebViewer:
     def _setup_proxy_server(self):
         # This makes a proxy to a running "npm start" development server
         # inside app/ application.
-        # It's cumbersome because FastAPI was not meant for this. Couldn't find
-        # a way to get full URI with it.
-
         @self.app.get('/')
         async def proxy_root():#, request: Request):
             return await _proxy('/')

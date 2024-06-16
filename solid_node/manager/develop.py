@@ -18,7 +18,7 @@ from solid_node.core.builder import Builder
 from solid_node.core.git import GitRepo
 from solid_node.node.base import StlRenderStart
 from solid_node.viewers.openscad import OpenScadViewer
-from solid_node.viewers.web import WebViewer
+from solid_node.viewers.web import WebViewer, WebDevServer
 
 
 logger = logging.getLogger('manager.develop')
@@ -28,10 +28,12 @@ class Develop:
     """Monitor filesystem and executes transpilations and compilations on background"""
 
     def add_arguments(self, parser):
-        parser.add_argument('--openscad', action='store_true',
-                            help='Show project in OpenSCAD (default)')
         parser.add_argument('--web', action='store_true',
-                            help='Start a webserver to view project in browser')
+                            help='Start a webserver to view project in browser (default)')
+        parser.add_argument('--web-dev', action='store_true',
+                            help='Start a development webserver (proxy to npm start) to view project in browser')
+        parser.add_argument('--openscad', action='store_true',
+                            help='Show project in OpenSCAD')
         parser.add_argument('--debug-builder', action='store_true',
                             help='Debug mode supports breakpoints, but reload is not automatic')
         parser.add_argument('--debug-web', action='store_true',
@@ -42,7 +44,10 @@ class Develop:
         OpenScadViewer(self.path).start()
 
     def web(self):
-        WebViewer(self.path).start()
+        WebViewer(self.path, self.web_dev).start()
+
+    def web_dev_server(self):
+        WebDevServer(self.path).start()
 
     def broker(self):
         BrokerServer().start()
@@ -60,17 +65,23 @@ class Develop:
 
         builder_proc = None
         web_proc = None
+        web_dev_proc = None
         openscad_proc = None
 
         if args.openscad:
             openscad_proc = Process(target=self.openscad)
 
-        if not args.openscad or args.web:
+        if not args.openscad or args.web or args.web_dev or args.debug_web:
+            self.web_dev = args.web_dev
+            if args.web_dev:
+                web_dev_proc = Process(target=self.web_dev_server)
+                web_dev_proc.start()
+
             if args.debug_web:
                 return self.web()
+
             web_proc = Process(target=self.web)
             web_proc.start()
-
 
         if args.debug_builder:
             return self.builder()
