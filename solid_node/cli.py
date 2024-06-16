@@ -1,4 +1,5 @@
 import argparse
+import os
 from solid_node.manager.develop import Develop
 from solid_node.manager.test import Test
 
@@ -38,6 +39,9 @@ def manage():
 
     if args.command is None:
         return parser.print_help()
+
+    if os.path.isdir(args.path):
+        args.path = os.path.join(args.path, '__init__.py')
 
     command = index[args.command]
 
