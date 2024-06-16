@@ -3,6 +3,9 @@ include HISTORY.rst
 include LICENSE
 include README.rst
 
+recursive-include solid_node/viewers/web/app/ *
+prune solid_node/viewers/web/app/node_modules
+
 recursive-include tests *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
