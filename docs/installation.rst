@@ -5,47 +5,22 @@ Installation
 ============
 
 
-Stable release
---------------
+As Git versioning is implemented SolidNode core, any project will require a git repository. You should start by forking from solid-seed.
 
-To install SolidNode, run this command in your terminal:
+.. code-block:: console
+
+    $ git clone https://github.com/LibreSolid/solid-seed.git myproject
+
+Then create a virtual environment for your project
+
+.. code-block:: console
+
+    $ cd myproject
+    $ virtualenv --python=python3 myproject-env
+    $ source myproject-env/bin/activate
+
+And install solid-node in your environment
 
 .. code-block:: console
 
     $ pip install solid-node
-
-This is the preferred method to install SolidNode, as it will always install the most recent stable release.
-
-If you don't have `pip`_ installed, this `Python installation guide`_ can guide
-you through the process.
-
-.. _pip: https://pip.pypa.io
-.. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
-
-
-From sources
-------------
-
-The sources for SolidNode can be downloaded from the `Github repo`_.
-
-You can either clone the public repository:
-
-.. code-block:: console
-
-    $ git clone git@github.com:LibreSolid/solid-node
-
-Or download the `tarball`_:
-
-.. code-block:: console
-
-    $ curl -OJL https://github.com/LibreSolid/solid-node/tarball/master
-
-Once you have a copy of the source, you can install it with:
-
-.. code-block:: console
-
-    $ python setup.py install
-
-
-.. _Github repo: https://github.com/LibreSolid/solid-node
-.. _tarball: https://github.com/LibreSolid/solid-node/tarball/master
