@@ -17,7 +17,7 @@ class DistWithFrontend(sdist):
 setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
-    version='0.0.3',
+    version='0.0.4',
     python_requires='>=3.8',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
