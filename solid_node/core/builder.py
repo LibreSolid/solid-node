@@ -1,11 +1,11 @@
 import sys
-import pyinotify
 import asyncio
 import traceback
 import logging
 import time
-from asgiref.sync import async_to_sync
 from asyncio import Future
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 from .loader import load_node
 from .git import GitRepo
 from .broker import BrokerClient
@@ -16,7 +16,7 @@ from solid_node.node.base import StlRenderStart
 logger = logging.getLogger('core.builder')
 
 
-class Builder(pyinotify.ProcessEvent):
+class Builder(FileSystemEventHandler):
     """Monitors .py files and generate STLs, and exit on any change"""
     def __init__(self, path):
         super().__init__()
@@ -24,15 +24,12 @@ class Builder(pyinotify.ProcessEvent):
 
         self.repo = GitRepo(path)
         self.file_changed = Future()
-        self.wm = pyinotify.WatchManager()
-
-        loop = asyncio.get_event_loop()
-        pyinotify.AsyncioNotifier(self.wm, loop, default_proc_fun=self)
+        self.observer = Observer()
 
     def start(self):
         task = self._start()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(task)
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(task)
 
     async def _start(self):
         logger.info('START')
@@ -58,8 +55,9 @@ class Builder(pyinotify.ProcessEvent):
                 sys.exit(0)
 
             for path in self.node.files:
-                mask = pyinotify.IN_CLOSE_WRITE
-                self.wm.add_watch(path, mask)
+                self.observer.schedule(self, path, recursive=False)
+
+            self.observer.start()
 
             try:
                 await self.generate_stl()
@@ -101,8 +99,8 @@ class Builder(pyinotify.ProcessEvent):
         self.repo.revert_last_commit()
         sys.exit(0)
 
-    def process_default(self, event):
-        if not event.maskname == 'IN_CLOSE_WRITE':
+    def on_modified(self, event):
+        if event.is_directory:
             return
-        logging.info(f'{event.pathname} changed, reloading')
-        self.file_changed.set_result(True)
+        logging.info(f'{event.src_path} changed, reloading')
+        self.loop.call_soon_threadsafe(self.file_changed.set_result, True)

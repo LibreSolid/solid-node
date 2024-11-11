@@ -36,7 +36,7 @@ setup(
         ],
     },
     install_requires=[
-        "pyinotify==0.9.6",
+        "watchdog",
         "trimesh==4.4.*",
         "solidpython2==2.1.*",
         "cadquery==2.4.*",

@@ -4,7 +4,6 @@ import time
 import inspect
 import logging
 import importlib
-import pyinotify
 import trimesh
 import numpy as np
 from decimal import Decimal
