@@ -35,10 +35,10 @@ class RefactorRequest(Exception):
         return self.source.arg_names
 
 
-class EvolveAssembly(RefactorRequest):
+class Assemble(RefactorRequest):
 
     def refactor(self):
-        with self.repo.sync_lock('EvolveAssembly'):
+        with self.repo.sync_lock('Assemble'):
             new_classes = {}
             for child in self.arg_names:
                 class_name = self.write_child(child)
