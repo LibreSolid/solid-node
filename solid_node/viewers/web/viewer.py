@@ -48,15 +48,18 @@ class WebViewer:
 
         self.stl_index = {}
         self.app = FastAPI()
-        self.root = NodeAPI(self.node,
+        root_node = NodeAPI(self.node,
                             self.repo,
                             self.stl_index,
                             f'/{self.node.name}',
                             )
 
-        self.broker = BrokerClient()
+        root_fs = FilesystemAPI(root_node.basedir)
 
-        self.app.mount(f'/root', self.root.app)
+        self.app.mount(f'/node', root_node.app)
+        self.app.mount(f'/file', root_fs.app)
+
+        self.broker = BrokerClient()
 
         self._setup_build_error()
 
@@ -162,7 +165,7 @@ class NodeAPI:
         for child in children:
             child_path = f'/{child.name}'
             subapp = NodeAPI(child, self.repo, stl_index, child_path)
-            logger.info(f'Mounting {child_path}')
+            logger.info(f'Mounting node {child_path}')
             self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
             self.children.append(child.name)
@@ -223,3 +226,73 @@ class NodeAPI:
             if os.path.exists(file_path):
                 return
             await asyncio.sleep(0.1)
+
+
+class FilesystemAPI:
+
+    def __init__(self, basedir, path=None):
+        basedir = os.path.abspath(basedir)
+        if path is None:
+            parts = basedir.split('/')
+            path = parts[-1]
+            basedir = os.path.abspath(
+                '/'.join(parts[:-1])
+            )
+
+        self.basedir = basedir
+        self.path = path
+        self.full_path = os.path.join(self.basedir, path)
+        self.is_dir = os.path.isdir(self.full_path)
+        self.is_file = os.path.isfile(self.full_path)
+        self.name = os.path.basename(self.path)
+        self.valid = self.is_valid()
+
+        if not self.valid:
+            return
+
+        self.app = FastAPI()
+        self.subapps = []
+
+        if self.is_file:
+            file_path = f'/{self.name}'
+            self.app.add_api_route(file_path, self.tree, methods=['GET'])
+            return
+
+        self.app.add_api_route('/', self.tree, methods=['GET'])
+
+        for child in os.listdir(self.full_path):
+            child_path = os.path.join(self.path, child)
+            subapp = FilesystemAPI(self.basedir, child_path)
+            logger.info(f'Mounting tree {child_path}')
+            if subapp.valid:
+                self.app.mount(f'/{child}', subapp.app)
+                self.subapps.append(subapp)
+
+
+    def tree(self, request: Request):
+        return JSONResponse(content=self.build_tree())
+
+    def build_tree(self):
+        result = []
+        tree = {
+            'name': self.name,
+            'path': self.path,
+            'isFile': self.is_file,
+        }
+        if self.is_file:
+            return tree
+        tree['children'] = [
+            subapp.build_tree()
+            for subapp in self.subapps
+        ]
+        return tree
+
+    def is_valid(self):
+        if self.is_dir == self.is_file:
+            return False
+        if self.is_dir and self.name.startswith('__'):
+            return False
+        if self.is_file and not self.name.endswith('.py'):
+            return False
+
+        return True

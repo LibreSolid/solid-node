@@ -99,7 +99,7 @@ export abstract class Node {
       return;
     }
     const response = await fetch(
-      `/root${this.path}`,
+      `/node${this.path}`,
       {
         method: 'POST',
         headers: {
