@@ -123,7 +123,7 @@ export abstract class Node {
       return;
     const tstamp = new Date().getTime(); // avoid cache
 
-    stlLoader.load(`/root${this.path}${this.model}?t=${tstamp}`, (geometry) => {
+    stlLoader.load(`/node${this.path}${this.model}?t=${tstamp}`, (geometry) => {
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
       if (this.context.scene) {
@@ -239,7 +239,7 @@ export const loadRoot = async (context: Context): Promise<Node> => {
 
 const loadNodeData = async (path: string): Promise<NodeData> => {
   const tstamp = new Date().getTime(); // avoid cache
-  const response = await fetch(`/root${path}?t=${tstamp}`);
+  const response = await fetch(`/node${path}?t=${tstamp}`);
   return await response.json() as NodeData;
 }
 

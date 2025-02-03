@@ -60,7 +60,7 @@ class WebViewer:
                             f'/{self.node.name}',
                             )
 
-        root_fs = FilesystemAPI(root_node.basedir)
+        root_fs = FilesystemAPI(self.node.basedir)
 
         self.app.mount(f'/node', root_node.app)
         self.app.mount(f'/file', root_fs.app)
