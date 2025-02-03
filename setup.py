@@ -48,7 +48,6 @@ setup(
         "GitPython==3.1.*",
         "asgiref==3.8.*",
         "uvicorn==0.30.*",
-        "numpy<2",
     ],
     license="GNU Affero General Public License v3",
     include_package_data=True,

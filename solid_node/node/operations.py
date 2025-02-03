@@ -1,4 +1,4 @@
-import numpy as np
+import math
 import trimesh
 from solid2 import (
     rotate as scad_rotate,
@@ -32,7 +32,7 @@ class Rotation:
 
     def mesh(self, mesh):
         matrix = trimesh.transformations.rotation_matrix(
-            np.radians(self.angle),
+            math.radians(self.angle),
             self.axis,
         )
         mesh.apply_transform(matrix)

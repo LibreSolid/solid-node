@@ -5,7 +5,6 @@ import inspect
 import logging
 import importlib
 import trimesh
-import numpy as np
 from decimal import Decimal
 from subprocess import Popen
 from solid2 import (scad_render, import_scad, import_stl,
