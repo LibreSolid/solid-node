@@ -25,7 +25,9 @@ basedir = os.path.dirname(
 )
 
 class WebDevServer:
-
+    """For development purposes, run a "npm run start" command
+    to be proxyed by WebViewer
+    """
     def __init__(self, path, dev=True):
         self.path = path
         self.app_dir = os.path.join(basedir, 'app')
@@ -39,6 +41,10 @@ class WebDevServer:
 
 
 class WebViewer:
+    """Starts a webserver that can serve either a built html app
+    or make a proxy to WebDevServer instance.
+    The react app is inside app/ in the same folder as this class' file.
+    """
     def __init__(self, path, dev=True):
         self.path = path
         self.node = load_node(path)
@@ -131,6 +137,8 @@ class WebViewer:
 
 
 class NodeAPI:
+    """Recursively define an API to serve the node structure
+    of a project to the web application"""
 
     def __init__(self, node, repo, stl_index, prefix):
         self.node = node
@@ -229,6 +237,8 @@ class NodeAPI:
 
 
 class FilesystemAPI:
+    """Recursively define an API to serve the filesystem structure
+    of a project to the web application"""
 
     def __init__(self, basedir, path=None):
         basedir = os.path.abspath(basedir)

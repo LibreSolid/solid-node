@@ -18,9 +18,10 @@ logger = logging.getLogger('core.broker')
 
 
 class BrokerServer:
-
-    # This is not being used, because it does not work for the builder.
-    # But for the assistant it probably will, so it was kept
+    """The broker is a persistent webserver process that
+    implements locking to synchronize other processes and
+    topics to exchange messages.
+    """
     topics = []
 
     keys = [

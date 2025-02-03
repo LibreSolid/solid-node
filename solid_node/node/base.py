@@ -24,6 +24,11 @@ def _build_uniq_id(args, kwargs):
     return ','.join(str(a) for a in all_args)
 
 class AbstractBaseNode:
+    """A mechanical project in solid-node is represented by a
+    tree, and this is the abstract base class for all nodes.
+    Above this class, there are two other base classes:
+    LeafNode and InternalNode.
+    """
 
     fn = None
 

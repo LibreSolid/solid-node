@@ -25,7 +25,10 @@ logger = logging.getLogger('manager.develop')
 
 
 class Develop:
-    """Monitor filesystem and executes transpilations and compilations on background"""
+    """Runs all processes required for developing with solid-node.
+    Monitors filesystem and executes transpilations and compilations on background,
+    and runs servers to support a web frontend
+    """
 
     def add_arguments(self, parser):
         parser.add_argument('--web', action='store_true',

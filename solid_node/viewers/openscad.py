@@ -7,6 +7,7 @@ OPENSCAD_PID = ".openscad.pid"
 
 
 class OpenScadViewer:
+    """Shows the rendered project in OpenScad."""
 
     def __init__(self, path):
         self.pid_file = OPENSCAD_PID

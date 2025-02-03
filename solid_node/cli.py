@@ -9,6 +9,9 @@ commands = [
 ]
 
 def manage():
+    """
+    Runs cli commands, available in managers.* namespace
+    """
     parser = argparse.ArgumentParser(description='Solid Node')
 
     parser.add_argument(

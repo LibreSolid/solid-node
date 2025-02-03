@@ -17,7 +17,7 @@ logger = logging.getLogger('core.builder')
 
 
 class Builder(FileSystemEventHandler):
-    """Monitors .py files and generate STLs, and exit on any change"""
+    """Monitors .py files. On any change, generate STLs and exit"""
     def __init__(self, path):
         super().__init__()
         self.path = path

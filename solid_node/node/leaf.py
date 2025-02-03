@@ -2,6 +2,12 @@ from .base import AbstractBaseNode
 
 
 class LeafNode(AbstractBaseNode):
+    """This is a base class for all leaf nodes, which are nodes
+    that generate solid structures.
+    Each LeafNode subclass uses a different technology to generate
+    a solid, and outputs the result as STL.
+    LeafNode subclasses are in the solid_node.node.adapters.* namespace.
+    """
 
     _type = 'LeafNode'
 
@@ -15,6 +21,9 @@ class LeafNode(AbstractBaseNode):
         return tuple()
 
     def as_scad(self, rendered):
+        """Internally, the project is composed using OpenScad to render
+        all STLs, so each LeafNode subclass must be able to output
+        scad code"""
         raise NotImplementedError(f"LeafNode subclass {self.__class__} must "
                                   "be able to output scad")
 

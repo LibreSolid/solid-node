@@ -4,9 +4,7 @@ from .internal import InternalNode
 class FusionNode(InternalNode):
     """
     Represents a fusion of components into a single, inseparable unit.
-
     This is an internal node that can contain instances of LeafNode or other internal nodes.
-
     The render method of this class returns a list of its child nodes.
     """
 

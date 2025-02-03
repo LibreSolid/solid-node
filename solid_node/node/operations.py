@@ -5,8 +5,16 @@ from solid2 import (
     translate as scad_translate,
 )
 
+"""
+The operations that can be applied to a solid are represented
+here as classes that are able to handle scad and mesh, other than
+serializing itself for the web frontend. This way the same results
+can be obtained in browser and in tests.
+The operation is also able to revert itself.
+"""
 
 class Rotation:
+    """A rotation operation defined by an angle and an axis"""
     def __init__(self, angle, axis):
         self.angle = angle
         self.axis = axis
@@ -31,6 +39,7 @@ class Rotation:
 
 
 class Translation:
+    """A translation operation defined by a vector"""
     def __init__(self, node, translation):
         self.node = node
         self.translation = translation

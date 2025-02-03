@@ -9,6 +9,9 @@ logger = logging.getLogger('core.git')
 
 
 class GitRepo:
+    """Manages a git repository for user's project. Every time
+    user saves a file, the repository is commited, and if the
+    build fails, it's rolled back."""
     def __init__(self, file_path):
         self.repo = _find_repo_root(file_path)
         self._lock = None

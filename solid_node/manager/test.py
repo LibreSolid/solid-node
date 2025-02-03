@@ -8,7 +8,9 @@ from solid_node.core.loader import load_test, load_node
 from solid_node.test import TestCase
 
 class Test:
-    """Run a node's tests"""
+    """Nodes may implement tests by inheriting solid_node.test.TestCaseMixin
+    and creating test methods starting with test_.
+    This command runs Run all tests from a node"""
 
     def __init__(self):
         self.num_tests = 0

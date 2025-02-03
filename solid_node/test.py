@@ -26,6 +26,7 @@ class TestCase(BaseTestCase):
     #
 
     def assertNotIntersecting(self, node1, node2):
+        """Test that node1 and node 2 do not intersect"""
         intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
         if not intersection.is_empty:
             raise AssertionError(
@@ -34,18 +35,21 @@ class TestCase(BaseTestCase):
             )
 
     def assertIntersecting(self, node1, node2):
+        """Make sure node1 and node1 have some intersection"""
         intersection = node1.mesh.intersection(node2.mesh)
         if intersection.is_empty:
             raise AssertionError(
                 f"{node1.name} should intersect {node2.name}")
 
     def assertInside(self, node1, node2):
+        """Make sure node1 is completely inside node2"""
         inside = node1.mesh.contains(node2.mesh.vertices)
         if not inside.all():
             raise AssertionError(
                 f"All vertices of {node2.name} should be inside {node1.name}")
 
     def assertClose(self, node1, node2, max_distance):
+        """Make sure the distance of node1 to node2 is lesser than max_distance"""
         closest_points = trimesh.proximity.closest_point(
             node1.mesh, node2.mesh.vertices)
         distances = closest_points[1]
@@ -55,6 +59,7 @@ class TestCase(BaseTestCase):
                 f"{max_distance} units away from {node1.name}")
 
     def assertFar(self, node1, node2, min_distance):
+        """Make sure the distance of node1 to node2 is greater than min_distance"""
         closest_points = trimesh.proximity.closest_point(
             node1.mesh, node2.mesh.vertices)
         distances = closest_points[1]
@@ -64,6 +69,9 @@ class TestCase(BaseTestCase):
                 f"{min_distance} units away from {node1.name}")
 
     def assertIntersectVolumeAbove(self, node1, node2, min_volume):
+        """Make sure the volume of the intersection between node1 and node2
+        is greater than min_volume.
+        """
         intersection = node1.mesh.intersection(node2.mesh)
         if intersection.volume < min_volume:
             raise AssertionError(
@@ -71,6 +79,9 @@ class TestCase(BaseTestCase):
                 f"should be above {min_volume}")
 
     def assertIntersectVolumeBelow(self, node1, node2, max_volume):
+        """Make sure the volume of the intersection between node1 and node2
+        is lesser than max_volume.
+        """
         intersection = node1.mesh.intersection(node2.mesh)
         if intersection.volume > max_volume:
             raise AssertionError(
@@ -79,7 +90,7 @@ class TestCase(BaseTestCase):
 
 
 class TestCaseMixin(TestCase):
-    """For convenience, simple nodes can inherit TestCaseMixin to implement
+    """For convenience, nodes can inherit TestCaseMixin to implement
     tests together with rendering logic.
     """
     def set_node(self, node):
@@ -88,7 +99,9 @@ class TestCaseMixin(TestCase):
 
 
 def testing_instant(instant):
-
+    """Use this decorator on a test to define a specific instant
+    of the animation that should be used to run the test
+    """
     def decorator(method):
         method.testing_instants = [instant]
         return method
@@ -97,8 +110,14 @@ def testing_instant(instant):
 
 
 def testing_steps(steps, start=0, end=1):
+    """Use this decorator to run the test in several steps
+    of the animation. Use start and end to define the range
+    in that will be divided in those steps.
+    """
     if steps < 2:
-        raise AssertionError("Expected at least 2 steps, for single step use @testing_instant instead")
+        raise AssertionError("Expected at least 2 steps, "
+                             "for single step use @testing_instant instead"
+                             )
 
     duration = end - start
     step = duration / (steps - 1)

@@ -3,6 +3,8 @@ from solid2 import union, get_animation_time
 
 
 class InternalNode(AbstractBaseNode):
+    """Internal nodes combine its leaf nodes in some way to make
+    a node with several solids."""
 
     @property
     def time(self):

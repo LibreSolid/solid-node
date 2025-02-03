@@ -4,6 +4,8 @@ import json
 import trimesh
 from solid_node.exceptions import MeshNotRendered, NonRigidSolid
 
+"""This is not being used, in quarantine. Apparently id adds dimensional
+cache to spatial nodes"""
 
 class SpatialNodeMixin:
 
