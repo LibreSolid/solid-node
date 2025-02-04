@@ -113,9 +113,22 @@ export abstract class Node {
     }
   }
 
-  async reload() {
+  async reload(): Promise<Node | undefined> {
     this.loadModel();
-    //const nodeData = await loadNodeData(this.path);
+    try {
+      const nodeData = await loadNodeData(this.path);
+      if (this.code != nodeData.code) {
+	this.code = nodeData.code;
+	this.newCode = this.code;
+      }
+      const scene = this.context.scene;
+      while(scene.children.length > 0) {
+	scene.remove(scene.children[0]);
+      }
+      return await loadNode(this.path, this.context);
+    } catch (e) {
+      return undefined;
+    }
   }
 
   loadModel() {

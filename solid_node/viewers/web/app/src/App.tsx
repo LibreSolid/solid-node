@@ -49,8 +49,11 @@ const App = () => {
     loadNode(path, context).then((node) => {
       setNode(node);
       setAnimator(Animator.getInstance(setTime));
-      setReloader(new Reloader(setError, () => {
-        node.reload();
+      setReloader(new Reloader(setError, async () => {
+        const newNode = await node.reload();
+	if (newNode !== undefined) {
+	  setNode(newNode);
+	}
       }));
     });
   }, []);
