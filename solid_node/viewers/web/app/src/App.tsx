@@ -37,6 +37,7 @@ const App = () => {
       const newContext = Object.assign({}, context, { time });
       node.setContext(newContext);
       setContext(newContext);
+      document.title = node.name.replace(/([A-Z])/g, ' $1').trim();
     }
   }, [time, node]);
 

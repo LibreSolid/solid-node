@@ -54,6 +54,7 @@ class WebViewer:
 
         self.stl_index = {}
         self.app = FastAPI()
+
         root_node = NodeAPI(self.node,
                             self.repo,
                             self.stl_index,
@@ -182,6 +183,7 @@ class NodeAPI:
         state =  {
             'operations': self.operations,
             'type': self.node._type,
+            'name': self.node.name,
         }
         if self.children:
             state['children'] = self.children
