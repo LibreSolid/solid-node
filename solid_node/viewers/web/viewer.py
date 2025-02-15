@@ -174,6 +174,7 @@ class NodeAPI:
             'operations': self.operations,
             'type': self.node._type,
             'name': self.node.name,
+            'color': self.node.color
         }
         if self.children:
             state['children'] = self.children

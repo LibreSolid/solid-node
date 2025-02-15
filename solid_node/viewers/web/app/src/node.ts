@@ -21,6 +21,7 @@ interface NodeData {
   children?: string[];
   mtime: number;
   operations: RawOperation[];
+  color: string;
 }
 
 const stlLoader = new STLLoader();
@@ -44,6 +45,8 @@ export abstract class Node {
 
   mtime: number;
 
+  color: string;
+
   // Operations matrix.
   // Each layer of the tree has a list of operations
   // rawOperations contains functions (can use $t or any variable)
@@ -60,6 +63,7 @@ export abstract class Node {
     this.children = [];
     this.rawOperations = [];
     this.operations = [];
+    this.color = data.color;
   }
 
   setOperations(op: RawOperation[], level: number = 0) {
@@ -102,7 +106,18 @@ export abstract class Node {
     const tstamp = new Date().getTime(); // avoid cache
 
     stlLoader.load(`/node${this.path}${this.model}?t=${tstamp}`, (geometry) => {
-      const material = new THREE.MeshNormalMaterial();
+      let material;
+      if (this.color) {
+	const color = new THREE.Color(this.color);
+	material = new THREE.MeshBasicMaterial({
+	  color: color,
+	  //metalness: 0.2,
+	  //roughness: 0.5,
+	  //emissive: color,
+	});
+      } else {
+	material = new THREE.MeshNormalMaterial();
+      }
       const mesh = new THREE.Mesh(geometry, material);
       if (this.context.scene) {
         if (this.mesh) {

@@ -40,6 +40,9 @@ class AbstractBaseNode:
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
+    # Set to false to render scad directly instead of stls
+    optimize = True
+
     def __init__(self, *args, name=None, **kwargs):
         # self.uniq_id uniquely identifies a set of parameters of an instance.
         # self.name is used to refer to nodes in tests
@@ -127,9 +130,14 @@ class AbstractBaseNode:
 
         self.validate(rendered)
         self.model = self.as_scad(rendered)
+        if not self.optimize:
+            self.model = self._colorize(self.model)
         self.generate_scad()
 
-        assembled = self.import_optimized()
+        if self.optimize:
+            assembled = self.import_optimized()
+        else:
+            assembled = self.model
 
         for operation in self.operations:
             # Apply scad operation
@@ -143,8 +151,19 @@ class AbstractBaseNode:
         if self.rigid and self._up_to_date(self.stl_file):
             basedir = os.path.relpath(self.basedir, self.root)
             local_stl = os.path.join(basedir, self.local_stl)
-            return import_stl(local_stl)
-        return self.model
+            imported_stl = import_stl(local_stl)
+            return self._colorize(imported_stl)
+        return self._colorize(self.model)
+
+    def _colorize(self, scad_code):
+        if self.color is None:
+            return scad_code
+        hex_code = self.color.lstrip('#')
+        if len(hex_code) != 6:
+            raise ValueError(f"Invalid self.color at {self}. "
+                             "It should be in the format #RRGGBB")
+        colors = [int(hex_code[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        return color(colors, 1)(scad_code)
 
     @property
     def stl(self):
