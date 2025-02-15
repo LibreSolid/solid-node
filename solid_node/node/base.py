@@ -301,7 +301,10 @@ class AbstractBaseNode:
             build_dirs.append(path.pop(0))
             build_dir = '/'.join(build_dirs)
             if not os.path.exists(build_dir):
-                os.mkdir(build_dir)
+                try:
+                    os.mkdir(build_dir)
+                except FileExistsError:
+                    pass
 
 
 class StlRenderStart(Exception):
