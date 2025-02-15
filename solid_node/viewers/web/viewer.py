@@ -4,10 +4,8 @@ import asyncio
 import threading
 import uvicorn
 import httpx
-import inspect
 import logging
 import subprocess
-from git import Repo
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +13,6 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 from solid_node.core.logging import uvicorn_config
-from solid_node.core.git import GitRepo
 from solid_node.core.broker import BrokerClient
 
 
@@ -48,7 +45,6 @@ class WebViewer:
     def __init__(self, path, dev=True):
         self.path = path
         self.node = load_node(path)
-        self.repo = GitRepo(path)
 
         self.frontend_dir = os.path.join(basedir, 'app/build')
 
@@ -56,15 +52,11 @@ class WebViewer:
         self.app = FastAPI()
 
         root_node = NodeAPI(self.node,
-                            self.repo,
                             self.stl_index,
                             f'/{self.node.name}',
                             )
 
-        root_fs = FilesystemAPI(self.node.basedir)
-
         self.app.mount(f'/node', root_node.app)
-        self.app.mount(f'/file', root_fs.app)
 
         self.broker = BrokerClient()
 
@@ -141,16 +133,14 @@ class NodeAPI:
     """Recursively define an API to serve the node structure
     of a project to the web application"""
 
-    def __init__(self, node, repo, stl_index, prefix):
+    def __init__(self, node, stl_index, prefix):
         self.node = node
         self.name = self.node.name
-        self.repo = repo
 
         logger.info(f'Prefix {prefix} to {node.name}')
         self.app = FastAPI()
 
         self.app.add_api_route('/', self.state, methods=["GET"])
-        self.app.add_api_route('/', self.save_source_code, methods=["POST"])
 
         self.operations = [
             op.serialized for op in self.node.operations
@@ -173,7 +163,7 @@ class NodeAPI:
 
         for child in children:
             child_path = f'/{child.name}'
-            subapp = NodeAPI(child, self.repo, stl_index, child_path)
+            subapp = NodeAPI(child, stl_index, child_path)
             logger.info(f'Mounting node {child_path}')
             self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
@@ -190,19 +180,9 @@ class NodeAPI:
         else:
             state['model'] = f'{self.name}.stl'
 
-        state['code'] = inspect.getsource(inspect.getmodule(self.node))
         state['mtime'] = self.node.mtime
         op = json.dumps(self.operations)
         return state
-
-    async def save_source_code(self, request: Request):
-        body = await request.body()
-        source = inspect.getfile(inspect.getmodule(self.node))
-        async with self.repo.async_lock(f'VIEWER - {source}'):
-            open(source, 'wb').write(body)
-            self.repo.add(source)
-            self.repo.commit(f'Saving file')
-        return Response(status_code=201)
 
     async def stl(self, request: Request):
         stl = self.node.stl
@@ -236,75 +216,3 @@ class NodeAPI:
             if os.path.exists(file_path):
                 return
             await asyncio.sleep(0.1)
-
-
-class FilesystemAPI:
-    """Recursively define an API to serve the filesystem structure
-    of a project to the web application"""
-
-    def __init__(self, basedir, path=None):
-        basedir = os.path.abspath(basedir)
-        if path is None:
-            parts = basedir.split('/')
-            path = parts[-1]
-            basedir = os.path.abspath(
-                '/'.join(parts[:-1])
-            )
-
-        self.basedir = basedir
-        self.path = path
-        self.full_path = os.path.join(self.basedir, path)
-        self.is_dir = os.path.isdir(self.full_path)
-        self.is_file = os.path.isfile(self.full_path)
-        self.name = os.path.basename(self.path)
-        self.valid = self.is_valid()
-
-        if not self.valid:
-            return
-
-        self.app = FastAPI()
-        self.subapps = []
-
-        if self.is_file:
-            file_path = f'/{self.name}'
-            self.app.add_api_route(file_path, self.tree, methods=['GET'])
-            return
-
-        self.app.add_api_route('/', self.tree, methods=['GET'])
-
-        for child in os.listdir(self.full_path):
-            child_path = os.path.join(self.path, child)
-            subapp = FilesystemAPI(self.basedir, child_path)
-            logger.info(f'Mounting tree {child_path}')
-            if subapp.valid:
-                self.app.mount(f'/{child}', subapp.app)
-                self.subapps.append(subapp)
-
-
-    def tree(self, request: Request):
-        return JSONResponse(content=self.build_tree())
-
-    def build_tree(self):
-        result = []
-        tree = {
-            'name': self.name,
-            'path': self.path,
-            'isFile': self.is_file,
-        }
-        if self.is_file:
-            return tree
-        tree['children'] = [
-            subapp.build_tree()
-            for subapp in self.subapps
-        ]
-        return tree
-
-    def is_valid(self):
-        if self.is_dir == self.is_file:
-            return False
-        if self.is_dir and self.name.startswith('__'):
-            return False
-        if self.is_file and not self.name.endswith('.py'):
-            return False
-
-        return True

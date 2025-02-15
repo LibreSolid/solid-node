@@ -114,3 +114,53 @@ class BrokerClient:
         async with httpx.AsyncClient() as client:
             response = await client.get((f'{BROKER_URL}/{key}'))
             return response.json()
+
+class AsyncLock:
+
+    def __init__(self, source):
+        self.source = source
+        self.locked = False
+
+    async def __aenter__(self):
+        await self.acquire_lock()
+        self.locked = True
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.release_lock()
+        self.locked = False
+
+    async def acquire_lock(self):
+        async with websockets.connect(LOCK_URL) as websocket:
+            await websocket.send("acquire")
+            await websocket.recv()
+            logger.info(f'LOCK from {self.source} ')
+
+    async def release_lock(self):
+        async with websockets.connect(LOCK_URL) as websocket:
+            await websocket.send("release")
+            await websocket.recv()
+            logger.info(f'RELEASE from {self.source} ')
+
+
+class SyncLock:
+
+    def __init__(self, source):
+        self.source = source
+        self.locked = False
+
+    def __enter__(self):
+        self.acquire_lock()
+        self.locked = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release_lock()
+        self.locked = False
+
+    def acquire_lock(self):
+        # Synchronous code to acquire lock
+        logger.info(f'SYNC LOCK from {self.source}')
+
+    def release_lock(self):
+        # Synchronous code to release lock
+        logger.info(f'SYNC RELEASE from {self.source}')

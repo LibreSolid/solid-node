@@ -10,12 +10,12 @@ sys.path.append(os.getcwd())
 
 def load_node(path):
     if not path.endswith('.py'):
-        raise Exception("Can only load .py files")
+        raise Exception(f"Can only load .py files, not {path}")
     return load_instance(path, AbstractBaseNode)
 
 def load_test(path):
     if not path.endswith('.py'):
-        raise Exception("Can only load .py files")
+        raise Exception(f"Can only load .py files, not {path}")
 
     parts = path.split('/')
     parts[-1] = f'test_{parts[-1]}'

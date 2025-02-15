@@ -19,7 +19,6 @@ interface NodeData {
   name: string;
   model?: string;
   children?: string[];
-  code: string;
   mtime: number;
   operations: RawOperation[];
 }
@@ -40,10 +39,6 @@ export abstract class Node {
   model?: string;
   mesh?: THREE.Mesh;
 
-  // The source code for this node
-  code: string;
-  newCode: string | undefined;
-
   children: Node[];
   context: Context;
 
@@ -61,12 +56,10 @@ export abstract class Node {
     this.path = path;
     this.name = data.name;
     this.mtime = data.mtime;
-    this.code = data.code;
     this.context = context;
     this.children = [];
     this.rawOperations = [];
     this.operations = [];
-    this.newCode = this.code;
   }
 
   setOperations(op: RawOperation[], level: number = 0) {
@@ -89,38 +82,10 @@ export abstract class Node {
     this.applyOperations();
   }
 
-  setCode(code: string) {
-    this.newCode = code;
-  }
-
-  async saveCode() {
-    if (!this.newCode) {
-      alert('no code to save');
-      return;
-    }
-    const response = await fetch(
-      `/node${this.path}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: this.newCode,
-      }
-    );
-    if (response.ok) {
-      this.code = this.newCode;
-    }
-  }
-
   async reload(): Promise<Node | undefined> {
     this.loadModel();
     try {
       const nodeData = await loadNodeData(this.path);
-      if (this.code != nodeData.code) {
-	this.code = nodeData.code;
-	this.newCode = this.code;
-      }
       const scene = this.context.scene;
       while(scene.children.length > 0) {
 	scene.remove(scene.children[0]);

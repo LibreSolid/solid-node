@@ -58,14 +58,11 @@ export class Reloader {
     const result = await response.json() as BuildError;
     if (!result.error || result.tstamp == this.errorTstamp) {
       this.setError('');
-      if (!this.firstCheck)
-        this.reload();
+      this.reload();
     } else {
       this.errorTstamp = result.tstamp;
-      if (!this.firstCheck)
-        this.setError(result.error);
+      this.setError(result.error);
     }
-    this.firstCheck = false;
   }
 
 }

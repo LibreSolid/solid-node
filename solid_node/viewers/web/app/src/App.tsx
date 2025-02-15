@@ -3,14 +3,13 @@ import * as THREE from 'three';
 import './App.css';
 import { Resizable } from 're-resizable';
 import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
-//import { ControlCube } from './viewer/ControlCube';
+import { ControlCube } from './viewer/ControlCube';
 //import { NodeProvider } from './context';
 import { RotationControl } from './viewer/viewer.d';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Node, Context, loadNode } from './node';
 import { Reloader } from './reloader';
 import { Animator } from './animator';
-import CodeEditor from './CodeEditor';
 import NavigationTree from './NavigationTree';
 
 
@@ -71,34 +70,15 @@ const App = () => {
   };
   */
 
-  const fontSize = 15;
-
   return (
     <Router>
       <div className="app">
         <div className="top">
+        </div>
+        <div className="body">
           <Resizable
-            defaultSize={{ width: '12%', height: '100%' }}
             className="pane left"
-            enable={{ right: true }}
-          >
-            <NavigationTree />
-          </Resizable>
-
-          <Resizable
-            className="pane center"
-            defaultSize={{ width: '46.4%', height: '100%' }}
-            enable={{ right: true }}
-          >
-            <CodeEditor
-              node={node}
-              fontSize={fontSize}
-            />
-          </Resizable>
-
-          <Resizable
-            className="pane right"
-            defaultSize={{ width: '41.6%', height: '100%' }}
+            defaultSize={{ width: '80%', height: '100%' }}
             enable={{ right: true }}
           >
             {!error &&
@@ -123,11 +103,14 @@ const App = () => {
               */}
             </div>
           </Resizable>
+          <Resizable
+            defaultSize={{ width: '20%', height: '100%' }}
+            className="pane right"
+            enable={{ right: true }}
+          >
+            <NavigationTree />
+          </Resizable>
         </div>
-
-        <Resizable defaultSize={{ width: '100%', height: '30%' }} className="pane bottom">
-          <h3>Console</h3>
-        </Resizable>
       </div>
     </Router>
   );
