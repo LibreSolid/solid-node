@@ -106,18 +106,8 @@ export abstract class Node {
     const tstamp = new Date().getTime(); // avoid cache
 
     stlLoader.load(`/node${this.path}${this.model}?t=${tstamp}`, (geometry) => {
-      let material;
-      if (this.color) {
-	const color = new THREE.Color(this.color);
-	material = new THREE.MeshBasicMaterial({
-	  color: color,
-	  //metalness: 0.2,
-	  //roughness: 0.5,
-	  //emissive: color,
-	});
-      } else {
-	material = new THREE.MeshNormalMaterial();
-      }
+      // TODO use this.color to colorize node
+      const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
       if (this.context.scene) {
         if (this.mesh) {

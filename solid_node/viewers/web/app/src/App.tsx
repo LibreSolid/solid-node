@@ -73,12 +73,10 @@ const App = () => {
   return (
     <Router>
       <div className="app">
-        <div className="top">
-        </div>
         <div className="body">
           <Resizable
             className="pane left"
-            defaultSize={{ width: '80%', height: '100%' }}
+            defaultSize={{ width: '100%', height: '100%' }}
             enable={{ right: true }}
           >
             {!error &&
@@ -102,13 +100,6 @@ const App = () => {
               />
               */}
             </div>
-          </Resizable>
-          <Resizable
-            defaultSize={{ width: '20%', height: '100%' }}
-            className="pane right"
-            enable={{ right: true }}
-          >
-            <NavigationTree />
           </Resizable>
         </div>
       </div>
