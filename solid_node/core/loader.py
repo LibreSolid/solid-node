@@ -4,7 +4,7 @@ import inspect
 from importlib import import_module
 from solid_node.core.refactor import refactor_requests
 from solid_node.node.base import AbstractBaseNode
-from solid_node.test import TestCase
+from solid_node.test import TestCase, TestCaseMixin
 
 sys.path.append(os.getcwd())
 
@@ -18,11 +18,13 @@ def load_test(path):
         raise Exception(f"Can only load .py files, not {path}")
 
     parts = path.split('/')
-    parts[-1] = f'test_{parts[-1]}'
-    path = '/'.join(parts)
-
-    if os.path.exists(path):
-        return load_instance(path, TestCase)
+    if parts[-1] == '__init__.py':
+        parts[-1] = 'test.py'
+    else:
+        parts[-1] = f'test_{parts[-1]}'
+    test_path = '/'.join(parts)
+    if os.path.exists(test_path):
+        return load_instance(test_path, TestCase)
 
 def load_instance(path, BaseClass):
     path = os.path.realpath(path)

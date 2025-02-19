@@ -26,7 +26,8 @@ class Test:
     def handle(self, args):
         self.node = self.build_node(args.path)
         self.test_case = load_test(args.path)
-        self.test_case.set_node(self.node)
+        if self.test_case:
+            self.test_case.set_node(self.node)
         self.failfast = args.failfast
         self.run_tests()
 
