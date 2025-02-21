@@ -20,27 +20,25 @@ Solid Node
 
 
 
-A framework to develop and manage solid projects in Python
+A framework to create parametrical mechanical projects with Free Software
 
 
 * Free software: GNU Affero General Public License v3
 * Documentation: https://solid-node.readthedocs.io.
 
+Introduction
+============
 
-Features
---------
+There are several technologies that allow the creation of parametric solids
+using Free Software, namely OpenScad, CadQuery and Solid Python. When it comes
+to mechanical projects, each technology has a different set of libraries available,
+and each has its pros and cons. Whichever your choice, they all face limitations
+soon. Solid Node proposes an architecture to organize mechanical projects so that
+different technologies can be combined, relation between components can be tested,
+and individual pieces can be rendered for optimization.
 
-* Develop using SolidPython and CadQuery combined
-* Filesystem monitoring triggering transpilation to openscad and stl building
-* Background optimization
-* Spatial calculations trimesh
+Quickstart
+==========
 
-This is pre-alpha, just releasing something.
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+Start by cloning `solid-seed <https://github.com/LibreSolid/solid-seed>_`.
+Follow instructions from the README file there.

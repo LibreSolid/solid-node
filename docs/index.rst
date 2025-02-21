@@ -5,9 +5,9 @@ Welcome to SolidNode's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   background
-   installation
-   tutorial
+   why-solid-node
+   quickstart
+   overview
    contributing
    history
 
