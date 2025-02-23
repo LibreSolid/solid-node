@@ -9,7 +9,7 @@
 project = 'Solid Node'
 copyright = '2025, Luis Henrique Cassis Fagundes'
 author = 'Luis Henrique Cassis Fagundes'
-release = '0.0.7'
+release = '0.0.8'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
