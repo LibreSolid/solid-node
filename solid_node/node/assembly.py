@@ -15,6 +15,7 @@ class AssemblyNode(InternalNode):
     def set_keyframe(self, time):
         """Set a fixed time for keyframes and tests"""
         self._time = time
+        self.render()
 
     @property
     def time(self):
