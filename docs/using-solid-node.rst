@@ -229,7 +229,7 @@ it to the base classes of the root node at `root/__init__.py`:
     class SimpleClock(AssemblyNode, TestCaseMixin):
 
 TestCaseMixin
-.............
+-------------
 
 Now we'll add tests to our root node. Our SimpleClock
 class will extend `solid_node.test.TestCaseMixin` and
@@ -263,7 +263,7 @@ run `solid root test`.
 
 You should see two tests failing, as in practice there is a very
 small intersection between rendered meshes even though matematically
-they should not. Let's reduce the radius of our pin to 2.9, at
+they should not. Let's reduce the radius of our pin to 2.99, at
 `root/pin.py`:
 
 .. code-block:: python
@@ -271,19 +271,21 @@ they should not. Let's reduce the radius of our pin to 2.9, at
     class Pin(Solid2Node):
 
         def render(self):
-            return cylinder(r=2.9, h=20)
+            return cylinder(r=2.99, h=20)
 
 Run the tests again. This time, the two tests will pass.
-If you look closely, the cylinder of the pins are not really round.
-They are an approximation. This is because internally STLs are generated
-for the models.
 
 @testing_steps
-..............
-The tests are passing, the pieces are not intersecting. But would they still
-not intersect during the rotation of the pointer? The test we made just
-tested the situation for the initial setup. We can improve the test
-by using the decorator `solid_node.test.testing_steps`:
+--------------
+
+Even though the test has passed, if you look closely, the hole in pointer
+and the pin are not really round, they are approximated by hexagons.
+This is because internally STLs are generated for the models, and STLs
+work with triangles. We have tested that in the initial setup the pieces
+do not overlap, but our test can't tell yet if the parts can freely move.
+
+By using the decorator `@testing_steps`, we can test the intersection of
+pieces in several moments of the animation:
 
 .. code-block:: python
 
@@ -293,13 +295,45 @@ by using the decorator `solid_node.test.testing_steps`:
     class SimpleClock(AssemblyNode, TestCaseMixin):
         ...
 
-        @testing_steps(3, end=0.1)
+        @testing_steps(16)
         def test_pin_runs_free_in_base(self):
             self.assertNotIntersecting(self.base, self.pin)
 
-        @testing_steps(3, end=0.1)
+        @testing_steps(16)
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.pointer, self.pin)
 
- The tests above will run three times, at three different instants,
- from time 0 to 0.1.
+The tests above will each test run 32 times, at 32 different instants.
+Run the tests again, and you'll see that the tests will pass and fail
+in a pattern.
+
+Running tests on the full animation cycle can be very time consuming.
+We can keep test performance by applying the test to a slice of time
+
+.. code-block:: python
+
+        @testing_steps(4, end=0.125)
+        def test_pin_runs_free_in_base(self):
+            self.assertNotIntersecting(self.base, self.pin)
+
+fn property
+===========
+
+You see that our tests are passing on the base, but not in the pointer,
+as base is very roundly rendered. That's because CadQuery exports STL
+files with more precision.
+
+We can achieve that in `Soli2Node` nodes by setting the property `fn`
+in the nodes `pin.py` and `pointer.py`, as the example below:
+
+.. code-block:: python
+
+    class Pointer(Solid2Node):
+
+        fn = 256
+
+Now you see the pin and hole seem more round, and the 0.01 margin
+we put is enough to make the tests pass.
+
+You should take in consideration the approximation error on holes
+when using Openscad derived nodes, like `Solid2Node` and `OpenScadNode`
