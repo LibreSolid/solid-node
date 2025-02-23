@@ -155,7 +155,7 @@ There is also `solid_node.test.TestCaseMixin`, which allows you to write tests
 in your node class instead of using a separate file.
 
 To demonstrate testing, let's make a pin holding the pointer and base together.
-First, to create a hole at the base, edit `root/clock_base.py`
+First, to create a 6mm hole at the base, edit `root/clock_base.py`
 
 .. code-block:: python
 
@@ -163,7 +163,8 @@ First, to create a hole at the base, edit `root/clock_base.py`
 
         def render(self):
             wp = cq.Workplane("XY")
-            return wp.circle(100).extrude(2)
+            return wp.circle(100).extrude(2) \
+                .faces(">Z").workplane().hole(6)
 
 And a hole in the pointer, at `root/pointer.py`
 
@@ -225,7 +226,7 @@ it to the base classes of the root node at `root/__init__.py`:
     ...
     from solid_node.test import TestCaseMixin
 
-    class SimpleClock(AssemblyNode, TestCaseMixin)
+    class SimpleClock(AssemblyNode, TestCaseMixin):
 
 TestCaseMixin
 .............
