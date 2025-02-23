@@ -49,6 +49,7 @@ setup(
         "asgiref==3.8.*",
         "uvicorn==0.30.*",
         "numpy==2.2.*",
+        "manifold3d",
     ],
     license="GNU Affero General Public License v3",
     include_package_data=True,
