@@ -8,3 +8,5 @@ Solid Node documentation
    why-solid-node
    quickstart
    using-solid-node
+   status-and-roadmap
+   contributing
