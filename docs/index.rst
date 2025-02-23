@@ -1,5 +1,5 @@
-Welcome to SolidNode's documentation!
-=====================================
+Solid Node documentation
+========================
 
 .. toctree::
    :maxdepth: 2
@@ -7,12 +7,4 @@ Welcome to SolidNode's documentation!
 
    why-solid-node
    quickstart
-   overview
-   contributing
-   history
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   using-solid-node
