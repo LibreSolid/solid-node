@@ -4,10 +4,16 @@ import json
 import trimesh
 from solid_node.exceptions import MeshNotRendered, NonRigidSolid
 
-"""This is not being used, in quarantine. Apparently id adds dimensional
-cache to spatial nodes"""
 
 class SpatialNodeMixin:
+    """Adds get_mesh_dimensions() method to a node, that calculates
+    the width, height and depth of the object's bounding box.
+    Internally it renders an STL, loads the mesh and cache the
+    results.
+
+    This is an experimental code that seems unfunctional.
+    """
+
 
     @property
     def cache_file(self):
@@ -27,6 +33,7 @@ class SpatialNodeMixin:
         os.utime(self.cache_file, (time.time(), self.mtime))
 
     def get_mesh_dimensions(self):
+        """Returns the dimension of the object"""
         if not self.rigid:
             raise NonRigidSolid()
 

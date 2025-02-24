@@ -18,9 +18,12 @@ class Solid2Node(LeafNode):
     namespace = 'solid2'
 
     def as_scad(self, rendered):
+        """Doesn't do anything, as solid2 objects are already OpenScad objects"""
         return rendered
 
     def as_number(self, n):
+        """Receives a solid2 function result and calculates its number.
+        uses an openscad process internally to do the calculation."""
         if type(n).__module__.startswith('solid2'):
             # This is very clumsy, but it works. Trimesh cannot load
             # translated / rotated mesh, and transforming meshes after loading

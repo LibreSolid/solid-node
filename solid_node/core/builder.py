@@ -25,6 +25,7 @@ class Builder(FileSystemEventHandler):
         self.observer = Observer()
 
     def start(self):
+        """Start the rendering process and wait for a file to change, then exits"""
         task = self._start()
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(task)
@@ -69,16 +70,10 @@ class Builder(FileSystemEventHandler):
         await self.file_changed
         sys.exit(0)
 
-    async def execute_refactor(self, request):
-        try:
-            request.refactor()
-            sys.exit(0)
-        except Exception as e:
-            error_message = traceback.format_exc()
-            logger.error(error_message)
-            await self.report_error(f"Could not execute refactor\n\n{error_message}")
-
     async def generate_stl(self):
+        """Trigger the stl generation on the root node, that will recursively render
+        stls in all nodes. If in the middle a STL is built, the builder process
+        exits to be restarted."""
         try:
             self.node.trigger_stl()
             return
@@ -97,7 +92,21 @@ class Builder(FileSystemEventHandler):
         sys.exit(0)
 
     def on_modified(self, event):
+        """Called when a file is modified, sets the result of the awaiting future
+        for the process to exit"""
         if event.is_directory:
             return
         logging.info(f'{event.src_path} changed, reloading')
         self.loop.call_soon_threadsafe(self.file_changed.set_result, True)
+
+    async def execute_refactor(self, request):
+        """Experimental: refactor requests are special exceptions injected in scope
+        that trigger the builder to refactor nodes. Make sure you commit your changes
+        before using it."""
+        try:
+            request.refactor()
+            sys.exit(0)
+        except Exception as e:
+            error_message = traceback.format_exc()
+            logger.error(error_message)
+            await self.report_error(f"Could not execute refactor\n\n{error_message}")

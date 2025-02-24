@@ -3,15 +3,18 @@ from solid2 import union, get_animation_time
 
 
 class InternalNode(AbstractBaseNode):
-    """Internal nodes combine its leaf nodes in some way to make
+    """Internal nodes combine its children nodes in some way to make
     a node with several solids."""
 
     @property
     def time(self):
+        """Each internal node must implement property `time` to handle
+        animation"""
         raise NotImplementedError(f"InternalNode subclass {self.__class__} "
                                   "must deal with animation time")
 
     def as_scad(self, children):
+        """Renders a scad of the combined children"""
         self.children = children
 
         scads = []
@@ -29,6 +32,7 @@ class InternalNode(AbstractBaseNode):
         return rendered
 
     def validate(self, rendered):
+        """Check that rendered result is a list"""
         if type(rendered) not in (list, tuple):
             raise Exception(f"{self.__class__}.render() should return a list, "
                             f"not {type(rendered)}")

@@ -24,6 +24,7 @@ class CadQueryNode(LeafNode, metaclass=CheckCQEditor):
     namespace = 'cadquery.cq'
 
     def as_scad(self, rendered):
+        """Export the model to STL and returns a scad code to render it"""
         cq.exporters.export(rendered, self.stl_file, 'STL')
         os.utime(self.stl_file, (time.time(), self.mtime))
         return import_stl(self.local_stl)

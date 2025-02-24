@@ -8,5 +8,11 @@ Solid Node documentation
    why-solid-node
    quickstart
    using-solid-node
+   api-reference
    status-and-roadmap
    contributing
+
+Indices and tables
+==================
+* :ref:`genindex`
+* :ref:`search`

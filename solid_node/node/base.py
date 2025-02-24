@@ -41,6 +41,7 @@ class AbstractBaseNode:
     children = tuple()
 
     # Set to false to render scad directly instead of stls
+    # Only works in openscad viewer
     optimize = True
 
     def __init__(self, *args, name=None, **kwargs):
@@ -111,6 +112,7 @@ class AbstractBaseNode:
         self._make_build_dirs()
 
     def get_source_file(self):
+        """Finds the source file of this node"""
         return inspect.getfile(self.__class__)
 
     @property
