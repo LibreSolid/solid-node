@@ -22,6 +22,18 @@ instances.
 Leaf Nodes
 ==========
 
+There are four types of LeafNodes, each supporting one underlying technology
+to create solids:
+
+* **Solid2Node** Uses Solid Python 2, which is a python wrapper around OpenScad
+* **CadQueryNode** Uses CadQuery, a pure python modeler based on OCCT
+* **OpenScadNode** A wrapper around one OpenScad module
+* **JScadNode** A wrapper around one JScad module
+
+The ::doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
+a box with a hole. Below are the codes for the same model in each modelling
+technology.
+
 Solid2Node
 ----------
 
