@@ -14,5 +14,4 @@ Roadmap
   * Improve the web viewer with workplanes, rulers, camera angles, animation control, a test runner
   * A command to create a static website with docstrings, the viewer, source and build downloads
   * A FlexibleNode class to create objects that change shape over time, with keyframes for animation
-  * A OpenJScadNode class to support OpenJScad.
-  * Separate the watcher and builder internal processes to recover from errors
+  * Improve the builder to recover from errors

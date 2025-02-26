@@ -11,6 +11,10 @@ class LeafNode(AbstractBaseNode):
 
     _type = 'LeafNode'
 
+    # Each LeafNode subclass can declare a namespace, and objects
+    # returned by render() must belong to that namespace
+    namespace = None
+
     @property
     def time(self):
         """Raise an exception, as leaf nodes cannot rely on time.
@@ -30,19 +34,12 @@ class LeafNode(AbstractBaseNode):
         raise NotImplementedError(f"LeafNode subclass {self.__class__} must "
                                   "be able to output scad")
 
-    @property
-    def namespace(self):
-        """Each LeafNode subclass must declare a namespace, and objects
-        returned by render() must belong to that namespace"""
-        raise NotImplementedError(f"LeafNode needs to belong to a namespace-"
-                                  "constrained class.")
-
     def validate(self, rendered):
         """Check if rendered result is an object of proper namespace"""
         if type(rendered) in (list, tuple):
             raise Exception(f"{self.__class__} is a LeafNode and should return "
                             f"a {self.namespace} object, not a list")
 
-        if not type(rendered).__module__.startswith(self.namespace):
+        if self.namespace and not type(rendered).__module__.startswith(self.namespace):
             raise Exception(f"{self.__class__} is a LeafNode and should render "
                             f"as {self.namespace} child, not {type(rendered)}")

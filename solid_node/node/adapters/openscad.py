@@ -1,6 +1,6 @@
 import os
+import sys
 import tempfile
-import inspect
 from solid2 import scad_render, import_scad
 from solid2.core.parse_scad import get_scad_file_as_dict
 from solid2.core.utils import resolve_scad_filename
@@ -9,31 +9,37 @@ from solid_node.node.leaf import LeafNode
 
 class OpenScadNode(LeafNode):
     """
-    Python wrapper around a pure scad module
+    A pure OpenScad node. You just need to declare the property "scad_source" with
+    the path of your OpenScad source code. It must be placed in the same directory
+    of the python file containing this node.
+
+    The scad file must contain a module with the same name of the file, or you
+    may specify the property "module_name" with the module name.
     """
 
     namespace = 'solid2.core.object_factory'
+    scad_source = None
+    module_name = None
 
-    def __init__(self, source, *args, name=None, **kwargs):
-        """Receives a source code and arguments, imports an OpenScad module from
-        the source and renders it using *args and **kwargs
-        The OpenScad code must implement a module with same name as file
+    def __init__(self, *args, name=None, **kwargs):
+        """Receives args, an optional name keyword argument and a list of keyword
+        arguments. The list of arguments and keyword arguments will be passed as
+        parameter to the module.
 
         Args:
-           source (str): The .scad source code, in the same folder as the python file
            *args: will be passed as arguments to the OpenScad module
            name keyword argument: the name of this node, defaul to name of the class
            **kwargs: will be passed as keyword arguments to the openscad module
         """
-        frame = inspect.currentframe().f_back
-        caller = frame.f_globals.get('__file__')
-        basedir = os.path.dirname(caller)
-        source_path = os.path.join(basedir, source)
+        module = sys.modules[self.__class__.__module__]
+        basedir = os.path.dirname(module.__file__)
+        source_path = os.path.join(basedir, self.scad_source)
         self.openscad_source = os.path.realpath(source_path)
         self.openscad_code = open(self.openscad_source).read()
         self.args = args
         self.kwargs = kwargs
-        self.module_name = source.split('/')[-1].split('.')[0]
+        if self.module_name is None:
+            self.module_name = self.openscad_source.split('/')[-1].split('.')[0]
 
         super().__init__(*args, name=name, **kwargs)
 

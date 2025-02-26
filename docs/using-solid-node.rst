@@ -10,9 +10,10 @@ At this point, you should be able to view your project at the viewer
 - either Openscad or the web viewer - and have a source code to edit.
 
 In Solid Node, project is organized in a tree structure, with leaf nodes
-and internal nodes. **Leaf nodes** use uderlying modelling libraries, like
-**SolidPython** and **CadQuery**, to generate solid models. **Internal Nodes**
-combine children nodes in some way, like an **Assembly** or **Fusion**
+and internal nodes. **Leaf nodes** use uderlying modelling libraries, namely
+**SolidPython**, **CadQuery**, **OpenScad** and **JScad", to generate solid
+models. **Internal Nodes** combine children nodes in some way, like an
+**Assembly** or **Fusion**
 
 Each node implements the `render()` method. Leaf nodes return an object of the
 underlying library. Internal nodes `render()` should return a list of child
@@ -58,6 +59,74 @@ The same model can be obtained using **CadQuery**:
             hole = wp.workplane(offset=-50).circle(10).extrude(100)
             return cube.cut(hole)
 
+**TIP**: if you want to use CQ-editor, you can add `show_object` without
+conflicting with Solid Node:
+
+.. code-block:: python
+
+    if __name__ == '__cq_main__':
+        show_object(DemoProject().render())
+
+OpenScadNode
+------------
+
+The same model can also be obtained using an **OpenScadNode**, which is a small
+python wrapper around an OpenScad module.
+
+.. code-block:: python
+
+    from solid_node.node import OpenScadNode
+
+    class DemoProject(OpenScadNode):
+
+        scad_source = 'demo.scad'
+
+Create a file `root/demo.scad` with a module to create the model:
+
+.. code-block:: openscad
+
+    module demo() {
+      difference() {
+        translate([-25, -25, 0]) {
+          cube([50, 50, 50]);
+        }
+        cylinder(r=10, h=100);
+      }
+    }
+
+
+JScadNode
+---------
+
+Finally, the model can also be obtained using an **JScadNode**, which similarly
+to OpenScadNode, it's a python wrapper around an JScad function.
+
+.. code-block:: python
+
+    from solid_node.node import OpenScadNode
+
+    class DemoProject(OpenScadNode):
+
+        jscad_source = 'demo.js'
+
+Create a file `root/demo.js` with a module to create the model:
+
+.. code-block:: javascript
+
+    const { square, circle } = require('@jscad/modeling').primitives
+    const { subtract } = require('@jscad/modeling').booleans
+    const { extrudeLinear  } = require('@jscad/modeling').extrusions
+
+    function main() {
+      let outerSquare = square({size: 50 });
+      let innerCircle = circle({radius: 10 });
+
+      let shape = subtract(outerSquare, innerCircle);
+      return extrudeLinear({ height: 50 }, shape);
+    }
+
+    module.exports = { main }
+
 Internal Nodes
 ==============
 
@@ -84,6 +153,9 @@ Create a new file `root/clock_base.py` and create a `CadQueryNode`:
         def render(self):
             wp = cq.Workplane("XY")
             return wp.circle(100).extrude(2)
+
+    if __name__ == '__cq_main__':
+        show_object(ClockBase().render())
 
 Now, a file `root/pointer.py` with a `Solid2Node`:
 

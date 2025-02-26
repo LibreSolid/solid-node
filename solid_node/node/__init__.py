@@ -10,4 +10,5 @@ from .fusion import FusionNode
 from .adapters.cadquery import CadQueryNode
 from .adapters.solid2 import Solid2Node
 from .adapters.openscad import OpenScadNode
+from .adapters.jscad import JScadNode
 from .decorators import property_as_number
