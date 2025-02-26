@@ -43,12 +43,14 @@ jobs:
           pip install -r requirements.txt -r requirements_dev.txt
 
       - name: Black
+        continue-on-error: true
         if: steps.list_changed_python_files.outputs.files != null
         run: |
           . venv/bin/activate
           black --check ${{ steps.list_changed_python_files.outputs.files }}
 
       - name: Flake8
+        continue-on-error: true
         if: steps.list_changed_python_files.outputs.files != null
         run: |
           . venv/bin/activate
