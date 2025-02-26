@@ -11,6 +11,7 @@ Solid Node documentation
    api-reference
    status-and-roadmap
    contributing
+   changelog
 
 Indices and tables
 ==================
