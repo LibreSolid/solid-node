@@ -5,15 +5,15 @@
 Using Solid Node
 ================
 
-Make sure you have completed the ::doc:`Quickstart <quickstart>`.
+Make sure you have completed the :doc:`Quickstart <quickstart>`.
 At this point, you should be able to view your project at the viewer
 - either Openscad or the web viewer - and have a source code to edit.
 
 In Solid Node, project is organized in a tree structure, with leaf nodes
-and internal nodes. **Leaf nodes** use uderlying modelling libraries, namely
-**SolidPython**, **CadQuery**, **OpenScad** and **JScad", to generate solid
-models. **Internal Nodes** combine children nodes in some way, like an
-**Assembly** or **Fusion**
+and internal nodes. **Leaf nodes** use uderlying modeling libraries, namely
+**SolidPython**, **CadQuery**, **OpenScad** and **JScad**, to generate solid
+models. **Internal Nodes** combine child nodes in some way, like an
+**Assembly** or **Fusion**.
 
 Each node implements the `render()` method. Leaf nodes return an object of the
 underlying library. Internal nodes `render()` should return a list of child
@@ -30,7 +30,7 @@ to create solids:
 * **OpenScadNode** A wrapper around one OpenScad module
 * **JScadNode** A wrapper around one JScad module
 
-The ::doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
+The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
 technology.
 
@@ -110,8 +110,8 @@ Create a file `root/demo.scad` with a module to create the model:
 JScadNode
 ---------
 
-Finally, the model can also be obtained using an **JScadNode**, which similarly
-to OpenScadNode, it's a python wrapper around an JScad function.
+Finally, the model can also be obtained using an **JScadNode** which, similarly
+to OpenScadNode, is a python wrapper around a JScad function.
 
 .. code-block:: python
 
@@ -143,8 +143,8 @@ Internal Nodes
 ==============
 
 There are two types of internal nodes: **AssemblyNode** and **FusionNode**.
-An AssemblyNode is an assemble of its children nodes, while in FusionNode
-the children nodes are fused in one mesh.
+An AssemblyNode is an assemble of its child nodes, while in FusionNode
+the child nodes are fused in one mesh.
 
 
 Simple Clock Example
@@ -231,7 +231,7 @@ Testing
 =======
 
 Solid Node has a test runner and `solid_node.test.TestCase` extension to run tests
-with meshes. As an example, you could use, for example. `AssertNotIntersecting`
+with meshes. As an example, you could use `AssertNotIntersecting`
 to verify that two gears do not overlap during movement, or
 `AssertIntersecting` to verify that a handle is not detached during movement.
 
@@ -346,7 +346,7 @@ On the command line, stop the `solid root develop` command, and
 run `solid root test`.
 
 You should see two tests failing, as in practice there is a very
-small intersection between rendered meshes even though matematically
+small intersection between rendered meshes even though mathematically
 they should not. Let's reduce the radius of our pin to 2.99, at
 `root/pin.py`:
 
@@ -387,12 +387,12 @@ pieces in several moments of the animation:
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.pointer, self.pin)
 
-The tests above will each test run 32 times, at 32 different instants.
+Each of the tests above will run 32 times, at 32 different instants.
 Run the tests again, and you'll see that the tests will pass and fail
 in a pattern.
 
 Running tests on the full animation cycle can be very time consuming.
-We can keep test performance by applying the test to a slice of time
+We can keep test performance by applying the test to a slice of time:
 
 .. code-block:: python
 
@@ -404,10 +404,10 @@ fn property
 ===========
 
 You see that our tests are passing on the base, but not in the pointer,
-as base is very roundly rendered. That's because CadQuery exports STL
+as the base is very roundly rendered. That's because CadQuery exports STL
 files with more precision.
 
-We can achieve that in `Soli2Node` nodes by setting the property `fn`
+We can achieve that in `Solid2Node` nodes by setting the property `fn`
 in the nodes `pin.py` and `pointer.py`, as the example below:
 
 .. code-block:: python
@@ -420,4 +420,4 @@ Now you see the pin and hole seem more round, and the 0.01 margin
 we put is enough to make the tests pass.
 
 You should take in consideration the approximation error on holes
-when using Openscad derived nodes, like `Solid2Node` and `OpenScadNode`
+when using Openscad derived nodes, like `Solid2Node` and `OpenScadNode`.
