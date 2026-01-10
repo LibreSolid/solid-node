@@ -59,8 +59,6 @@ setup(
         "httpx==0.27.*",
         "fastapi==0.111.*",
         "termcolor==2.4.*",
-        "websockets==12.*",
-        "GitPython==3.1.*",
         "asgiref==3.8.*",
         "uvicorn==0.30.*",
         "numpy==2.2.*",

@@ -14,7 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import sys
+import json
 import asyncio
 import traceback
 import logging
@@ -23,12 +25,38 @@ from asyncio import Future
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import load_node
-from .broker import BrokerClient
-from solid_node.core.refactor import RefactorRequest
 from solid_node.node.base import StlRenderStart
 
 
 logger = logging.getLogger('core.builder')
+
+
+def get_build_dir():
+    """Get the base build directory from environment or default"""
+    return os.environ.get('SOLID_BUILD_DIR', '_build')
+
+
+def get_errors_file():
+    """Get the path to the errors.json file in the build directory"""
+    return os.path.join(get_build_dir(), 'errors.json')
+
+
+def clear_errors():
+    """Clear any existing error file"""
+    errors_file = get_errors_file()
+    if os.path.exists(errors_file):
+        os.remove(errors_file)
+
+
+def write_error(error_message):
+    """Write build error to file for WebViewer to read"""
+    errors_file = get_errors_file()
+    os.makedirs(os.path.dirname(errors_file), exist_ok=True)
+    with open(errors_file, 'w') as f:
+        json.dump({
+            'error': error_message,
+            'tstamp': time.time(),
+        }, f)
 
 
 class Builder(FileSystemEventHandler):
@@ -48,7 +76,6 @@ class Builder(FileSystemEventHandler):
 
     async def _start(self):
         logger.info('START')
-        self.broker = BrokerClient()
 
         try:
             self.node = load_node(self.path)
@@ -58,10 +85,11 @@ class Builder(FileSystemEventHandler):
             await self.report_error(error_message)
             sys.exit(0)
 
+        # Clear any previous errors on successful load
+        clear_errors()
+
         try:
             self.node.assemble()
-        except RefactorRequest as request:
-            await self.execute_refactor(request)
         except Exception as e:
             error_message = traceback.format_exc()
             logger.error(error_message)
@@ -75,8 +103,6 @@ class Builder(FileSystemEventHandler):
 
         try:
             await self.generate_stl()
-        except RefactorRequest as request:
-            await self.execute_refactor(request)
         except Exception as e:
             error_message = traceback.format_exc()
             logger.error(error_message)
@@ -100,10 +126,7 @@ class Builder(FileSystemEventHandler):
             sys.exit(0)
 
     async def report_error(self, error_message):
-        await self.broker.put('build_error', {
-            'error': error_message,
-            'tstamp': time.time(),
-        })
+        write_error(error_message)
         await self.file_changed
         sys.exit(0)
 
@@ -114,15 +137,3 @@ class Builder(FileSystemEventHandler):
             return
         logging.info(f'{event.src_path} changed, reloading')
         self.loop.call_soon_threadsafe(self.file_changed.set_result, True)
-
-    async def execute_refactor(self, request):
-        """Experimental: refactor requests are special exceptions injected in scope
-        that trigger the builder to refactor nodes. Make sure you commit your changes
-        before using it."""
-        try:
-            request.refactor()
-            sys.exit(0)
-        except Exception as e:
-            error_message = traceback.format_exc()
-            logger.error(error_message)
-            await self.report_error(f"Could not execute refactor\n\n{error_message}")

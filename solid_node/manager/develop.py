@@ -16,23 +16,10 @@
 
 import os
 import sys
-import time
-import socket
-import inspect
 import logging
-import asyncio
-import traceback
-from importlib import import_module
 from multiprocessing import Process
-from subprocess import Popen
 from solid_node.core import load_node
-from solid_node.core.broker import (BrokerServer,
-                                    BrokerClient,
-                                    HOST as BROKER_HOST,
-                                    PORT as BROKER_PORT)
 from solid_node.core.builder import Builder
-from solid_node.core.git import GitRepo
-from solid_node.node.base import StlRenderStart
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer, WebDevServer
 
@@ -68,19 +55,11 @@ class Develop:
     def web_dev_server(self):
         WebDevServer(self.path).start()
 
-    def broker(self):
-        BrokerServer().start()
-
     def builder(self):
         Builder(self.path).start()
 
     def handle(self, args):
         self.path = args.path
-
-        broker_proc = Process(target=self.broker)
-        broker_proc.start()
-
-        self.wait_for_broker()
 
         builder_proc = None
         web_proc = None
@@ -122,13 +101,3 @@ class Develop:
                 sys.exit(0)
 
         print(f"Exiting...")
-
-    def wait_for_broker(self):
-        def is_port_open():
-            """Check if a port is open on a given host."""
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                return s.connect_ex((BROKER_HOST, BROKER_PORT)) == 0
-        while not is_port_open():
-            logger.info('port closed')
-            time.sleep(0.1)
-        logger.info(f'Broker is ready and listening on port {BROKER_PORT}')

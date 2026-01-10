@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 from solid_node.core.logging import uvicorn_config
-from solid_node.core.broker import BrokerClient
+from solid_node.core.builder import get_errors_file
 
 
 logger = logging.getLogger('viewer.web')
@@ -74,8 +74,6 @@ class WebViewer:
 
         self.app.mount(f'/node', root_node.app)
 
-        self.broker = BrokerClient()
-
         self._setup_build_error()
 
         self._setup_reload_websocket()
@@ -106,8 +104,12 @@ class WebViewer:
     def _setup_build_error(self):
         @self.app.get("/_build_error")
         async def get_status():
-            error = await self.broker.get('build_error')
-            return JSONResponse(error)
+            errors_file = get_errors_file()
+            if os.path.exists(errors_file):
+                with open(errors_file, 'r') as f:
+                    error = json.load(f)
+                return JSONResponse(error)
+            return JSONResponse({})
 
     def _setup_frontend_server(self):
         # Serve a static application.
