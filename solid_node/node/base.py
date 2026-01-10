@@ -135,6 +135,11 @@ class AbstractBaseNode:
     def time(self):
         raise NotImplementedError
 
+    def set_keyframe(self, time):
+        """Set a fixed time for keyframes and tests.
+        No-op for non-animated nodes; overridden by AssemblyNode."""
+        pass
+
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""
