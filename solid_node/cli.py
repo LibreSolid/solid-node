@@ -18,10 +18,12 @@ import argparse
 import os
 from solid_node.manager.develop import Develop
 from solid_node.manager.test import Test
+from solid_node.manager.snapshot import Snapshot
 
 commands = [
     Develop(),
     Test(),
+    Snapshot(),
 ]
 
 def manage():
