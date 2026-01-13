@@ -1,13 +1,13 @@
-asgiref==3.7.2
-cadquery==2.3.1
-cadquery-ocp==7.7.0
-fastapi==0.104.1
-httpx==0.25.1
-pyinotify==0.9.6
-solidpython2==2.1.0
-termcolor==2.3.0
-trimesh==4.0.4
-websockets==12.0
-termcolor==2.3.0
-uvicorn==0.23.1
-GitPython==3.1.40
+# Requirements synchronized from setup.py install_requires
+watchdog
+trimesh==4.4.*
+solidpython2==2.1.*
+cadquery==2.5.*
+unicorn==2.0.*
+httpx==0.27.*
+fastapi==0.111.*
+termcolor==2.4.*
+asgiref==3.8.*
+uvicorn==0.30.*
+numpy==2.2.*
+manifold3d
