@@ -55,7 +55,6 @@ setup(
         "trimesh==4.4.*",
         "solidpython2==2.1.*",
         "cadquery==2.5.*",
-        "unicorn==2.0.*",
         "httpx==0.27.*",
         "fastapi==0.111.*",
         "termcolor==2.4.*",
