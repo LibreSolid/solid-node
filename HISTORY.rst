@@ -2,6 +2,30 @@
 History
 =======
 
+0.3.0 (2026-01-14)
+------------------
+
+* Snapshot CLI for headless STL rendering (enables AI agent workflows)
+* JScadNode adapter for JSCAD backend
+* Lean architecture: removed broker, git, refactor modules (ADR-018)
+* Full license attribution in CREDITS.md
+* License headers on all source files
+
+0.1.0 (2025-02-01)
+------------------
+
+* Stable multi-backend architecture (SolidPython2, CadQuery, OpenSCAD)
+* Web-based 3D viewer with React/Three.js
+* Development server with filesystem monitoring and hot-reload
+* Test runner for CAD projects
+* STL generation with background optimization
+
+0.0.8 (2024-12-15)
+------------------
+
+* Pre-release with improved documentation
+* Bug fixes and stability improvements
+
 0.0.1 (2023-07-13)
 ------------------
 
@@ -9,4 +33,4 @@ History
   * Develop using SolidPython and CadQuery combined
   * Filesystem monitoring triggering transpilation to openscad and stl building
   * Background optimization
-  * Spatial calculations trimesh
+  * Spatial calculations with trimesh
