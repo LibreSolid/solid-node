@@ -33,16 +33,15 @@ setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
     version='0.3.0',
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
     ],
     description="A framework to develop and manage mechanical projects in Python",
     entry_points={
