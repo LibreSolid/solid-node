@@ -137,7 +137,8 @@ def testing_steps(steps, start=0, end=1):
 
     duration = end - start
     step = duration / (steps - 1)
-    instants = [ i * step for i in range(steps) ]
+    instants = [ start + i * step for i in range(steps) ]
+    instants[-1] = end
 
     def decorator(method):
         method.testing_instants = instants
