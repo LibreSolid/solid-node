@@ -15,10 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import re
-import inspect
 import trimesh
 from unittest import TestCase as BaseTestCase
-from solid_node.node.base import StlRenderStart
 
 
 class TestCase(BaseTestCase):

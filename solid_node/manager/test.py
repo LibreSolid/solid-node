@@ -14,14 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import re
 import sys
 import bdb
 import time
 import traceback
 from termcolor import colored
 from solid_node.core.loader import load_test, load_node
-from solid_node.test import TestCase
 
 
 class StopTestRun(Exception):

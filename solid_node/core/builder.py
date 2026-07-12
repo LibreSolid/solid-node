@@ -135,5 +135,5 @@ class Builder(FileSystemEventHandler):
         for the process to exit"""
         if event.is_directory:
             return
-        logging.info(f'{event.src_path} changed, reloading')
+        logger.info(f'{event.src_path} changed, reloading')
         self.loop.call_soon_threadsafe(self.file_changed.set_result, True)

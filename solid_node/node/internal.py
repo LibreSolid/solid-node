@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base import AbstractBaseNode
-from solid2 import union, get_animation_time
+from solid2 import union
 
 
 class InternalNode(AbstractBaseNode):

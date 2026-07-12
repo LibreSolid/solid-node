@@ -37,7 +37,7 @@ class FakeRigidNode:
 
 
 def make_api(node):
-    return NodeAPI(node, stl_index={}, prefix=f'/{node.name}')
+    return NodeAPI(node, prefix=f'/{node.name}')
 
 
 class WaitForFileTest(TestCase):

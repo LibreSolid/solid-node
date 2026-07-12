@@ -19,7 +19,7 @@ import sys
 import inspect
 from importlib import import_module
 from solid_node.node.base import AbstractBaseNode
-from solid_node.test import TestCase, TestCaseMixin
+from solid_node.test import TestCase
 
 sys.path.append(os.getcwd())
 

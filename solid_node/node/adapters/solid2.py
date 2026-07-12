@@ -22,10 +22,6 @@ from solid2 import scad_render
 from solid_node.node.leaf import LeafNode
 
 
-def mktemp(suffix):
-    return tempfile.NamedTemporaryFile(delete=True, suffix=suffix)
-
-
 class Solid2Node(LeafNode):
     """
     Represents a 3D object created using the SolidPython2 tool.

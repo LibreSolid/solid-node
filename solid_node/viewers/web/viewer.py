@@ -17,7 +17,6 @@
 import os
 import json
 import asyncio
-import threading
 import uvicorn
 import httpx
 import logging
@@ -25,7 +24,7 @@ import subprocess
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.websockets import WebSocketDisconnect
 from solid_node.core import load_node
 from solid_node.core.logging import uvicorn_config
@@ -41,7 +40,7 @@ class WebDevServer:
     """For development purposes, run a "npm run start" command
     to be proxyed by WebViewer
     """
-    def __init__(self, path, dev=True):
+    def __init__(self, path):
         self.path = path
         self.app_dir = os.path.join(basedir, 'app')
 
@@ -64,11 +63,9 @@ class WebViewer:
 
         self.frontend_dir = os.path.join(basedir, 'app/build')
 
-        self.stl_index = {}
         self.app = FastAPI()
 
         root_node = NodeAPI(self.node,
-                            self.stl_index,
                             f'/{self.node.name}',
                             )
 
@@ -151,7 +148,7 @@ class NodeAPI:
     """Recursively define an API to serve the node structure
     of a project to the web application"""
 
-    def __init__(self, node, stl_index, prefix):
+    def __init__(self, node, prefix):
         self.node = node
         self.name = self.node.name
 
@@ -169,8 +166,6 @@ class NodeAPI:
 
         if self.node.rigid:
             stl_path = f'/{self.name}.stl'
-            key = f'{prefix}{stl_path}'
-            stl_index[key] = self.node.stl
             self.app.add_api_route(stl_path, self.stl)
             return
 
@@ -181,7 +176,7 @@ class NodeAPI:
 
         for child in children:
             child_path = f'/{child.name}'
-            subapp = NodeAPI(child, stl_index, child_path)
+            subapp = NodeAPI(child, child_path)
             logger.info(f'Mounting node {child_path}')
             self.app.mount(child_path, subapp.app)
             self.subapps.append(subapp)
@@ -200,7 +195,6 @@ class NodeAPI:
             state['model'] = f'{self.name}.stl'
 
         state['mtime'] = self.node.mtime
-        op = json.dumps(self.operations)
         return state
 
     async def stl(self, request: Request):

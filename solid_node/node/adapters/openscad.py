@@ -16,8 +16,7 @@
 
 import os
 import sys
-import tempfile
-from solid2 import scad_render, import_scad
+from solid2 import scad_render
 from solid2.core.parse_scad import get_scad_file_as_dict
 from solid2.core.utils import resolve_scad_filename
 from solid_node.node.leaf import LeafNode

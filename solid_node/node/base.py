@@ -15,24 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
-import sys
 import time
 import inspect
 import logging
-import importlib
 import trimesh
 from decimal import Decimal
 from subprocess import Popen
-from solid2 import (scad_render, import_scad, import_stl,
-                    translate, rotate, union, color,
-                    get_animation_time)
+from solid2 import scad_render, import_stl, color
 from .operations import Rotation, Translation
 
 
 logger = logging.getLogger('node.base')
 
-
-MESH_CACHE = {}
 
 def _build_uniq_id(args, kwargs):
     # Positional args keep their historical bare str() join so existing
@@ -293,13 +287,6 @@ class AbstractBaseNode:
             '-o', self.stl_file,
             '--export-format', 'binstl',
         ]
-
-    def generate_mesh(self):
-        basedir = os.path.relpath(self.basedir, self.root)
-        local_stl = os.path.join(basedir, self.local_stl)
-        return import_stl(local_stl)
-
-        return trimesh.load(self.stl_file)
 
     ##############################################
     # Transformations that can be applied to Node

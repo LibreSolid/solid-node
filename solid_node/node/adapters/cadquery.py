@@ -17,7 +17,6 @@
 import os
 import sys
 import time
-import inspect
 import cadquery as cq
 from solid2 import import_stl
 from solid_node.node.leaf import LeafNode
