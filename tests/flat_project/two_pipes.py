@@ -15,8 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from solid_node.node import AssemblyNode
-from solid2 import cylinder, translate
-from simple_pipe import SimplePipe
+from .simple_pipe import SimplePipe
 
 
 class TwoPipes(AssemblyNode):
@@ -24,5 +23,5 @@ class TwoPipes(AssemblyNode):
     def render(self):
         return [
             SimplePipe(),
-            SimplePipe().translate(100, 0, 0),
+            SimplePipe().translate([100, 0, 0]),
         ]
