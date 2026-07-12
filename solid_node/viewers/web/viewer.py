@@ -233,5 +233,5 @@ class NodeAPI:
     async def wait_for_file(self, file_path):
         while True:
             if os.path.exists(file_path):
-                return
+                return file_path
             await asyncio.sleep(0.1)
