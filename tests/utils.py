@@ -18,7 +18,7 @@ import re
 
 
 def format_codes(generated, expected):
-    generated = re.sub('\/\/.+?\n', '', generated)
+    generated = re.sub(r'//.+?\n', '', generated)
     generated = generated.strip()
     generated = generated.replace('\t', '    ').strip()
     first_line = expected.split('\n')[1]
