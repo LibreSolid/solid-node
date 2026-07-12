@@ -96,13 +96,14 @@ class Snapshot:
         )
 
         # Render mode
-        parser.add_argument(
+        render_group = parser.add_mutually_exclusive_group()
+        render_group.add_argument(
             '--render',
             action='store_true',
-            default=True,
-            help='Full geometry evaluation (default, slower but accurate)'
+            default=False,
+            help='Full render (OpenSCAD default, slower but accurate)'
         )
-        parser.add_argument(
+        render_group.add_argument(
             '--preview',
             action='store_true',
             help='ThrownTogether preview (faster, may show artifacts)'

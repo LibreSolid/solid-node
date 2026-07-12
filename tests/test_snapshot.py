@@ -533,6 +533,16 @@ class SnapshotArgumentParsingTest(TestCase):
         args = self.parser.parse_args(['--preview'])
         self.assertTrue(args.preview)
 
+    def test_default_render_is_false(self):
+        """--render should default to False so --preview isn't a permanent no-op"""
+        args = self.parser.parse_args([])
+        self.assertFalse(args.render)
+
+    def test_render_and_preview_are_mutually_exclusive(self):
+        """Passing both --render and --preview should be rejected by argparse"""
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args(['--render', '--preview'])
+
     def test_autocenter_flag(self):
         """Test autocenter flag"""
         args = self.parser.parse_args(['--autocenter'])
