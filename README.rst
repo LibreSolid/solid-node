@@ -6,17 +6,9 @@ Solid Node
 .. image:: https://img.shields.io/pypi/v/solid_node.svg
         :target: https://pypi.python.org/pypi/solid_node
 
-.. image:: https://img.shields.io/travis/lfagundes/solid_node.svg
-        :target: https://travis-ci.com/lfagundes/solid_node
-
 .. image:: https://readthedocs.org/projects/solid-framework/badge/?version=latest
         :target: https://solid-framework.readthedocs.io/en/latest/?version=latest
         :alt: Documentation Status
-
-
-.. image:: https://pyup.io/repos/github/lfagundes/solid_node/shield.svg
-     :target: https://pyup.io/repos/github/lfagundes/solid_node/
-     :alt: Updates
 
 
 
