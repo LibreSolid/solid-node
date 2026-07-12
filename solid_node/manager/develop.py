@@ -68,6 +68,7 @@ class Develop:
 
         if args.openscad:
             openscad_proc = Process(target=self.openscad)
+            openscad_proc.start()
 
         if not args.openscad or args.web or args.web_dev or args.debug_web:
             self.web_dev = args.web_dev
@@ -99,5 +100,3 @@ class Develop:
                 builder_proc.join()
             except KeyboardInterrupt:
                 sys.exit(0)
-
-        print(f"Exiting...")
