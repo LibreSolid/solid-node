@@ -27,6 +27,27 @@ class FakeNode:
         return float(n)
 
 
+class FakeAnimatedAngle:
+    """Stands in for a solid2 $t animated expression object: not a real
+    number, but resolvable to one through a node's as_number()."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __neg__(self):
+        return FakeAnimatedAngle(-self.value)
+
+
+class NodeResolvingAnimatedAngle(FakeNode):
+    """A node whose as_number() knows how to resolve a FakeAnimatedAngle,
+    like Solid2Node.as_number() resolves solid2 expressions via openscad."""
+
+    def as_number(self, n):
+        if isinstance(n, FakeAnimatedAngle):
+            return n.value
+        return super().as_number(n)
+
+
 class TranslationReversedTest(TestCase):
 
     def test_reversed_keeps_node(self):
@@ -65,3 +86,43 @@ class UnserializeTest(TestCase):
         translation.mesh(mesh)
 
         self.assertEqual(list(mesh.center_mass), [1.0, 2.0, 3.0])
+
+
+class RotationReversedTest(TestCase):
+
+    def test_reversed_keeps_node_and_negates_angle(self):
+        node = FakeNode()
+        rotation = Rotation(angle=90, axis=[0, 0, 1], node=node)
+
+        reversed_rotation = rotation.reversed
+
+        self.assertIs(reversed_rotation.node, node)
+        self.assertEqual(reversed_rotation.angle, -90)
+        self.assertEqual(reversed_rotation.axis, [0, 0, 1])
+
+
+class RotationMeshTest(TestCase):
+
+    def test_mesh_with_string_angle_and_no_node_falls_back_to_float(self):
+        # A string angle (e.g. round-tripped through unserialize()) must
+        # not be handed straight to math.radians().
+        mesh = box((2, 4, 6))
+        Rotation(angle="90", axis=[0, 0, 1]).mesh(mesh)
+
+        expected = box((2, 4, 6))
+        Rotation(angle=90, axis=[0, 0, 1]).mesh(expected)
+
+        self.assertTrue((mesh.vertices == expected.vertices).all())
+
+    def test_mesh_with_animated_angle_uses_node_as_number(self):
+        # An animated angle (a solid2 $t expression, stood in for here by
+        # FakeAnimatedAngle) is not a real number either; it must be
+        # resolved through the node, just like Translation.mesh() does.
+        node = NodeResolvingAnimatedAngle()
+        mesh = box((2, 4, 6))
+        Rotation(angle=FakeAnimatedAngle(90), axis=[0, 0, 1], node=node).mesh(mesh)
+
+        expected = box((2, 4, 6))
+        Rotation(angle=90, axis=[0, 0, 1]).mesh(expected)
+
+        self.assertTrue((mesh.vertices == expected.vertices).all())

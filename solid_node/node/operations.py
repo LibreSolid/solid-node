@@ -43,9 +43,10 @@ def _as_number(node, value):
 class Rotation:
     """A rotation operation defined by an angle and an axis"""
 
-    def __init__(self, angle, axis):
+    def __init__(self, angle, axis, node=None):
         self.angle = angle
         self.axis = axis
+        self.node = node
 
     @property
     def serialized(self):
@@ -55,7 +56,7 @@ class Rotation:
     @property
     def reversed(self):
         """Return an operation that reverses the rotation"""
-        return Rotation(-self.angle, self.axis)
+        return Rotation(-self.angle, self.axis, self.node)
 
     def scad(self, scad_object):
         """Returns a scad object with a rotation applied"""
@@ -64,7 +65,7 @@ class Rotation:
     def mesh(self, mesh):
         """Applies a rotation to a mesh"""
         matrix = trimesh.transformations.rotation_matrix(
-            math.radians(self.angle),
+            math.radians(_as_number(self.node, self.angle)),
             self.axis,
         )
         mesh.apply_transform(matrix)

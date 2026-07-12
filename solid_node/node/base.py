@@ -295,7 +295,7 @@ class AbstractBaseNode:
     # Transformations that can be applied to Node
     # model or mesh
     def rotate(self, angle, axis):
-        self.operations.append(Rotation(angle, axis))
+        self.operations.append(Rotation(angle, axis, self))
         return self
 
     def translate(self, translation):
