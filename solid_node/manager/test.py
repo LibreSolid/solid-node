@@ -153,5 +153,4 @@ class Test:
 
     def restore_children_checkpoints(self, node):
         for child in node.children:
-            for operation in child.restore_checkpoint():
-                operation.mesh(child.mesh)
+            child.restore_checkpoint()

@@ -15,9 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import io
+import os
+import tempfile
 from contextlib import redirect_stdout
 from unittest import TestCase
+from trimesh.creation import box
 from solid_node.manager.test import Test as Runner, StopTestRun
+from solid_node.node.base import AbstractBaseNode
+from solid_node.node.operations import Translation
 
 
 def with_instants(*values):
@@ -160,3 +165,76 @@ class FailfastAbortsRunTest(TestCase):
         self.assertEqual(runner.num_failed, 1)
         self.assertEqual(runner.num_passed, 1)
         self.assertIn("Ran 2 tests", out.getvalue())
+
+
+class InstrumentedChild:
+    """A minimal stand-in for a Node instance for restore_children_checkpoints:
+    reuses the *real* AbstractBaseNode.save_checkpoint/restore_checkpoint and
+    the real `mesh` property getter (instrumented only to count accesses),
+    so the test exercises the actual checkpoint/mesh semantics rather than a
+    reimplementation of them.
+    """
+
+    def __init__(self, stl_file):
+        self.stl_file = stl_file
+        self.operations = []
+        self.checkpoint = None
+        self.mesh_access_count = 0
+
+    save_checkpoint = AbstractBaseNode.save_checkpoint
+    restore_checkpoint = AbstractBaseNode.restore_checkpoint
+
+    @property
+    def mesh(self):
+        self.mesh_access_count += 1
+        return AbstractBaseNode.mesh.fget(self)
+
+
+class FakeParent:
+    def __init__(self, children):
+        self.children = children
+
+
+class RestoreChildrenCheckpointsTest(TestCase):
+    """Regression tests for B8: restore_children_checkpoints applied
+    reverted operations to `child.mesh`, but `mesh` (base.py) builds a
+    brand new trimesh from disk on every access and recomputes it from
+    `self.operations` -- mutating that fresh, unstored mesh is a
+    discarded no-op. Restoring `operations` (which restore_checkpoint()
+    already does) is sufficient.
+    """
+
+    def setUp(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        self.stl_path = os.path.join(tmpdir.name, 'child.stl')
+        box((1, 1, 1)).export(self.stl_path)
+
+    def test_restore_trims_operations_and_mesh_reflects_restored_state(self):
+        child = InstrumentedChild(self.stl_path)
+        child.save_checkpoint()
+        child.operations.append(Translation([5, 0, 0], node=None))
+
+        # Sanity check: the added operation actually moved the mesh.
+        translated_center = list(child.mesh.center_mass)
+        self.assertNotAlmostEqual(translated_center[0], 0.0)
+
+        Runner().restore_children_checkpoints(FakeParent(children=[child]))
+
+        self.assertEqual(child.operations, [])
+        restored_center = list(child.mesh.center_mass)
+        for actual in restored_center:
+            self.assertAlmostEqual(actual, 0.0)
+
+    def test_restore_does_not_access_mesh_property(self):
+        # The old implementation called operation.mesh(child.mesh) once
+        # per discarded operation -- an extra STL load + transform whose
+        # result was thrown away immediately. Restoring should never
+        # need to touch `mesh` at all.
+        child = InstrumentedChild(self.stl_path)
+        child.save_checkpoint()
+        child.operations.append(Translation([5, 0, 0], node=None))
+
+        Runner().restore_children_checkpoints(FakeParent(children=[child]))
+
+        self.assertEqual(child.mesh_access_count, 0)
