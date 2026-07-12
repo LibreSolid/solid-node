@@ -252,7 +252,9 @@ export const loadNode = async (path: string, context: Context): Promise<Node> =>
   if (data.type === "LeafNode") {
     node = new LeafNode(path, data, context);
   } else {
-    const childrenPromises = data.children!.map((child: string) => {
+    // NodeAPI.state() (viewer.py) omits "children" entirely for any rigid
+    // node (not just LeafNode), so it must not be assumed present here.
+    const childrenPromises = (data.children ?? []).map((child: string) => {
       const childPath = `${path}${child}/`;
       return loadNode(childPath, context);
     });
