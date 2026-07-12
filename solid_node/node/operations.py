@@ -76,7 +76,8 @@ class Translation:
     def reversed(self):
         """Returns an operation that reverts the translation"""
         return Translation(
-            [ -x for x in self.translation ]
+            self.node,
+            [ -x for x in self.translation ],
         )
 
     def scad(self, scad_object):
