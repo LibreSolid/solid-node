@@ -45,7 +45,7 @@ using Openscad as a viewer, use the --openscad parameter
 
     $ solid root develop --openscad
 
-Open `root/__init__.py` file in your prefered code editor and
+Open `root/__init__.py` file in your preferred code editor and
 see your model update in the viewer as you modify the code.
 
 Check the _build directory for the STLs of your project.

@@ -12,8 +12,7 @@ Released on 14/Jan/2026
 
 **New Features**
 
-* Snapshot CLI command for headless STL rendering (ADR-019)
-* JScadNode adapter for JSCAD backend support
+* Snapshot CLI command for headless PNG rendering (ADR-019)
 * Full CREDITS.md with license attribution for all dependencies
 
 **Architecture Improvements (ADR-018)**
@@ -29,6 +28,14 @@ Released on 14/Jan/2026
 * Added license headers to all source files
 * Synchronized requirements.txt with setup.py
 * Removed unused "unicorn" dependency
+
+v0.2
+----
+
+Released on 25/Feb/2025
+
+* JScadNode adapter for JSCAD backend support, plus further work on OpenScadNode
+* API reference documentation building on Read the Docs
 
 v0.1
 ----
