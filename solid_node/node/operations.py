@@ -29,6 +29,17 @@ from solid2 import (
     translate as scad_translate,
 )
 
+
+def _as_number(node, value):
+    """Converts value to a plain number. When a node is available its
+    as_number is used, so solid2 animated expressions can be resolved;
+    otherwise falls back to a plain float() conversion (used when an
+    operation was rebuilt through unserialize(), which has no node)."""
+    if node is None:
+        return float(value)
+    return node.as_number(value)
+
+
 class Rotation:
     """A rotation operation defined by an angle and an axis"""
 
@@ -62,9 +73,9 @@ class Rotation:
 class Translation:
     """A translation operation defined by a vector"""
 
-    def __init__(self, node, translation):
-        self.node = node
+    def __init__(self, translation, node=None):
         self.translation = translation
+        self.node = node
 
     @property
     def serialized(self):
@@ -76,8 +87,8 @@ class Translation:
     def reversed(self):
         """Returns an operation that reverts the translation"""
         return Translation(
-            self.node,
             [ -x for x in self.translation ],
+            self.node,
         )
 
     def scad(self, scad_object):
@@ -86,7 +97,7 @@ class Translation:
 
     def mesh(self, mesh):
         """Applies a translation to a mesh"""
-        translation_n = [ self.node.as_number(n) for n in self.translation ]
+        translation_n = [ _as_number(self.node, n) for n in self.translation ]
         mesh.apply_translation(translation_n)
 
 
@@ -97,5 +108,5 @@ _operations = {
 
 def unserialize(serialized):
     """Unserializes a serialized operation"""
-    Operation = serialized.pop(0)
+    Operation = _operations[serialized.pop(0)]
     return Operation(*serialized)

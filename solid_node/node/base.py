@@ -299,7 +299,7 @@ class AbstractBaseNode:
         return self
 
     def translate(self, translation):
-        self.operations.append(Translation(self, translation))
+        self.operations.append(Translation(translation, self))
         return self
 
     @property

@@ -37,3 +37,31 @@ class TranslationReversedTest(TestCase):
 
         self.assertIs(reversed_translation.node, node)
         self.assertEqual(reversed_translation.translation, [-1, -2, -3])
+
+
+class UnserializeTest(TestCase):
+
+    def test_unserialize_rotation(self):
+        rotation = unserialize(['r', '90.0', [0, 0, 1]])
+
+        self.assertIsInstance(rotation, Rotation)
+        self.assertEqual(rotation.angle, '90.0')
+        self.assertEqual(rotation.axis, [0, 0, 1])
+
+    def test_unserialize_translation(self):
+        translation = unserialize(['t', ['1.0', '2.0', '3.0']])
+
+        self.assertIsInstance(translation, Translation)
+        self.assertEqual(translation.translation, ['1.0', '2.0', '3.0'])
+        self.assertIsNone(translation.node)
+
+    def test_unserialize_translation_mesh_applies_without_node(self):
+        # The serialized form never carries a node (it's dropped on the
+        # wire), so a nodeless Translation must still be able to compute
+        # a mesh transform, falling back to a plain float() conversion.
+        translation = unserialize(['t', ['1.0', '2.0', '3.0']])
+        mesh = box((1, 1, 1))
+
+        translation.mesh(mesh)
+
+        self.assertEqual(list(mesh.center_mass), [1.0, 2.0, 3.0])
