@@ -17,17 +17,39 @@
 
 """The setup script."""
 
+import os
 import subprocess
 from setuptools import setup, find_packages
 from setuptools.command.sdist import sdist
+from setuptools.command.build_py import build_py
+
+VIEWER_DIR = 'solid_node/viewers/web/app/'
+VIEWER_BUILD_INDEX = os.path.join(VIEWER_DIR, 'build', 'index.html')
+
+
+def build_frontend():
+    # Build the web application inside the python library
+    subprocess.check_call(['npm', 'install'], cwd=VIEWER_DIR)
+    subprocess.check_call(['npm', 'run', 'build'], cwd=VIEWER_DIR)
+
 
 class DistWithFrontend(sdist):
-    # Build the web application inside the python library
+    # sdist always ships a freshly built frontend
     def run(self):
-        viewer_dir = 'solid_node/viewers/web/app/'
-        subprocess.check_call(['npm', 'install'], cwd=viewer_dir)
-        subprocess.check_call(['npm', 'run', 'build'], cwd=viewer_dir)
+        build_frontend()
         sdist.run(self)
+
+
+class BuildPyWithFrontend(build_py):
+    # Wheels (and `pip install .`) go through build_py rather than sdist, so
+    # they need their own hook or they ship without app/build and the web
+    # viewer 404s. Only (re)build when the compiled frontend is missing, so
+    # this doesn't run npm on every test/import of setup.py.
+    def run(self):
+        if not os.path.exists(VIEWER_BUILD_INDEX):
+            build_frontend()
+        super().run()
+
 
 setup(
     author="Luis Fagundes",
@@ -72,6 +94,7 @@ setup(
     url='https://github.com/lfagundes/solid_node',
     cmdclass={
         'sdist': DistWithFrontend,
+        'build_py': BuildPyWithFrontend,
     },
     zip_safe=False,
 )
