@@ -5,13 +5,13 @@
 Using Solid Node
 ================
 
-Make sure you have completed the ::doc:`Quickstart <quickstart>`.
+Make sure you have completed the :doc:`Quickstart <quickstart>`.
 At this point, you should be able to view your project at the viewer
 - either Openscad or the web viewer - and have a source code to edit.
 
 In Solid Node, project is organized in a tree structure, with leaf nodes
-and internal nodes. **Leaf nodes** use uderlying modelling libraries, namely
-**SolidPython**, **CadQuery**, **OpenScad** and **JScad", to generate solid
+and internal nodes. **Leaf nodes** use underlying modelling libraries, namely
+**SolidPython**, **CadQuery**, **OpenScad** and **JScad**, to generate solid
 models. **Internal Nodes** combine children nodes in some way, like an
 **Assembly** or **Fusion**
 
@@ -30,7 +30,7 @@ to create solids:
 * **OpenScadNode** A wrapper around one OpenScad module
 * **JScadNode** A wrapper around one JScad module
 
-The ::doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
+The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
 technology.
 
@@ -346,7 +346,7 @@ On the command line, stop the `solid root develop` command, and
 run `solid root test`.
 
 You should see two tests failing, as in practice there is a very
-small intersection between rendered meshes even though matematically
+small intersection between rendered meshes even though mathematically
 they should not. Let's reduce the radius of our pin to 2.99, at
 `root/pin.py`:
 

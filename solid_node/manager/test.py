@@ -30,7 +30,7 @@ class StopTestRun(Exception):
 class Test:
     """Nodes may implement tests by inheriting solid_node.test.TestCaseMixin
     and creating test methods starting with test_.
-    This command runs Run all tests from a node"""
+    Run all tests from a node."""
 
     def __init__(self):
         self.num_tests = 0

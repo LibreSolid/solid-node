@@ -5,11 +5,16 @@ History
 0.3.0 (2026-01-14)
 ------------------
 
-* Snapshot CLI for headless STL rendering (enables AI agent workflows)
-* JScadNode adapter for JSCAD backend
+* Snapshot CLI for headless PNG rendering (enables AI agent workflows)
 * Lean architecture: removed broker, git, refactor modules (ADR-018)
 * Full license attribution in CREDITS.md
 * License headers on all source files
+
+0.2.0 (2025-02-25)
+------------------
+
+* JScadNode adapter for JSCAD backend, plus further work on OpenScadNode
+* API reference documentation building on Read the Docs
 
 0.1.0 (2025-02-01)
 ------------------

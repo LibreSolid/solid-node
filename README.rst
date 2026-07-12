@@ -22,4 +22,4 @@ Quickstart
 
 Start by cloning `solid-seed <https://github.com/LibreSolid/solid-seed>`_.
 
-See `the docs <https://solid-node.readthedocs.io`_.
+See `the docs <https://solid-node.readthedocs.io>`_.
