@@ -35,8 +35,15 @@ logger = logging.getLogger('node.base')
 MESH_CACHE = {}
 
 def _build_uniq_id(args, kwargs):
-    all_args = list(args) + list(kwargs.values())
-    return ','.join(str(a) for a in all_args)
+    # Positional args keep their historical bare str() join so existing
+    # fixture filenames (e.g. simple_cylinder-10,5.stl) survive unchanged.
+    # Kwargs are rendered as key=value, sorted by key: this both makes the
+    # id stable regardless of call order, and stops a keyword call from
+    # colliding with a positional call that happens to pass the same
+    # values (e.g. Node(5, 10) vs Node(height=5, radius=10)).
+    parts = [str(a) for a in args]
+    parts += [f'{k}={v}' for k, v in sorted(kwargs.items())]
+    return ','.join(parts)
 
 class AbstractBaseNode:
     """A mechanical project in solid-node is represented by a
