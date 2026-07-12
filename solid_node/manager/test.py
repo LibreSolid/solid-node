@@ -23,6 +23,12 @@ from termcolor import colored
 from solid_node.core.loader import load_test, load_node
 from solid_node.test import TestCase
 
+
+class StopTestRun(Exception):
+    """Internal control-flow signal raised to unwind out of the test run
+    when --failfast is set and a test fails."""
+
+
 class Test:
     """Nodes may implement tests by inheriting solid_node.test.TestCaseMixin
     and creating test methods starting with test_.
@@ -58,9 +64,12 @@ class Test:
     def run_tests(self):
         start_time = time.time()
 
-        self.run_class_tests(self.node, self.node)
-        if self.test_case:
-            self.run_class_tests(self.test_case, self.node)
+        try:
+            self.run_class_tests(self.node, self.node)
+            if self.test_case:
+                self.run_class_tests(self.test_case, self.node)
+        except StopTestRun:
+            pass
 
         end_time = time.time()
         total_time = end_time - start_time
@@ -122,7 +131,7 @@ class Test:
                     dot_color = 'red'
                 sys.stdout.write(colored('.', dot_color))
                 sys.stdout.flush()
-                if self.failfast:
+                if self.failfast and dot_color == 'red':
                     break
             if not step_fail:
                 sys.stdout.write(colored(" passed\n", "green"))
@@ -131,6 +140,8 @@ class Test:
                 sys.stdout.write(colored('FAIL!\n', 'red'))
                 print(error[2])
                 self.num_failed += 1
+                if self.failfast:
+                    raise StopTestRun()
         finally:
             if hasattr(self.test_case, "tearDown"):
                 self.test_case.tearDown()
