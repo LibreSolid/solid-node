@@ -52,7 +52,7 @@ class BaseNodeTest(TestCase):
     def get_scad(self, NodeClass, *args, **kwargs):
         solid = NodeClass(*args, **kwargs)
         solid.assemble()
-        scad_code = solid.scad_code.strip()
+        return solid.scad_code.strip()
 
     def load_solid(self, index, stl_level=0):
         self.solid = self.models[index]()
@@ -76,19 +76,21 @@ class BaseNodeTest(TestCase):
         scad_code, code = format_codes(self.solid.scad_code, code)
 
         expected = re.sub(r'\s+', ' ', code.strip())
-        generated = re.sub(r'\s+', ' ', self.solid.scad_code.strip())
+        generated = re.sub(r'\s+', ' ', scad_code.strip())
 
-        if not expected == generated:
-            print('EXPECTED:')
-            print(code.strip())
-            print('GOT:')
-            print(scad_code.strip())
+        if expected == generated:
+            return
 
-            expected = expected.split()
-            generated = generated.split()
+        print('EXPECTED:')
+        print(code.strip())
+        print('GOT:')
+        print(scad_code.strip())
 
-            for i, line in enumerate(generated):
-                self.assertEqual(line, expected[i])
+        # Compare the full token sequences (not just as far as the
+        # shorter one reaches): a strict-prefix generated used to pass
+        # silently here, and a shorter expected used to raise a raw
+        # IndexError instead of a clean assertion failure.
+        self.assertEqual(generated.split(), expected.split())
 
 
 
