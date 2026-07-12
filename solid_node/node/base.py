@@ -260,6 +260,9 @@ class AbstractBaseNode:
             return True
         except ProcessLookupError:
             return False
+        except PermissionError:
+            # No permission to signal the process, but it does exist.
+            return True
 
     def generate_stl(self):
         if self._up_to_date(self.stl_file):

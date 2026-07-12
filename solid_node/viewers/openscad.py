@@ -38,7 +38,7 @@ class OpenScadViewer:
         else:
             try:
                 return int(open(self.pid_file).read())
-            except (FileNotFoundError, TypeError):
+            except (FileNotFoundError, TypeError, ValueError):
                 return None
     @property
     def running(self):
