@@ -47,6 +47,7 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.10',
@@ -72,7 +73,7 @@ setup(
         "numpy==2.2.*",
         "manifold3d",
     ],
-    license="GNU Affero General Public License v3",
+    license="Apache-2.0",
     include_package_data=True,
     keywords='solid_node',
     name='solid_node',
