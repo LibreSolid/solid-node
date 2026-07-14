@@ -14,7 +14,7 @@ Solid Node
 
 **The Free Software framework for parametric 3D printable mechanical projects**
 
-* Free software: GNU Affero General Public License v3
+* Free software: Apache License 2.0
 * Documentation: https://solid-node.readthedocs.io.
 
 Quickstart

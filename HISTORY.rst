@@ -2,6 +2,11 @@
 History
 =======
 
+0.4.0 (unreleased)
+------------------
+
+* Relicensed from AGPL-3.0 to Apache-2.0, with consent from all contributors
+
 0.3.0 (2026-01-14)
 ------------------
 

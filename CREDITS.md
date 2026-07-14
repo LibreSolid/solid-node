@@ -2,15 +2,13 @@
 
 ## Project License
 
-**solid-node** is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**.
+**solid-node** is licensed under the **Apache License 2.0**.
 
-Copyright (c) 2024-2026 Luis Fagundes and contributors
+Copyright (c) 2023-2026 Luis Henrique Cassis Fagundes and contributors
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 ---
 
@@ -29,14 +27,14 @@ This project depends on the following open source software packages. We are grat
   - 2011-2012 Yesudeep Mangalapilly
 - **Repository:** https://github.com/gorakhargosh/watchdog
 - **Description:** Filesystem events monitoring library
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### trimesh
 - **License:** MIT License
 - **Copyright:** Copyright (c) 2023 Michael Dawson-Haggerty
 - **Repository:** https://github.com/mikedh/trimesh
 - **Description:** Python library for loading and using triangular meshes
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### solidpython2
 - **License:** LGPL 2.1 or later
@@ -44,63 +42,63 @@ This project depends on the following open source software packages. We are grat
 - **Repository:** https://github.com/jeff-dh/SolidPython
 - **Description:** Python interface to OpenSCAD
 - **Additional Notes:** Some docstrings are derived from the OpenSCAD User Manual and are available under the Creative Commons Attribution-ShareAlike License
-- **License Compatibility:** Compatible with AGPLv3 (LGPL allows linking)
+- **License Compatibility:** Used as an unmodified library dependency, permitted alongside Apache-2.0; LGPL-2.1+ obligations attach only to solidpython2 itself
 
 #### cadquery
 - **License:** Apache License 2.0
 - **Copyright:** CadQuery Development Team
 - **Repository:** https://github.com/CadQuery/cadquery
 - **Description:** Parametric CAD scripting framework
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### httpx
 - **License:** BSD 3-Clause License
 - **Copyright:** Copyright © 2019, Encode OSS Ltd.
 - **Repository:** https://github.com/encode/httpx
 - **Description:** HTTP client library for Python
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### fastapi
 - **License:** MIT License
 - **Copyright:** Copyright (c) 2018 Sebastián Ramírez
 - **Repository:** https://github.com/tiangolo/fastapi
 - **Description:** Modern web framework for building APIs
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### termcolor
 - **License:** MIT License
 - **Copyright:** Copyright (c) 2008-2011 Volvox Development Team
 - **Repository:** https://github.com/termcolor/termcolor
 - **Description:** ANSI color formatting for terminal output
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### asgiref
 - **License:** BSD 3-Clause License
 - **Copyright:** Copyright (c) Django Software Foundation and individual contributors
 - **Repository:** https://github.com/django/asgiref
 - **Description:** ASGI specification reference implementation
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### uvicorn
 - **License:** BSD 3-Clause License
 - **Copyright:** Copyright © 2017-present, Encode OSS Ltd.
 - **Repository:** https://github.com/encode/uvicorn
 - **Description:** ASGI web server implementation
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### numpy
 - **License:** BSD 3-Clause License
 - **Copyright:** Copyright (c) 2005-2025, NumPy Developers
 - **Repository:** https://github.com/numpy/numpy
 - **Description:** Fundamental package for scientific computing
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 #### manifold3d
 - **License:** Apache License 2.0
 - **Copyright:** Emmett Lalish and contributors
 - **Repository:** https://github.com/elalish/manifold
 - **Description:** Robust geometry library for 3D mesh operations
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 ### Development/Test Dependencies
 
@@ -109,7 +107,7 @@ This project depends on the following open source software packages. We are grat
 - **Copyright:** Copyright (c) 2004 Holger Krekel and others
 - **Repository:** https://github.com/pytest-dev/pytest
 - **Description:** Testing framework for Python
-- **License Compatibility:** Compatible with AGPLv3
+- **License Compatibility:** Compatible with Apache-2.0
 
 ---
 
@@ -140,8 +138,7 @@ Full license texts for all dependencies can be obtained from their respective re
 **MIT License:** https://opensource.org/licenses/MIT
 **BSD 3-Clause License:** https://opensource.org/licenses/BSD-3-Clause
 **LGPL 2.1:** https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
-**AGPLv3:** https://www.gnu.org/licenses/agpl-3.0.html
 
 ---
 
-*This credits file was last updated: 2026-01-13*
+*This credits file was last updated: 2026-07-14*

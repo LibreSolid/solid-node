@@ -5,6 +5,15 @@
 Changelog
 =========
 
+v0.4.0
+------
+
+Unreleased
+
+**License**
+
+* Relicensed the project from AGPL-3.0 to Apache-2.0, with consent from all contributors
+
 v0.3.0
 ------
 
