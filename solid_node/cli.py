@@ -8,11 +8,13 @@ import sys
 from solid_node.manager.develop import Develop
 from solid_node.manager.test import Test
 from solid_node.manager.snapshot import Snapshot
+from solid_node.manager.new import New
 
 commands = [
     Develop(),
     Test(),
     Snapshot(),
+    New(),
 ]
 
 def manage():

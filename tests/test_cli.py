@@ -53,3 +53,13 @@ class CommandFirstGrammarTest(TestCase):
                 manage()
 
         self.assertIn('usage', stdout.getvalue().lower())
+
+    def test_new_dispatches_without_requiring_path(self):
+        with patch.object(sys, 'argv', ['solid', 'new', 'myproj']):
+            with patch('solid_node.manager.new.New.handle') as handle:
+                manage()
+
+        self.assertTrue(handle.called)
+        args = handle.call_args[0][0]
+        self.assertEqual(args.name, 'myproj')
+        self.assertFalse(hasattr(args, 'path'))
