@@ -5,18 +5,10 @@
 Quickstart
 ==========
 
-Start by cloning solid-seed, which has a starting code for any project.
+Start by creating a virtual environment for your project
 
 .. code-block:: bash
 
-    $ git clone https://github.com/LibreSolid/solid-seed.git myproject
-
-
-Then create a virtual environment for your project
-
-.. code-block:: bash
-
-    $ cd myproject
     $ virtualenv --python=python3 myproject-env
     $ source myproject-env/bin/activate
 
@@ -32,18 +24,25 @@ Make sure you have openscad installed
 
     $ sudo apt-get install openscad
 
+Create a new project with a starting structure
+
+.. code-block:: bash
+
+    $ solid new myproject
+    $ cd myproject
+
 Start the solid process. By default, the web viewer is used.
 
 .. code-block:: bash
 
-    $ solid root develop
+    $ solid develop root
 
 Open the link http://localhost:8000 in your browser. If you prefer
 using Openscad as a viewer, use the --openscad parameter
 
 .. code-block:: bash
 
-    $ solid root develop --openscad
+    $ solid develop root --openscad
 
 Open `root/__init__.py` file in your preferred code editor and
 see your model update in the viewer as you modify the code.

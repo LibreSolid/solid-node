@@ -14,6 +14,11 @@ Unreleased
 
 * Relicensed the project from AGPL-3.0 to Apache-2.0, with consent from all contributors
 
+**CLI**
+
+* Breaking: CLI grammar flipped to command-first, ``solid <command> <node>``
+* New ``solid new`` command to scaffold a starting project structure, replacing the solid-seed clone workflow
+
 v0.3.0
 ------
 

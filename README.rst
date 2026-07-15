@@ -20,6 +20,9 @@ Solid Node
 Quickstart
 ==========
 
-Start by cloning `solid-seed <https://github.com/LibreSolid/solid-seed>`_.
+.. code-block:: bash
+
+    $ pip install solid-node
+    $ solid new myproject
 
 See `the docs <https://solid-node.readthedocs.io>`_.

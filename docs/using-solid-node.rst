@@ -37,8 +37,8 @@ technology.
 Solid2Node
 ----------
 
-The initial example in *solid-seed* implements a **Solid2Node** node,
-which uses **solidpython2** to create models. Open `root/__init__.py`:
+The starting structure created by `solid new` implements a **Solid2Node**
+node, which uses **solidpython2** to create models. Open `root/__init__.py`:
 
 .. code-block:: python
 
@@ -342,8 +342,8 @@ we'll add two tests to `root/__init__.py`:
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.pointer, self.pin)
 
-On the command line, stop the `solid root develop` command, and
-run `solid root test`.
+On the command line, stop the `solid develop root` command, and
+run `solid test root`.
 
 You should see two tests failing, as in practice there is a very
 small intersection between rendered meshes even though mathematically

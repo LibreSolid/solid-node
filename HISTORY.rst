@@ -6,6 +6,8 @@ History
 ------------------
 
 * Relicensed from AGPL-3.0 to Apache-2.0, with consent from all contributors
+* CLI grammar flip: commands come first, ``solid <command> <node>`` (breaking change)
+* New ``solid new`` command to scaffold a starting project structure
 
 0.3.0 (2026-01-14)
 ------------------
