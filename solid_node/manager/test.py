@@ -20,6 +20,8 @@ class Test:
     and creating test methods starting with test_.
     Run all tests from a node."""
 
+    needs_node = True
+
     def __init__(self):
         self.num_tests = 0
         self.num_passed = 0

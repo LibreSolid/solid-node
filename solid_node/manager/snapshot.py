@@ -25,6 +25,8 @@ class Snapshot:
     """Renders a node to a PNG image using OpenSCAD CLI.
     Enables AI agents to visually inspect their work without human intervention."""
 
+    needs_node = True
+
     def add_arguments(self, parser):
         # Output options
         parser.add_argument(

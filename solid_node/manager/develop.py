@@ -19,6 +19,8 @@ class Develop:
     and runs servers to support a web frontend
     """
 
+    needs_node = True
+
     def add_arguments(self, parser):
         parser.add_argument('--web', action='store_true',
                             help='Start a webserver to view project in browser (default)')
