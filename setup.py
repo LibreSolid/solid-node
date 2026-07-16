@@ -72,6 +72,8 @@ setup(
         "uvicorn==0.30.*",
         "numpy==2.2.*",
         "manifold3d",
+        "rtree",
+        "scipy",
     ],
     license="Apache-2.0",
     include_package_data=True,

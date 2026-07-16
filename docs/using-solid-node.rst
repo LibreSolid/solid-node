@@ -229,11 +229,18 @@ And at `root/__init__.py`, an `AssemblyNode`
 
     class SimpleClock(AssemblyNode):
 
-        base = ClockBase()
-        pointer = Pointer()
+        def __init__(self):
+            self.base = ClockBase()
+            self.pointer = Pointer()
+            super().__init__()
 
         def render(self):
             return [self.base, self.pointer]
+
+Children are created in ``__init__``, as instance attributes: they must
+keep their identity across renders, and each instance of the assembly
+must own its own children (class attributes would be shared by every
+instance, re-applying placement operations on each other).
 
 Now in the viewer you should see a round clock base with a pointer.
 
@@ -250,12 +257,14 @@ Edit `root/__init__.py` to rotate the pointer:
 
     class SimpleClock(AssemblyNode):
 
-        base = ClockBase()
-        pointer = Pointer()
+        def __init__(self):
+            self.base = ClockBase()
+            self.pointer = Pointer()
+            super().__init__()
 
         def render(self):
-	    angle = 360 * self.time
-	    self.pointer.rotate(angle, [0, 0, 1])
+            angle = 360 * self.time
+            self.pointer.rotate(angle, [0, 0, 1])
             return [self.base, self.pointer]
 
 Besides `rotate(angle, axis)`, nodes also have `translate([x, y, z])`.
