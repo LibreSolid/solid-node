@@ -6,8 +6,9 @@ import asyncio
 import os
 import tempfile
 from unittest import TestCase
+from unittest.mock import patch
 from fastapi.testclient import TestClient
-from solid_node.viewers.web.viewer import NodeAPI
+from solid_node.viewers.web.viewer import NodeAPI, WebViewer
 
 
 class FakeRigidNode:
@@ -90,3 +91,41 @@ class StlEndpointTest(TestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertIn('last-modified', response.headers)
+
+
+class WebViewerSurvivesBrokenNodeTest(TestCase):
+    """Regression for improvements.md #7: Develop.handle() restarts the
+    web viewer on every builder reload cycle ("Restarting WEB"), and
+    WebViewer.__init__ calls load_node(path) itself to mount the node
+    routes. That call used to be unguarded, so a project broken at the
+    exact moment of restart crashed the whole webserver subprocess --
+    taking down the reload websocket and the /_build_error endpoint
+    with it, exactly when the browser most needed this server to stay
+    reachable to show the build error.
+    """
+
+    def test_construction_does_not_raise_when_node_fails_to_load(self):
+        with patch('solid_node.viewers.web.viewer.load_node',
+                   side_effect=NameError('boom')):
+            viewer = WebViewer('broken/project.py', dev=True)
+
+        self.assertIsNone(viewer.node)
+
+    def test_build_error_endpoint_still_reachable(self):
+        with patch('solid_node.viewers.web.viewer.load_node',
+                   side_effect=NameError('boom')):
+            viewer = WebViewer('broken/project.py', dev=True)
+
+        client = TestClient(viewer.app)
+        response = client.get('/_build_error')
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_reload_websocket_still_connects(self):
+        with patch('solid_node.viewers.web.viewer.load_node',
+                   side_effect=NameError('boom')):
+            viewer = WebViewer('broken/project.py', dev=True)
+
+        client = TestClient(viewer.app)
+        with client.websocket_connect('/ws/reload') as websocket:
+            self.assertEqual(websocket.receive_text(), 'reload')

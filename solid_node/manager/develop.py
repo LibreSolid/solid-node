@@ -43,8 +43,8 @@ class Develop:
     def web_dev_server(self):
         WebDevServer(self.path).start()
 
-    def builder(self):
-        Builder(self.path).start()
+    def builder(self, is_reload=False):
+        Builder(self.path, is_reload=is_reload).start()
 
     def handle(self, args):
         self.path = args.path
@@ -73,6 +73,13 @@ class Develop:
         if args.debug_builder:
             return self.builder()
 
+        # Only the very first builder attempt is "startup": a project
+        # that is already broken at launch exits cleanly instead of
+        # looping. Every attempt after that is a WATCH-LOOP reload,
+        # which must survive an import error raised while re-loading
+        # edited source (see Builder.is_reload / _on_reload_exception).
+        first_run = True
+
         while True:
             if web_proc and builder_proc:
                 logger.info('Restarting WEB')
@@ -81,10 +88,20 @@ class Develop:
                 web_proc = Process(target=self.web)
                 web_proc.start()
 
-            builder_proc = Process(target=self.builder)
+            builder_proc = Process(target=self.builder, args=(not first_run,))
             builder_proc.start()
 
             try:
                 builder_proc.join()
             except KeyboardInterrupt:
                 sys.exit(0)
+
+            if first_run and builder_proc.exitcode:
+                logger.error('Initial build failed, exiting')
+                for proc in (openscad_proc, web_dev_proc, web_proc):
+                    if proc is not None:
+                        proc.terminate()
+                        proc.join()
+                sys.exit(builder_proc.exitcode)
+
+            first_run = False

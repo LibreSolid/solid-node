@@ -9,6 +9,7 @@ import uvicorn
 import httpx
 import logging
 import subprocess
+import traceback
 from datetime import datetime
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
@@ -47,17 +48,31 @@ class WebViewer:
     """
     def __init__(self, path, dev=True):
         self.path = path
-        self.node = load_node(path)
+        self.node = None
 
         self.frontend_dir = os.path.join(basedir, 'app/build')
 
         self.app = FastAPI()
 
-        root_node = NodeAPI(self.node,
-                            f'/{self.node.name}',
-                            )
-
-        self.app.mount(f'/node', root_node.app)
+        try:
+            self.node = load_node(path)
+            root_node = NodeAPI(self.node,
+                                f'/{self.node.name}',
+                                )
+            self.app.mount(f'/node', root_node.app)
+        except Exception:
+            # A project broken at the moment the web viewer (re)starts
+            # must not crash this server -- the browser depends on this
+            # same process for the reload websocket and the
+            # /_build_error endpoint below (fed by the builder's
+            # errors.json) to recover once a fix lands and Develop
+            # restarts this viewer with a working node. Don't duplicate
+            # error reporting here: the builder subprocess already owns
+            # writing errors.json for the exact same failure.
+            logger.error(
+                f'Failed to load node from {path} for web viewer:\n'
+                f'{traceback.format_exc()}'
+            )
 
         self._setup_build_error()
 

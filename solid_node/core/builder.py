@@ -49,9 +49,18 @@ def write_error(error_message):
 
 class Builder(FileSystemEventHandler):
     """Monitors .py files. On any change, generate STLs and exit"""
-    def __init__(self, path):
+    def __init__(self, path, is_reload=False):
         super().__init__()
         self.path = path
+
+        # True for every attempt after the very first: an exception
+        # while (re)importing project source on this path is treated as
+        # a recoverable build failure, not a fatal one (see
+        # _on_reload_exception below). The very first attempt for a
+        # `solid develop` invocation keeps the old, non-surviving
+        # behavior -- a broken project at launch exits with a clear
+        # error instead of looping.
+        self.is_reload = is_reload
 
         self.file_changed = Future()
         self.observer = Observer()
@@ -68,10 +77,8 @@ class Builder(FileSystemEventHandler):
         try:
             self.node = load_node(self.path)
         except Exception as e:
-            error_message = traceback.format_exc()
-            logger.error(error_message)
-            await self.report_error(error_message)
-            sys.exit(0)
+            await self._on_reload_exception(e, 'load')
+            return
 
         # Clear any previous errors on successful load
         clear_errors()
@@ -79,10 +86,8 @@ class Builder(FileSystemEventHandler):
         try:
             self.node.assemble()
         except Exception as e:
-            error_message = traceback.format_exc()
-            logger.error(error_message)
-            await self.report_error(error_message)
-            sys.exit(0)
+            await self._on_reload_exception(e, 'assemble')
+            return
 
         for path in self.node.files:
             self.observer.schedule(self, path, recursive=False)
@@ -95,10 +100,51 @@ class Builder(FileSystemEventHandler):
             error_message = traceback.format_exc()
             logger.error(error_message)
             await self.report_error(error_message)
-            sys.exit(0)
+            return
 
         await self.file_changed
         sys.exit(0)
+
+    async def _on_reload_exception(self, exc, stage):
+        """Handle an exception raised while (re)importing project
+        source -- a module-level SyntaxError, NameError, ImportError,
+        anything -- before the observer has had a chance to start (we
+        don't yet know self.node.files: that's exactly what failed to
+        build).
+
+        On the WATCH-LOOP reload path (self.is_reload) this must NOT
+        take the develop process down: fall back to watching the whole
+        project directory (broadly, since the precise file list isn't
+        known), surface the error through the same errors.json channel
+        build failures already use, and exit cleanly the instant a
+        subsequent save is noticed so Develop's loop can respawn and
+        retry.
+
+        On initial startup (not a reload) a broken project keeps
+        failing fast: log one clean line (not a full traceback dump)
+        and exit with a non-zero status instead of hanging forever
+        with nothing watching.
+        """
+        error_message = traceback.format_exc()
+
+        if self.is_reload:
+            logger.error(error_message)
+            self._watch_broadly()
+            self.observer.start()
+            await self.report_error(error_message)
+            return
+
+        logger.error(f'{self.path}: failed to {stage} project: {exc}')
+        write_error(error_message)
+        sys.exit(1)
+
+    def _watch_broadly(self):
+        """Fallback watch for when we don't yet know which files back
+        the node (the reload itself failed before we could find out):
+        watch the whole project directory recursively so a subsequent
+        fix is still detected."""
+        watch_dir = os.path.dirname(os.path.realpath(self.path)) or '.'
+        self.observer.schedule(self, watch_dir, recursive=True)
 
     async def generate_stl(self):
         """Trigger the stl generation on the root node, that will recursively render
@@ -123,5 +169,19 @@ class Builder(FileSystemEventHandler):
         for the process to exit"""
         if event.is_directory:
             return
+        if not event.src_path.endswith('.py') or '__pycache__' in event.src_path:
+            # Only relevant under the broad fallback watch (_watch_broadly),
+            # which recurses over a whole directory instead of the
+            # precise, already-.py-only file list: filter out bytecode
+            # cache writes and other noise so they can't trigger a
+            # reload loop.
+            return
         logger.info(f'{event.src_path} changed, reloading')
-        self.loop.call_soon_threadsafe(self.file_changed.set_result, True)
+        self.loop.call_soon_threadsafe(self._resolve_file_changed)
+
+    def _resolve_file_changed(self):
+        # Guard against a second filesystem event arriving before the
+        # first has been consumed (e.g. an editor's atomic-write
+        # touching more than one path under the broad fallback watch).
+        if not self.file_changed.done():
+            self.file_changed.set_result(True)
