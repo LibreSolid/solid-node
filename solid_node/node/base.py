@@ -140,6 +140,13 @@ class AbstractBaseNode:
         # naming a node used to REPLACE its parameter-based key, so two
         # same-named instances with different parameters collided on one
         # stl file and one of them served the other's stale geometry.
+        #
+        # self._explicit_name records whether name= was actually passed,
+        # so the parent-attribute-derived name (see _link_child below,
+        # skill-repo improvements.md #16) only ever overrides the
+        # class-name default -- never an explicit name=, which always
+        # wins.
+        self._explicit_name = name is not None
         self.name = name or self.__class__.__name__
         self.uniq_id = _build_uniq_id(args, kwargs)
 
@@ -359,6 +366,55 @@ class AbstractBaseNode:
             '-o', self.stl_file,
             '--export-format', 'binstl',
         ]
+
+    ##############################################
+    # Child naming (skill-repo improvements.md #16)
+    #
+    # Two children of the same class under one parent used to collide
+    # in the viewer's name-addressed tree, because node.name defaulted
+    # to the class name for every instance. The fix: a child's name is
+    # derived from the attribute name the PARENT instance holds it
+    # under -- introspected off the parent's __dict__ -- unless an
+    # explicit name= was given (that always wins) or the child cannot
+    # be found in the parent's __dict__ at all (then it just keeps its
+    # current name, the class-name default).
+    def _link_child(self, child):
+        """Link `child` to this node as its parent, and derive its
+        name from the attribute holding it. Called from the same spot
+        the tree links parent/child today (InternalNode.as_scad) and
+        from the web viewer's NodeAPI, which walks render() output
+        directly without a full assemble(). Idempotent: re-deriving
+        the same attribute mapping twice (e.g. a second assemble())
+        always recomputes the identical name -- it overwrites rather
+        than appends, so nothing stacks."""
+        child._parent = self
+        if child._explicit_name:
+            return
+        found = self._attr_name_for(child)
+        if found is not None:
+            child.name = found
+
+    def _attr_name_for(self, child):
+        """The attribute name (or `<attr>-<index>` for a list/tuple
+        member) under which `self.__dict__` holds `child`, scanned in
+        definition order. A plain attribute is always preferred over a
+        list/tuple membership, even if the list hit comes first in
+        definition order (two passes, not one). Private attributes
+        (leading underscore) are skipped. Returns None if `child`
+        isn't referenced by any (non-private) attribute at all."""
+        for attr, value in self.__dict__.items():
+            if attr.startswith('_'):
+                continue
+            if value is child:
+                return attr
+        for attr, value in self.__dict__.items():
+            if attr.startswith('_'):
+                continue
+            if isinstance(value, (list, tuple)):
+                for index, item in enumerate(value):
+                    if item is child:
+                        return f'{attr}-{index}'
+        return None
 
     ##############################################
     # Transformations that can be applied to Node

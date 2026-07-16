@@ -220,6 +220,23 @@ class UniqIdKeyMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class ChildNamingMetaTest(TestCase):
+    """Green fixture for child-name derivation (skill-repo
+    improvements.md #16): a child's node.name comes from the
+    attribute the parent instance holds it under -- not always the
+    class name -- so two same-class children (`left`/`right`) and a
+    list attribute (`posts`) never collide in the viewer's
+    name-addressed tree."""
+
+    def test_children_named_after_holding_attribute(self):
+        run = solid_test('garage')
+        self.assertEqual(
+            run.results,
+            {'test_children_get_attribute_derived_names': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an
@@ -281,12 +298,19 @@ class PairwiseAdjacencyMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
     def test_nonadjacent_overlap_is_reported_naming_both_leaves(self):
+        # Under the OLD always-class-name naming, this asserted 'LegA'
+        # and 'LegC' (the fixture's helper subclasses, defined only to
+        # get a distinct node.name per leaf -- see separated_overlap.py).
+        # Under the ratified derivation (skill-repo improvements.md
+        # #16), node.name instead comes from the attribute the parent
+        # holds the child under: SeparatedOverlap.a -> 'a', and
+        # OverlappingPair.c -> 'c'. The fixture itself still holds
+        # (its contract is unchanged, just its failure message's
+        # vocabulary), so only this expectation moves.
         run = solid_test('separated_overlap')
         self.assertEqual(run.results,
                          {'test_no_pairwise_intersections': 'failed'})
-        self.assertIn('LegA', run.stdout)
-        self.assertIn('LegC', run.stdout)
-        self.assertIn('should not intersect', run.stdout)
+        self.assertIn('a should not intersect c', run.stdout)
         self.assertNotEqual(run.returncode, 0)
 
 

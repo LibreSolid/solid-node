@@ -188,6 +188,12 @@ class NodeAPI:
             return
 
         for child in children:
+            # NodeAPI walks render() output directly, never assemble(),
+            # so it never goes through InternalNode.as_scad -- link and
+            # derive the child's name here too (skill-repo
+            # improvements.md #16), so the viewer tree and the
+            # STL/test naming agree.
+            self.node._link_child(child)
             child_path = f'/{child.name}'
             subapp = NodeAPI(child, child_path)
             logger.info(f'Mounting node {child_path}')

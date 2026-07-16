@@ -19,15 +19,21 @@ class InternalNode(AbstractBaseNode):
 
     def as_scad(self, children):
         """Renders a scad of the combined children"""
-        self.children = children
-
         scads = []
 
         for child in children:
-            child._parent = self
+            self._link_child(child)
             scads.append(child.assemble(self.root))
             self.files.update(child.files)
             self.rigid = self.rigid and child.rigid
+
+        # Assigned only AFTER the loop above: self.children is a plain
+        # (non-private) list attribute, so setting it before deriving
+        # names would make _attr_name_for's list-membership pass match
+        # every child against IT -- including a child not referenced
+        # by any real attribute of self, defeating the "keep the class
+        # name" fallback (skill-repo improvements.md #16).
+        self.children = children
 
         if len(scads) > 1:
             rendered = union()(scads)
