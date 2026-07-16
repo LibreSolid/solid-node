@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import re
 import time
 import inspect
+import hashlib
 import logging
 import trimesh
 from decimal import Decimal
@@ -44,16 +46,64 @@ def _tag_driver(node, operation):
     assembly._driven_nodes.add(node)
 
 
-def _build_uniq_id(args, kwargs):
-    # Positional args keep their historical bare str() join so existing
-    # fixture filenames (e.g. simple_cylinder-10,5.stl) survive unchanged.
-    # Kwargs are rendered as key=value, sorted by key: this both makes the
-    # id stable regardless of call order, and stops a keyword call from
-    # colliding with a positional call that happens to pass the same
-    # values (e.g. Node(5, 10) vs Node(height=5, radius=10)).
+# Filesystem-safe charset for the readable prefix: anything outside this
+# set (spaces, brackets, quotes -- whatever str() on a list/dict produces)
+# is replaced, so the prefix can never itself break a path component.
+_UNSAFE_PREFIX_CHARS = re.compile(r'[^A-Za-z0-9_,=.-]')
+
+# How much of the canonical serialization to keep in the readable prefix.
+# Purely decorative (a glance-friendly hint); identity lives in the hash,
+# so this bound is what keeps the basename length independent of
+# parameter size (e.g. a 200-element float list kwarg).
+_PREFIX_LEN = 60
+
+# Hex digits of the sha256 kept in the artifact key. Short enough to stay
+# out of the way, long enough that accidental collisions are not a
+# practical concern for a single project's build tree.
+_HASH_LEN = 12
+
+
+def _canonical_serialization(args, kwargs):
+    """The full, order-stable string identifying a call's parameters:
+    positional args in call order, then kwargs sorted by key (so kwarg
+    order never affects it), comma-joined. This is the string that is
+    HASHED for identity; unlike the readable prefix derived from it,
+    it is never truncated, so it still distinguishes calls that only
+    differ deep inside a long value.
+    """
     parts = [str(a) for a in args]
     parts += [f'{k}={v}' for k, v in sorted(kwargs.items())]
     return ','.join(parts)
+
+
+def _build_uniq_id(args, kwargs):
+    """The artifact key for a node instance: ALWAYS derived from its
+    constructor parameters, never from name= (name only addresses the
+    node in the tree/tests -- see AbstractBaseNode.__init__). A node
+    built with no args/kwargs gets '' (the basename is then the bare
+    script name, unchanged from before).
+
+    Otherwise the key is:
+
+        <readable-prefix>-<shorthash>
+
+    where <shorthash> is the first _HASH_LEN hex digits of the sha256
+    of _canonical_serialization(args, kwargs) -- the FULL serialization,
+    so any parameter change (including one buried in a long value)
+    changes the id -- and <readable-prefix> is that same serialization,
+    sanitized to filesystem-safe characters and truncated to
+    _PREFIX_LEN chars. The prefix is decoration only; identity lives
+    entirely in the hash, so the total basename length is bounded
+    regardless of parameter values (fixes the OSError: File name too
+    long a long list-valued kwarg used to cause when it serialized
+    verbatim into the filename).
+    """
+    canonical = _canonical_serialization(args, kwargs)
+    if not canonical:
+        return ''
+    digest = hashlib.sha256(canonical.encode()).hexdigest()[:_HASH_LEN]
+    prefix = _UNSAFE_PREFIX_CHARS.sub('_', canonical)[:_PREFIX_LEN]
+    return f'{prefix}-{digest}'
 
 class AbstractBaseNode:
     """A mechanical project in solid-node is represented by a
@@ -83,14 +133,15 @@ class AbstractBaseNode:
     optimize = True
 
     def __init__(self, *args, name=None, **kwargs):
-        # self.uniq_id uniquely identifies a set of parameters of an instance.
-        # self.name is used to refer to nodes in tests
-        if not name:
-            self.uniq_id = _build_uniq_id(args, kwargs)
-            self.name = self.__class__.__name__
-        else:
-            self.name = name
-            self.uniq_id = name
+        # self.uniq_id is the artifact key: always derived from this
+        # instance's constructor parameters via _build_uniq_id, so a
+        # parameter change always produces a new artifact. self.name is
+        # purely for tree/test addressing and never influences uniq_id --
+        # naming a node used to REPLACE its parameter-based key, so two
+        # same-named instances with different parameters collided on one
+        # stl file and one of them served the other's stale geometry.
+        self.name = name or self.__class__.__name__
+        self.uniq_id = _build_uniq_id(args, kwargs)
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after

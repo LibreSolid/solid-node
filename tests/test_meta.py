@@ -195,6 +195,31 @@ class MultiDriverMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class UniqIdKeyMetaTest(TestCase):
+    """Bug (skill-repo improvements.md #3 + #13): name= used to REPLACE
+    the parameter-based artifact key, and raw kwargs serialized verbatim
+    into the filename. The same-name/different-parameters lie is
+    covered at build level in tests/test_uniq_id.py (same-name siblings
+    collide in the viewer tree, a separate open issue, #16) rather than
+    here; these two cover the twin adversarial-green cases that ARE
+    straightforward as meta fixtures."""
+
+    def test_distinctly_named_cubes_get_correct_independent_geometry(self):
+        run = solid_test('named_sizes')
+        self.assertEqual(
+            run.results,
+            {'test_distinctly_named_cubes_get_correct_independent_geometry':
+                'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_leaf_with_long_list_parameter_builds(self):
+        run = solid_test('long_params')
+        self.assertEqual(run.results, {'test_mesh_exists': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an

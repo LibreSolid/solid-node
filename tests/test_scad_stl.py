@@ -130,7 +130,7 @@ class FlatStlTest(BaseNodeTest, FlatTest):
         self.load_solid(2, 1)
         self.assertCode("""
         union() {
-            import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
+            import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
             cylinder(h = 10, r = 5);
         }
         """)
@@ -139,8 +139,8 @@ class FlatStlTest(BaseNodeTest, FlatTest):
         self.load_solid(2, 2)
         self.assertCode("""
         union() {
-            import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
-            import(file = "simple_cylinder-5,10.stl", origin = [0, 0]);
+            import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
+            import(file = "simple_cylinder-5,10-8c01ab0efc35.stl", origin = [0, 0]);
         }
         """)
 
@@ -150,12 +150,12 @@ class FlatStlTest(BaseNodeTest, FlatTest):
         self.assertCode("""
         union() {
             union() {
-                import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
+                import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
                 cylinder(h = 10, r = 5);
             }
             rotate(a = 180, v = [1, 0, 0]) {
                 union() {
-                    import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
+                    import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
                     cylinder(h = 10, r = 5);
                 }
             }
@@ -168,26 +168,26 @@ class FlatStlTest(BaseNodeTest, FlatTest):
         union() {
             union() {
                 union() {
-                    import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
-                    import(file = "simple_cylinder-5,10.stl", origin = [0, 0]);
+                    import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
+                    import(file = "simple_cylinder-5,10-8c01ab0efc35.stl", origin = [0, 0]);
                 }
                 rotate(a = 180, v = [1, 0, 0]) {
                     union() {
-                        import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
-                        import(file = "simple_cylinder-5,10.stl", origin = [0, 0]);
+                        import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
+                        import(file = "simple_cylinder-5,10-8c01ab0efc35.stl", origin = [0, 0]);
                     }
                 }
             }
             rotate(a = 180, v = [0, 1, 0]) {
                 union() {
                     union() {
-                        import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
-                        import(file = "simple_cylinder-5,10.stl", origin = [0, 0]);
+                        import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
+                        import(file = "simple_cylinder-5,10-8c01ab0efc35.stl", origin = [0, 0]);
                     }
                     rotate(a = 180, v = [1, 0, 0]) {
                         union() {
-                            import(file = "simple_cylinder-10,5.stl", origin = [0, 0]);
-                            import(file = "simple_cylinder-5,10.stl", origin = [0, 0]);
+                            import(file = "simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
+                            import(file = "simple_cylinder-5,10-8c01ab0efc35.stl", origin = [0, 0]);
                         }
                     }
                 }
@@ -207,12 +207,12 @@ class DeepStlTest(BaseNodeTest):
         union() {
             union() {
                 union() {
-                    import(file = "one/two/three/simple_cylinder-10,5.stl", origin = [0, 0]);
+                    import(file = "one/two/three/simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
         cylinder(h = 10, r = 5);
                 }
                 rotate(a = 180, v = [1, 0, 0]) {
                     union() {
-                        import(file = "one/two/three/simple_cylinder-10,5.stl", origin = [0, 0]);
+                        import(file = "one/two/three/simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
                         cylinder(h = 10, r = 5);
                     }
                 }
@@ -220,12 +220,12 @@ class DeepStlTest(BaseNodeTest):
             rotate(a = 180, v = [0, 1, 0]) {
                 union() {
                     union() {
-                        import(file = "one/two/three/simple_cylinder-10,5.stl", origin = [0, 0]);
+                        import(file = "one/two/three/simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
                         cylinder(h = 10, r = 5);
                     }
                     rotate(a = 180, v = [1, 0, 0]) {
                         union() {
-                            import(file = "one/two/three/simple_cylinder-10,5.stl", origin = [0, 0]);
+                            import(file = "one/two/three/simple_cylinder-10,5-86a6d5b0813b.stl", origin = [0, 0]);
                             cylinder(h = 10, r = 5);
                         }
                     }
