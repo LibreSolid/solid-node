@@ -120,6 +120,28 @@ class KeyframePropagationMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class MeshCompositionMetaTest(TestCase):
+    """Bug: node.mesh applied only the node's own operations, so any
+    placement living on an ancestor assembly was invisible to mesh
+    tests — they passed trivially with intersection volume 0
+    (improvements.md #10)."""
+
+    def test_wrapper_placement_reaches_leaf_meshes(self):
+        run = solid_test('wrapped')
+        self.assertEqual(run.results, {
+            'test_leaf_mesh_is_at_world_position': 'passed',
+            'test_wrapper_placement_separates_the_parts': 'passed',
+        })
+        self.assertEqual(run.returncode, 0)
+
+    def test_local_meshes_cannot_mask_a_world_overlap(self):
+        run = solid_test('wrapped_overlap')
+        self.assertEqual(run.results,
+                         {'test_wrapped_leaf_clears_reference': 'failed'})
+        self.assertIn('should not intersect', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an

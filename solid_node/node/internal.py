@@ -24,6 +24,7 @@ class InternalNode(AbstractBaseNode):
         scads = []
 
         for child in children:
+            child._parent = self
             scads.append(child.assemble(self.root))
             self.files.update(child.files)
             self.rigid = self.rigid and child.rigid

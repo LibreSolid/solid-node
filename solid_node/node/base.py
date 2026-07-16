@@ -64,6 +64,11 @@ class AbstractBaseNode:
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
+    # The internal node this node was assembled under, set by the
+    # parent's as_scad(). Used to compose ancestor operations into
+    # this node's mesh.
+    _parent = None
+
     # Set to false to render scad directly instead of stls
     # Only works in openscad viewer
     optimize = True
@@ -310,9 +315,15 @@ class AbstractBaseNode:
 
     @property
     def mesh(self):
+        """The node's mesh in WORLD coordinates: its own operations
+        applied first, then each ancestor's, up the assembled tree —
+        the same composition the viewer renders."""
         mesh = trimesh.load(self.stl_file)
-        for operation in self.operations:
-            operation.mesh(mesh)
+        node = self
+        while node is not None:
+            for operation in node.operations:
+                operation.mesh(mesh)
+            node = getattr(node, '_parent', None)
         return mesh
 
     def build_stls(node):
