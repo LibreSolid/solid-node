@@ -8,6 +8,7 @@ Solid Node documentation
    why-solid-node
    quickstart
    using-solid-node
+   examples
    cli
    api-reference
    status-and-roadmap
