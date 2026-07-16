@@ -283,9 +283,9 @@ Testing
 =======
 
 Solid Node has a test runner and `solid_node.test.TestCase` extension to run tests
-with meshes. As an example, you could use, for example. `AssertNotIntersecting`
+with meshes. As an example, you could use `assertNotIntersecting`
 to verify that two gears do not overlap during movement, or
-`AssertIntersecting` to verify that a handle is not detached during movement.
+`assertIntersecting` to verify that a handle is not detached during movement.
 
 There is also `solid_node.test.TestCaseMixin`, which allows you to write tests
 in your node class instead of using a separate file.
@@ -459,7 +459,7 @@ You see that our tests are passing on the base, but not in the pointer,
 as base is very roundly rendered. That's because CadQuery exports STL
 files with more precision.
 
-We can achieve that in `Soli2Node` nodes by setting the property `fn`
+We can achieve that in `Solid2Node` nodes by setting the property `fn`
 in the nodes `pin.py` and `pointer.py`, as the example below:
 
 .. code-block:: python
