@@ -121,6 +121,9 @@ class Test:
                     dot_color = 'red'
                 sys.stdout.write(colored('.', dot_color))
                 sys.stdout.flush()
+                # Every instant starts from clean children: a leaked
+                # operation must not poison the following instants.
+                self.restore_children_checkpoints(node)
                 if self.failfast and dot_color == 'red':
                     break
             if not step_fail:
@@ -138,9 +141,16 @@ class Test:
             self.restore_children_checkpoints(node)
 
     def save_children_checkpoints(self, node):
-        for child in node.children:
-            child.save_checkpoint()
+        """Snapshot each child's exact operations list. The snapshots
+        are held by the runner itself, so a test calling
+        save_checkpoint() on a node cannot clobber the restore point;
+        and they restore by content, so an operation INSERTED anywhere
+        in the list (not just appended) is reverted too."""
+        self._children_operations = {
+            child: list(child.operations) for child in node.children
+        }
 
     def restore_children_checkpoints(self, node):
-        for child in node.children:
-            child.restore_checkpoint()
+        for child, operations in getattr(
+                self, '_children_operations', {}).items():
+            child.operations[:] = list(operations)

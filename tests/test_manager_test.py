@@ -184,12 +184,11 @@ class FakeParent:
 
 
 class RestoreChildrenCheckpointsTest(TestCase):
-    """Regression tests for B8: restore_children_checkpoints applied
-    reverted operations to `child.mesh`, but `mesh` (base.py) builds a
-    brand new trimesh from disk on every access and recomputes it from
-    `self.operations` -- mutating that fresh, unstored mesh is a
-    discarded no-op. Restoring `operations` (which restore_checkpoint()
-    already does) is sufficient.
+    """The runner holds its own snapshot of each child's operations
+    (a test calling save_checkpoint() on a node cannot clobber the
+    restore point — B9), restores by content rather than truncation,
+    and never touches `mesh` while restoring (B8: mutating the fresh
+    trimesh that `mesh` builds from disk was a discarded no-op).
     """
 
     def setUp(self):
@@ -198,31 +197,63 @@ class RestoreChildrenCheckpointsTest(TestCase):
         self.stl_path = os.path.join(tmpdir.name, 'child.stl')
         box((1, 1, 1)).export(self.stl_path)
 
-    def test_restore_trims_operations_and_mesh_reflects_restored_state(self):
+    def test_restore_reverts_operations_and_mesh_reflects_restored_state(self):
         child = InstrumentedChild(self.stl_path)
-        child.save_checkpoint()
+        runner = Runner()
+        runner.save_children_checkpoints(FakeParent(children=[child]))
         child.operations.append(Translation([5, 0, 0], node=None))
 
         # Sanity check: the added operation actually moved the mesh.
         translated_center = list(child.mesh.center_mass)
         self.assertNotAlmostEqual(translated_center[0], 0.0)
 
-        Runner().restore_children_checkpoints(FakeParent(children=[child]))
+        runner.restore_children_checkpoints(FakeParent(children=[child]))
 
         self.assertEqual(child.operations, [])
         restored_center = list(child.mesh.center_mass)
         for actual in restored_center:
             self.assertAlmostEqual(actual, 0.0)
 
+    def test_clobbered_node_checkpoint_cannot_move_the_restore_point(self):
+        child = InstrumentedChild(self.stl_path)
+        runner = Runner()
+        runner.save_children_checkpoints(FakeParent(children=[child]))
+
+        # A test leaks an operation and THEN calls save_checkpoint():
+        # a runner trusting the node's own checkpoint index would now
+        # restore to a state that includes the leak.
+        child.operations.append(Translation([5, 0, 0], node=None))
+        child.save_checkpoint()
+
+        runner.restore_children_checkpoints(FakeParent(children=[child]))
+
+        self.assertEqual(child.operations, [])
+
+    def test_restore_reverts_inserted_operations_too(self):
+        child = InstrumentedChild(self.stl_path)
+        placement = Translation([1, 0, 0], node=None)
+        child.operations.append(placement)
+        runner = Runner()
+        runner.save_children_checkpoints(FakeParent(children=[child]))
+
+        # Perturbations are INSERTED before a placement, not appended;
+        # truncating to a saved length would discard the wrong one.
+        child.operations.insert(0, Translation([5, 0, 0], node=None))
+
+        runner.restore_children_checkpoints(FakeParent(children=[child]))
+
+        self.assertEqual(child.operations, [placement])
+
     def test_restore_does_not_access_mesh_property(self):
-        # The old implementation called operation.mesh(child.mesh) once
+        # The B8 implementation called operation.mesh(child.mesh) once
         # per discarded operation -- an extra STL load + transform whose
         # result was thrown away immediately. Restoring should never
         # need to touch `mesh` at all.
         child = InstrumentedChild(self.stl_path)
-        child.save_checkpoint()
+        runner = Runner()
+        runner.save_children_checkpoints(FakeParent(children=[child]))
         child.operations.append(Translation([5, 0, 0], node=None))
 
-        Runner().restore_children_checkpoints(FakeParent(children=[child]))
+        runner.restore_children_checkpoints(FakeParent(children=[child]))
 
         self.assertEqual(child.mesh_access_count, 0)

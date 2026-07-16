@@ -142,6 +142,23 @@ class MeshCompositionMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class RunnerIsolationMetaTest(TestCase):
+    """Bug: the runner restored child state once per test (not per
+    instant), by truncating to a checkpoint index stored ON the node —
+    so a leaked operation poisoned the remaining instants, and a test
+    calling save_checkpoint() clobbered the runner's restore point
+    (improvements.md #9)."""
+
+    def test_leaks_and_clobbers_never_poison_later_assertions(self):
+        run = solid_test('leaky')
+        self.assertEqual(run.results, {
+            'test_a_leaks_and_clobbers_checkpoint': 'passed',
+            'test_b_starts_clean_after_leaky_test': 'passed',
+            'test_c_each_instant_starts_clean': 'passed',
+        })
+        self.assertEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an
