@@ -7,6 +7,12 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+import sys
+
+# Make solid_node importable for autodoc without installing it
+sys.path.insert(0, os.path.abspath('..'))
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -18,7 +24,18 @@ release = '0.3.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+
+# Heavy runtime dependencies are mocked so autodoc can import solid_node
+# on Read the Docs without installing the full CAD stack
+autodoc_mock_imports = [
+    'trimesh',
+    'numpy',
+    'watchdog',
+    'cadquery',
+    'solid2',
+    'manifold3d',
+]
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
