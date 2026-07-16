@@ -243,6 +243,28 @@ class PerturbationAssertionsMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class PairwiseAdjacencyMetaTest(TestCase):
+    """assertNoPairwiseIntersections (issue #11): every pair of leaves
+    under the assembled tree, recursing through nested child
+    assemblies -- not just a node's direct children -- must be
+    non-intersecting."""
+
+    def test_all_separated_leaves_pass(self):
+        run = solid_test('separated')
+        self.assertEqual(run.results,
+                         {'test_no_pairwise_intersections': 'passed'})
+        self.assertEqual(run.returncode, 0)
+
+    def test_nonadjacent_overlap_is_reported_naming_both_leaves(self):
+        run = solid_test('separated_overlap')
+        self.assertEqual(run.results,
+                         {'test_no_pairwise_intersections': 'failed'})
+        self.assertIn('LegA', run.stdout)
+        self.assertIn('LegC', run.stdout)
+        self.assertIn('should not intersect', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class TestPathMetaTest(TestCase):
     """Bug: `solid test` habitually gets handed the TEST file rather
     than the node file it exercises (root/test_gear.py instead of

@@ -2,6 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import itertools
 import re
 import trimesh
 from unittest import TestCase as BaseTestCase
@@ -149,6 +150,36 @@ class TestCase(BaseTestCase):
                     f"(intersection volume {intersection.volume})")
         finally:
             node.operations.remove(operation)
+
+    ########################################
+    # Adjacency sweep
+
+    def assertNoPairwiseIntersections(self, node):
+        """Walk the assembled tree rooted at `node` down to its
+        leaves (a node with no children is a leaf; every other node's
+        children are walked recursively) and assert that every pair
+        of leaves is non-intersecting. The safety net that holds
+        regardless of which specific contracts exist: any two parts
+        someone forgot to test against each other directly are still
+        covered here.
+        """
+        leaves = self._leaves(node)
+        for leaf1, leaf2 in itertools.combinations(leaves, 2):
+            intersection = trimesh.boolean.intersection(
+                [leaf1.mesh, leaf2.mesh])
+            if not intersection.is_empty:
+                raise AssertionError(
+                    f"{leaf1.name} should not intersect {leaf2.name} "
+                    f"(intersection volume {intersection.volume})")
+
+    def _leaves(self, node):
+        """All leaf nodes of the assembled tree rooted at node."""
+        if not node.children:
+            return [node]
+        leaves = []
+        for child in node.children:
+            leaves.extend(self._leaves(child))
+        return leaves
 
 
 class TestCaseMixin(TestCase):
