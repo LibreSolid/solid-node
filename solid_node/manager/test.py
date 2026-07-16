@@ -2,12 +2,14 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import sys
 import bdb
 import time
 import traceback
 from termcolor import colored
-from solid_node.core.loader import load_test, load_node
+from solid_node.core.loader import load_test, load_node, import_module_from_path, find_class
+from solid_node.node.base import AbstractBaseNode
 
 
 class StopTestRun(Exception):
@@ -34,8 +36,9 @@ class Test:
                             help='Stop the test run on the first error.')
 
     def handle(self, args):
-        self.node = self.build_node(args.path)
-        self.test_case = load_test(args.path)
+        path = self.resolve_path(args.path)
+        self.node = self.build_node(path)
+        self.test_case = load_test(path)
         if self.test_case:
             self.test_case.set_node(self.node)
         self.failfast = args.failfast
@@ -43,13 +46,53 @@ class Test:
         if self.num_failed:
             sys.exit(1)
 
+    def resolve_path(self, path):
+        """Users and agents routinely hand `solid test` the TEST file
+        instead of the node file it exercises: `root/test_gear.py`
+        instead of `root/gear.py`, or `root/test.py` instead of
+        `root/__init__.py`. Map it back to the node file -- the mirror
+        image of loader.load_test's node->test mapping -- so the run
+        proceeds exactly as if the node path had been given. Only
+        `solid test` has an unambiguous reason to do this; `develop`
+        and `snapshot` are left alone.
+        """
+        directory, filename = os.path.split(path)
+        if filename == 'test.py':
+            mapped_name = '__init__.py'
+        elif filename.startswith('test_'):
+            mapped_name = filename[len('test_'):]
+        else:
+            return path
+
+        node_path = os.path.join(directory, mapped_name)
+        if not os.path.exists(node_path):
+            self.fail(f"No such node file: {node_path} (mapped from test path {path})")
+        return node_path
+
     def build_node(self, path, time=0):
+        self.ensure_node_class(path)
         node = load_node(path)
         node.set_keyframe(time)
         rendered = node.render()
         node.assemble()
         node.build_stls()
         return node
+
+    def ensure_node_class(self, path):
+        """load_node blindly instantiates whatever class the loader
+        finds for `path`; if the module defines no AbstractBaseNode
+        subclass, the loader returns None and instantiating it raises
+        a bare `TypeError: 'NoneType' object is not callable`. Check
+        first so the failure is a clear, one-line, nonzero-exit error
+        naming the path -- never that traceback."""
+        real_path = os.path.realpath(path)
+        module = import_module_from_path(real_path)
+        if find_class(real_path, module, AbstractBaseNode) is None:
+            self.fail(f"No node class found in {path}")
+
+    def fail(self, message):
+        sys.stderr.write(f"Error: {message}\n")
+        sys.exit(1)
 
     def run_tests(self):
         start_time = time.time()

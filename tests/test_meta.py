@@ -63,16 +63,29 @@ def solid_test(fixture):
     """Run `solid test` on tests/meta_project/<fixture>.py (cached:
     each fixture project runs at most once per meta-test session)."""
     if fixture not in _runs:
-        env = dict(os.environ, SOLID_BUILD_DIR=BUILD_DIR)
-        proc = subprocess.run(
-            [sys.executable, '-c',
-             'from solid_node.cli import manage; manage()',
-             'test', f'tests/meta_project/{fixture}.py'],
-            cwd=REPO_DIR, env=env,
-            capture_output=True, text=True, timeout=300,
-        )
-        _runs[fixture] = SolidTestRun(proc)
+        _runs[fixture] = SolidTestRun(
+            run_solid_test_path(f'tests/meta_project/{fixture}.py'))
     return _runs[fixture]
+
+
+def solid_test_at_path(path):
+    """Run `solid test <path>` on an arbitrary path (uncached, not
+    parsed): for asserting on a path string that isn't a `<fixture>.py`
+    node file, e.g. the fixture's TEST path or a deliberately bogus
+    one -- both may exit before printing a summary line, which
+    SolidTestRun requires."""
+    return run_solid_test_path(path)
+
+
+def run_solid_test_path(path):
+    env = dict(os.environ, SOLID_BUILD_DIR=BUILD_DIR)
+    return subprocess.run(
+        [sys.executable, '-c',
+         'from solid_node.cli import manage; manage()',
+         'test', path],
+        cwd=REPO_DIR, env=env,
+        capture_output=True, text=True, timeout=300,
+    )
 
 
 class GreenProjectMetaTest(TestCase):
@@ -200,3 +213,35 @@ class RedProjectMetaTest(TestCase):
         0 reads as green to everything downstream."""
         run = solid_test('overlapping')
         self.assertNotEqual(run.returncode, 0)
+
+
+class TestPathMetaTest(TestCase):
+    """Bug: `solid test` habitually gets handed the TEST file rather
+    than the node file it exercises (root/test_gear.py instead of
+    root/gear.py) -- the loader finds no node class in the test
+    module, load_instance returns None, and the runner called it,
+    raising a bare `TypeError: 'NoneType' object is not callable'
+    (skill-repo improvements.md #5). Passing the TEST path must behave
+    exactly like passing the node path, and a path that maps to a
+    node file that doesn't exist must fail with a clear message."""
+
+    def test_test_path_produces_identical_results_to_node_path(self):
+        node_run = solid_test('apart')
+        test_run = SolidTestRun(
+            solid_test_at_path('tests/meta_project/test_apart.py'))
+
+        self.assertEqual(test_run.results, node_run.results)
+        self.assertEqual(
+            (test_run.total, test_run.passed, test_run.failed),
+            (node_run.total, node_run.passed, node_run.failed),
+        )
+        self.assertEqual((test_run.total, test_run.passed, test_run.failed),
+                          (2, 2, 0))
+        self.assertEqual(test_run.returncode, 0)
+
+    def test_bogus_test_path_fails_clearly_instead_of_a_bare_traceback(self):
+        proc = solid_test_at_path('tests/meta_project/test_totally_bogus.py')
+
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertNotIn('Traceback', proc.stderr)
+        self.assertIn('tests/meta_project/totally_bogus.py', proc.stderr)

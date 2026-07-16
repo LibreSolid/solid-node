@@ -5,7 +5,7 @@
 import io
 import os
 import tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from unittest import TestCase
 from trimesh.creation import box
 from solid_node.manager.test import Test as Runner, StopTestRun
@@ -257,3 +257,111 @@ class RestoreChildrenCheckpointsTest(TestCase):
         runner.restore_children_checkpoints(FakeParent(children=[child]))
 
         self.assertEqual(child.mesh_access_count, 0)
+
+
+class ResolvePathMappingTest(TestCase):
+    """`solid test` is routinely handed the TEST file instead of the
+    node file it exercises: `root/test_gear.py` instead of `root/gear.py`,
+    or `root/test.py` instead of `root/__init__.py`. resolve_path() maps
+    it back to the node file (the mirror image of loader.load_test's
+    node->test mapping), so the runner proceeds exactly as if the node
+    file had been given (skill-repo improvements.md #5)."""
+
+    def setUp(self):
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        self.dir = tmpdir.name
+
+    def touch(self, name):
+        path = os.path.join(self.dir, name)
+        open(path, 'w').close()
+        return path
+
+    def test_maps_test_prefixed_file_to_its_node_file(self):
+        self.touch('gear.py')
+        test_path = self.touch('test_gear.py')
+        runner = Runner()
+
+        self.assertEqual(
+            runner.resolve_path(test_path),
+            os.path.join(self.dir, 'gear.py'),
+        )
+
+    def test_maps_bare_test_file_to_init_file(self):
+        self.touch('__init__.py')
+        test_path = self.touch('test.py')
+        runner = Runner()
+
+        self.assertEqual(
+            runner.resolve_path(test_path),
+            os.path.join(self.dir, '__init__.py'),
+        )
+
+    def test_ordinary_node_path_passes_through_unchanged(self):
+        node_path = self.touch('gear.py')
+        runner = Runner()
+
+        self.assertEqual(runner.resolve_path(node_path), node_path)
+
+    def test_missing_mapped_node_file_exits_with_clear_error(self):
+        # test_gear.py exists, but its sibling gear.py does not.
+        test_path = self.touch('test_gear.py')
+        expected_node_path = os.path.join(self.dir, 'gear.py')
+        runner = Runner()
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                runner.resolve_path(test_path)
+
+        self.assertEqual(ctx.exception.code, 1)
+        message = stderr.getvalue()
+        self.assertIn(expected_node_path, message)
+        # A single clear line, never a bare TypeError traceback.
+        self.assertNotIn('Traceback', message)
+
+    def test_missing_mapped_init_file_exits_with_clear_error(self):
+        test_path = self.touch('test.py')
+        expected_node_path = os.path.join(self.dir, '__init__.py')
+        runner = Runner()
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                runner.resolve_path(test_path)
+
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn(expected_node_path, stderr.getvalue())
+
+
+class NoNodeClassInModuleTest(TestCase):
+    """A module with no AbstractBaseNode subclass defined in it -- the
+    case when a stray file, or (before this fix) a TEST file, is handed
+    to `solid test` -- must fail with a clear one-line error instead of
+    the opaque `TypeError: 'NoneType' object is not callable` that
+    calling the loader's None straight away used to produce."""
+
+    def setUp(self):
+        fixture_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'meta_project')
+        fd, self.path = tempfile.mkstemp(
+            suffix='.py', prefix='no_node_class_', dir=fixture_dir)
+        os.close(fd)
+        with open(self.path, 'w') as f:
+            f.write("# fixture: deliberately defines no node class\n"
+                     "VALUE = 1\n")
+        self.addCleanup(os.remove, self.path)
+        self.relative_path = os.path.relpath(self.path)
+
+    def test_build_node_fails_clearly_instead_of_crashing(self):
+        runner = Runner()
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                runner.build_node(self.relative_path)
+
+        self.assertEqual(ctx.exception.code, 1)
+        message = stderr.getvalue()
+        self.assertIn(self.relative_path, message)
+        self.assertNotIn('Traceback', message)
