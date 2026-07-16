@@ -6,6 +6,8 @@ import re
 import trimesh
 from unittest import TestCase as BaseTestCase
 
+from solid_node.node.operations import Rotation, Translation
+
 
 class TestCase(BaseTestCase):
 
@@ -89,6 +91,64 @@ class TestCase(BaseTestCase):
             raise AssertionError(
                 f"The intersection volume of {node1.name} and {node2.name} "
                 f"should be below {max_volume}")
+
+    ########################################
+    # Perturbation assertions: torque-fit contracts
+    #
+    # Both share the same mechanic: a Rotation by a signed angle is
+    # inserted into node.operations right before node's first
+    # Translation (so it turns node about its OWN axis, the way a
+    # part spins in its own bore/pocket, not around the world
+    # origin), appended if node has no Translation. It is always
+    # removed afterwards, success or failure, leaving node.operations
+    # exactly as found.
+
+    def assertBlockedBeyond(self, node, angle, against, axis=(0, 0, 1)):
+        """Torque-fit engagement contract: perturbed by `angle`
+        degrees about `axis`, in BOTH directions (+angle and -angle,
+        checked separately), `node` must intersect `against` in every
+        direction -- the fit must genuinely lock beyond its play.
+        """
+        for signed_angle in (angle, -angle):
+            self._assert_perturbation(
+                node, signed_angle, against, axis, expect_intersect=True)
+
+    def assertFreeWithin(self, node, angle, against, axis=(0, 0, 1)):
+        """Anti-gaming twin of assertBlockedBeyond: perturbed by
+        `angle` degrees (or every angle in a list/tuple, e.g. a
+        journal/freewheel sweep), in BOTH directions, `node` must NOT
+        intersect `against` -- so a blocking test elsewhere cannot be
+        gamed by an oversized bore/pocket that never truly touches.
+        """
+        angles = angle if isinstance(angle, (list, tuple)) else [angle]
+        for one_angle in angles:
+            for signed_angle in (one_angle, -one_angle):
+                self._assert_perturbation(
+                    node, signed_angle, against, axis, expect_intersect=False)
+
+    def _assert_perturbation(self, node, signed_angle, against, axis,
+                             expect_intersect):
+        operation = Rotation(signed_angle, list(axis), node)
+        index = next(
+            (i for i, op in enumerate(node.operations)
+             if isinstance(op, Translation)),
+            len(node.operations),
+        )
+        node.operations.insert(index, operation)
+        try:
+            intersection = trimesh.boolean.intersection(
+                [node.mesh, against.mesh])
+            if expect_intersect and intersection.is_empty:
+                raise AssertionError(
+                    f"{node.name} should be blocked at {signed_angle}deg "
+                    f"against {against.name} (no intersection)")
+            if not expect_intersect and not intersection.is_empty:
+                raise AssertionError(
+                    f"{node.name} should be free at {signed_angle}deg "
+                    f"against {against.name} "
+                    f"(intersection volume {intersection.volume})")
+        finally:
+            node.operations.remove(operation)
 
 
 class TestCaseMixin(TestCase):

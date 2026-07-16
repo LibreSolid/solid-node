@@ -215,6 +215,34 @@ class RedProjectMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class PerturbationAssertionsMetaTest(TestCase):
+    """assertBlockedBeyond/assertFreeWithin (issue #6): a genuine
+    torque fit (square peg, square pocket, ~13deg of play) must come
+    out blocked well beyond its play and free well within it, in both
+    signed directions. A gamed fit -- an oversized pocket that never
+    truly touches the peg -- must not be able to pass as blocked: the
+    anti-gaming guarantee."""
+
+    def test_genuine_fit_blocked_beyond_and_free_within_play(self):
+        run = solid_test('keyed')
+        self.assertEqual(run.results, {
+            'test_peg_blocked_beyond_play': 'passed',
+            'test_peg_free_within_play': 'passed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (2, 2, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_gamed_fit_cannot_pass_the_blocked_beyond_contract(self):
+        run = solid_test('keyed_loose')
+        self.assertEqual(run.results, {
+            'test_peg_blocked_beyond_play': 'failed',
+            'test_peg_free_within_play': 'passed',
+        })
+        self.assertIn('should be blocked', run.stdout)
+        self.assertIn('no intersection', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class TestPathMetaTest(TestCase):
     """Bug: `solid test` habitually gets handed the TEST file rather
     than the node file it exercises (root/test_gear.py instead of
