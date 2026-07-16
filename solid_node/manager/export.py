@@ -5,7 +5,7 @@
 import sys
 import logging
 from solid_node.core.loader import load_node
-from solid_node.core.export import export_node
+from solid_node.core.export import export_node, WidgetBundleMissing
 
 
 logger = logging.getLogger('manager.export')
@@ -37,6 +37,13 @@ class Export:
             help='Number of frames in one animation cycle, '
                  'the resolution of $t (default: 360)',
         )
+        parser.add_argument(
+            '--no-widget',
+            dest='widget',
+            action='store_false',
+            help='Export only manifest and models, without the '
+                 'embeddable viewer (index.html + solid-widget.js)',
+        )
 
     def handle(self, args):
         try:
@@ -45,5 +52,12 @@ class Export:
             sys.stderr.write(f'Error loading node: {e}\n')
             sys.exit(1)
 
-        export_node(node, args.output, fps=args.fps, frames=args.frames)
+        try:
+            export_node(node, args.output,
+                        fps=args.fps, frames=args.frames,
+                        widget=args.widget)
+        except WidgetBundleMissing as e:
+            sys.stderr.write(f'Error: {e}\n')
+            sys.exit(1)
+
         print(f'Exported to {args.output}')

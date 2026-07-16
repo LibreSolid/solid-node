@@ -9,7 +9,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from solid_node.cli import manage
-from solid_node.core.export import export_node
+from solid_node.core.export import export_node, WidgetBundleMissing
 from solid_node.node import AssemblyNode
 
 from .base import BaseNodeTest
@@ -18,11 +18,15 @@ from . import flat_project
 
 class ExportBaseTest(BaseNodeTest):
     """Exports a node into a directory inside the test build dir (so
-    tearDown cleans it up) and loads the manifest back."""
+    tearDown cleans it up) and loads the manifest back.
 
-    def export(self, node, **kwargs):
+    widget=False by default: the widget bundle is built by npm/CI, not
+    present in a plain python test environment; the widget tests below
+    patch in a fake bundle."""
+
+    def export(self, node, widget=False, **kwargs):
         self.out_dir = os.path.join(self.build_dir, 'export_out')
-        export_node(node, self.out_dir, **kwargs)
+        export_node(node, self.out_dir, widget=widget, **kwargs)
         manifest_path = os.path.join(self.out_dir, 'manifest.json')
         self.assertTrue(os.path.exists(manifest_path))
         with open(manifest_path) as fh:
@@ -150,6 +154,54 @@ class ExportAnimationTest(ExportBaseTest):
         self.assertModelExported(child)
 
 
+class ExportWidgetTest(ExportBaseTest):
+    """The export embeds the standalone viewer: the prebuilt JS bundle
+    (viewers/widget/dist/solid-widget.js, produced by npm/CI) and the
+    static index.html next to the manifest."""
+
+    BUNDLE_CONTENT = '/* fake solid-widget bundle */'
+
+    def setUp(self):
+        super().setUp()
+        os.makedirs(self.build_dir, exist_ok=True)
+        self.fake_bundle = os.path.join(self.build_dir, 'solid-widget.js')
+        with open(self.fake_bundle, 'w') as fh:
+            fh.write(self.BUNDLE_CONTENT)
+        patcher = patch('solid_node.core.export.WIDGET_BUNDLE',
+                        self.fake_bundle)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_widget_files_are_copied(self):
+        self.export(flat_project.SimpleCylinder(), widget=True)
+
+        bundle = os.path.join(self.out_dir, 'solid-widget.js')
+        with open(bundle) as fh:
+            self.assertEqual(fh.read(), self.BUNDLE_CONTENT)
+
+        index = os.path.join(self.out_dir, 'index.html')
+        with open(index) as fh:
+            html = fh.read()
+        self.assertIn('solid-widget.js', html)
+        self.assertIn('manifest.json', html)
+
+    def test_no_widget_skips_viewer_files(self):
+        self.export(flat_project.SimpleCylinder(), widget=False)
+
+        self.assertFalse(
+            os.path.exists(os.path.join(self.out_dir, 'index.html')))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.out_dir, 'solid-widget.js')))
+
+    def test_missing_bundle_raises_with_build_instructions(self):
+        os.remove(self.fake_bundle)
+
+        with self.assertRaises(WidgetBundleMissing) as ctx:
+            self.export(flat_project.SimpleCylinder(), widget=True)
+
+        self.assertIn('npm', str(ctx.exception))
+
+
 class ExportCliTest(TestCase):
     """`solid export <path>` is registered and dispatches with defaults."""
 
@@ -164,3 +216,13 @@ class ExportCliTest(TestCase):
         self.assertEqual(args.output, 'export')
         self.assertEqual(args.fps, 30)
         self.assertEqual(args.frames, 360)
+        self.assertTrue(args.widget)
+
+    def test_no_widget_flag(self):
+        with patch.object(sys, 'argv',
+                          ['solid', 'export', 'somefile.py', '--no-widget']):
+            with patch('solid_node.manager.export.Export.handle') as handle:
+                manage()
+
+        args = handle.call_args[0][0]
+        self.assertFalse(args.widget)
