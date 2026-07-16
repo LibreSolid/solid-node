@@ -106,6 +106,21 @@ Create a file `root/demo.scad` with a module to create the model:
       }
     }
 
+By default the module is expected to have the same name as the file
+(`demo.scad` → `module demo()`); if it doesn't, set the `module_name`
+property. Arguments passed to the node's constructor are forwarded to the
+OpenScad module, so one `.scad` module can back several parametrized
+nodes:
+
+.. code-block:: python
+
+    class Demo(OpenScadNode):
+
+        scad_source = 'shapes.scad'
+        module_name = 'box_with_hole'
+
+    demo = Demo(50, hole_radius=10)
+
 
 JScadNode
 ---------
@@ -143,8 +158,29 @@ Internal Nodes
 ==============
 
 There are two types of internal nodes: **AssemblyNode** and **FusionNode**.
-An AssemblyNode is an assemble of its children nodes, while in FusionNode
+An AssemblyNode is an assembly of its children nodes, while in FusionNode
 the children nodes are fused in one mesh.
+
+Use an **AssemblyNode** when the children are separate parts that can move
+relative to each other, and a **FusionNode** when several nodes describe
+one rigid, inseparable piece — for example a knob modeled as a shaft plus
+a grip:
+
+.. code-block:: python
+
+    from solid_node.node import FusionNode
+    from .knob_shaft import KnobShaft
+    from .knob_grip import KnobGrip
+
+    class Knob(FusionNode):
+
+        def render(self):
+            return [KnobShaft(), KnobGrip()]
+
+Both take part in the node tree the same way, and a FusionNode can be a
+child of an AssemblyNode. Since the result of a fusion is rigid, a
+FusionNode cannot use `self.time` (it raises an exception) - animate it
+from the AssemblyNode that contains it instead.
 
 
 Simple Clock Example
@@ -221,6 +257,10 @@ Edit `root/__init__.py` to rotate the pointer:
 	    angle = 360 * self.time
 	    self.pointer.rotate(angle, [0, 0, 1])
             return [self.base, self.pointer]
+
+Besides `rotate(angle, axis)`, nodes also have `translate([x, y, z])`.
+Both accumulate on the node, apply in the viewer and in tests alike, and
+return the node itself, so they can be chained.
 
 At this point you should see a rotating pointer in the viewer.
 If you are using the Openscad viewer, you need to enable animation
@@ -421,3 +461,80 @@ we put is enough to make the tests pass.
 
 You should take in consideration the approximation error on holes
 when using Openscad derived nodes, like `Solid2Node` and `OpenScadNode`
+
+More on testing
+===============
+
+@testing_instant
+----------------
+
+While `@testing_steps` runs a test across a range of the animation,
+`@testing_instant` runs it at one specific instant:
+
+.. code-block:: python
+
+    from solid_node.test import TestCaseMixin, testing_instant
+
+    class SimpleClock(AssemblyNode, TestCaseMixin):
+        ...
+
+        @testing_instant(0.5)
+        def test_pointer_at_half_turn(self):
+            self.assertNotIntersecting(self.pointer, self.pin)
+
+Tests in a separate file
+------------------------
+
+Instead of mixing `TestCaseMixin` into the node class, tests can live in
+their own file, extending `solid_node.test.TestCase`. The test runner
+looks for a companion file next to the node being tested:
+
+* for a node in a package, like `root/__init__.py`, it loads
+  `root/test.py`;
+* for a node in a module, like `root/pointer.py`, it loads
+  `root/test_pointer.py`.
+
+The test class receives the built node as `self.node`, plus an alias
+named after the test class (CamelCase converted to snake_case, with the
+`Test` suffix dropped) — so a `SimpleClockTest` can also refer to the
+node as `self.simple_clock`. The clock tests from above, in a separate
+`root/test.py`:
+
+.. code-block:: python
+
+    from solid_node.test import TestCase, testing_steps
+
+    class SimpleClockTest(TestCase):
+
+        @testing_steps(4, end=0.125)
+        def test_pin_runs_free_in_base(self):
+            self.assertNotIntersecting(self.node.base, self.node.pin)
+
+        @testing_steps(4, end=0.125)
+        def test_pin_runs_free_in_pointer(self):
+            self.assertNotIntersecting(self.node.pointer, self.node.pin)
+
+Both styles are run by the same `solid test root` command, and can be
+combined — this is how the gearbox in :doc:`Examples <examples>` keeps
+one test file per part.
+
+Available assertions
+--------------------
+
+Besides `assertNotIntersecting` and `assertIntersecting`, the test case
+provides mesh assertions for fits and clearances:
+
+* `assertNotIntersecting(node1, node2)` — the two meshes do not overlap
+* `assertIntersecting(node1, node2)` — the two meshes have some overlap
+* `assertInside(node1, node2)` — node2 is completely inside node1
+* `assertClose(node1, node2, max_distance)` — every point of node2 is at
+  most `max_distance` away from node1
+* `assertFar(node1, node2, min_distance)` — every point of node2 is at
+  least `min_distance` away from node1
+* `assertIntersectVolumeAbove(node1, node2, min_volume)` — the overlap
+  volume is above `min_volume`
+* `assertIntersectVolumeBelow(node1, node2, max_volume)` — the overlap
+  volume is below `max_volume`
+
+See the :doc:`API Reference <api-reference>` for details. All the
+standard `unittest.TestCase` assertions are available as well.
