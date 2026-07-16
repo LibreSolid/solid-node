@@ -52,9 +52,12 @@ class AssemblyNode(InternalNode):
             cls.render = _idempotent_render(render)
 
     def set_keyframe(self, time):
-        """Set a fixed time for keyframes and tests"""
+        """Set a fixed time for keyframes and tests, propagating it
+        down the tree so nested assemblies render numerically too."""
         self._time = time
-        self.render()
+        rendered = self.render()
+        for child in rendered or ():
+            child.set_keyframe(time)
 
     @property
     def time(self):

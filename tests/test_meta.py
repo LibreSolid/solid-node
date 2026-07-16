@@ -108,6 +108,18 @@ class KeyframeIdempotencyMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class KeyframePropagationMetaTest(TestCase):
+    """Bug: set_keyframe did not propagate to nested assemblies, so a
+    child assembly of the node under test kept symbolic time and its
+    children's meshes were unusable (improvements.md #2)."""
+
+    def test_nested_assembly_children_get_numeric_time(self):
+        run = solid_test('nested')
+        self.assertEqual(run.results,
+                         {'test_nested_cube_moves_with_time': 'passed'})
+        self.assertEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an
