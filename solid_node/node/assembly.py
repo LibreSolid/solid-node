@@ -9,21 +9,34 @@ from .internal import InternalNode
 
 
 def _idempotent_render(render):
-    """Wraps an AssemblyNode subclass render(): before rendering, every
-    node a previous render touched kinematically is restored to its
-    pre-render operations, so each render expresses absolute kinematics
-    for its instant instead of accumulating across re-renders."""
+    """Wraps an AssemblyNode subclass render(): before rendering, sweep
+    every node this assembly has ever driven and drop only the
+    operations IT tagged (operation._driver is self), so each render
+    expresses absolute kinematics for its instant instead of
+    accumulating across re-renders.
+
+    Sweeping by tag rather than removing by object identity matters:
+    the test runner's per-instant checkpoint restore copies back
+    whatever operations list was saved at test start, which can
+    resurrect OLD operation objects this assembly already thought it
+    had discarded. A tag-based sweep drops them anyway, by driver
+    identity, regardless of which operation OBJECT currently sits in
+    the list. It also means two independent assemblies driving the
+    SAME node (e.g. a wheel spun by its axle and steered by the
+    steering assembly) never disturb each other's operations: each
+    only ever removes what it tagged."""
 
     @functools.wraps(render)
     def wrapped(self):
         if _render_stack and _render_stack[-1] is self:
             # Re-entrant call (a subclass render delegating to super):
-            # the outer call already restored and is recording.
+            # the outer call already swept and is recording.
             return render(self)
-        if not hasattr(self, '_prerender_operations'):
-            self._prerender_operations = {}
-        for node, operations in self._prerender_operations.items():
-            node.operations[:] = list(operations)
+        for node in getattr(self, '_driven_nodes', ()):
+            node.operations[:] = [
+                operation for operation in node.operations
+                if getattr(operation, '_driver', None) is not self
+            ]
         _render_stack.append(self)
         try:
             return render(self)

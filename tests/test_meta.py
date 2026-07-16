@@ -159,6 +159,29 @@ class RunnerIsolationMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class MultiDriverMetaTest(TestCase):
+    """Bug: two independent assemblies driving the SAME node instance
+    (a wheel steered by one assembly, spun by its child axle assembly —
+    legitimate, e.g. a car's front wheel) corrupted each other's
+    kinematics under the snapshot-baseline restore: the SECOND
+    assembly to ever touch the node captured the FIRST assembly's
+    freshly appended operation as its own restore baseline, and froze
+    it there forever (skill-repo improvements.md #18)."""
+
+    def test_wheel_tracks_both_drivers(self):
+        run = solid_test('steered_wheel')
+        self.assertEqual(run.results,
+                         {'test_wheel_tracks_both_drivers': 'passed'})
+        self.assertEqual(run.returncode, 0)
+
+    def test_stale_driver_cannot_mask_a_real_collision(self):
+        run = solid_test('steered_collision')
+        self.assertEqual(run.results,
+                         {'test_wheel_never_hits_obstacle': 'failed'})
+        self.assertIn('should not intersect', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an

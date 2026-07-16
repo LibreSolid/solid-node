@@ -18,21 +18,30 @@ logger = logging.getLogger('node.base')
 
 # While an AssemblyNode render() runs it sits on this stack; every
 # operation applied through rotate()/translate() in that window is
-# kinematic. The rendering assembly keeps a snapshot of each touched
-# node's pre-render operations and restores it before its next render,
-# so re-renders (one per test instant, assemble, the viewer) express
-# absolute kinematics instead of accumulating.
+# kinematic, and gets tagged with the assembly driving it (operation
+# ._driver) plus registered on that assembly's persistent
+# _driven_nodes set. Before its next render, the assembly sweeps each
+# driven node's operations, dropping only the ones IT tagged, so
+# re-renders (one per test instant, assemble, the viewer) express
+# absolute kinematics instead of accumulating -- even when a SECOND,
+# independent assembly also drives the same node instance (e.g. a
+# wheel spun by its axle and steered by the steering assembly): each
+# driver only ever touches its own tagged operations, never the
+# other's.
 _render_stack = []
 
 
-def _snapshot_prerender_operations(node):
+def _tag_driver(node, operation):
     if not _render_stack:
+        # Not applied during a render (static placement in __init__,
+        # a test perturbation poked directly into node.operations):
+        # leave it untagged, so it is never swept.
         return
     assembly = _render_stack[-1]
-    if node not in assembly._prerender_operations:
-        # The kinematic operation was just appended; everything before
-        # it is the node's pre-render (static placement) state.
-        assembly._prerender_operations[node] = list(node.operations[:-1])
+    operation._driver = assembly
+    if not hasattr(assembly, '_driven_nodes'):
+        assembly._driven_nodes = set()
+    assembly._driven_nodes.add(node)
 
 
 def _build_uniq_id(args, kwargs):
@@ -304,13 +313,15 @@ class AbstractBaseNode:
     # Transformations that can be applied to Node
     # model or mesh
     def rotate(self, angle, axis):
-        self.operations.append(Rotation(angle, axis, self))
-        _snapshot_prerender_operations(self)
+        operation = Rotation(angle, axis, self)
+        self.operations.append(operation)
+        _tag_driver(self, operation)
         return self
 
     def translate(self, translation):
-        self.operations.append(Translation(translation, self))
-        _snapshot_prerender_operations(self)
+        operation = Translation(translation, self)
+        self.operations.append(operation)
+        _tag_driver(self, operation)
         return self
 
     @property
