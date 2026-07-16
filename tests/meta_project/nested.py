@@ -29,3 +29,6 @@ class Inner(AssemblyNode):
     def render(self):
         self.cube.translate([10 * self.time, 0, 0])
         return [self.cube]
+
+
+NODE = Nested

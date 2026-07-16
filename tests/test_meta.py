@@ -320,3 +320,35 @@ class TestPathMetaTest(TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertNotIn('Traceback', proc.stderr)
         self.assertIn('tests/meta_project/totally_bogus.py', proc.stderr)
+
+
+class NodeMarkerMetaTest(TestCase):
+    """The NODE marker (skill-repo improvements.md #14): the loader
+    used to return the FIRST AbstractBaseNode subclass defined in a
+    file -- an unenforced "main class first" convention that, when
+    violated, silently loaded the wrong node. A file defining several
+    node classes and no NODE marker must now fail loudly instead,
+    naming the file, the candidate classes, and the remedy."""
+
+    def test_unmarked_multi_class_file_fails_loudly_with_remedy(self):
+        proc = solid_test_at_path('tests/meta_project/unmarked.py')
+
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertNotIn('Traceback', proc.stderr)
+        self.assertIn('tests/meta_project/unmarked.py', proc.stderr)
+        self.assertIn('Unmarked', proc.stderr)
+        self.assertIn('AlsoANode', proc.stderr)
+        self.assertIn('NODE = ', proc.stderr)
+
+    def test_marker_loads_main_class_despite_helper_defined_first(self):
+        """The exact trap from the recent session: a helper subclass
+        defined BEFORE the main node class. With NODE naming the main
+        class, `solid test` must exercise Trap -- not Helper -- and
+        the same genuine contract as apart.py must hold."""
+        run = solid_test('trap')
+        self.assertEqual(run.results, {
+            'test_cubes_do_not_intersect': 'passed',
+            'test_placed_cube_is_where_placed': 'passed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (2, 2, 0))
+        self.assertEqual(run.returncode, 0)

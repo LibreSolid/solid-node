@@ -39,8 +39,9 @@ class Pair(AssemblyNode):
 # messages (a plain Cube() always reports as "Cube" -- see
 # examples/gearbox root/housing_wall.py for the same subclassing
 # trick, used there for FrontWall/MiddleWall/RearWall). Defined after
-# Separated/Pair: the node loader picks the first node class defined
-# in the file.
+# Separated/Pair: NODE below names Separated as the node class
+# explicitly, so the file's several node classes are unambiguous
+# regardless of definition order (skill-repo improvements.md #14).
 class LegA(Cube):
     pass
 
@@ -51,3 +52,6 @@ class LegB(Cube):
 
 class LegC(Cube):
     pass
+
+
+NODE = Separated

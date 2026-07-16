@@ -39,8 +39,10 @@ class OverlappingPair(AssemblyNode):
 
 
 # Distinct classes for unique node.name in the failure message.
-# Defined after SeparatedOverlap/OverlappingPair: the node loader
-# picks the first node class defined in the file.
+# Defined after SeparatedOverlap/OverlappingPair: NODE below names
+# SeparatedOverlap as the node class explicitly, so the file's
+# several node classes are unambiguous regardless of definition order
+# (skill-repo improvements.md #14).
 class LegA(Cube):
     pass
 
@@ -51,3 +53,6 @@ class LegB(Cube):
 
 class LegC(Cube):
     pass
+
+
+NODE = SeparatedOverlap

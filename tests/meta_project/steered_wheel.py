@@ -41,3 +41,6 @@ class Axle(AssemblyNode):
     def render(self):
         self.wheel.translate([0, 0, 3 * self.time])
         return [self.wheel]
+
+
+NODE = Steering

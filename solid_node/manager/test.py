@@ -8,7 +8,10 @@ import bdb
 import time
 import traceback
 from termcolor import colored
-from solid_node.core.loader import load_test, load_node, import_module_from_path, find_class
+from solid_node.core.loader import (
+    load_test, load_node, import_module_from_path, find_class,
+    AmbiguousNodeError,
+)
 from solid_node.node.base import AbstractBaseNode
 
 
@@ -87,7 +90,12 @@ class Test:
         naming the path -- never that traceback."""
         real_path = os.path.realpath(path)
         module = import_module_from_path(real_path)
-        if find_class(real_path, module, AbstractBaseNode) is None:
+        try:
+            klass = find_class(real_path, module, AbstractBaseNode)
+        except AmbiguousNodeError as e:
+            self.fail(str(e))
+            return
+        if klass is None:
             self.fail(f"No node class found in {path}")
 
     def fail(self, message):
