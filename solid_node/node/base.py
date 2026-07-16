@@ -16,6 +16,25 @@ from .operations import Rotation, Translation
 logger = logging.getLogger('node.base')
 
 
+# While an AssemblyNode render() runs it sits on this stack; every
+# operation applied through rotate()/translate() in that window is
+# kinematic. The rendering assembly keeps a snapshot of each touched
+# node's pre-render operations and restores it before its next render,
+# so re-renders (one per test instant, assemble, the viewer) express
+# absolute kinematics instead of accumulating.
+_render_stack = []
+
+
+def _snapshot_prerender_operations(node):
+    if not _render_stack:
+        return
+    assembly = _render_stack[-1]
+    if node not in assembly._prerender_operations:
+        # The kinematic operation was just appended; everything before
+        # it is the node's pre-render (static placement) state.
+        assembly._prerender_operations[node] = list(node.operations[:-1])
+
+
 def _build_uniq_id(args, kwargs):
     # Positional args keep their historical bare str() join so existing
     # fixture filenames (e.g. simple_cylinder-10,5.stl) survive unchanged.
@@ -281,10 +300,12 @@ class AbstractBaseNode:
     # model or mesh
     def rotate(self, angle, axis):
         self.operations.append(Rotation(angle, axis, self))
+        _snapshot_prerender_operations(self)
         return self
 
     def translate(self, translation):
         self.operations.append(Translation(translation, self))
+        _snapshot_prerender_operations(self)
         return self
 
     @property

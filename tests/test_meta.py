@@ -89,6 +89,25 @@ class GreenProjectMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class KeyframeIdempotencyMetaTest(TestCase):
+    """Bug: AssemblyNode.set_keyframe re-renders without undoing the
+    previous render's operations, so kinematic operations accumulate
+    across the instants of a multi-instant test (improvements.md #1)."""
+
+    def test_absolute_kinematics_hold_at_every_instant(self):
+        run = solid_test('slider')
+        self.assertEqual(run.results,
+                         {'test_cube_at_absolute_position': 'passed'})
+        self.assertEqual(run.returncode, 0)
+
+    def test_accumulation_cannot_mask_a_real_collision(self):
+        run = solid_test('collider')
+        self.assertEqual(run.results,
+                         {'test_slider_never_hits_obstacle': 'failed'})
+        self.assertIn('should not intersect', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an
