@@ -439,7 +439,7 @@ pieces in several moments of the animation:
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.pointer, self.pin)
 
-The tests above will each test run 32 times, at 32 different instants.
+The tests above will each test run 16 times, at 16 different instants.
 Run the tests again, and you'll see that the tests will pass and fail
 in a pattern.
 
