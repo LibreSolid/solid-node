@@ -25,6 +25,14 @@ basedir = os.path.dirname(
     os.path.realpath(__file__)
 )
 
+# Ports are overridable so several checkouts (e.g. worktrees made by
+# scripts/dev-env) can run side by side.
+def backend_port():
+    return int(os.environ.get('SOLID_NODE_PORT', 8000))
+
+def frontend_port():
+    return int(os.environ.get('SOLID_NODE_FRONTEND_PORT', 3000))
+
 class WebDevServer:
     """For development purposes, run a "npm run start" command
     to be proxyed by WebViewer
@@ -37,6 +45,7 @@ class WebDevServer:
         proc = subprocess.Popen(
             ['npm', 'run', 'start'],
             cwd=self.app_dir,
+            env=dict(os.environ, PORT=str(frontend_port())),
         )
         proc.communicate()
 
@@ -84,8 +93,9 @@ class WebViewer:
             self._setup_frontend_server()
 
     def start(self):
-        logger.info("START - will listen on port 8000")
-        uvicorn.run(self.app, host="0.0.0.0", port=8000,
+        port = backend_port()
+        logger.info(f"START - will listen on port {port}")
+        uvicorn.run(self.app, host="0.0.0.0", port=port,
                     log_config=uvicorn_config)
 
     def _setup_reload_websocket(self):
@@ -140,7 +150,7 @@ class WebViewer:
 
         async def _proxy(path: str):
             async with httpx.AsyncClient() as client:
-                response = await client.request('GET', f'http://localhost:3000{path}')
+                response = await client.request('GET', f'http://localhost:{frontend_port()}{path}')
                 return Response(
                     content=response.content,
                     media_type=response.headers.get('content-type'),

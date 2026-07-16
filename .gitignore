@@ -107,3 +107,6 @@ ENV/
 
 # meta-test harness build artifacts
 tests/_build_meta/
+
+# dev-env worktrees (scripts/dev-env)
+WTs/

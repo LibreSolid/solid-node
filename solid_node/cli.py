@@ -17,10 +17,30 @@ commands = [
     New(),
 ]
 
+
+def load_dotenv():
+    """Load KEY=value lines from ./.env into os.environ.
+
+    Real environment variables take precedence. This is how worktrees
+    created by scripts/dev-env get their own ports (SOLID_NODE_PORT,
+    SOLID_NODE_FRONTEND_PORT).
+    """
+    if not os.path.isfile('.env'):
+        return
+    with open('.env') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
 def manage():
     """
     Runs cli commands, available in managers.* namespace
     """
+    load_dotenv()
+
     command_names = {command.__class__.__name__.lower() for command in commands}
 
     # Old grammar was `solid <path> <command>`. If it looks like someone is

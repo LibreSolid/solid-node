@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+#
+# dev-env — create/teardown an isolated git-worktree dev environment.
+#
+# Usage (note: <name> comes FIRST, then the action):
+#   scripts/dev-env <name> setup
+#   scripts/dev-env <name> teardown
+#
+# <name> accepts a bare name or a WTs/<name>/ path (basename is used, for shell
+# autocomplete).
+#
+# Ports: PORT_BASE (from the repo root .env, multiple of 10, default 0) is
+# the project's slice of the port space. Worktree slot N then gets:
+#   backend  8000 + PORT_BASE + N   (solid-node web viewer)
+#   frontend 3000 + PORT_BASE + N   (npm start dev server, proxied by backend)
+# The main checkout itself uses N=0 (8000+PORT_BASE / 3000+PORT_BASE).
+#
+# On setup it:
+#   * picks a free slot number N (via WTs/manifest, lines "name:N")
+#   * creates a git worktree + branch at WTs/<name>
+#   * writes a .env in the worktree root with:
+#       - SOLID_NODE_PORT          -> 8000 + PORT_BASE + N
+#       - SOLID_NODE_FRONTEND_PORT -> 3000 + PORT_BASE + N
+#     (the solid CLI loads .env from the cwd on startup)
+#   * symlinks the web app's node_modules/ and build/ from the main checkout
+#     (gitignored and heavy, so absent from a fresh worktree)
+#
+# Teardown reverses all of the above.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WT_DIR="$REPO_ROOT/WTs"
+MANIFEST="$WT_DIR/manifest"
+APP_DIR="solid_node/viewers/web/app"
+
+die() { echo "dev-env: $*" >&2; exit 1; }
+
+usage() {
+  echo "usage: scripts/dev-env <name> <setup|teardown>" >&2
+  exit 2
+}
+
+# Strip a WTs/<name>/ path (or trailing slash) down to its basename.
+basename_name() {
+  local raw="$1"
+  case "$raw" in
+    */*) basename "$raw" ;;
+    *)   printf '%s' "$raw" ;;
+  esac
+}
+
+# PORT_BASE comes from the repo root .env (optional).
+port_base() {
+  local base=""
+  if [ -f "$REPO_ROOT/.env" ]; then
+    base="$(grep -E '^PORT_BASE=' "$REPO_ROOT/.env" | head -1 | cut -d= -f2-)"
+  fi
+  echo "${base:-0}"
+}
+
+# --- manifest helpers --------------------------------------------------------
+
+manifest_get_n() {  # name -> N (empty if absent)
+  [ -f "$MANIFEST" ] || return 0
+  awk -F: -v n="$1" '$1==n {print $2; exit}' "$MANIFEST"
+}
+
+manifest_free_n() {  # lowest positive int not present in manifest
+  local used n
+  used=" "
+  if [ -f "$MANIFEST" ]; then
+    used=" $(awk -F: 'NF{print $2}' "$MANIFEST" | tr '\n' ' ') "
+  fi
+  n=1
+  while [[ "$used" == *" $n "* ]]; do n=$((n + 1)); done
+  echo "$n"
+}
+
+manifest_add() { echo "$1:$2" >> "$MANIFEST"; }
+
+manifest_remove() {  # name
+  [ -f "$MANIFEST" ] || return 0
+  local tmp
+  tmp="$(mktemp)"
+  awk -F: -v n="$1" '$1!=n' "$MANIFEST" > "$tmp"
+  mv "$tmp" "$MANIFEST"
+}
+
+# --- .env rewriting ----------------------------------------------------------
+
+set_kv() {  # file key value  -- replace `KEY=...` line in place, or append
+  local file="$1" key="$2" val="$3"
+  if grep -qE "^${key}=" "$file"; then
+    sed -i -E "s|^${key}=.*|${key}=${val}|" "$file"
+  else
+    echo "${key}=${val}" >> "$file"
+  fi
+}
+
+# --- commands ----------------------------------------------------------------
+
+cmd_setup() {
+  local name; name="$(basename_name "$1")"
+  local wt="$WT_DIR/$name"
+
+  [ -e "$wt" ] && die "worktree path already exists: $wt"
+  [ -n "$(manifest_get_n "$name")" ] && die "name already in manifest: $name"
+
+  mkdir -p "$WT_DIR"
+  local n; n="$(manifest_free_n)"
+  local base; base="$(port_base)"
+  local be_port=$((8000 + base + n))
+  local fe_port=$((3000 + base + n))
+
+  echo "dev-env: setup '$name' N=$n  backend:$be_port  frontend:$fe_port"
+
+  # git worktree (reuse branch if it already exists)
+  if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$name"; then
+    git -C "$REPO_ROOT" worktree add "$wt" "$name"
+  else
+    git -C "$REPO_ROOT" worktree add "$wt" -b "$name"
+  fi
+
+  # .env with per-worktree ports (gitignored; the solid CLI loads it from cwd)
+  if [ -f "$REPO_ROOT/.env" ]; then
+    cp "$REPO_ROOT/.env" "$wt/.env"
+  else
+    : > "$wt/.env"
+  fi
+  set_kv "$wt/.env" SOLID_NODE_PORT "$be_port"
+  set_kv "$wt/.env" SOLID_NODE_FRONTEND_PORT "$fe_port"
+
+  # symlink the web app's heavy gitignored dirs from the main checkout so
+  # `solid develop --web-dev` works in the worktree without an npm install
+  local d
+  for d in node_modules build; do
+    if [ -e "$REPO_ROOT/$APP_DIR/$d" ]; then
+      ln -sfn "$REPO_ROOT/$APP_DIR/$d" "$wt/$APP_DIR/$d"
+      echo "dev-env: app symlink $wt/$APP_DIR/$d -> $REPO_ROOT/$APP_DIR/$d"
+    fi
+  done
+
+  manifest_add "$name" "$n"
+  echo "dev-env: ready -> $wt"
+  echo "dev-env: run from inside it, e.g.:"
+  echo "  cd $wt && PYTHONPATH=$wt solid develop <node.py> --web-dev"
+  echo "  browser: http://localhost:$be_port"
+}
+
+cmd_teardown() {
+  local name; name="$(basename_name "$1")"
+
+  local wt="$WT_DIR/$name"
+  local n; n="$(manifest_get_n "$name")"
+
+  [ -z "$n" ] && die "name not in manifest: $name"
+
+  echo "dev-env: teardown '$name' N=$n"
+
+  # refuse teardown if the worktree has uncommitted changes (tracked files;
+  # gitignored env files are excluded). Protects work-in-progress.
+  if [ -e "$wt" ] && [ -n "$(git -C "$wt" status --porcelain)" ]; then
+    die "worktree not clean, refusing teardown: $wt (commit/stash first)"
+  fi
+
+  # remove git worktree
+  if [ -e "$wt" ]; then
+    git -C "$REPO_ROOT" worktree remove --force "$wt"
+  else
+    git -C "$REPO_ROOT" worktree prune
+  fi
+
+  manifest_remove "$name"
+  echo "dev-env: removed '$name'"
+}
+
+# --- main --------------------------------------------------------------------
+
+[ $# -eq 2 ] || usage
+case "$2" in
+  setup)    cmd_setup "$1" ;;
+  teardown) cmd_teardown "$1" ;;
+  *)        usage ;;
+esac
