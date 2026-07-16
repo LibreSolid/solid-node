@@ -44,7 +44,7 @@ class TestCase(BaseTestCase):
                 f"{node1.name} should intersect {node2.name}")
 
     def assertInside(self, node1, node2):
-        """Make sure node1 is completely inside node2"""
+        """Make sure node2 is completely inside node1"""
         inside = node1.mesh.contains(node2.mesh.vertices)
         if not inside.all():
             raise AssertionError(
