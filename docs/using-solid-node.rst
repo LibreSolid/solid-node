@@ -125,14 +125,17 @@ nodes:
 JScadNode
 ---------
 
-Finally, the model can also be obtained using an **JScadNode**, which similarly
-to OpenScadNode, it's a python wrapper around an JScad function.
+Finally, the model can also be obtained using a **JScadNode**, which similarly
+to OpenScadNode, it's a python wrapper around a JScad function.
+
+You need the **jscad** CLI tool installed in `$PATH`, and its node dependencies
+installed in the directory you run `solid` from.
 
 .. code-block:: python
 
-    from solid_node.node import OpenScadNode
+    from solid_node.node import JScadNode
 
-    class DemoProject(OpenScadNode):
+    class DemoProject(JScadNode):
 
         jscad_source = 'demo.js'
 
