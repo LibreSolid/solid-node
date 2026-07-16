@@ -18,6 +18,24 @@ BUILD_DIR = os.path.join(BASEDIR, '_build')
 
 os.environ['SOLID_BUILD_DIR'] = BUILD_DIR
 
+PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
+
+
+def _is_valid_png(path):
+    """A real, non-empty PNG file: exists, has content, and the right magic bytes."""
+    if not os.path.isfile(path):
+        return False
+    if os.path.getsize(path) == 0:
+        return False
+    with open(path, 'rb') as f:
+        return f.read(len(PNG_MAGIC)) == PNG_MAGIC
+
+
+def _env_without_display():
+    env = os.environ.copy()
+    env.pop('DISPLAY', None)
+    return env
+
 
 class SnapshotImgsizeValidationTest(TestCase):
     """Test _validate_imgsize method for various formats"""
@@ -640,6 +658,111 @@ class SnapshotIntegrationTest(TestCase):
         self.assertIn('Metallic', cmd)
         self.assertIn('axes', cmd)
         self.assertTrue(cmd[-1].endswith('.scad'))
+
+
+class SnapshotXvfbWrappingTest(TestCase):
+    """Unit tests for _wrap_command: the decision of whether to prefix the
+    OpenSCAD invocation with `xvfb-run -a`."""
+
+    def setUp(self):
+        self.snapshot = Snapshot()
+        self.base_cmd = ['openscad', '-o', 'out.png', '/tmp/test.scad']
+
+    def test_no_wrapping_with_display_present(self):
+        """A working DISPLAY: command is returned unchanged, no xvfb-run."""
+        with patch.dict(os.environ, {'DISPLAY': ':0'}):
+            cmd = self.snapshot._wrap_command(self.base_cmd)
+
+        self.assertEqual(cmd, self.base_cmd)
+        self.assertNotIn('xvfb-run', cmd)
+
+    def test_wraps_with_xvfb_run_when_headless_and_available(self):
+        """No DISPLAY, xvfb-run on PATH: prefix cmd with `xvfb-run -a`."""
+        with patch.dict(os.environ, _env_without_display(), clear=True):
+            with patch.object(self.snapshot, '_find_xvfb_run', return_value='/usr/bin/xvfb-run'):
+                cmd = self.snapshot._wrap_command(self.base_cmd)
+
+        self.assertEqual(cmd, ['/usr/bin/xvfb-run', '-a'] + self.base_cmd)
+
+    def test_errors_when_headless_and_xvfb_run_missing(self):
+        """No DISPLAY, no xvfb-run: clear one-line error, exit 1, no wrapping attempted."""
+        with patch.dict(os.environ, _env_without_display(), clear=True):
+            with patch.object(self.snapshot, '_find_xvfb_run', return_value=None):
+                with self.assertRaises(SystemExit) as cm:
+                    self.snapshot._wrap_command(self.base_cmd)
+
+        self.assertEqual(cm.exception.code, 1)
+
+    def test_empty_display_treated_as_headless(self):
+        """An empty DISPLAY value (broken display) is treated the same as unset."""
+        with patch.dict(os.environ, {'DISPLAY': ''}):
+            with patch.object(self.snapshot, '_find_xvfb_run', return_value='/usr/bin/xvfb-run'):
+                cmd = self.snapshot._wrap_command(self.base_cmd)
+
+        self.assertEqual(cmd, ['/usr/bin/xvfb-run', '-a'] + self.base_cmd)
+
+
+class SnapshotHeadlessRenderTest(TestCase):
+    """End-to-end: solid snapshot against a real fixture node, under a
+    simulated headless environment (no DISPLAY)."""
+
+    def setUp(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        os.makedirs(BUILD_DIR, exist_ok=True)
+        self.snapshot = Snapshot()
+        self.output_dir = tempfile.mkdtemp(prefix='solid_snapshot_test_')
+        self.output_path = os.path.join(self.output_dir, 'snapshot.png')
+
+    def tearDown(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        shutil.rmtree(self.output_dir, ignore_errors=True)
+
+    def _make_args(self, **overrides):
+        defaults = dict(
+            path=os.path.join(BASEDIR, 'flat_project', 'simple_cylinder.py'),
+            output=self.output_path,
+            time=0.0,
+            camera=None,
+            autocenter=True,
+            viewall=False,
+            imgsize='160x120',
+            projection='perspective',
+            colorscheme='Cornfield',
+            render=True,
+            preview=False,
+            view=None,
+        )
+        defaults.update(overrides)
+        return argparse.Namespace(**defaults)
+
+    def test_snapshot_renders_valid_png_without_display(self):
+        """The bug this issue fixes: headless (no DISPLAY), xvfb-run present
+        on PATH (it is, on this machine) -- `solid snapshot` must transparently
+        render a real, non-empty PNG with zero extra flags from the caller."""
+        args = self._make_args()
+
+        with patch.dict(os.environ, _env_without_display(), clear=True):
+            self.snapshot.handle(args)
+
+        self.assertTrue(
+            _is_valid_png(self.output_path),
+            f"expected a valid PNG at {self.output_path}"
+        )
+
+    def test_headless_without_xvfb_run_fails_cleanly(self):
+        """Headless AND xvfb-run unavailable: nonzero exit, no PNG left behind
+        (never a silent empty-file 'success')."""
+        args = self._make_args()
+
+        with patch.dict(os.environ, _env_without_display(), clear=True):
+            with patch.object(self.snapshot, '_find_xvfb_run', return_value=None):
+                with self.assertRaises(SystemExit) as cm:
+                    self.snapshot.handle(args)
+
+        self.assertEqual(cm.exception.code, 1)
+        self.assertFalse(os.path.exists(self.output_path))
 
 
 class SnapshotConstantsTest(TestCase):

@@ -2,7 +2,9 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import sys
+import shutil
 import logging
 from subprocess import run, CalledProcessError
 from solid_node.core.loader import load_node
@@ -142,6 +144,11 @@ class Snapshot:
         # Build OpenSCAD command
         cmd = self._build_openscad_command(node, args)
 
+        # OpenSCAD needs a live X display to render (even for --imgsize-only
+        # output); wrap the invocation under xvfb-run when headless so
+        # agents don't have to know or care that they lack a display.
+        cmd = self._wrap_command(cmd)
+
         # Execute OpenSCAD
         try:
             logger.info(f"Rendering {node.scad_file} to {self.output}")
@@ -157,6 +164,34 @@ class Snapshot:
             sys.stderr.write("Error: OpenSCAD not found in PATH. "
                            "Please install OpenSCAD and ensure it is accessible.\n")
             sys.exit(1)
+
+    def _display_available(self):
+        """Whether a usable X display is present. DISPLAY unset (or empty)
+        is the primary headless signal."""
+        return bool(os.environ.get('DISPLAY'))
+
+    def _find_xvfb_run(self):
+        """Locate the xvfb-run binary on PATH, if any."""
+        return shutil.which('xvfb-run')
+
+    def _wrap_command(self, cmd):
+        """Wrap cmd under `xvfb-run -a` when no display is available.
+        With a working DISPLAY, cmd is returned unchanged. Headless with
+        no xvfb-run on PATH is a hard error: better a clear one-line
+        message than a confusing OpenGL failure or a silently empty PNG."""
+        if self._display_available():
+            return cmd
+
+        xvfb_run = self._find_xvfb_run()
+        if not xvfb_run:
+            sys.stderr.write(
+                "Error: no DISPLAY and 'xvfb-run' not found on PATH. "
+                "Install xvfb (e.g. `apt-get install -y xvfb`) or run this "
+                "command under `xvfb-run -a`.\n"
+            )
+            sys.exit(1)
+
+        return [xvfb_run, '-a'] + cmd
 
     def _validate_imgsize(self, imgsize):
         """Validate image size format (WxH)."""
