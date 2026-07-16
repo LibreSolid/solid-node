@@ -30,3 +30,24 @@
 .bottom {
     width: 100%;
 }
+
+/* Reloader (skill-repo improvements.md #12): loud, unmistakable strip
+ * shown when the reload websocket to `solid develop` is down. Injected/
+ * removed via plain DOM by Reloader (reloader.ts), not React state --
+ * it must stay visible across a full node reload/re-render cycle.
+ * The viewport underneath is left fully interactive: a stale model is
+ * still worth inspecting, so this must never dim or block it. */
+.reload-offline-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #c0392b;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    font-family: sans-serif;
+    padding: 8px 12px;
+    pointer-events: none;
+}
