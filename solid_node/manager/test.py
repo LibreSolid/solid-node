@@ -40,6 +40,8 @@ class Test:
             self.test_case.set_node(self.node)
         self.failfast = args.failfast
         self.run_tests()
+        if self.num_failed:
+            sys.exit(1)
 
     def build_node(self, path, time=0):
         node = load_node(path)

@@ -86,6 +86,7 @@ class GreenProjectMetaTest(TestCase):
             'test_placed_cube_is_where_placed': 'passed',
         })
         self.assertEqual((run.total, run.passed, run.failed), (2, 2, 0))
+        self.assertEqual(run.returncode, 0)
 
 
 class RedProjectMetaTest(TestCase):
@@ -100,3 +101,9 @@ class RedProjectMetaTest(TestCase):
         self.assertEqual((run.total, run.passed, run.failed), (1, 0, 1))
         self.assertIn('AssertionError', run.stdout)
         self.assertIn('should not intersect', run.stdout)
+
+    def test_failures_set_a_nonzero_exit_code(self):
+        """CI and agents branch on the exit code; a red run that exits
+        0 reads as green to everything downstream."""
+        run = solid_test('overlapping')
+        self.assertNotEqual(run.returncode, 0)
