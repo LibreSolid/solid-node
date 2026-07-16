@@ -5,6 +5,20 @@
 Quickstart
 ==========
 
+Requirements
+============
+
+* **Linux** — other platforms are currently untested and unsupported.
+* **Python 3.10 or newer**.
+* **OpenSCAD** — solid-node uses it to build the STL files of
+  OpenSCAD-based nodes and to render snapshots, so it is required even
+  if you only use the web viewer.
+* Optionally, the **jscad** CLI (from npm) if you want to write nodes
+  in JavaScript with ``JScadNode``.
+
+Installation
+============
+
 Start by creating a virtual environment for your project
 
 .. code-block:: bash
@@ -18,11 +32,14 @@ And install solid-node in your environment
 
     $ pip install solid-node
 
-Make sure you have openscad installed
+Make sure you have openscad installed. On Debian-based systems:
 
 .. code-block:: bash
 
     $ sudo apt-get install openscad
+
+Create your project
+===================
 
 Create a new project with a starting structure
 
