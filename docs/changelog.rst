@@ -19,6 +19,10 @@ Unreleased
 * Breaking: CLI grammar flipped to command-first, ``solid <command> <node>``
 * New ``solid new`` command to scaffold a starting project structure, replacing the solid-seed clone workflow
 
+**Documentation**
+
+* Restructured the user guide into a tutorial track (modeling, assemblies, animation, fusion, testing) and topic guides (node tree and caching, development viewer, embedding), with a live render embedded after every node-defining code block
+
 v0.3.0
 ------
 

@@ -65,3 +65,6 @@ Open `root/__init__.py` file in your preferred code editor and
 see your model update in the viewer as you modify the code.
 
 Check the _build directory for the STLs of your project.
+
+From here, continue with the tutorial: :doc:`Modeling parts
+<leaf-nodes>`.

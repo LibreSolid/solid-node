@@ -6,26 +6,26 @@
     "frames": 360
   },
   "root": {
-    "name": "SimpleClock",
+    "name": "VolumeControl",
     "type": "AssemblyNode",
     "color": null,
     "operations": [],
     "children": [
       {
-        "name": "base",
+        "name": "panel",
         "type": "LeafNode",
         "color": null,
         "operations": [],
-        "model": "models/simple_clock/clock_base.stl"
+        "model": "models/knob_assembly/__init__.stl"
       },
       {
-        "name": "pointer",
-        "type": "LeafNode",
+        "name": "knob",
+        "type": "FusionNode",
         "color": null,
         "operations": [
           [
             "r",
-            "(-360 * $t)",
+            "(-270 * $t)",
             [
               0,
               0,
@@ -33,7 +33,7 @@
             ]
           ]
         ],
-        "model": "models/simple_clock/pointer.stl"
+        "model": "models/knob_assembly/knob.stl"
       }
     ]
   }

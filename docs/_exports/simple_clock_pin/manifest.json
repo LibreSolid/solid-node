@@ -12,20 +12,20 @@
     "operations": [],
     "children": [
       {
-        "name": "ClockBase",
+        "name": "base",
         "type": "LeafNode",
         "color": null,
         "operations": [],
         "model": "models/simple_clock_pin/clock_base.stl"
       },
       {
-        "name": "Pointer",
+        "name": "pointer",
         "type": "LeafNode",
         "color": null,
         "operations": [
           [
             "r",
-            "(360 * $t)",
+            "(-360 * $t)",
             [
               0,
               0,
@@ -36,7 +36,7 @@
         "model": "models/simple_clock_pin/pointer.stl"
       },
       {
-        "name": "Pin",
+        "name": "pin",
         "type": "LeafNode",
         "color": null,
         "operations": [],

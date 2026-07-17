@@ -69,8 +69,8 @@ solid test
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion
-test file, if one exists. See :ref:`Testing <using-solid-node>` in the
-user guide for how to write tests.
+test file, if one exists. See :doc:`Test-driven CAD <testing>` for how
+to write tests.
 
 ``--failfast``
     Stop the test run on the first failure.

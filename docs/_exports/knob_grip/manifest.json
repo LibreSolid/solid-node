@@ -1,0 +1,15 @@
+{
+  "format": "solid-node-export",
+  "version": 1,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "root": {
+    "name": "KnobGrip",
+    "type": "LeafNode",
+    "color": null,
+    "operations": [],
+    "model": "models/knob_grip/__init__.stl"
+  }
+}
