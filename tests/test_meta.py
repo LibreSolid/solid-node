@@ -338,6 +338,62 @@ class PairwiseAdjacencyMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class VolumeEpsilonMetaTest(TestCase):
+    """volume_epsilon on assertNoPairwiseIntersections/
+    assertBlockedBeyond/assertFreeWithin (skill-repo improvements.md
+    #21): two parts that legitimately abut flush can come back from
+    trimesh.boolean.intersection as a non-empty boolean-noise sliver
+    -- indistinguishable, to `is_empty`, from real interference. The
+    default volume_epsilon=0.0 must keep the exact OLD `is_empty`
+    strictness (flush.py/flush_strict.py, flush_keyed_strict.py all
+    demonstrate that unchanged strictness red); with volume_epsilon
+    above the noise floor the flush contact reads as free
+    (flush.py, flush_keyed.py); a genuine overlap comfortably above
+    the epsilon must still be reported (the anti-gaming guarantee,
+    flush_overlap.py)."""
+
+    def test_flush_faces_pass_with_epsilon(self):
+        run = solid_test('flush')
+        self.assertEqual(
+            run.results,
+            {'test_flush_faces_pass_with_volume_epsilon': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_flush_faces_reported_without_epsilon(self):
+        run = solid_test('flush_strict')
+        self.assertEqual(
+            run.results,
+            {'test_flush_faces_reported_without_epsilon': 'failed'})
+        self.assertIn('should not intersect', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_real_overlap_cannot_be_gamed_by_epsilon(self):
+        run = solid_test('flush_overlap')
+        self.assertEqual(
+            run.results,
+            {'test_real_overlap_still_reported_with_epsilon': 'failed'})
+        self.assertIn('should not intersect', run.stdout)
+        self.assertIn('exceeds epsilon', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_flush_shoulder_blocked_and_free_with_epsilon(self):
+        run = solid_test('flush_keyed')
+        self.assertEqual(run.results, {
+            'test_peg_blocked_beyond_play': 'passed',
+            'test_peg_free_within_play': 'passed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (2, 2, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_flush_shoulder_noise_reported_without_epsilon(self):
+        run = solid_test('flush_keyed_strict')
+        self.assertEqual(run.results,
+                         {'test_peg_free_within_play': 'failed'})
+        self.assertIn('should be free', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class TestPathMetaTest(TestCase):
     """Bug: `solid test` habitually gets handed the TEST file rather
     than the node file it exercises (root/test_gear.py instead of
