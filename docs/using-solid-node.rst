@@ -52,6 +52,11 @@ node, which uses **solidpython2** to create models. Open `root/__init__.py`:
                 cube(50, 50, 50)
             ) - cylinder(r=10, h=100)
 
+Rendered with ``solid export`` and embedded below:
+
+.. solid-node:: _exports/demo_project
+   :height: 360px
+
 
 CadQueryNode
 ------------
@@ -70,6 +75,11 @@ The same model can be obtained using **CadQuery**:
             cube = wp.box(50, 50, 50)
             hole = wp.workplane(offset=-50).circle(10).extrude(100)
             return cube.cut(hole)
+
+The same box with a hole, this time rendered by CadQuery:
+
+.. solid-node:: _exports/demo_cadquery
+   :height: 360px
 
 **TIP**: if you want to use CQ-editor, you can add `show_object` without
 conflicting with Solid Node:
@@ -105,6 +115,11 @@ Create a file `root/demo.scad` with a module to create the model:
         cylinder(r=10, h=100);
       }
     }
+
+And the same model again, driven by the OpenScad module above:
+
+.. solid-node:: _exports/demo_openscad
+   :height: 360px
 
 By default the module is expected to have the same name as the file
 (`demo.scad` → `module demo()`); if it doesn't, set the `module_name`
@@ -157,6 +172,11 @@ Create a file `root/demo.js` with a module to create the model:
 
     module.exports = { main }
 
+And the same model once more, rendered by JScad:
+
+.. solid-node:: _exports/demo_jscad
+   :height: 360px
+
 Internal Nodes
 ==============
 
@@ -179,6 +199,11 @@ a grip:
 
         def render(self):
             return [KnobShaft(), KnobGrip()]
+
+The shaft and grip are fused into one rigid mesh:
+
+.. solid-node:: _exports/knob
+   :height: 360px
 
 Both take part in the node tree the same way, and a FusionNode can be a
 child of an AssemblyNode. Since the result of a fusion is rigid, a
@@ -208,6 +233,11 @@ Create a new file `root/clock_base.py` and create a `CadQueryNode`:
     if __name__ == '__cq_main__':
         show_object(ClockBase().render())
 
+Rendered — the clock base:
+
+.. solid-node:: _exports/clock_base
+   :height: 360px
+
 Now, a file `root/pointer.py` with a `Solid2Node`:
 
 .. code-block:: python
@@ -221,6 +251,11 @@ Now, a file `root/pointer.py` with a `Solid2Node`:
             return translate(-5, -5, 3)(
                 cube(10, 90, 10)
             )
+
+Rendered — the pointer:
+
+.. solid-node:: _exports/pointer_plain
+   :height: 360px
 
 And at `root/__init__.py`, an `AssemblyNode`
 
@@ -239,6 +274,11 @@ And at `root/__init__.py`, an `AssemblyNode`
 
         def render(self):
             return [self.base, self.pointer]
+
+Rendered — base and pointer assembled (still, for now):
+
+.. solid-node:: _exports/simple_clock_static
+   :height: 360px
 
 Children are created in ``__init__``, as instance attributes: they must
 keep their identity across renders, and each instance of the assembly
@@ -269,6 +309,11 @@ Edit `root/__init__.py` to rotate the pointer:
             angle = 360 * self.time
             self.pointer.rotate(angle, [0, 0, 1])
             return [self.base, self.pointer]
+
+Rendered with ``solid export`` — press play to see the pointer rotate:
+
+.. solid-node:: _exports/simple_clock
+   :height: 360px
 
 Besides `rotate(angle, axis)`, nodes also have `translate([x, y, z])`.
 Both accumulate on the node, apply in the viewer and in tests alike, and
@@ -302,6 +347,11 @@ First, to create a 6mm hole at the base, edit `root/clock_base.py`
             return wp.circle(100).extrude(2) \
                 .faces(">Z").workplane().hole(6)
 
+Rendered — the base with its 6 mm hole:
+
+.. solid-node:: _exports/clock_base_hole
+   :height: 360px
+
 And a hole in the pointer, at `root/pointer.py`
 
 .. code-block:: python
@@ -314,6 +364,11 @@ And a hole in the pointer, at `root/pointer.py`
             )
             hole = cylinder(r=3, h=15)
             return pointer - hole
+
+Rendered — the pointer with its hole:
+
+.. solid-node:: _exports/pointer_hole
+   :height: 360px
 
 Now, you should see a hole through both pointer and
 pin, while the pointer is rotating.
@@ -329,6 +384,11 @@ Let's make a pin through them. Create the file `root/pin.py`:
 
         def render(self):
             return cylinder(r=3, h=20)
+
+Rendered — the pin:
+
+.. solid-node:: _exports/pin
+   :height: 360px
 
 And at `root/__init__.py`, assemble the pin together:
 
@@ -349,6 +409,11 @@ And at `root/__init__.py`, assemble the pin together:
             angle = 360 * self.time
             self.pointer.rotate(angle, [0, 0, 1])
             return [self.base, self.pointer, self.pin]
+
+Rendered — the full clock with the pin fitted (press play):
+
+.. solid-node:: _exports/simple_clock_pin
+   :height: 360px
 
 You should see the pin rendered in viewer, with a tight fit.
 We want to test if this is functional: if in reality, this
@@ -408,6 +473,11 @@ they should not. Let's reduce the radius of our pin to 2.99, at
 
         def render(self):
             return cylinder(r=2.99, h=20)
+
+Rendered — the slimmer pin:
+
+.. solid-node:: _exports/pin_thin
+   :height: 360px
 
 Run the tests again. This time, the two tests will pass.
 

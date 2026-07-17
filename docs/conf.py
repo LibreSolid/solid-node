@@ -24,7 +24,8 @@ release = '0.3.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon',
+              'solid_node.sphinx']
 
 # Heavy runtime dependencies are mocked so autodoc can import solid_node
 # on Read the Docs without installing the full CAD stack

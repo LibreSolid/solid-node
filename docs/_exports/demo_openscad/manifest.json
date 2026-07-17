@@ -1,0 +1,15 @@
+{
+  "format": "solid-node-export",
+  "version": 1,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "root": {
+    "name": "DemoProject",
+    "type": "LeafNode",
+    "color": null,
+    "operations": [],
+    "model": "models/demo_openscad/demo.stl"
+  }
+}

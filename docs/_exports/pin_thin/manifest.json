@@ -1,0 +1,15 @@
+{
+  "format": "solid-node-export",
+  "version": 1,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "root": {
+    "name": "Pin",
+    "type": "LeafNode",
+    "color": null,
+    "operations": [],
+    "model": "models/pin_thin/__init__.stl"
+  }
+}
