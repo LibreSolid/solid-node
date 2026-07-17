@@ -22,7 +22,7 @@ framework in a real project:
   through one shared meshing-law function.
 * **Test-driven CAD** — each part has a companion ``test_*.py`` file
   (the separate-file style described in
-  :doc:`Using Solid Node <using-solid-node>`), asserting fits and
+  :doc:`Test-driven CAD <testing>`), asserting fits and
   clearances with ``assertNotIntersecting``, ``assertClose`` and
   friends, over the animation via ``@testing_steps``.
 * **A design document** (``docs/design.md``) as the single source of

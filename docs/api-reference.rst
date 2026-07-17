@@ -104,8 +104,8 @@ Testing
 =======
 
 The testing API lives in ``solid_node.test``. See
-:doc:`Using Solid Node <using-solid-node>` for a walkthrough of both ways
-of writing tests: mixing ``TestCaseMixin`` into a node class, or writing a
+:doc:`Test-driven CAD <testing>` for a walkthrough of both ways of
+writing tests: mixing ``TestCaseMixin`` into a node class, or writing a
 ``TestCase`` in a separate file.
 
 .. autoclass:: solid_node.test.TestCase

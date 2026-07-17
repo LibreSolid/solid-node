@@ -3,13 +3,34 @@ Solid Node documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Getting started
 
    why-solid-node
    quickstart
-   using-solid-node
-   examples
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorial
+
+   leaf-nodes
+   assemblies
+   animation
+   fusion
+   testing
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Guides
+
+   node-tree
+   viewer
    embedding
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   examples
    cli
    api-reference
    status-and-roadmap

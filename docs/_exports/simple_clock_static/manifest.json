@@ -12,14 +12,14 @@
     "operations": [],
     "children": [
       {
-        "name": "ClockBase",
+        "name": "base",
         "type": "LeafNode",
         "color": null,
         "operations": [],
         "model": "models/simple_clock_static/clock_base.stl"
       },
       {
-        "name": "Pointer",
+        "name": "pointer",
         "type": "LeafNode",
         "color": null,
         "operations": [],
