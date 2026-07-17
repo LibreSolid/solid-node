@@ -343,12 +343,16 @@ epsilon.
 Adjacency sweep
 ---------------
 
-* `assertNoPairwiseIntersections(node)` — walks the assembled tree
-  rooted at `node` down to its leaves and asserts that every pair of
-  leaves is non-intersecting. This is a safety net that holds
-  regardless of which specific contracts exist: any two parts you
-  forgot to test against each other directly are still covered.
-  Combine it with `@testing_steps` to sweep the whole animation.
+* `assertNoPairwiseIntersections(node, volume_epsilon=0.0)` — walks
+  the assembled tree rooted at `node` down to its leaves and asserts
+  that every pair of leaves is non-intersecting. This is a safety net
+  that holds regardless of which specific contracts exist: any two
+  parts you forgot to test against each other directly are still
+  covered. Combine it with `@testing_steps` to sweep the whole
+  animation. `volume_epsilon` (mm³) is for parts that legitimately
+  abut flush: their boolean intersection is float noise, orders of
+  magnitude below any real interference — above zero, only fouling
+  volumes exceeding the epsilon count as intersections.
 
 See the :doc:`API Reference <api-reference>` for details. All the
 standard `unittest.TestCase` assertions are available as well.
