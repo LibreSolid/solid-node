@@ -63,44 +63,54 @@ _PREFIX_LEN = 60
 _HASH_LEN = 12
 
 
-def _canonical_serialization(args, kwargs):
-    """The full, order-stable string identifying a call's parameters:
-    positional args in call order, then kwargs sorted by key (so kwarg
-    order never affects it), comma-joined. This is the string that is
-    HASHED for identity; unlike the readable prefix derived from it,
-    it is never truncated, so it still distinguishes calls that only
-    differ deep inside a long value.
+def _canonical_serialization(klass, args, kwargs):
+    """The full, order-stable string identifying a call's identity:
+    the node class's __qualname__ (skill-repo improvements.md #22),
+    then positional args in call order, then kwargs sorted by key (so
+    kwarg order never affects it), comma-joined. This is the string
+    that is HASHED for identity; unlike the readable prefix derived
+    from it, it is never truncated, so it still distinguishes calls
+    that only differ deep inside a long value.
+
+    Leading with the class is what makes two DIFFERENT node classes,
+    called with identical (possibly empty) args/kwargs, get distinct
+    ids -- before #22 identity was args/kwargs only, so two different
+    no-arg classes defined in the same file both got the empty
+    canonical serialization and silently shared the bare-script-name
+    artifact (one served the other's stale geometry).
     """
-    parts = [str(a) for a in args]
+    parts = [klass.__qualname__]
+    parts += [str(a) for a in args]
     parts += [f'{k}={v}' for k, v in sorted(kwargs.items())]
     return ','.join(parts)
 
 
-def _build_uniq_id(args, kwargs):
+def _build_uniq_id(klass, args, kwargs):
     """The artifact key for a node instance: ALWAYS derived from its
-    constructor parameters, never from name= (name only addresses the
-    node in the tree/tests -- see AbstractBaseNode.__init__). A node
-    built with no args/kwargs gets '' (the basename is then the bare
-    script name, unchanged from before).
+    class plus its constructor parameters, never from name= (name
+    only addresses the node in the tree/tests -- see
+    AbstractBaseNode.__init__). The class is always present in the
+    canonical serialization (see _canonical_serialization), so the
+    key is never empty -- even a no-arg node gets one, keyed off its
+    class.
 
-    Otherwise the key is:
+    The key is:
 
         <readable-prefix>-<shorthash>
 
     where <shorthash> is the first _HASH_LEN hex digits of the sha256
-    of _canonical_serialization(args, kwargs) -- the FULL serialization,
-    so any parameter change (including one buried in a long value)
-    changes the id -- and <readable-prefix> is that same serialization,
-    sanitized to filesystem-safe characters and truncated to
-    _PREFIX_LEN chars. The prefix is decoration only; identity lives
-    entirely in the hash, so the total basename length is bounded
-    regardless of parameter values (fixes the OSError: File name too
-    long a long list-valued kwarg used to cause when it serialized
-    verbatim into the filename).
+    of _canonical_serialization(klass, args, kwargs) -- the FULL
+    serialization, so any parameter change (including one buried in a
+    long value) or a different class changes the id -- and
+    <readable-prefix> is that same serialization, sanitized to
+    filesystem-safe characters and truncated to _PREFIX_LEN chars. The
+    prefix is decoration only; identity lives entirely in the hash, so
+    the total basename length is bounded regardless of parameter
+    values (fixes the OSError: File name too long a long list-valued
+    kwarg used to cause when it serialized verbatim into the
+    filename).
     """
-    canonical = _canonical_serialization(args, kwargs)
-    if not canonical:
-        return ''
+    canonical = _canonical_serialization(klass, args, kwargs)
     digest = hashlib.sha256(canonical.encode()).hexdigest()[:_HASH_LEN]
     prefix = _UNSAFE_PREFIX_CHARS.sub('_', canonical)[:_PREFIX_LEN]
     return f'{prefix}-{digest}'
@@ -134,12 +144,15 @@ class AbstractBaseNode:
 
     def __init__(self, *args, name=None, **kwargs):
         # self.uniq_id is the artifact key: always derived from this
-        # instance's constructor parameters via _build_uniq_id, so a
-        # parameter change always produces a new artifact. self.name is
-        # purely for tree/test addressing and never influences uniq_id --
-        # naming a node used to REPLACE its parameter-based key, so two
-        # same-named instances with different parameters collided on one
-        # stl file and one of them served the other's stale geometry.
+        # instance's CLASS plus its constructor parameters via
+        # _build_uniq_id (skill-repo improvements.md #22 adds the
+        # class; #3/#13 established parameters), so a parameter change
+        # -- or building a different class -- always produces a new
+        # artifact. self.name is purely for tree/test addressing and
+        # never influences uniq_id -- naming a node used to REPLACE its
+        # parameter-based key, so two same-named instances with
+        # different parameters collided on one stl file and one of
+        # them served the other's stale geometry.
         #
         # self._explicit_name records whether name= was actually passed,
         # so the parent-attribute-derived name (see _link_child below,
@@ -148,7 +161,7 @@ class AbstractBaseNode:
         # wins.
         self._explicit_name = name is not None
         self.name = name or self.__class__.__name__
-        self.uniq_id = _build_uniq_id(args, kwargs)
+        self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after
@@ -173,7 +186,9 @@ class AbstractBaseNode:
 
         script = self.src.split('/')[-1]
         script = '.'.join(script.split('.')[:-1])  # remove extension
-        basename = f'{script}-{self.uniq_id}' if self.uniq_id else script
+        # uniq_id is never empty (it always includes the class -- see
+        # _build_uniq_id), so basename always carries it.
+        basename = f'{script}-{self.uniq_id}'
         basepath = os.path.join(self.build_dir, basename)
 
         # The base scad file, and respective rendered stl,
