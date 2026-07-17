@@ -32,6 +32,23 @@ interface NodeData {
 
 const stlLoader = new STLLoader();
 
+// Monotonically increasing "generation" counter, bumped every time a
+// reload begins building a replacement tree. Every node captures the
+// current generation at construction time; a node whose generation no
+// longer matches the module's current value has been superseded — its
+// pending STL callback (loadModel) must not resurrect a mesh into a
+// scene that has moved on (improvements.md #24).
+//
+// This is deliberately global rather than a per-call recursive walk
+// from the node being replaced: reload() may be invoked repeatedly on
+// the same node identity (App.tsx's Reloader closes over the
+// originally-loaded root, not the latest tree), so "the old tree's
+// root" isn't reliably reachable from `this`. A global counter
+// supersedes every node built so far — whichever tree(s) are still
+// mid-flight, including ones orphaned by an even earlier overlapping
+// reload — with a single increment, and needs no tree walk to do it.
+let currentGeneration = 0;
+
 // Composes a node's flattened operation chain into a single absolute
 // world matrix. `operations` is indexed level 0 first (the node's own
 // ops), then each ancestor's ops at deeper levels — exactly the shape
@@ -88,6 +105,9 @@ export abstract class Node {
   rawOperations: RawOperation[][];
   operations: Operation[][];
 
+  // The generation this node was built in (see currentGeneration above).
+  generation: number;
+
   constructor(type: string, path: string, data: NodeData, context: Context) {
     this.type = type;
     this.path = path;
@@ -98,6 +118,15 @@ export abstract class Node {
     this.rawOperations = [];
     this.operations = [];
     this.color = data.color;
+    this.generation = currentGeneration;
+  }
+
+  // True once a later reload has superseded the tree this node belongs
+  // to. Computed rather than a flag that has to be set recursively: any
+  // node whose generation has fallen behind the module's current value
+  // is disposed, whichever tree it came from.
+  get disposed(): boolean {
+    return this.generation !== currentGeneration;
   }
 
   setOperations(op: RawOperation[], level: number = 0) {
@@ -120,14 +149,31 @@ export abstract class Node {
   }
 
   async reload(): Promise<Node | undefined> {
-    this.loadModel();
     try {
-      const nodeData = await loadNodeData(this.path);
+      // Validate the path is reachable before touching the live scene —
+      // a failed/offline reload should leave the current tree alone.
+      await loadNodeData(this.path);
+
+      // Supersede every node built so far (see currentGeneration above)
+      // before building the replacement tree, so any STL callback still
+      // in flight for the tree being replaced — or for an even older
+      // tree orphaned by an earlier overlapping reload — becomes a
+      // no-op instead of resurrecting a mesh into the cleared scene.
+      // The generation is captured here and threaded explicitly through
+      // loadNode() rather than left for each node to pick up
+      // currentGeneration dynamically at construction time: two
+      // overlapping reloads both bump the counter before either
+      // finishes building its tree, so reading the live value at
+      // construction would stamp both trees with the same (final)
+      // generation and neither would be disposed.
+      currentGeneration += 1;
+      const myGeneration = currentGeneration;
+
       const scene = this.context.scene;
       while(scene.children.length > 0) {
 	scene.remove(scene.children[0]);
       }
-      return await loadNode(this.path, this.context);
+      return await loadNode(this.path, this.context, myGeneration);
     } catch (e) {
       return undefined;
     }
@@ -139,6 +185,12 @@ export abstract class Node {
     const tstamp = new Date().getTime(); // avoid cache
 
     stlLoader.load(`/node${this.path}${this.model}?t=${tstamp}`, (geometry) => {
+      if (this.disposed) {
+        // This node's tree was superseded by a later reload before the
+        // STL arrived — do not add an orphaned mesh to a scene that has
+        // already moved on (improvements.md #24).
+        return;
+      }
       // TODO use this.color to colorize node
       const material = new THREE.MeshNormalMaterial();
       const mesh = new THREE.Mesh(geometry, material);
@@ -219,8 +271,16 @@ const loadNodeData = async (path: string): Promise<NodeData> => {
   return await response.json() as NodeData;
 }
 
-// Factory function
-export const loadNode = async (path: string, context: Context): Promise<Node> => {
+// Factory function.
+//
+// `generation` defaults to the module's current generation (see
+// currentGeneration above) — the right choice for a plain load. reload()
+// passes its own frozen generation explicitly instead, so every node in
+// this build (and its children, threaded through the recursive calls
+// below) is stamped with the value that was current when THIS reload
+// started, not whatever the global counter has drifted to by the time
+// construction actually happens.
+export const loadNode = async (path: string, context: Context, generation: number = currentGeneration): Promise<Node> => {
   const data = await loadNodeData(path);
   let node: Node | undefined;
 
@@ -231,7 +291,7 @@ export const loadNode = async (path: string, context: Context): Promise<Node> =>
     // node (not just LeafNode), so it must not be assumed present here.
     const childrenPromises = (data.children ?? []).map((child: string) => {
       const childPath = `${path}${child}/`;
-      return loadNode(childPath, context);
+      return loadNode(childPath, context, generation);
     });
     const children = await Promise.all(childrenPromises);
     if (data.type === "FusionNode") {
@@ -245,6 +305,11 @@ export const loadNode = async (path: string, context: Context): Promise<Node> =>
     throw new Error("Invalid node type");
   }
 
+  // Stamp the frozen generation now. This runs synchronously, in the
+  // same tick as the constructor call above (no await in between), so
+  // it always lands before any STL callback the constructor's
+  // loadModel() call registered could possibly fire.
+  node.generation = generation;
   node.setOperations(data.operations);
   return node;
 }
