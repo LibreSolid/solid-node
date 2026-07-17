@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
+import math
 import re
 import trimesh
 from unittest import TestCase as BaseTestCase
@@ -94,59 +95,141 @@ class TestCase(BaseTestCase):
                 f"should be below {max_volume}")
 
     ########################################
-    # Perturbation assertions: torque-fit contracts
+    # Perturbation assertions: torque-fit / linear-stop contracts
     #
-    # Both share the same mechanic: a Rotation by a signed angle is
+    # Both share the same mechanic and come in two mutually exclusive
+    # modes, selected by which of `axis` (rotation, the default) or
+    # `along` (translation) is given -- passing both is a loud error.
+    # A Rotation (by a signed angle, about `axis`) or a Translation
+    # (by a signed distance along the unit vector `along`) is
     # inserted into node.operations right before node's first
-    # Translation (so it turns node about its OWN axis, the way a
-    # part spins in its own bore/pocket, not around the world
-    # origin), appended if node has no Translation. It is always
-    # removed afterwards, success or failure, leaving node.operations
-    # exactly as found.
+    # pre-existing Translation, appended if node has no Translation.
+    #
+    # That single insertion rule is what makes both modes "local":
+    # a rotation turns node about its OWN axis rather than the world
+    # origin, because it runs before node has been moved away from
+    # the origin by its own placement Translation; a translation
+    # likewise moves node along `along` in whatever frame node is in
+    # at that point in its OWN operations -- so any Rotation that is
+    # already part of node's own placement, or of an ancestor
+    # assembly's, and therefore applies to the mesh AFTER this
+    # insertion point, carries the perturbation's direction along
+    # with it. `along` is a direction in node's local, pre-placement
+    # frame, not a fixed world vector -- that carrying is the point.
+    #
+    # The perturbation is always removed afterwards, success or
+    # failure, leaving node.operations exactly as found.
 
-    def assertBlockedBeyond(self, node, angle, against, axis=(0, 0, 1),
-                            volume_epsilon=0.0):
-        """Torque-fit engagement contract: perturbed by `angle`
-        degrees about `axis`, in BOTH directions (+angle and -angle,
-        checked separately), `node` must intersect `against` in every
-        direction -- the fit must genuinely lock beyond its play.
+    def assertBlockedBeyond(self, node, angle, against, axis=None,
+                            volume_epsilon=0.0, along=None,
+                            directions='both'):
+        """Torque-fit / linear-stop engagement contract: perturbed by
+        `angle` degrees about `axis` (rotation mode, the default,
+        axis=(0, 0, 1) when omitted) or by `angle` mm along the unit
+        vector `along` (translation mode -- give one selector or the
+        other, never both), `node` must intersect `against` -- the
+        fit must genuinely lock beyond its play. See the class
+        comment above for the local-frame semantics shared by both
+        modes.
+
+        `directions` (default 'both') checks +angle and -angle
+        separately, and BOTH must foul. 'forward' checks only
+        +angle -- for contracts that are deliberately one-sided (e.g.
+        a sleeve blocked sliding inward by a lip, but free to slide
+        outward). Any other value is a loud error.
 
         `volume_epsilon` (mm^3, default 0.0 keeps exact `is_empty`
-        strictness): when > 0, a rotation only counts as blocked if
-        the fouling volume exceeds `volume_epsilon` -- so a flush
+        strictness): when > 0, a perturbation only counts as blocked
+        if the fouling volume exceeds `volume_epsilon` -- so a flush
         contact that produces boolean noise (see
         assertNoPairwiseIntersections) never masquerades as a genuine
         lock in either direction.
         """
-        for signed_angle in (angle, -angle):
+        axis, along, unit_along = self._resolve_perturbation_axis(axis, along)
+        for signed_value in self._signed_perturbations(angle, directions):
             self._assert_perturbation(
-                node, signed_angle, against, axis, expect_intersect=True,
-                volume_epsilon=volume_epsilon)
+                node, signed_value, against, axis, along, unit_along,
+                expect_intersect=True, volume_epsilon=volume_epsilon)
 
-    def assertFreeWithin(self, node, angle, against, axis=(0, 0, 1),
-                         volume_epsilon=0.0):
+    def assertFreeWithin(self, node, angle, against, axis=None,
+                         volume_epsilon=0.0, along=None, directions='both'):
         """Anti-gaming twin of assertBlockedBeyond: perturbed by
-        `angle` degrees (or every angle in a list/tuple, e.g. a
-        journal/freewheel sweep), in BOTH directions, `node` must NOT
-        intersect `against` -- so a blocking test elsewhere cannot be
-        gamed by an oversized bore/pocket that never truly touches.
+        `angle` degrees about `axis` (rotation mode, the default) or
+        by `angle` mm along the unit vector `along` (translation
+        mode -- give one selector or the other, never both), `node`
+        must NOT intersect `against` -- so a blocking test elsewhere
+        cannot be gamed by an oversized bore/pocket/sleeve that never
+        truly touches. `angle` accepts a list/tuple in either mode
+        (e.g. a journal/freewheel sweep of angles, or a set of
+        clearance distances), each checked in turn. See the class
+        comment above for the local-frame semantics shared by both
+        modes.
+
+        `directions` (default 'both') checks +angle and -angle
+        separately, and NEITHER may foul. 'forward' checks only
+        +angle -- for contracts that are deliberately one-sided. Any
+        other value is a loud error.
 
         `volume_epsilon` (mm^3, default 0.0 keeps exact `is_empty`
-        strictness): when > 0, a rotation only counts as fouling if
-        its volume exceeds `volume_epsilon`, so flush contact within
-        the play window (boolean noise, not real engagement) does not
-        wrongly fail this assertion.
+        strictness): when > 0, a perturbation only counts as fouling
+        if its volume exceeds `volume_epsilon`, so flush contact
+        within the play window (boolean noise, not real engagement)
+        does not wrongly fail this assertion.
         """
+        axis, along, unit_along = self._resolve_perturbation_axis(axis, along)
         angles = angle if isinstance(angle, (list, tuple)) else [angle]
         for one_angle in angles:
-            for signed_angle in (one_angle, -one_angle):
+            for signed_value in self._signed_perturbations(
+                    one_angle, directions):
                 self._assert_perturbation(
-                    node, signed_angle, against, axis, expect_intersect=False,
-                    volume_epsilon=volume_epsilon)
+                    node, signed_value, against, axis, along, unit_along,
+                    expect_intersect=False, volume_epsilon=volume_epsilon)
 
-    def _assert_perturbation(self, node, signed_angle, against, axis,
-                             expect_intersect, volume_epsilon=0.0):
-        operation = Rotation(signed_angle, list(axis), node)
+    def _resolve_perturbation_axis(self, axis, along):
+        """Resolves the axis/along selector into one of the two
+        mutually exclusive perturbation modes. Returns (axis, along,
+        unit_along): rotation mode has axis set and along/unit_along
+        None; translation mode has along/unit_along set (the
+        original vector, and its normalized unit form used for the
+        actual displacement) and axis None."""
+        if axis is not None and along is not None:
+            raise ValueError(
+                "assertBlockedBeyond/assertFreeWithin: pass axis "
+                "(rotation) or along (translation), not both")
+        if along is not None:
+            vector = list(along)
+            magnitude = math.sqrt(sum(component * component
+                                      for component in vector))
+            if magnitude == 0:
+                raise ValueError(
+                    "assertBlockedBeyond/assertFreeWithin: along must "
+                    "be a nonzero vector")
+            unit_along = [component / magnitude for component in vector]
+            return None, vector, unit_along
+        return (axis if axis is not None else (0, 0, 1)), None, None
+
+    def _signed_perturbations(self, value, directions):
+        """The signed values to check for one magnitude (angle or
+        distance), per `directions`."""
+        if directions == 'both':
+            return (value, -value)
+        if directions == 'forward':
+            return (value,)
+        raise ValueError(
+            "assertBlockedBeyond/assertFreeWithin: directions must be "
+            f"'both' or 'forward', got {directions!r}")
+
+    def _assert_perturbation(self, node, signed_value, against, axis, along,
+                             unit_along, expect_intersect,
+                             volume_epsilon=0.0):
+        if unit_along is not None:
+            operation = Translation(
+                [signed_value * component for component in unit_along],
+                node)
+            label = f"displaced {signed_value}mm along {along}"
+        else:
+            operation = Rotation(signed_value, list(axis), node)
+            label = f"at {signed_value}deg"
         index = next(
             (i for i, op in enumerate(node.operations)
              if isinstance(op, Translation)),
@@ -163,15 +246,15 @@ class TestCase(BaseTestCase):
             if expect_intersect and not is_fouling:
                 if intersection.is_empty:
                     raise AssertionError(
-                        f"{node.name} should be blocked at {signed_angle}deg "
+                        f"{node.name} should be blocked {label} "
                         f"against {against.name} (no intersection)")
                 raise AssertionError(
-                    f"{node.name} should be blocked at {signed_angle}deg "
+                    f"{node.name} should be blocked {label} "
                     f"against {against.name} (intersection volume {volume} "
                     f"does not exceed epsilon {volume_epsilon})")
             if not expect_intersect and is_fouling:
                 message = (
-                    f"{node.name} should be free at {signed_angle}deg "
+                    f"{node.name} should be free {label} "
                     f"against {against.name} "
                     f"(intersection volume {volume})")
                 if volume_epsilon > 0:

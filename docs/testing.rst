@@ -291,24 +291,54 @@ provides mesh assertions for fits and clearances:
 Perturbation assertions
 -----------------------
 
-Two assertions verify a fit by perturbing a part around its own
-position and checking the consequence, in both directions:
+Two assertions verify a fit by perturbing a part and checking the
+consequence. Each comes in two mutually exclusive modes, selected by
+which of `axis` (rotation, the default) or `along` (translation) is
+given — passing both is an error:
 
-* `assertBlockedBeyond(node, angle, against, axis=(0, 0, 1))` — rotated
-  by ``+angle`` and ``-angle`` degrees about `axis`, `node` must
-  intersect `against`: the fit genuinely locks beyond its play. Use it
-  to prove a key, a dog clutch or a hex socket actually engages.
-* `assertFreeWithin(node, angle, against, axis=(0, 0, 1))` — the
-  anti-gaming twin: rotated by ``±angle`` (or every angle in a list),
-  `node` must **not** touch `against`. A blocking test alone could be
-  satisfied by an undersized bore that always rubs; asserting free play
-  within a smaller angle closes that loophole.
+* `assertBlockedBeyond(node, angle, against, axis=(0, 0, 1), volume_epsilon=0.0, along=None, directions='both')`
+  — rotated by ``+angle``/``-angle`` degrees about `axis`, or
+  displaced by ``+angle``/``-angle`` mm along the unit vector `along`,
+  `node` must intersect `against`: the fit genuinely locks beyond its
+  play. Use it to prove a key, a dog clutch or a hex socket actually
+  engages — or, in translation mode, that a pin is genuinely captured
+  in its bore.
+* `assertFreeWithin(node, angle, against, axis=(0, 0, 1), volume_epsilon=0.0, along=None, directions='both')`
+  — the anti-gaming twin: perturbed the same way (`angle` accepts a
+  list in either mode, e.g. a journal sweep or a set of clearance
+  distances), `node` must **not** touch `against`. A blocking test
+  alone could be satisfied by an undersized bore that always rubs;
+  asserting free play within a smaller angle/distance closes that
+  loophole.
+
+Both perturb `node` about/along its own **local** frame, not the
+world origin or world axes: the perturbation is inserted right before
+node's own first placement `Translation`, so a rotation turns node
+about its own axis, and a translation is carried by any placement
+rotation that runs after it (node's own, or an ancestor assembly's) —
+`along` is a direction in node's frame as it existed at that point in
+its own placement, not a fixed world vector.
+
+`directions='both'` (the default) checks both signed directions and
+requires both to agree; `directions='forward'` checks only
+``+angle``, for contracts that are deliberately one-sided (e.g. a
+sleeve blocked sliding inward by a lip but free to slide outward).
+
+`volume_epsilon` (mm^3, default ``0.0``) guards against boolean-noise
+slivers from a legitimate flush contact (see
+`assertNoPairwiseIntersections` below): above zero, a perturbation
+only counts as fouling once its intersection volume exceeds the
+epsilon.
 
 .. code-block:: python
 
     def test_dog_clutch_engages(self):
         self.assertFreeWithin(self.sleeve, 2, self.gear)
         self.assertBlockedBeyond(self.sleeve, 5, self.gear)
+
+    def test_pin_captured_in_bore(self):
+        self.assertFreeWithin(self.pin, 0.1, self.bore, along=(1, 0, 0))
+        self.assertBlockedBeyond(self.pin, 0.5, self.bore, along=(1, 0, 0))
 
 Adjacency sweep
 ---------------
