@@ -42,7 +42,7 @@ class BuildPyWithFrontend(build_py):
 setup(
     author="Luis Fagundes",
     author_email='lhfagundes@gmail.com',
-    version='0.3.0',
+    version='0.4.0',
     python_requires='>=3.10',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',

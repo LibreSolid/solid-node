@@ -6,7 +6,7 @@
 
 __author__ = """Luis Fagundes"""
 __email__ = 'lhfagundes@gmail.com'
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 from .base import StlRenderStart
 from .assembly import AssemblyNode

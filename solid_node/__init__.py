@@ -2,4 +2,4 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
