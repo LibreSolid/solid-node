@@ -43,6 +43,22 @@ const Scad2JS = Object.assign({}, Math, {
 
   mod: (a: number, b: number) => a % b,
 
+  // OpenSCAD's trig builtins are degree-in/degree-out, unlike JS's
+  // Math.* (radians). Plugging Math straight into this context (as
+  // the Object.assign above does) silently evaluated $t expressions
+  // wrong the instant a build put a genuinely non-linear function
+  // (e.g. asin()) of $t into a rotation/translation expression --
+  // solid_node/math.py generates exactly these degree-semantics
+  // calls (see solid_node/math.py), so the frontend evaluator must
+  // match it function-for-function.
+  sin: (degrees: number) => Math.sin(degrees * Math.PI / 180),
+  cos: (degrees: number) => Math.cos(degrees * Math.PI / 180),
+  tan: (degrees: number) => Math.tan(degrees * Math.PI / 180),
+  asin: (x: number) => Math.asin(x) * 180 / Math.PI,
+  acos: (x: number) => Math.acos(x) * 180 / Math.PI,
+  atan: (x: number) => Math.atan(x) * 180 / Math.PI,
+  atan2: (y: number, x: number) => Math.atan2(y, x) * 180 / Math.PI,
+
   // Functions below are not implemented
   //
   // concat: (arr1: any[], arr2: any[]) => [...arr1, ...arr2],

@@ -237,6 +237,30 @@ class ChildNamingMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class NonLinearSymbolicMathMetaTest(TestCase):
+    """Bug: AssemblyNode.time is numeric under set_keyframe() (tests)
+    but symbolic ($t, a solid2 OpenSCADConstant) in the viewer/build
+    path. A linear expression in self.time survives symbolically
+    through solid2's own operator overloads, but the first genuinely
+    non-linear mechanism -- math.asin(...) of a time-derived value --
+    raised `TypeError: must be real number, not OpenSCADConstant`
+    during assembly, killing `solid develop` (skill-repo
+    improvements.md #19). solid_node.math provides dual-mode,
+    degree-semantics trig: numeric under set_keyframe, symbolic
+    (building the equivalent OpenSCAD expression) otherwise. This
+    fixture is a slider-crank conrod -- swing = asin((r/l)*sin(theta))
+    -- whose node test sweeps keyframes and checks the rod tip's
+    world position against the closed-form angle at every instant."""
+
+    def test_rod_tip_tracks_the_conrod_angle_at_every_instant(self):
+        run = solid_test('conrod')
+        self.assertEqual(
+            run.results,
+            {'test_rod_tip_follows_the_conrod_angle': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+
 class RedProjectMetaTest(TestCase):
     """A project with a genuinely violated contract must come out red,
     and red for the right reason: the mesh assertion itself — not an
