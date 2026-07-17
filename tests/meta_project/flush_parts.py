@@ -52,16 +52,15 @@ def _shoulder():
 
 class FlushPeg(Solid2Node):
     """The peg_slot square torque-fit peg, plus a round flush
-    shoulder below it."""
+    shoulder below it.
 
-    def __init__(self):
-        # `part='peg'` is a no-op geometrically, but gives this class
-        # a non-empty uniq_id distinct from FlushSlot's: two different
-        # no-arg node classes defined in the SAME source file
-        # otherwise share the bare-script-name basename (uniq_id is
-        # derived only from constructor args, not from the class),
-        # and would silently collide on one cached STL.
-        super().__init__(part='peg')
+    No constructor args, and defined in the same file as FlushSlot
+    below (also no-arg) -- before skill-repo improvements.md #22 these
+    two distinct classes would have silently collided on one cached
+    STL (uniq_id was derived only from args/kwargs, never the class).
+    #22 folds the class's __qualname__ into the artifact key, so no
+    workaround kwarg is needed here any more; the flush fixtures
+    staying green is itself part of #22's evidence."""
 
     def render(self):
         peg = cube(PEG_SIZE, center=True)
@@ -74,9 +73,6 @@ class FlushSlot(Solid2Node):
     """The peg_slot pocket block, plus the shoulder's mating
     counterpart -- coaxial with FlushPeg's shoulder and touching it
     exactly at rest."""
-
-    def __init__(self):
-        super().__init__(part='slot')
 
     def render(self):
         block = cube([SLOT_OUTER, SLOT_OUTER, SLOT_HEIGHT], center=True)
