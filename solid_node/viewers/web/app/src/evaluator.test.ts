@@ -76,6 +76,45 @@ describe('evaluate', () => {
     }
   });
 
+  it('evaluates sqrt and the other plain Math builtins', () => {
+    // Math's own properties are non-enumerable, so Object.assign({},
+    // Math, ...) copies none of them: sqrt() was never in the
+    // evaluator context and the first $t expression to use it (a
+    // slider-crank piston height) crashed the animation loop.
+    expect(evaluate([['r', 'sqrt(9)', [0, 0, 1]]], 0)).toEqual([
+      ['r', 3, [0, 0, 1]],
+    ]);
+    expect(evaluate([['r', 'abs(-2)', [0, 0, 1]]], 0)[0][1]).toBe(2);
+    expect(evaluate([['r', 'pow(5, 2)', [0, 0, 1]]], 0)[0][1]).toBe(25);
+  });
+
+  it('evaluates ^ as exponentiation, per OpenSCAD, not as JS XOR', () => {
+    expect(evaluate([['r', '(5 ^ 2)', [0, 0, 1]]], 0)[0][1]).toBe(25);
+    expect(evaluate([['r', '(2 ^ 0.5)', [0, 0, 1]]], 0)[0][1]).toBeCloseTo(
+      Math.SQRT2,
+    );
+  });
+
+  it('evaluates a slider-crank piston-height $t expression to its kinematic anchors', () => {
+    // The literal expression is what solid_node.math's symbolic mode
+    // emits for r*cos(720t) + sqrt(l^2 - (r*sin(720t))^2) with r=15,
+    // l=60 (the ^ comes from solid2's __pow__; OpenSCAD ^ is power).
+    // Anchors: TDC 75 at t=0, BDC 45 at t=0.25, sqrt(3375) at
+    // t=0.125 where the crank is at 90 degrees.
+    const expression =
+      '((15.0 * cos((720.0 * $t))) + sqrt((3600.0 - ((15.0 * sin((720.0 * $t))) ^ 2))))';
+    const casesTValue: [number, number][] = [
+      [0, 75],
+      [0.125, 58.09475019311126],
+      [0.25, 45],
+      [0.5, 75],
+    ];
+    for (const [t, expected] of casesTValue) {
+      const [[, actual]] = evaluate([['t', [expression, '0', '0']]], t);
+      expect((actual as number[])[0]).toBeCloseTo(expected, 6);
+    }
+  });
+
   it('passes the rotation axis through unevaluated, alongside a translation', () => {
     // The axis vector is not a string expression like the angle/translation
     // components are: it must come through byte-for-byte, untouched by

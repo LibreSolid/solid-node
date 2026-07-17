@@ -27,15 +27,40 @@ export const evaluate = (operations: RawOperation[], time: number): Operation[] 
 
 const evaluateExpression = (expression: string, time: number): number => {
 
-  const tokens = tokenize(expression);
+  const tokens = powify(tokenize(expression));
 
   const context = Object.assign({ '$t': time }, Scad2JS);
 
   return _evaluate(tokens, context);
 }
 
+// In OpenSCAD, ^ is exponentiation; jokenizer evaluates it as JS
+// bitwise XOR. Rewrite every ^ Binary node into a pow() Call before
+// evaluation (pow is in Scad2JS via the Math copy below).
+const powify = (node: any): any => {
+  if (node === null || typeof node !== 'object') return node;
+  if (Array.isArray(node)) return node.map(powify);
+  const out: any = {};
+  for (const key of Object.keys(node)) out[key] = powify(node[key]);
+  if (out.type === 'Binary' && out.operator === '^') {
+    return {
+      type: 'Call',
+      callee: { type: 'Variable', name: 'pow' },
+      args: [out.left, out.right],
+    };
+  }
+  return out;
+}
 
-const Scad2JS = Object.assign({}, Math, {
+// Math's own properties are non-enumerable, so Object.assign (and
+// spread) copy NONE of them -- enumerate explicitly, or sqrt() et al.
+// are undefined in the evaluation context.
+const JsMath: { [name: string]: any } = {};
+for (const name of Object.getOwnPropertyNames(Math)) {
+  JsMath[name] = (Math as any)[name];
+}
+
+const Scad2JS = Object.assign(JsMath, {
 
   // ln in OpenSCAD is the natural logarithm, equivalent to log in JS
   ln: Math.log,
@@ -45,7 +70,7 @@ const Scad2JS = Object.assign({}, Math, {
 
   // OpenSCAD's trig builtins are degree-in/degree-out, unlike JS's
   // Math.* (radians). Plugging Math straight into this context (as
-  // the Object.assign above does) silently evaluated $t expressions
+  // the JsMath copy above does) silently evaluated $t expressions
   // wrong the instant a build put a genuinely non-linear function
   // (e.g. asin()) of $t into a rotation/translation expression --
   // solid_node/math.py generates exactly these degree-semantics
