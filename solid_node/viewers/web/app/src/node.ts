@@ -32,6 +32,34 @@ interface NodeData {
 
 const stlLoader = new STLLoader();
 
+// Composes a node's flattened operation chain into a single absolute
+// world matrix. `operations` is indexed level 0 first (the node's own
+// ops), then each ancestor's ops at deeper levels — exactly the shape
+// Node.operations holds after setOperations cascades down the tree.
+// Every rotation is about the world axis through the origin; every
+// translation is a world translation; later operations are outermost:
+// world = M_opk · … · M_op1 (each op premultiplied, in encounter order).
+export const composeOperations = (operations: Operation[][]): THREE.Matrix4 => {
+  const matrix = new THREE.Matrix4();
+  const opMatrix = new THREE.Matrix4();
+
+  for (const level of operations) {
+    for (const op of level) {
+      if (op[0] === "r") {
+        const ax = op[2];
+        const axis = new THREE.Vector3(ax[0], ax[1], ax[2]).normalize();
+        opMatrix.makeRotationAxis(axis, op[1] * Math.PI / 180);
+      } else {
+        const v = op[1];
+        opMatrix.makeTranslation(v[0], v[1], v[2]);
+      }
+      matrix.premultiply(opMatrix);
+    }
+  }
+
+  return matrix;
+}
+
 export abstract class Node {
   // A string matching the subclass name
   type: string;
@@ -87,7 +115,6 @@ export abstract class Node {
       child.setContext(context);
     }
 
-    this.unapplyOperations();
     this.setOperations(this.rawOperations[0]);
     this.applyOperations();
   }
@@ -136,53 +163,13 @@ export abstract class Node {
     if (!this.mesh) {
       return;  // not loaded yet
     }
-    for (const operations of this.operations) {
-      for (const op of operations) {
-        if (op[0] === "r") {
-          const quaternion = new THREE.Quaternion();
-          const ax = op[2];
-          const axis = new THREE.Vector3(ax[0], ax[1], ax[2]);
-          quaternion.setFromAxisAngle(axis, op[1] * Math.PI / 180)
-          this.mesh.applyQuaternion(quaternion);
-        }
-        if (op[0] === "t") {
-          const v = op[1];
-          this.mesh.position.add(new THREE.Vector3(v[0], v[1], v[2]));
-        }
-      }
-    }
-  }
-
-  unapplyOperations() {
-    if (!this.model) {
-      for (const child of this.children) {
-        child.unapplyOperations();
-      }
-    }
-    if (!this.mesh) {
-      return;  // not loaded yet
-    }
-    // Iterate through the operations in reverse order,
-    // then reverse all rotations and translations
-    for (let j = this.operations.length - 1; j >= 0; j--) {
-      const operations = this.operations[j];
-      for (let i = operations.length - 1; i >= 0; i--) {
-        const op = operations[i];
-
-        if (op[0] === "r" && op[2]) {
-          const quaternion = new THREE.Quaternion();
-          const ax = op[2];
-          const axis = new THREE.Vector3(ax[0], ax[1], ax[2]);
-
-          quaternion.setFromAxisAngle(axis, -(op[1] as number) * Math.PI / 180);
-          this.mesh.applyQuaternion(quaternion);
-        }
-        if (op[0] === "t") {
-          const v = op[1] as number[];
-          this.mesh.position.sub(new THREE.Vector3(v[0], v[1], v[2]));
-        }
-      }
-    }
+    // Absolute composition: recomputed from scratch from this.operations
+    // every time, so redundant calls (setContext recurses into every
+    // node, which then also re-triggers its subtree) are idempotent —
+    // no undo/reapply bookkeeping needed.
+    this.mesh.matrixAutoUpdate = false;
+    this.mesh.matrix.copy(composeOperations(this.operations));
+    this.mesh.matrixWorldNeedsUpdate = true;
   }
 }
 
