@@ -7,6 +7,11 @@ include README.rst
 recursive-include solid_node/viewers/web/app/ *
 prune solid_node/viewers/web/app/node_modules
 
+# The widget dist/ bundle is built by npm in CI before packaging,
+# it is not committed to git
+recursive-include solid_node/viewers/widget/ *
+prune solid_node/viewers/widget/node_modules
+
 recursive-include solid_node/manager/templates *
 
 recursive-include tests *

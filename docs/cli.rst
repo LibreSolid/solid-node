@@ -129,6 +129,38 @@ for AI agents to visually check their work.
     Comma-separated view helpers: ``axes``, ``crosshairs``, ``edges``,
     ``scales``, ``wireframe``.
 
+solid export
+============
+
+::
+
+    solid export <path> [options]
+
+Builds the node's STL meshes and writes a static, self-contained
+directory that renders the model — animations included — in any
+browser, with no server-side code. See :doc:`embedding` for what the
+output contains and how to use it.
+
+.. code-block:: bash
+
+    $ solid export root -o export
+    $ python -m http.server -d export   # view at http://localhost:8000
+
+``-o``, ``--output``
+    Output directory. Default: ``export``.
+
+``--fps``
+    Animation frames per second in the manifest. Default: 30.
+
+``--frames``
+    Frames per animation cycle. Together with ``--fps`` this sets the
+    cycle duration (default: 360 frames at 30 fps = 12 seconds).
+
+``--no-widget``
+    Export only ``manifest.json`` and ``models/``, without the viewer
+    page and JS bundle. Useful when the viewer is supplied elsewhere —
+    for example by the Sphinx extension at documentation build time.
+
 Environment variables
 =====================
 

@@ -9,6 +9,7 @@ Solid Node documentation
    quickstart
    using-solid-node
    examples
+   embedding
    cli
    api-reference
    status-and-roadmap

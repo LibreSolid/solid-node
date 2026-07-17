@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!--
+  Solid Node - A framework for mechanical CAD projects
+  Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
+  SPDX-License-Identifier: Apache-2.0
+
+  Standalone page for a `solid export` directory. Serve the directory
+  with any static file server; embedding in another page is done with
+  an <iframe> pointing here.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>solid-node model</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+    #solid-widget { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="solid-widget" data-solid-widget="manifest.json"></div>
+  <script src="solid-widget.js"></script>
+</body>
+</html>

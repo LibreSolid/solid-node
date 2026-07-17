@@ -1,0 +1,47 @@
+{
+  "format": "solid-node-export",
+  "version": 1,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "root": {
+    "name": "SimpleClock",
+    "type": "AssemblyNode",
+    "color": null,
+    "operations": [],
+    "children": [
+      {
+        "name": "ClockBase",
+        "type": "LeafNode",
+        "color": null,
+        "operations": [],
+        "model": "models/simple_clock_pin/clock_base.stl"
+      },
+      {
+        "name": "Pointer",
+        "type": "LeafNode",
+        "color": null,
+        "operations": [
+          [
+            "r",
+            "(360 * $t)",
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        ],
+        "model": "models/simple_clock_pin/pointer.stl"
+      },
+      {
+        "name": "Pin",
+        "type": "LeafNode",
+        "color": null,
+        "operations": [],
+        "model": "models/simple_clock_pin/pin.stl"
+      }
+    ]
+  }
+}
