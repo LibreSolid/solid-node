@@ -50,6 +50,19 @@ class Rotation:
         """Returns a scad object with a rotation applied"""
         return scad_rotate(self.angle, self.axis)(scad_object)
 
+    def matrix(self):
+        """The 4x4 world rotation matrix for this operation (skill-repo
+        docs/performance-improvement.md fix 1), resolved through the
+        node's as_number() AT ACCESS TIME -- never cached, since angle
+        can be a solid2 animated expression that changes with the
+        keyframe. Used by AbstractBaseNode.mesh to compose a whole
+        operation chain into a single world matrix instead of applying
+        each operation as a separate mesh pass."""
+        return trimesh.transformations.rotation_matrix(
+            math.radians(_as_number(self.node, self.angle)),
+            self.axis,
+        )
+
     def mesh(self, mesh):
         """Applies a rotation to a mesh"""
         matrix = trimesh.transformations.rotation_matrix(
@@ -83,6 +96,14 @@ class Translation:
     def scad(self, scad_object):
         """Returns a scad object with a translation applied"""
         return scad_translate(self.translation)(scad_object)
+
+    def matrix(self):
+        """The 4x4 world translation matrix for this operation
+        (skill-repo docs/performance-improvement.md fix 1), resolved
+        through the node's as_number() AT ACCESS TIME -- never cached,
+        for the same reason Rotation.matrix() isn't."""
+        translation_n = [ _as_number(self.node, n) for n in self.translation ]
+        return trimesh.transformations.translation_matrix(translation_n)
 
     def mesh(self, mesh):
         """Applies a translation to a mesh"""
