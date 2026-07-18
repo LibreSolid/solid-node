@@ -4,11 +4,146 @@
 
 import itertools
 import math
+import os
 import re
+import numpy as np
 import trimesh
+from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
+from solid_node.node.base import _cached_base_mesh, _compose_world_matrix
 from solid_node.node.operations import Rotation, Translation
+
+
+# Module-level cache of one manifold3d.Manifold per (stl_file, mtime)
+# -- skill-repo docs/performance-improvement.md fix 3. Every
+# trimesh.boolean.intersection call re-checks watertightness of BOTH
+# meshes and re-converts both to Manifold, even when the caller only
+# needs is_empty()/volume(); this cache pays that conversion (and the
+# watertightness check) once per STL for the whole suite instead of
+# once per boolean. Keyed the same way as _cached_base_mesh (fix 1),
+# with the same stale-entry eviction on rebuild.
+_manifold_cache = {}
+
+
+def _cached_manifold(stl_file):
+    """(Manifold, local_bounds) for `stl_file`, built once per
+    (stl_file, mtime) from the same trimesh mesh fix 1's
+    _cached_base_mesh loads (no extra disk read). Watertightness is
+    validated ONCE here, at cache fill -- not on every boolean -- and
+    raises a clear, STL-naming error if it fails, instead of letting
+    an obscure failure surface deep inside the boolean engine."""
+    mtime = os.path.getmtime(stl_file)
+    key = (stl_file, mtime)
+    cached = _manifold_cache.get(key)
+    if cached is None:
+        for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
+            del _manifold_cache[stale_key]
+        mesh = _cached_base_mesh(stl_file)
+        if not mesh.is_volume:
+            raise ValueError(
+                f"{stl_file} is not watertight -- cannot build a Manifold "
+                "cache for spatial assertions")
+        manifold = Manifold(mesh=Mesh(
+            vert_properties=np.asarray(mesh.vertices, np.float32),
+            tri_verts=np.asarray(mesh.faces, np.uint32),
+        ))
+        cached = (manifold, mesh.bounds.copy())
+        _manifold_cache[key] = cached
+    return cached
+
+
+def _fast_geometry(node):
+    """(Manifold, local_bounds, world_matrix) for `node` if it exposes
+    the attributes the fast path needs (docs/performance-improvement.md
+    fixes 2+3) -- an .stl_file readable through the Manifold cache, so
+    its cached Manifold and local .bounds come for free. Returns None
+    for a node that only implements `.mesh` (e.g. the FakeNode test
+    doubles in tests/test_assertions.py), which then falls back to a
+    plain boolean over `.mesh` with no caching or culling."""
+    stl_file = getattr(node, 'stl_file', None)
+    if stl_file is None:
+        return None
+    manifold, bounds = _cached_manifold(stl_file)
+    return manifold, bounds, _compose_world_matrix(node)
+
+
+def _world_bounds(local_bounds, matrix):
+    """The conservative world AABB of a part: the axis-aligned box of
+    its 8 local-bounds corners after the composed world matrix. A
+    superset of the part's true world footprint -- exact for an
+    axis-aligned, unrotated part, larger otherwise -- but cheap: 8
+    points transformed instead of a full mesh."""
+    lo, hi = local_bounds
+    corners = np.array([[x, y, z, 1.0]
+                        for x in (lo[0], hi[0])
+                        for y in (lo[1], hi[1])
+                        for z in (lo[2], hi[2])])
+    world = (matrix @ corners.T).T[:, :3]
+    return world.min(axis=0), world.max(axis=0)
+
+
+def _boxes_disjoint(box1, box2):
+    """True if two world AABBs (each a (min, max) pair) fail to
+    overlap on some axis -- disjoint boxes make the exact intersection
+    of the parts they bound exactly empty, whatever their real shapes
+    are."""
+    return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
+
+
+def _intersection_stats(node1, node2):
+    """(is_empty, volume) for node1 ∩ node2 -- the shared helper the
+    intersection-based assertions below route through. When BOTH
+    nodes expose the fast-path attributes (see _fast_geometry):
+
+    - An AABB broad-phase runs first (fix 2): if the parts' world
+      boxes are disjoint, the exact intersection is provably empty
+      and the boolean is skipped entirely (an exact-negative
+      shortcut -- it never changes a verdict, only skips work).
+    - Otherwise the cached Manifolds (fix 3) are placed with a lazy
+      `.transform()` (cheap -- no conversion, no watertight re-check)
+      and intersected directly (`a ^ b`); is_empty()/volume() are read
+      off the result without ever converting it back to a trimesh.
+
+    is_empty/volume mirror trimesh's own Trimesh.is_empty/.volume
+    exactly: `is_empty` is Manifold's own is_empty() (empirically the
+    same signal trimesh's `.is_empty` gave for the SAME geometry --
+    verified directly against the real flush-contact fixtures in
+    tests/meta_project/flush_strict.py and flush_keyed_strict.py,
+    where a legitimate flush abutment reproducibly comes back
+    non-empty with EXACTLY 0.0mm^3 volume; improvements.md #21's
+    volume_epsilon contract depends on that non-empty verdict
+    surviving at the strict volume_epsilon=0.0 default, so `volume`
+    being 0 must NOT be folded into `is_empty` here -- only a
+    volume_epsilon > 0 comparison (done by the callers below) may
+    treat a 0-volume, non-empty result as free of real interference).
+    `volume` is read only when the result is non-empty, exactly the
+    `0.0 if intersection.is_empty else intersection.volume` shape the
+    trimesh path already had.
+
+    Falls back to the original trimesh.boolean.intersection over
+    `.mesh` -- unchanged, no caching, no culling -- when either node
+    lacks the fast-path attributes at all (e.g. the FakeNode test
+    doubles in tests/test_assertions.py).
+    """
+    fast1 = _fast_geometry(node1)
+    fast2 = _fast_geometry(node2)
+    if fast1 is not None and fast2 is not None:
+        manifold1, bounds1, matrix1 = fast1
+        manifold2, bounds2, matrix2 = fast2
+        box1 = _world_bounds(bounds1, matrix1)
+        box2 = _world_bounds(bounds2, matrix2)
+        if _boxes_disjoint(box1, box2):
+            return True, 0.0
+        placed1 = manifold1.transform(matrix1[:3, :4])
+        placed2 = manifold2.transform(matrix2[:3, :4])
+        result = placed1 ^ placed2
+        is_empty = result.is_empty()
+        volume = 0.0 if is_empty else result.volume()
+        return is_empty, volume
+    intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
+    volume = 0.0 if intersection.is_empty else intersection.volume
+    return intersection.is_empty, volume
 
 
 class TestCase(BaseTestCase):
@@ -33,17 +168,17 @@ class TestCase(BaseTestCase):
 
     def assertNotIntersecting(self, node1, node2):
         """Test that node1 and node 2 do not intersect"""
-        intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
-        if not intersection.is_empty:
+        is_empty, volume = _intersection_stats(node1, node2)
+        if not is_empty:
             raise AssertionError(
                 f"{node1.name} should not intersect {node2.name} "
-                f"(intersection volume {intersection.volume})"
+                f"(intersection volume {volume})"
             )
 
     def assertIntersecting(self, node1, node2):
         """Make sure node1 and node1 have some intersection"""
-        intersection = node1.mesh.intersection(node2.mesh)
-        if intersection.is_empty:
+        is_empty, _ = _intersection_stats(node1, node2)
+        if is_empty:
             raise AssertionError(
                 f"{node1.name} should intersect {node2.name}")
 
@@ -237,14 +372,12 @@ class TestCase(BaseTestCase):
         )
         node.operations.insert(index, operation)
         try:
-            intersection = trimesh.boolean.intersection(
-                [node.mesh, against.mesh])
-            volume = 0.0 if intersection.is_empty else intersection.volume
+            is_empty, volume = _intersection_stats(node, against)
             is_fouling = (
-                not intersection.is_empty if volume_epsilon <= 0
+                not is_empty if volume_epsilon <= 0
                 else abs(volume) > volume_epsilon)
             if expect_intersect and not is_fouling:
-                if intersection.is_empty:
+                if is_empty:
                     raise AssertionError(
                         f"{node.name} should be blocked {label} "
                         f"against {against.name} (no intersection)")
@@ -287,11 +420,9 @@ class TestCase(BaseTestCase):
         """
         leaves = self._leaves(node)
         for leaf1, leaf2 in itertools.combinations(leaves, 2):
-            intersection = trimesh.boolean.intersection(
-                [leaf1.mesh, leaf2.mesh])
-            if intersection.is_empty:
+            is_empty, volume = _intersection_stats(leaf1, leaf2)
+            if is_empty:
                 continue
-            volume = intersection.volume
             if volume_epsilon > 0 and abs(volume) <= volume_epsilon:
                 continue
             message = (

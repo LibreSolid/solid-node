@@ -8,6 +8,7 @@ import time
 import inspect
 import hashlib
 import logging
+import numpy as np
 import trimesh
 from decimal import Decimal
 from subprocess import Popen
@@ -16,6 +17,63 @@ from .operations import Rotation, Translation
 
 
 logger = logging.getLogger('node.base')
+
+
+# Module-level cache of loaded base meshes (no operations applied),
+# keyed on (stl_file, mtime) -- skill-repo docs/performance-improvement.md
+# fix 1. Before this cache, AbstractBaseNode.mesh called trimesh.load()
+# on EVERY access; a single real STL can take over a second to load
+# (the v8-engine camshaft, 660k faces), and a test suite hits `.mesh`
+# thousands of times. Keying on mtime (not just path) means a rebuilt
+# STL is picked up automatically -- and any stale entry under the
+# file's OLD mtime is evicted on the next access under its new one, so
+# a rebuild loop doesn't accumulate one cached mesh per rebuild.
+_base_mesh_cache = {}
+
+
+def _cached_base_mesh(stl_file):
+    """The node's immutable base mesh (STL geometry, no operations
+    applied), loaded once per (stl_file, mtime) and shared across every
+    caller. Returns the cached object itself -- callers that need a
+    mutable copy (AbstractBaseNode.mesh) must .copy() it; callers that
+    only read it (e.g. the AABB broad-phase's local .bounds) can use it
+    directly."""
+    mtime = os.path.getmtime(stl_file)
+    key = (stl_file, mtime)
+    cached = _base_mesh_cache.get(key)
+    if cached is None:
+        for stale_key in [k for k in _base_mesh_cache if k[0] == stl_file]:
+            del _base_mesh_cache[stale_key]
+        cached = trimesh.load(stl_file)
+        _base_mesh_cache[key] = cached
+    return cached
+
+
+def _compose_world_matrix(node):
+    """Composes node's own operations (in list order) then each
+    ancestor's (walking node -> parent -> ... -- exactly the order the
+    old per-operation while-loop applied them) into ONE 4x4 world
+    matrix: the same composition solid-node's web viewer applies
+    (skill-repo improvements.md #23, commit 23bd5e1's
+    composeOperations()), so mesh and viewer placement share one
+    semantics. Later operations are outermost (each op's matrix is
+    premultiplied onto the running total).
+
+    Computed fresh on EVERY call, never cached: operation values can be
+    solid2 animated expressions that change with the keyframe
+    (Rotation/Translation.matrix() resolves them via as_number() at
+    access time), and node.operations can be mutated in place (the
+    perturbation assertions in solid_node/test.py insert an operation
+    and remove it in a finally) -- a cached matrix would silently miss
+    both.
+    """
+    matrix = np.eye(4)
+    current = node
+    while current is not None:
+        for operation in current.operations:
+            matrix = operation.matrix() @ matrix
+        current = getattr(current, '_parent', None)
+    return matrix
 
 
 # While an AssemblyNode render() runs it sits on this stack; every
@@ -450,13 +508,13 @@ class AbstractBaseNode:
     def mesh(self):
         """The node's mesh in WORLD coordinates: its own operations
         applied first, then each ancestor's, up the assembled tree —
-        the same composition the viewer renders."""
-        mesh = trimesh.load(self.stl_file)
-        node = self
-        while node is not None:
-            for operation in node.operations:
-                operation.mesh(mesh)
-            node = getattr(node, '_parent', None)
+        the same composition the viewer renders. The base geometry is
+        loaded once per (stl_file, mtime) (see _cached_base_mesh) and
+        always returned as a fresh COPY with a single composed world
+        matrix applied (see _compose_world_matrix) -- callers are free
+        to mutate the result; the cached base mesh never is."""
+        mesh = _cached_base_mesh(self.stl_file).copy()
+        mesh.apply_transform(_compose_world_matrix(self))
         return mesh
 
     def build_stls(node):
