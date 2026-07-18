@@ -1,0 +1,19 @@
+schema: spec-driven
+
+# Project context shown to AI when creating artifacts.
+context: |
+  solid-node is a Python framework for mechanical CAD projects.
+  CLI entrypoint: `solid` (solid_node/cli.py). Dev venv at .venv/.
+
+  Conventions:
+  - TDD: red-first, one commit per bug/feature increment.
+  - Agents work in isolated git worktrees under WTs/, managed by
+    scripts/dev-env (<name> setup / teardown); each worktree gets its own
+    ports via .env (SOLID_NODE_PORT, SOLID_NODE_FRONTEND_PORT).
+  - The web app's node_modules/ and build/ are symlinked from the main
+    checkout; never npm install / npm run build inside a worktree.
+  - Framework code lives in solid_node/; product/example code in examples/.
+
+rules:
+  specs:
+    - Describe observable behavior of the current system only; no aspirational requirements in main specs.
