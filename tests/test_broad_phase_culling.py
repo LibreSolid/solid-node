@@ -26,6 +26,7 @@ from unittest.mock import patch
 import trimesh
 from trimesh.creation import box
 
+import solid_node.test as test_module
 from solid_node.node.base import AbstractBaseNode
 from solid_node.node.operations import Rotation, Translation
 from solid_node.test import TestCase as AssertingTestCase
@@ -204,23 +205,30 @@ class DisjointPairFailsFastTest(BroadPhaseTestCase):
 class OverlappingBoxNonIntersectingRunsBooleanTest(BroadPhaseTestCase):
     """A pair whose world AABBs overlap but whose real geometry does
     NOT intersect: the broad-phase must not (and, being conservative,
-    cannot) cull it -- the boolean genuinely runs, and still correctly
-    reports no intersection."""
+    cannot) cull it -- the exact boolean genuinely runs, and still
+    correctly reports no intersection.
 
-    def test_boolean_runs_and_correctly_reports_no_intersection(self):
+    Fix 3 (docs/performance-improvement.md) replaces the exact-boolean
+    engine this non-culled path calls -- a cached Manifold's `^`
+    instead of trimesh.boolean.intersection -- so the proof here is
+    engine-agnostic: confirm the fixture's world boxes genuinely
+    overlap (not culled), via the same _boxes_disjoint helper the fast
+    path itself uses, then confirm the assertion still computes the
+    correct (empty) verdict.
+    """
+
+    def test_boxes_overlap_and_the_exact_boolean_still_reports_no_intersection(self):
         corner_a, corner_b = self.corner_gap_pair()
-        calls = []
-        original = trimesh.boolean.intersection
 
-        def _counting(*args, **kwargs):
-            calls.append(args)
-            return original(*args, **kwargs)
+        fast_a = test_module._fast_geometry(corner_a)
+        fast_b = test_module._fast_geometry(corner_b)
+        box_a = test_module._world_bounds(fast_a[1], fast_a[2])
+        box_b = test_module._world_bounds(fast_b[1], fast_b[2])
+        self.assertFalse(
+            test_module._boxes_disjoint(box_a, box_b),
+            'fixture bug: these boxes should overlap, not be culled')
 
-        with patch('solid_node.test.trimesh.boolean.intersection',
-                   side_effect=_counting):
-            asserter.assertNotIntersecting(corner_a, corner_b)
-
-        self.assertEqual(len(calls), 1)
+        asserter.assertNotIntersecting(corner_a, corner_b)
 
 
 class GenuineIntersectionStillDetectedTest(BroadPhaseTestCase):
