@@ -5,10 +5,73 @@
 import itertools
 import math
 import re
+import numpy as np
 import trimesh
 from unittest import TestCase as BaseTestCase
 
+from solid_node.node.base import _cached_base_mesh, _compose_world_matrix
 from solid_node.node.operations import Rotation, Translation
+
+
+def _fast_geometry(node):
+    """(local_bounds, world_matrix) for `node` if it exposes the
+    attributes the AABB broad-phase needs (docs/performance-
+    improvement.md fix 2) -- an .stl_file readable through the fix 1
+    base-mesh cache, so its local .bounds come for free. Returns None
+    for a node that only implements `.mesh` (e.g. the FakeNode test
+    doubles in tests/test_assertions.py), which then falls back to a
+    plain boolean over `.mesh` with no culling."""
+    stl_file = getattr(node, 'stl_file', None)
+    if stl_file is None:
+        return None
+    return _cached_base_mesh(stl_file).bounds, _compose_world_matrix(node)
+
+
+def _world_bounds(local_bounds, matrix):
+    """The conservative world AABB of a part: the axis-aligned box of
+    its 8 local-bounds corners after the composed world matrix. A
+    superset of the part's true world footprint -- exact for an
+    axis-aligned, unrotated part, larger otherwise -- but cheap: 8
+    points transformed instead of a full mesh."""
+    lo, hi = local_bounds
+    corners = np.array([[x, y, z, 1.0]
+                        for x in (lo[0], hi[0])
+                        for y in (lo[1], hi[1])
+                        for z in (lo[2], hi[2])])
+    world = (matrix @ corners.T).T[:, :3]
+    return world.min(axis=0), world.max(axis=0)
+
+
+def _boxes_disjoint(box1, box2):
+    """True if two world AABBs (each a (min, max) pair) fail to
+    overlap on some axis -- disjoint boxes make the exact intersection
+    of the parts they bound exactly empty, whatever their real shapes
+    are."""
+    return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
+
+
+def _intersection_stats(node1, node2):
+    """(is_empty, volume) for node1 ∩ node2 -- the shared helper the
+    intersection-based assertions below route through. When BOTH
+    nodes expose the fast-path attributes (see _fast_geometry), an
+    AABB broad-phase runs first (fix 2): if the parts' world boxes are
+    disjoint, the exact intersection is provably empty and the
+    boolean is skipped entirely (an exact-negative shortcut -- it
+    never changes a verdict, only skips work). Otherwise -- not
+    culled, or either node lacks the fast-path attributes at all, like
+    the FakeNode test doubles in tests/test_assertions.py -- falls
+    back to the original trimesh.boolean.intersection over `.mesh`,
+    unchanged."""
+    fast1 = _fast_geometry(node1)
+    fast2 = _fast_geometry(node2)
+    if fast1 is not None and fast2 is not None:
+        box1 = _world_bounds(*fast1)
+        box2 = _world_bounds(*fast2)
+        if _boxes_disjoint(box1, box2):
+            return True, 0.0
+    intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
+    volume = 0.0 if intersection.is_empty else intersection.volume
+    return intersection.is_empty, volume
 
 
 class TestCase(BaseTestCase):
@@ -33,17 +96,17 @@ class TestCase(BaseTestCase):
 
     def assertNotIntersecting(self, node1, node2):
         """Test that node1 and node 2 do not intersect"""
-        intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
-        if not intersection.is_empty:
+        is_empty, volume = _intersection_stats(node1, node2)
+        if not is_empty:
             raise AssertionError(
                 f"{node1.name} should not intersect {node2.name} "
-                f"(intersection volume {intersection.volume})"
+                f"(intersection volume {volume})"
             )
 
     def assertIntersecting(self, node1, node2):
         """Make sure node1 and node1 have some intersection"""
-        intersection = node1.mesh.intersection(node2.mesh)
-        if intersection.is_empty:
+        is_empty, _ = _intersection_stats(node1, node2)
+        if is_empty:
             raise AssertionError(
                 f"{node1.name} should intersect {node2.name}")
 
@@ -237,14 +300,12 @@ class TestCase(BaseTestCase):
         )
         node.operations.insert(index, operation)
         try:
-            intersection = trimesh.boolean.intersection(
-                [node.mesh, against.mesh])
-            volume = 0.0 if intersection.is_empty else intersection.volume
+            is_empty, volume = _intersection_stats(node, against)
             is_fouling = (
-                not intersection.is_empty if volume_epsilon <= 0
+                not is_empty if volume_epsilon <= 0
                 else abs(volume) > volume_epsilon)
             if expect_intersect and not is_fouling:
-                if intersection.is_empty:
+                if is_empty:
                     raise AssertionError(
                         f"{node.name} should be blocked {label} "
                         f"against {against.name} (no intersection)")
@@ -287,11 +348,9 @@ class TestCase(BaseTestCase):
         """
         leaves = self._leaves(node)
         for leaf1, leaf2 in itertools.combinations(leaves, 2):
-            intersection = trimesh.boolean.intersection(
-                [leaf1.mesh, leaf2.mesh])
-            if intersection.is_empty:
+            is_empty, volume = _intersection_stats(leaf1, leaf2)
+            if is_empty:
                 continue
-            volume = intersection.volume
             if volume_epsilon > 0 and abs(volume) <= volume_epsilon:
                 continue
             message = (
