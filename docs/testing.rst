@@ -18,7 +18,7 @@ Tests can be written in two styles, both run by the same
   live next to the rendering logic — used through most of this page;
 * in a separate companion file, extending `solid_node.test.TestCase` —
   shown at the end, and the style the larger
-  :doc:`gearbox example <examples>` uses.
+  :doc:`V8 engine example <examples>` uses.
 
 A pin for the clock
 ===================
@@ -267,7 +267,7 @@ node as `self.simple_clock`. The clock tests from above, in a separate
             self.assertNotIntersecting(self.node.pointer, self.node.pin)
 
 Both styles are run by the same `solid test root` command, and can be
-combined — this is how the gearbox in :doc:`Examples <examples>` keeps
+combined — this is how the V8 engine in :doc:`Examples <examples>` keeps
 one test file per part.
 
 Available assertions

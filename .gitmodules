@@ -1,0 +1,4 @@
+[submodule "docs/examples/v8-engine"]
+	path = docs/examples/v8-engine
+	url = https://github.com/LibreSolid/example-v8-engine.git
+	branch = main

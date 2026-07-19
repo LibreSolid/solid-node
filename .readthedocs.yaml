@@ -1,0 +1,28 @@
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+    nodejs: "20"
+  jobs:
+    # Build the V8 widget from source for this documentation build.  The
+    # export is intentionally ignored by Git: it is served by RTD, not kept
+    # in the source repository.
+    pre_build:
+      - npm ci --prefix solid_node/viewers/widget
+      - npm run build --prefix solid_node/viewers/widget
+      - cd docs/examples/v8-engine && solid export root -o docs/_exports/v8-engine --fps 30 --frames 360
+
+submodules:
+  include: all
+  recursive: true
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+
+sphinx:
+  configuration: docs/conf.py

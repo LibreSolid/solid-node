@@ -65,6 +65,10 @@ jobs:
         working-directory: solid_node/viewers/widget
         run: npm run typecheck
 
+      - name: Test widget
+        working-directory: solid_node/viewers/widget
+        run: npm test
+
       - name: Build widget bundle
         working-directory: solid_node/viewers/widget
         run: npm run build
