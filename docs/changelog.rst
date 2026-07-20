@@ -8,20 +8,54 @@ Changelog
 v0.4.0
 ------
 
-Unreleased
+Released on 20/Jul/2026
 
-**License**
+**Breaking changes**
 
-* Relicensed the project from AGPL-3.0 to Apache-2.0, with consent from all contributors
+* The CLI is now command-first: ``solid <command> <node>``.
+* ``solid new`` replaces the former solid-seed cloning workflow.
 
-**CLI**
+**New features**
 
-* Breaking: CLI grammar flipped to command-first, ``solid <command> <node>``
-* New ``solid new`` command to scaffold a starting project structure, replacing the solid-seed clone workflow
+* ``solid export`` generates a static viewer manifest and STL exports for a node tree.
+* Exported models can be embedded with the standalone viewer widget and the
+  ``.. solid-node::`` Sphinx directive.
+* Added symbolic degree-aware math functions in ``solid_node.math``.
+* Added ``assertBlockedBeyond`` and ``assertFreeWithin`` for kinematic-fit
+  tests, plus ``along=`` support for translational perturbations.
+* Added the ``NODE`` marker for choosing a node class from modules that define
+  more than one.
+* Node names now default from their parent attribute name.
 
-**Documentation**
+**Correctness and reliability**
 
-* Restructured the user guide into a tutorial track (modeling, assemblies, animation, fusion, testing) and topic guides (node tree and caching, development viewer, embedding), with a live render embedded after every node-defining code block
+* Animation rendering is now idempotent across nested assemblies and multiple
+  drivers.
+* Node identity and artifact keys no longer collide across node classes,
+  names, or positional/keyword parameter forms.
+* Fixed animated rotation, translation reversal, operation deserialization,
+  snapshots, testing-step offsets, and ``--failfast`` behavior.
+* ``solid test`` now exits non-zero on failures and reports invalid test paths
+  clearly.
+* ``solid develop`` remains running after a broken reload and can launch the
+  OpenSCAD viewer reliably.
+* Improved mesh-intersection checks with configurable volume tolerance.
+
+**Performance**
+
+* Cached base meshes, loaded meshes, and Manifold objects.
+* Composed transforms into one world matrix and added AABB broad-phase culling
+  before exact intersection tests.
+
+**Packaging, documentation, and maintenance**
+
+* Migrated packaging to ``pyproject.toml`` and ensured compiled frontend assets
+  ship in wheels.
+* Relicensed the project from AGPL-3.0 to Apache-2.0, with updated attribution
+  and NOTICE.
+* Added comprehensive API, CLI, tutorial, testing, embedding, and architecture
+  documentation.
+* Removed obsolete CI configuration and refreshed contributor guidance.
 
 v0.3.0
 ------

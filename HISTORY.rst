@@ -2,12 +2,21 @@
 History
 =======
 
-0.4.0 (unreleased)
+0.4.0 (2026-07-20)
 ------------------
 
 * Relicensed from AGPL-3.0 to Apache-2.0, with consent from all contributors
 * CLI grammar flip: commands come first, ``solid <command> <node>`` (breaking change)
 * New ``solid new`` command to scaffold a starting project structure
+* Added static ``solid export`` manifests, STL exports, an embeddable viewer
+  widget, and Sphinx embedding support
+* Added symbolic degree-aware math and expanded kinematic-fit assertions
+* Improved animation correctness, node identity, test-runner behavior, and
+  developer reload resilience
+* Improved mesh and assertion performance through caching, single-matrix world
+  transforms, and AABB broad-phase culling
+* Migrated packaging to ``pyproject.toml`` and expanded API and tutorial
+  documentation
 
 0.3.0 (2026-01-14)
 ------------------
