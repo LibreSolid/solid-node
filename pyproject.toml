@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solid-node"
+version = "0.4.0"
+description = "A framework to develop and manage mechanical projects in Python"
+readme = { file = "README.rst", content-type = "text/x-rst" }
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+    { name = "Luis Fagundes", email = "lhfagundes@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["solid_node"]
+dependencies = [
+    "watchdog",
+    "trimesh==4.4.*",
+    "solidpython2==2.1.*",
+    "cadquery==2.5.*",
+    "httpx==0.27.*",
+    "fastapi==0.111.*",
+    "termcolor==2.4.*",
+    "asgiref==3.8.*",
+    "uvicorn==0.30.*",
+    "numpy==2.2.*",
+    "manifold3d",
+    "rtree",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bump2version",
+    "flake8>=7",
+    "tox>=4",
+    "coverage>=7",
+    "Sphinx>=7",
+    "twine>=5",
+    "pytest>=8",
+    "black>=25.1",
+    "build>=1.2",
+    "pytest-watch",
+    "ipython",
+    "ipdb",
+]
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme",
+]
+
+[project.urls]
+Homepage = "https://github.com/lfagundes/solid_node"
+
+[project.scripts]
+solid = "solid_node.cli:manage"
+
+[tool.setuptools.packages.find]
+include = ["solid_node", "solid_node.*"]
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.cmdclass]
+sdist = "solid_node.packaging.BuildSourceDistribution"
+build_py = "solid_node.packaging.BuildPythonWithFrontend"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

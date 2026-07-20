@@ -4,6 +4,7 @@ tox>=4
 coverage>=7
 Sphinx>=7
 twine>=5
+build>=1.2
 
 pytest>=8
 black>=25.1

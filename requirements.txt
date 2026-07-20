@@ -1,4 +1,4 @@
-# Requirements synchronized from setup.py install_requires
+# Runtime dependencies, mirrored from pyproject.toml for existing tooling.
 watchdog
 trimesh==4.4.*
 solidpython2==2.1.*
