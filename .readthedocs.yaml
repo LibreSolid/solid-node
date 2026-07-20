@@ -12,7 +12,7 @@ build:
     pre_build:
       - npm ci --prefix solid_node/viewers/widget
       - npm run build --prefix solid_node/viewers/widget
-      - cd docs/examples/v8-engine && solid export root -o docs/_exports/v8-engine --fps 30 --frames 360
+      - cd docs/examples/v8-engine && PYTHONPATH="$READTHEDOCS_REPOSITORY_PATH" python -c "from solid_node.cli import manage; manage()" export root -o docs/_exports/v8-engine --fps 30 --frames 360
 
 submodules:
   include: all
@@ -21,8 +21,7 @@ submodules:
 python:
   install:
     - requirements: docs/requirements.txt
-    - method: pip
-      path: .
+    - requirements: requirements.txt
 
 sphinx:
   configuration: docs/conf.py
