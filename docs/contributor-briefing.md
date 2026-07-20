@@ -1,77 +1,66 @@
 # Contributor briefing — working on the solid-node framework
 
-Read this before changing framework code. It is the stable half of
-every framework-work assignment; the other half is the issue spec you
-were given.
+This is a compact orientation to the framework and its verification tools. For
+the current architecture, read [the architecture synthesis](architecture.md).
+For observable contracts, read the relevant record in
+[`openspec/specs/`](../openspec/specs/); for the reasoning behind an accepted
+architectural choice, read [`docs/adrs/`](adrs/README.md).
 
 ## Layout
 
-- `solid_node/node/` — the node tree: `base.py` (AbstractBaseNode:
-  operations, mesh, artifact paths, checkpoints), `internal.py`,
-  `assembly.py` (AssemblyNode: time, set_keyframe, idempotent renders),
-  `fusion.py`, `leaf.py`, `adapters/` (CadQuery/Solid2/OpenScad/JScad
-  backends), `operations.py` (Rotation/Translation: scad + mesh + serialized).
-- `solid_node/manager/` — CLI commands (`develop`, `test`, `snapshot`,
-  `new`), dispatched by `solid_node/cli.py`.
-- `solid_node/core/loader.py` — node/test loading conventions.
-- `solid_node/test.py` — the TestCase with mesh assertions.
-- `solid_node/viewers/web/` — FastAPI backend + React/three.js app
-  (`app/src/*.ts`, jest tests alongside).
-- `tests/` — pytest suite. `tests/meta_project/` + `tests/test_meta.py`
-  are the meta-test harness (below).
-- `examples/gearbox/` — a real project used as regression canary.
+- `solid_node/node/` — the node tree: `base.py` defines
+  `AbstractBaseNode`; `internal.py`, `assembly.py`, `fusion.py`, and `leaf.py`
+  define the tree roles; `adapters/` contains CAD backends; and
+  `operations.py` defines transformations.
+- `solid_node/manager/` and `solid_node/cli.py` — the `solid` command and its
+  commands, including development, testing, snapshots, scaffolding, and
+  export.
+- `solid_node/core/loader.py` — node and test loading conventions.
+- `solid_node/test.py` — mesh-oriented test cases and assertions.
+- `solid_node/viewers/web/` — the FastAPI backend and React/three.js viewer;
+  browser tests live with the application.
+- `tests/` — the Python test suite. `tests/meta_project/` with
+  `tests/test_meta.py` forms the end-to-end meta-project harness.
 
-## The meta-test harness
+## Choosing evidence
 
-Unit tests with fake nodes cannot catch bugs in the render/keyframe/
-mesh machinery — they stub exactly that layer. So behavior fixes are
-TDD'd end-to-end: `tests/meta_project/` contains small but REAL
-solid-node projects whose node tests are deliberately green (the
-contract genuinely holds) or deliberately red (genuinely violated);
-`tests/test_meta.py` runs `solid test` on each as a subprocess and
-asserts every test is reported with the correct color, for the correct
-reason (the assertion, not an ImportError or a vacuous pass).
+Use direct pytest coverage for local units and CLI behavior. Use the
+meta-project harness when the claim depends on real node loading, rendering,
+keyframes, meshes, or the `solid test` subprocess path. Fake nodes and mocks
+are useful at a local boundary but cannot establish that the real rendering and
+test pipeline behaves correctly.
 
-For a behavior bug, write the adversarial PAIR when possible:
+The meta-project harness runs small real solid-node projects. Their tests may
+be deliberately green, proving the stated contract, or deliberately red,
+proving that an invalid project is rejected for the intended reason rather
+than because of an import error or vacuous pass.
 
-- a green fixture that fails on the broken framework (the correct
-  behavior, stated as a contract), and
-- a red fixture that PASSES on the broken framework — the case where
-  the broken instrument lies (e.g. reports an intersecting mechanism
-  as collision-free). This is the dangerous direction; do not skip it.
+For behavior defects, create the adversarial pair when practical:
 
-Fixtures are cheap: unit cubes (`tests/meta_project/parts.py`),
-static or `self.time`-driven assemblies, mesh assertions on
-`center_mass`/intersection.
+- a valid fixture that fails on the broken framework; and
+- an invalid fixture that incorrectly passes on the broken framework.
 
-## Discipline
+The second fixture guards the dangerous direction: a broken instrument that
+claims a mechanism is safe or valid when it is not. Small fixtures, static or
+`self.time`-driven assemblies, and mesh assertions make these contracts easy
+to isolate.
 
-1. Write the failing test FIRST (meta fixture for behavior, plain
-   pytest for units/CLI), run it, watch it fail for the stated reason.
-2. Implement the fix. Keep it minimal and in the framework's idiom.
-3. Full gates, all must pass:
-   - `.venv/bin/python -m pytest tests/ -q` (includes the meta harness)
-   - gearbox canary, from `examples/gearbox/`, chained:
-     `for f in root/__init__.py root/gear.py root/gear_pair.py root/shaft.py root/mounted_gear.py root/bushing.py root/supported_shaft.py root/housing_wall.py; do /home/asa/devel/solid-node/.venv/bin/solid test $f || break; done`
-     (each run must end `0 failed`; `solid test` exits nonzero on failure)
-   - frontend, only if you touched `viewers/web/app`: `npm test` there.
-4. Never adjust a meta-test expectation or an existing test to make a
-   fix pass. If an existing test encodes the OLD buggy semantics, say
-   so explicitly in the commit message and update it in the same
-   commit — the new semantics must be strictly safer.
-5. One issue = one commit (plus a separate commit for its fixture if
-   you prefer red-then-green history). Message style: imperative
-   subject, body explains the failure mode and the fix, ending with
-   `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` (or your
-   model's name). Do not push.
-6. Write every file complete and consistent — no staged half-edits.
-7. Report honestly: if a gate fails, report the failure and stop;
-   never mark done with red gates.
+## Verification principles
 
-## Environment
+1. Establish red evidence through the real failing path, then make the
+   smallest change that restores the recorded contract.
+2. Run focused tests while iterating, then the relevant Python suite. Run
+   browser tests when changing the web application.
+3. Keep existing expectations unless they encode the behavior being replaced;
+   when they do, update the expectation together with the changed contract.
+4. Report what ran, why it failed before the change, and any remaining blind
+   spots or environmental failures.
 
-- venv: `/home/asa/devel/solid-node/.venv` (editable install; the
-  gearbox canary uses the same venv, so framework edits apply live).
-- `openscad` is on PATH; headless rendering needs `xvfb-run -a`.
-- Repo root is the cwd for pytest; `SOLID_BUILD_DIR` redirects build
-  artifacts (the meta harness sets it to `tests/_build_meta`).
+## Runtime prerequisites
+
+- OpenSCAD must be available to render geometry. Headless snapshot work may
+  require `xvfb-run -a`.
+- Run pytest from the repository root. `SOLID_BUILD_DIR` controls where build
+  artifacts are written; the meta-project harness uses its own build location.
+- Use an environment that executes the source tree under test. The active
+  development environment determines how that environment is provisioned.
