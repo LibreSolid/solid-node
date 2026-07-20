@@ -25,6 +25,48 @@ class CommandFirstGrammarTest(TestCase):
         args = handle.call_args[0][0]
         self.assertEqual(args.path, 'somefile.py')
 
+    def test_build_parses_and_dispatches_with_path(self):
+        with patch.object(sys, 'argv', ['solid', 'build', 'somefile.py']):
+            with patch('solid_node.manager.build.Build.handle') as handle:
+                manage()
+
+        self.assertTrue(handle.called)
+        self.assertEqual(handle.call_args[0][0].path, 'somefile.py')
+
+    def test_build_normalizes_directory_path_to_init_file(self):
+        with patch.object(sys, 'argv', ['solid', 'build', 'tests/flat_project']):
+            with patch('solid_node.manager.build.Build.handle') as handle:
+                manage()
+
+        self.assertEqual(handle.call_args[0][0].path,
+                         'tests/flat_project/__init__.py')
+
+    def test_build_rejects_callback_option(self):
+        with patch.object(sys, 'argv', ['solid', 'build', 'model.py',
+                                        '--callback', 'http://listener']):
+            with self.assertRaises(SystemExit) as ctx:
+                manage()
+
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_develop_rejects_callback_with_openscad(self):
+        with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',
+                                        '--openscad', '--callback',
+                                        'http://listener']):
+            with self.assertRaises(SystemExit) as ctx:
+                manage()
+
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_develop_rejects_callback_with_web_dev(self):
+        with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',
+                                        '--web-dev', '--callback',
+                                        'http://listener']):
+            with self.assertRaises(SystemExit) as ctx:
+                manage()
+
+        self.assertEqual(ctx.exception.code, 2)
+
     def test_test_normalizes_directory_path_to_init_file(self):
         with patch.object(sys, 'argv', ['solid', 'test', 'tests/flat_project']):
             with patch('solid_node.manager.test.Test.handle') as handle:

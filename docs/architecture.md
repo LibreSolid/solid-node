@@ -124,16 +124,19 @@ source mtime (ADR-006).
 
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
-`solid develop` (which also restarts the viewer process). Errors go to
-`errors.json` in the build dir — file-based IPC, no broker (ADR-018).
-A broken initial build kills develop; a broken reload falls back to a
-broad recursive watch and keeps the loop alive.
+`solid develop` (which also restarts the viewer process). `solid build`
+uses the same builder passes without a viewer or watch loop. Candidate
+artifacts build privately and replace the normal build directory only once
+the complete tree is current, so a failed rebuild leaves the last successful
+artifacts readable. Errors go to `errors.json` in the build dir — file-based
+IPC, no broker (ADR-018). A broken initial build kills develop; a broken
+reload falls back to a broad recursive watch and keeps the loop alive.
 
 ### CLI (BUILD · spec `cli`)
 
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
-duck-typed registry: `develop`, `test`, `snapshot` (headless PNG via
+duck-typed registry: `build`, `develop`, `test`, `snapshot` (headless PNG via
 OpenSCAD, xvfb fallback — the visual feedback channel for agents,
 ADR-021), `new` (offline scaffold), `export`. `./.env` is read with
 `setdefault` semantics (real environment wins), carrying

@@ -10,8 +10,10 @@ from solid_node.manager.test import Test
 from solid_node.manager.snapshot import Snapshot
 from solid_node.manager.new import New
 from solid_node.manager.export import Export
+from solid_node.manager.build import Build
 
 commands = [
+    Build(),
     Develop(),
     Test(),
     Snapshot(),

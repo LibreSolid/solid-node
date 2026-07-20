@@ -5,7 +5,7 @@
 import sys
 import logging
 from multiprocessing import Process
-from solid_node.core.builder import Builder
+from solid_node.core.builder import Builder, BuildOutcome, BuildSession
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer, WebDevServer
 
@@ -22,6 +22,7 @@ class Develop:
     needs_node = True
 
     def add_arguments(self, parser):
+        self.parser = parser
         parser.add_argument('--web', action='store_true',
                             help='Start a webserver to view project in browser (default)')
         parser.add_argument('--web-dev', action='store_true',
@@ -32,6 +33,8 @@ class Develop:
                             help='Debug mode supports breakpoints, but reload is not automatic')
         parser.add_argument('--debug-web', action='store_true',
                             help='Debug mode to support breakpoints in webserver')
+        parser.add_argument('--callback', metavar='URL',
+                            help='POST URL notified after each complete build')
 
 
     def openscad(self):
@@ -43,11 +46,21 @@ class Develop:
     def web_dev_server(self):
         WebDevServer(self.path).start()
 
-    def builder(self, is_reload=False):
-        Builder(self.path, is_reload=is_reload).start()
+    def builder(self, is_reload=False, build_dir=None, callback=None):
+        Builder(
+            self.path,
+            is_reload=is_reload,
+            build_dir=build_dir,
+            published_build_dir=self.build_session.build_dir,
+            callback=callback,
+            lifecycle=True,
+        ).start()
 
     def handle(self, args):
         self.path = args.path
+        callback = getattr(args, 'callback', None)
+        if callback and (args.openscad or args.web_dev):
+            self.parser.error('--callback is available only in normal web mode')
 
         builder_proc = None
         web_proc = None
@@ -70,8 +83,14 @@ class Develop:
             web_proc = Process(target=self.web)
             web_proc.start()
 
+        self.build_session = BuildSession()
+
         if args.debug_builder:
-            return self.builder()
+            try:
+                return self.builder(build_dir=self.build_session.staging_dir,
+                                    callback=callback)
+            finally:
+                self.build_session.discard()
 
         # Only the very first builder attempt is "startup": a project
         # that is already broken at launch exits cleanly instead of
@@ -80,28 +99,41 @@ class Develop:
         # edited source (see Builder.is_reload / _on_reload_exception).
         first_run = True
 
-        while True:
-            if web_proc and builder_proc:
-                logger.info('Restarting WEB')
-                web_proc.terminate()
-                web_proc.join()
-                web_proc = Process(target=self.web)
-                web_proc.start()
+        try:
+            while True:
+                if web_proc and builder_proc:
+                    logger.info('Restarting WEB')
+                    web_proc.terminate()
+                    web_proc.join()
+                    web_proc = Process(target=self.web)
+                    web_proc.start()
 
-            builder_proc = Process(target=self.builder, args=(not first_run,))
-            builder_proc.start()
+                builder_proc = Process(
+                    target=self.builder,
+                    args=(not first_run, self.build_session.staging_dir, callback),
+                )
+                builder_proc.start()
 
-            try:
-                builder_proc.join()
-            except KeyboardInterrupt:
-                sys.exit(0)
+                try:
+                    builder_proc.join()
+                except KeyboardInterrupt:
+                    sys.exit(0)
 
-            if first_run and builder_proc.exitcode:
-                logger.error('Initial build failed, exiting')
-                for proc in (openscad_proc, web_dev_proc, web_proc):
-                    if proc is not None:
-                        proc.terminate()
-                        proc.join()
-                sys.exit(builder_proc.exitcode)
-
-            first_run = False
+                exitcode = builder_proc.exitcode
+                if exitcode == BuildOutcome.RENDERED.value:
+                    first_run = False
+                    continue
+                if exitcode == BuildOutcome.SOURCE_CHANGED.value:
+                    self.build_session.reset()
+                    first_run = False
+                    continue
+                if first_run and exitcode:
+                    logger.error('Initial build failed, exiting')
+                    for proc in (openscad_proc, web_dev_proc, web_proc):
+                        if proc is not None:
+                            proc.terminate()
+                            proc.join()
+                    sys.exit(exitcode)
+                first_run = False
+        finally:
+            self.build_session.discard()

@@ -34,7 +34,7 @@ solid develop
 ::
 
     solid develop <path> [--web] [--web-dev] [--openscad]
-                         [--debug-builder] [--debug-web]
+                         [--debug-builder] [--debug-web] [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
 rebuilds the parts that changed, and serves a viewer that reloads
@@ -59,6 +59,26 @@ automatically.
 
 ``--debug-web``
     Run the webserver in the foreground to support breakpoints in it.
+
+``--callback URL``
+    In normal web mode, POST the exact URL (with no request body) after the
+    initial complete build and every later complete rebuild. The callback is
+    best effort: delivery failures are logged and never stop development.
+    It cannot be combined with ``--openscad`` or ``--web-dev``.
+
+solid build
+===========
+
+::
+
+    solid build <path>
+
+Builds the node once using the same ordinary pipeline as ``solid develop``,
+publishes the complete current model in the normal build directory, and exits.
+It starts neither a viewer nor a filesystem watcher. A missing resolved model
+prints a diagnostic and exits with status 66 (``MODEL_NOT_FOUND``); other
+build errors use a generic non-zero status. A failed later build leaves the
+last complete published artifacts in place.
 
 solid test
 ==========

@@ -4,7 +4,7 @@
 
 from argparse import Namespace
 from unittest import TestCase
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call, ANY
 from solid_node.manager.develop import Develop
 
 
@@ -50,6 +50,7 @@ def default_args(**overrides):
         web_dev=False,
         debug_builder=False,
         debug_web=False,
+        callback=None,
     )
     values.update(overrides)
     return Namespace(**values)
@@ -83,7 +84,7 @@ class StartupFailureExitsCleanlyTest(TestCase):
 
         self.assertEqual(mock_process.call_args_list, [
             call(target=develop.web),
-            call(target=develop.builder, args=(False,)),
+            call(target=develop.builder, args=(False, ANY, None)),
         ])
         web_instance.terminate.assert_called_once()
         web_instance.join.assert_called()
@@ -108,7 +109,7 @@ class ReloadFlagPassedOnSubsequentBuildsTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list[1],
-                          call(target=develop.builder, args=(False,)))
+                          call(target=develop.builder, args=(False, ANY, None)))
 
     def test_second_builder_invocation_is_flagged_as_reload(self):
         develop = Develop()
@@ -126,6 +127,27 @@ class ReloadFlagPassedOnSubsequentBuildsTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list[1],
-                          call(target=develop.builder, args=(False,)))
+                          call(target=develop.builder, args=(False, ANY, None)))
         self.assertEqual(mock_process.call_args_list[3],
-                          call(target=develop.builder, args=(True,)))
+                          call(target=develop.builder, args=(True, ANY, None)))
+
+
+class CallbackConfigurationTest(TestCase):
+
+    def test_callback_is_passed_to_normal_web_builder(self):
+        develop = Develop()
+        args = default_args(callback='http://listener/build-ready')
+
+        web_instance = MagicMock()
+        builder_instance = MagicMock(exitcode=0)
+        builder_instance.join.side_effect = KeyboardInterrupt
+
+        with patch('solid_node.manager.develop.Process',
+                   side_effect=[web_instance, builder_instance]) as process:
+            with self.assertRaises(SystemExit):
+                develop.handle(args)
+
+        self.assertEqual(process.call_args_list[1], call(
+            target=develop.builder,
+            args=(False, ANY, 'http://listener/build-ready'),
+        ))
