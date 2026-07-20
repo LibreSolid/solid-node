@@ -8,9 +8,12 @@ Examples
 V8 engine
 =========
 
-The V8 engine is a separate solid-node project, included here as a Git
-submodule. Its assembly is exported during this documentation build, so the
-complete mechanism can be viewed and animated without a CAD server.
+This V8 engine mechanism was vibe-coded as a testing project to
+demonstrate solid-node and strenghen the framework. It has enough
+nested rotations and translations to test the parity between python,
+openscad, browser viewer and embedded widget for all rendering operations.
 
 .. solid-node:: examples/v8-engine/docs/_exports/v8-engine
    :height: 620px
+
+You can check the project source code at its [Github page](https://github.com/LibreSolid/example-v8-engine)
