@@ -16,9 +16,18 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { ManifestNode, RawOperation } from './types';
 import { evalExpr, isAnimated } from './evaluator';
 
-const DEFAULT_COLOR = '#8899aa';
-
 const stlLoader = new STLLoader();
+
+export function materialForColor(color: string | null): THREE.Material {
+  if (color === null) {
+    return new THREE.MeshNormalMaterial();
+  }
+  return new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color),
+    metalness: 0.1,
+    roughness: 0.6,
+  });
+}
 
 export class WidgetTree {
   group: THREE.Group;
@@ -56,11 +65,7 @@ export class WidgetTree {
   private async loadModel(url: string, color: string | null): Promise<void> {
     const geometry = await stlLoader.loadAsync(url);
     geometry.computeVertexNormals();
-    const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color ?? DEFAULT_COLOR),
-      metalness: 0.1,
-      roughness: 0.6,
-    });
+    const material = materialForColor(color);
     this.group.add(new THREE.Mesh(geometry, material));
   }
 

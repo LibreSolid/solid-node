@@ -18,7 +18,18 @@ set the initial state: `?t=<0..1>` for time, `?autoplay=0` to start paused.
 - **WHEN** an export contains multiple model nodes with no explicit or
   inherited colors
 - **THEN** the widget renders those models with the development viewer's
-  normal-based material
+normal-based material
+
+#### Scenario: Static pose embed
+
+- **WHEN** the export's `index.html` is loaded with `?t=0.25&autoplay=0`
+- **THEN** the model renders paused at `$t = 0.25`
+
+#### Scenario: Serving requires no backend
+
+- **WHEN** the export directory is served by any static file host or opened
+  through an iframe
+- **THEN** the widget renders and animates with no solid-node process running
 
 #### Scenario: Explicit model colors
 
