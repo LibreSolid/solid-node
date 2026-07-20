@@ -125,6 +125,7 @@ class BuilderLifecycleTest(TestCase):
             data = json.load(snapshot)
         self.assertEqual(data['root']['name'], 'part')
         self.assertEqual(data['root']['model'], 'part.stl')
+        self.assertEqual(data['animation'], {'fps': 30, 'frames': 360})
 
     def test_failed_build_does_not_notify_callback(self):
         builder = Builder('model.py', build_dir='/tmp/candidate',

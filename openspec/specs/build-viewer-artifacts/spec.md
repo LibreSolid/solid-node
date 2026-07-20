@@ -7,11 +7,15 @@ Complete normal-build viewer state for private local framework consumers.
 ## Requirements
 
 ### Requirement: Complete builds publish a viewer snapshot
-The builder SHALL publish a versioned viewer snapshot in the normal build directory only after the current project model has assembled and every required STL artifact is current. The snapshot SHALL contain the recursive viewer state for the root model: node identity, type, colour, serialized operations, child relationships, and build-root-relative rigid-model paths.
+The builder SHALL publish a versioned viewer snapshot in the normal build directory only after the current project model has assembled and every required STL artifact is current. The snapshot SHALL contain the recursive viewer state for the root model: node identity, type, colour, serialized operations, child relationships, and build-root-relative rigid-model paths. It SHALL also contain an `animation` object with numeric `fps` and `frames` values representing the animation cadence used to evaluate raw `$t` operations. The snapshot and all referenced model files SHALL become visible together through the normal atomic build publication.
 
 #### Scenario: A complete model is built once
 - **WHEN** `solid build <project>` completes successfully
 - **THEN** its `_build` directory contains a complete viewer snapshot whose rigid model paths resolve within that same published directory
+
+#### Scenario: A completed animated model is published
+- **WHEN** `solid build <project>` completes a model with a `$t` operation
+- **THEN** its `viewer.json` contains numeric `animation.fps` and `animation.frames` values alongside the root tree
 
 ### Requirement: The framework viewer can read a published snapshot
 The framework SHALL provide its existing private viewer implementation a snapshot-backed mode that serves the same recursive node state and model files from a published build directory without importing the project model.

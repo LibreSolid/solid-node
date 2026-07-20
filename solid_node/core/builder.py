@@ -273,6 +273,7 @@ class Builder(FileSystemEventHandler):
         os.makedirs(self.build_dir, exist_ok=True)
         with open(os.path.join(self.build_dir, 'viewer.json'), 'w') as snapshot:
             json.dump({'version': 1,
+                       'animation': {'fps': 30, 'frames': 360},
                        'root': _viewer_state(self.node, self.build_dir)}, snapshot)
 
     def _notify_callback(self):
