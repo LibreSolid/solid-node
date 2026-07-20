@@ -46,6 +46,7 @@ that way.
 - [ADR-021](BUILD/ADR-021-snapshot-cli-command-for-agent-autonomy.md) — Snapshot CLI command — **Accepted**
 - [ADR-024](BUILD/ADR-024-command-first-cli-grammar-and-duck-typed-command-registry.md) — Command-first CLI grammar — **Accepted**
 - [ADR-030](BUILD/ADR-030-complete-build-publication-boundary.md) — Complete-build publication boundary — **Accepted**
+- [ADR-031](BUILD/ADR-031-published-viewer-snapshot.md) — Published viewer snapshot — **Accepted**
 
 ### IPC — inter-process communication
 - [ADR-015](IPC/ADR-015-fastapi-unified-stack-for-http-services.md) — FastAPI + Uvicorn HTTP stack — **Accepted, amended** (broker consumer removed)

@@ -126,6 +126,9 @@ The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
 `solid develop` (which also restarts the viewer process). `solid build`
 uses the same builder passes without a viewer or watch loop. Candidate
+builds publish `viewer.json` with the recursive viewer state and build-relative
+model paths, so private NodeAPI consumers can serve a completed build without
+loading project Python (ADR-031).
 artifacts build privately and replace the normal build directory only once
 the complete tree is current, so a failed rebuild leaves the last successful
 artifacts readable. Errors go to `errors.json` in the build dir — file-based

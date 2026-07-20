@@ -92,6 +92,25 @@ def write_error(error_message, build_dir=None):
         }, f)
 
 
+def _viewer_state(node, build_dir):
+    state = {
+        'name': node.name,
+        'type': node._type,
+        'color': node.color,
+        'mtime': node.mtime,
+        'operations': [operation.serialized for operation in node.operations],
+    }
+    if node.rigid:
+        state['model'] = os.path.relpath(node.stl_file, build_dir)
+        return state
+    children = node.render()
+    if type(children) in (list, tuple):
+        for child in children:
+            node._link_child(child)
+        state['children'] = [_viewer_state(child, build_dir) for child in children]
+    return state
+
+
 class Builder(FileSystemEventHandler):
     """Monitors .py files. On any change, generate STLs and exit"""
     def __init__(self, path, is_reload=False, build_dir=None,
@@ -169,6 +188,7 @@ class Builder(FileSystemEventHandler):
         if outcome is BuildOutcome.RENDERED:
             return outcome
 
+        self._write_viewer_snapshot()
         self._publish()
         self._notify_callback()
         if not self.watch:
@@ -245,6 +265,15 @@ class Builder(FileSystemEventHandler):
         if self.build_dir is None or self.published_build_dir is None:
             return
         BuildSessionPublisher(self.build_dir, self.published_build_dir).publish()
+
+    def _write_viewer_snapshot(self):
+        """Record the source-backed viewer tree beside a completed build."""
+        if self.build_dir is None:
+            return
+        os.makedirs(self.build_dir, exist_ok=True)
+        with open(os.path.join(self.build_dir, 'viewer.json'), 'w') as snapshot:
+            json.dump({'version': 1,
+                       'root': _viewer_state(self.node, self.build_dir)}, snapshot)
 
     def _notify_callback(self):
         if not self.callback:

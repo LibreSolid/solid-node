@@ -5,6 +5,7 @@
 import asyncio
 import os
 import tempfile
+import json
 from unittest import TestCase
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -91,6 +92,20 @@ class StlEndpointTest(TestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertIn('last-modified', response.headers)
+
+    def test_snapshot_node_api_serves_without_loading_project(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, 'part.stl'), 'w') as stl:
+                stl.write('solid part')
+            with open(os.path.join(tmpdir, 'viewer.json'), 'w') as snapshot:
+                json.dump({'version': 1, 'root': {
+                    'name': 'part', 'type': 'SolidNode', 'color': None,
+                    'operations': [], 'model': 'part.stl'}}, snapshot)
+
+            api = NodeAPI.from_build(tmpdir)
+            client = TestClient(api.app)
+            self.assertEqual(client.get('/').json()['name'], 'part')
+            self.assertEqual(client.get('/part.stl').status_code, 200)
 
 
 class WebViewerSurvivesBrokenNodeTest(TestCase):

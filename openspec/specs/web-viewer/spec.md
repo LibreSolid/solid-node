@@ -36,7 +36,9 @@ serialized `operations`, `type`, `name`, `color`, `mtime`, and either
 `children` (names) for non-rigid nodes or `model` (STL filename) for rigid
 nodes. Rigid nodes SHALL serve their STL with `Last-Modified` /
 `If-Modified-Since` (304) handling, and an STL request for a file still being
-built SHALL wait for the file to appear rather than erroring.
+built SHALL wait for the file to appear rather than erroring. The same API
+SHALL be constructible from a completed build viewer snapshot without loading
+the project module.
 
 #### Scenario: STL requested before build completes
 
@@ -44,6 +46,11 @@ built SHALL wait for the file to appear rather than erroring.
   rendering it
 - **THEN** the response blocks (polling the filesystem) and streams the file
   once it exists
+
+#### Scenario: A completed build is served without source loading
+- **WHEN** a host creates NodeAPI from a completed build viewer snapshot
+- **THEN** its recursive state and STL endpoints are available without a
+  project-model import
 
 ### Requirement: Reload channel
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+import json
 import os
 import shutil
 import tempfile
@@ -55,6 +56,8 @@ class BuilderLifecycleTest(TestCase):
         os.mkdir(build_dir)
         with open(os.path.join(build_dir, 'model.stl'), 'w') as artifact:
             artifact.write('previous complete model')
+        with open(os.path.join(build_dir, 'viewer.json'), 'w') as snapshot:
+            snapshot.write('{"version": 1, "root": {"name": "model"}}')
 
         session = BuildSession(build_dir)
         with open(os.path.join(session.staging_dir, 'model.stl'), 'w') as artifact:
@@ -63,6 +66,8 @@ class BuilderLifecycleTest(TestCase):
 
         with open(os.path.join(build_dir, 'model.stl')) as artifact:
             self.assertEqual(artifact.read(), 'previous complete model')
+        with open(os.path.join(build_dir, 'viewer.json')) as snapshot:
+            self.assertIn('"name": "model"', snapshot.read())
 
     def test_callback_posts_exact_url_without_body(self):
         self.builder.callback = 'http://listener/build-ready?token=opaque'
@@ -89,6 +94,7 @@ class BuilderLifecycleTest(TestCase):
              patch('solid_node.core.builder.load_node', return_value=node), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_write_viewer_snapshot'), \
              patch.object(builder, '_publish', side_effect=lambda: events.append('publish')), \
              patch.object(builder, '_notify_callback',
                           side_effect=lambda: events.append('callback')):
@@ -96,6 +102,29 @@ class BuilderLifecycleTest(TestCase):
 
         self.assertEqual(outcome, BuildOutcome.CURRENT)
         self.assertEqual(events, ['publish', 'callback'])
+
+    def test_complete_build_writes_viewer_snapshot_before_publishing(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        builder = Builder('model.py', build_dir=root, published_build_dir=root,
+                          watch=False)
+        rigid = Mock(name='part', rigid=True, operations=(), stl_file=os.path.join(root, 'part.stl'))
+        rigid.name = 'part'
+        rigid.rigid = True
+        rigid.operations = ()
+        rigid._type = 'SolidNode'
+        rigid.color = None
+        rigid.mtime = 0
+        with open(rigid.stl_file, 'w') as artifact:
+            artifact.write('solid part')
+        builder.node = rigid
+
+        builder._write_viewer_snapshot()
+
+        with open(os.path.join(root, 'viewer.json')) as snapshot:
+            data = json.load(snapshot)
+        self.assertEqual(data['root']['name'], 'part')
+        self.assertEqual(data['root']['model'], 'part.stl')
 
     def test_failed_build_does_not_notify_callback(self):
         builder = Builder('model.py', build_dir='/tmp/candidate',

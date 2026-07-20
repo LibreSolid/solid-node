@@ -201,6 +201,12 @@ class NodeAPI:
             self.subapps.append(subapp)
             self.children.append(child.name)
 
+    @classmethod
+    def from_build(cls, build_dir):
+        with open(os.path.join(build_dir, 'viewer.json')) as snapshot:
+            data = json.load(snapshot)
+        return SnapshotNodeAPI(data['root'], build_dir)
+
     async def state(self):
         state =  {
             'operations': self.operations,
@@ -248,3 +254,29 @@ class NodeAPI:
             if os.path.exists(file_path):
                 return file_path
             await asyncio.sleep(0.1)
+
+
+class SnapshotNodeAPI:
+    """Private NodeAPI implementation backed only by a published build."""
+
+    def __init__(self, state, build_dir):
+        self.state_value = state
+        self.build_dir = build_dir
+        self.app = FastAPI()
+        self.app.add_api_route('/', self.state, methods=['GET'])
+        if 'model' in state:
+            self.app.add_api_route('/' + state['model'], self.stl, methods=['GET'])
+        for child in state.get('children', []):
+            self.app.mount('/' + child['name'], SnapshotNodeAPI(child, build_dir).app)
+
+    async def state(self):
+        result = {key: value for key, value in self.state_value.items()
+                  if key != 'children'}
+        if 'children' in self.state_value:
+            result['children'] = [child['name'] for child in self.state_value['children']]
+        return result
+
+    async def stl(self):
+        return FileResponse(os.path.join(self.build_dir, self.state_value['model']),
+                            media_type='application/octet-stream',
+                            filename=os.path.basename(self.state_value['model']))
