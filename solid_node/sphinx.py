@@ -37,13 +37,6 @@ from sphinx.util.osutil import relative_uri
 
 from solid_node import __version__
 
-try:
-    # Pulls in the framework's runtime dependencies; docs can build
-    # without them as long as every export is self-contained
-    from solid_node.core import export as core_export
-except ImportError:
-    core_export = None
-
 logger = logging.getLogger(__name__)
 
 # Kept in sync with solid_node.core.export.MANIFEST_FORMAT (asserted
@@ -54,6 +47,14 @@ MANIFEST_FORMAT = 'solid-node-export'
 OUTPUT_DIR = '_solid_node'
 
 WIDGET_FILES = ('index.html', 'solid-widget.js')
+
+# Keep these paths local to the Sphinx extension.  Importing
+# solid_node.core.export pulls in the CAD runtime, which documentation builds
+# deliberately do not need in order to complete a --no-widget export.
+WIDGET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'viewers', 'widget')
+WIDGET_INDEX = os.path.join(WIDGET_DIR, 'index.html')
+WIDGET_BUNDLE = os.path.join(WIDGET_DIR, 'dist', 'solid-widget.js')
 
 DEFAULT_HEIGHT = '480px'
 
@@ -183,24 +184,19 @@ def _complete_widget(target):
     ]
     if not missing:
         return
-    if core_export is None:
-        logger.warning(
-            f'solid-node: export at {target} lacks {missing} and '
-            'solid_node\'s dependencies are not installed to supply '
-            'them; install the full package, or export without '
-            '--no-widget'
-        )
-        return
     sources = {
-        'index.html': core_export.WIDGET_INDEX,
-        'solid-widget.js': core_export.WIDGET_BUNDLE,
+        'index.html': WIDGET_INDEX,
+        'solid-widget.js': WIDGET_BUNDLE,
     }
     for name in missing:
         source = sources[name]
         if os.path.exists(source):
             shutil.copy2(source, os.path.join(target, name))
         else:
-            logger.warning(f'solid-node: {core_export.WidgetBundleMissing()}')
+            logger.warning(
+                f'solid-node: widget bundle not found at {source}. Build it '
+                f'with: cd {WIDGET_DIR} && npm ci && npm run build.'
+            )
 
 
 def purge_exports(app, env, docname):

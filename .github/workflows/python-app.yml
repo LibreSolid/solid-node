@@ -118,6 +118,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: solid_node/viewers/widget/package-lock.json
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -125,8 +131,18 @@ jobs:
           cache: "pip"
           cache-dependency-path: docs/requirements.txt
 
+      - name: Build widget bundle
+        working-directory: solid_node/viewers/widget
+        run: |
+          npm ci
+          npm run build
+
       - name: Install docs requirements
-        run: pip install -r docs/requirements.txt
+        run: pip install -r docs/requirements.txt .
+
+      - name: Generate V8 example export
+        working-directory: docs/examples/v8-engine
+        run: solid export root -o docs/_exports/v8-engine --fps 30 --frames 360
 
       - name: Build docs (fail on warnings)
         run: python -m sphinx -b html -W docs docs/_build

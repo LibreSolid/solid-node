@@ -269,8 +269,8 @@ class WidgetlessExportTest(SphinxExtBaseTest):
         ))
         bundle, index = self.fake_widget()
 
-        with patch('solid_node.core.export.WIDGET_BUNDLE', bundle), \
-             patch('solid_node.core.export.WIDGET_INDEX', index):
+        with patch('solid_node.sphinx.WIDGET_BUNDLE', bundle), \
+             patch('solid_node.sphinx.WIDGET_INDEX', index):
             warnings = self.build()
 
         self.assertEqual(warnings, '')
@@ -289,8 +289,8 @@ class WidgetlessExportTest(SphinxExtBaseTest):
         ))
         bundle, index = self.fake_widget()
 
-        with patch('solid_node.core.export.WIDGET_BUNDLE', bundle), \
-             patch('solid_node.core.export.WIDGET_INDEX', index):
+        with patch('solid_node.sphinx.WIDGET_BUNDLE', bundle), \
+             patch('solid_node.sphinx.WIDGET_INDEX', index):
             self.build()
 
         copied = os.path.join(self.outdir, '_solid_node',
@@ -306,7 +306,7 @@ class WidgetlessExportTest(SphinxExtBaseTest):
         ))
         missing = os.path.join(self.root, 'nowhere', 'solid-widget.js')
 
-        with patch('solid_node.core.export.WIDGET_BUNDLE', missing):
+        with patch('solid_node.sphinx.WIDGET_BUNDLE', missing):
             warnings = self.build()
 
         self.assertIn('npm', warnings)
