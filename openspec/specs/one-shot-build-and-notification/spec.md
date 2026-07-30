@@ -4,9 +4,7 @@
 
 One-shot conventional node builds and build-ready notifications for local
 artifact consumers.
-
 ## Requirements
-
 ### Requirement: One-shot conventional node build
 
 The system SHALL provide `solid build <path>`, using the same node-path
@@ -27,14 +25,40 @@ The system SHALL exit 66, documented as `MODEL_NOT_FOUND`, when `solid build`
 cannot find the resolved model path; other build failures remain generic
 non-zero outcomes.
 
+#### Scenario: Build target does not exist
+
+- **WHEN** a user runs `solid build missing.py` and no such model path
+  resolves
+- **THEN** the command exits 66 and reports the unresolved model path
+
 ### Requirement: Development build-ready callback
 
 The system SHALL issue an empty HTTP POST to the supplied callback URL after
-each complete successful normal-web development build, after artifacts are
-published in the normal build directory.
+each complete successful development build, after artifacts are published in
+the normal build directory. This SHALL hold whether the development session
+runs the web viewer or suppresses it with `--no-web`.
+
+#### Scenario: Build ready in a headless session
+
+- **WHEN** a development session started with `--no-web --callback URL`
+  completes a successful build and publishes the normal build directory
+- **THEN** an empty POST is issued to that URL
 
 ### Requirement: Callback delivery is best effort
 
 The system SHALL use a bounded timeout, log transport or non-success failures,
 avoid retrying, and continue the development watch loop. Failed builds SHALL
 not invoke the callback.
+
+#### Scenario: Callback endpoint is unreachable
+
+- **WHEN** the callback POST fails or returns a non-success status
+- **THEN** the failure is logged, is not retried, and the development watch
+  loop continues
+
+#### Scenario: A build fails
+
+- **WHEN** a development build does not complete successfully
+- **THEN** no callback is issued and the previously published build directory
+  is left in place
+

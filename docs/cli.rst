@@ -33,7 +33,7 @@ solid develop
 
 ::
 
-    solid develop <path> [--web] [--web-dev] [--openscad]
+    solid develop <path> [--web] [--web-dev] [--no-web] [--openscad]
                          [--debug-builder] [--debug-web] [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
@@ -53,6 +53,13 @@ automatically.
     frontend development server (a proxy to ``npm start`` in the
     viewer's React app), so viewer code changes hot-reload too.
 
+``--no-web``
+    Run the watch-and-rebuild loop with no viewer at all, leaving
+    ``SOLID_NODE_PORT`` free. Use this when another program renders the
+    published build directory itself and only needs the rebuilds; pair it
+    with ``--callback URL`` to be told when a new build is ready. It cannot
+    be combined with ``--web``, ``--web-dev`` or ``--debug-web``.
+
 ``--debug-builder``
     Run the builder in the foreground so breakpoints work. Automatic
     reload is disabled in this mode.
@@ -61,10 +68,11 @@ automatically.
     Run the webserver in the foreground to support breakpoints in it.
 
 ``--callback URL``
-    In normal web mode, POST the exact URL (with no request body) after the
-    initial complete build and every later complete rebuild. The callback is
-    best effort: delivery failures are logged and never stop development.
-    It cannot be combined with ``--openscad`` or ``--web-dev``.
+    POST the exact URL (with no request body) after the initial complete
+    build and every later complete rebuild. Available in normal web mode and
+    with ``--no-web``. The callback is best effort: delivery failures are
+    logged and never stop development. It cannot be combined with
+    ``--openscad`` or ``--web-dev``.
 
 solid build
 ===========

@@ -67,6 +67,44 @@ class CommandFirstGrammarTest(TestCase):
 
         self.assertEqual(ctx.exception.code, 2)
 
+    def test_develop_accepts_callback_with_no_web(self):
+        """An external viewer host wants the rebuild loop and the
+        build-ready notification, but not the framework's own viewer."""
+        with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',
+                                        '--no-web', '--callback',
+                                        'http://listener']):
+            with patch('solid_node.manager.develop.Develop.handle') as handle:
+                manage()
+
+        args = handle.call_args[0][0]
+        self.assertTrue(args.no_web)
+        self.assertEqual(args.callback, 'http://listener')
+
+    def _assert_no_web_conflict(self, *flags):
+        """Exit 2 alone would also be satisfied by argparse rejecting
+        `--no-web` as an unrecognized argument, which proves nothing about
+        the conflict rule -- so require the error to name the conflict."""
+        stderr = io.StringIO()
+        with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',
+                                        '--no-web', *flags]):
+            with redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as ctx:
+                    manage()
+
+        self.assertEqual(ctx.exception.code, 2)
+        message = stderr.getvalue()
+        self.assertNotIn('unrecognized arguments', message)
+        self.assertIn('--no-web', message)
+
+    def test_develop_rejects_no_web_with_web(self):
+        self._assert_no_web_conflict('--web')
+
+    def test_develop_rejects_no_web_with_web_dev(self):
+        self._assert_no_web_conflict('--web-dev')
+
+    def test_develop_rejects_no_web_with_debug_web(self):
+        self._assert_no_web_conflict('--debug-web')
+
     def test_test_normalizes_directory_path_to_init_file(self):
         with patch.object(sys, 'argv', ['solid', 'test', 'tests/flat_project']):
             with patch('solid_node.manager.test.Test.handle') as handle:

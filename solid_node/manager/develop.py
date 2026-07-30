@@ -27,6 +27,9 @@ class Develop:
                             help='Start a webserver to view project in browser (default)')
         parser.add_argument('--web-dev', action='store_true',
                             help='Start a development webserver (proxy to npm start) to view project in browser')
+        parser.add_argument('--no-web', action='store_true',
+                            help='Run the builder watch loop with no web viewer, for a host '
+                                 'that publishes its own view of the build directory')
         parser.add_argument('--openscad', action='store_true',
                             help='Show project in OpenSCAD')
         parser.add_argument('--debug-builder', action='store_true',
@@ -59,8 +62,15 @@ class Develop:
     def handle(self, args):
         self.path = args.path
         callback = getattr(args, 'callback', None)
+        no_web = getattr(args, 'no_web', False)
+        wants_web = args.web or args.web_dev or args.debug_web
+
+        if no_web and wants_web:
+            self.parser.error(
+                '--no-web cannot be combined with --web, --web-dev or --debug-web')
         if callback and (args.openscad or args.web_dev):
-            self.parser.error('--callback is available only in normal web mode')
+            self.parser.error(
+                '--callback is not available with --openscad or --web-dev')
 
         builder_proc = None
         web_proc = None
@@ -71,7 +81,12 @@ class Develop:
             openscad_proc = Process(target=self.openscad)
             openscad_proc.start()
 
-        if not args.openscad or args.web or args.web_dev or args.debug_web:
+        # The web viewer runs unless something suppresses it. Two things
+        # do: `--no-web` asks for the builder watch loop alone, and
+        # `--openscad` on its own means the OpenSCAD GUI is the only viewer
+        # wanted.
+        openscad_only = args.openscad and not wants_web
+        if not (no_web or openscad_only):
             self.web_dev = args.web_dev
             if args.web_dev:
                 web_dev_proc = Process(target=self.web_dev_server)

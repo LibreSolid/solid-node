@@ -5,6 +5,7 @@
 from argparse import Namespace
 from unittest import TestCase
 from unittest.mock import patch, MagicMock, call, ANY
+from solid_node.core.builder import BuildOutcome
 from solid_node.manager.develop import Develop
 
 
@@ -50,6 +51,7 @@ def default_args(**overrides):
         web_dev=False,
         debug_builder=False,
         debug_web=False,
+        no_web=False,
         callback=None,
     )
     values.update(overrides)
@@ -151,3 +153,63 @@ class CallbackConfigurationTest(TestCase):
             target=develop.builder,
             args=(False, ANY, 'http://listener/build-ready'),
         ))
+
+
+class NoWebModeTest(TestCase):
+    """`--no-web` runs the builder watch loop alone, for a host that
+    publishes its own view of the completed build directory and does not
+    want the framework's viewer holding SOLID_NODE_PORT.
+    """
+
+    def test_no_web_starts_the_builder_without_a_web_viewer(self):
+        develop = Develop()
+        args = default_args(no_web=True)
+
+        builder_instance = MagicMock(exitcode=0)
+        builder_instance.join.side_effect = KeyboardInterrupt
+
+        with patch('solid_node.manager.develop.Process',
+                   side_effect=[builder_instance]) as mock_process:
+            with self.assertRaises(SystemExit):
+                develop.handle(args)
+
+        self.assertEqual(mock_process.call_args_list, [
+            call(target=develop.builder, args=(False, ANY, None)),
+        ])
+
+    def test_no_web_passes_the_callback_to_the_builder(self):
+        develop = Develop()
+        args = default_args(no_web=True,
+                            callback='http://listener/build-ready')
+
+        builder_instance = MagicMock(exitcode=0)
+        builder_instance.join.side_effect = KeyboardInterrupt
+
+        with patch('solid_node.manager.develop.Process',
+                   side_effect=[builder_instance]) as mock_process:
+            with self.assertRaises(SystemExit):
+                develop.handle(args)
+
+        self.assertEqual(mock_process.call_args_list, [
+            call(target=develop.builder,
+                 args=(False, ANY, 'http://listener/build-ready')),
+        ])
+
+    def test_no_web_reload_cycle_does_not_restart_a_viewer(self):
+        develop = Develop()
+        args = default_args(no_web=True)
+
+        builder_1 = MagicMock(exitcode=BuildOutcome.SOURCE_CHANGED.value)
+        builder_1.join.return_value = None
+        builder_2 = MagicMock()
+        builder_2.join.side_effect = KeyboardInterrupt
+
+        with patch('solid_node.manager.develop.Process',
+                   side_effect=[builder_1, builder_2]) as mock_process:
+            with self.assertRaises(SystemExit):
+                develop.handle(args)
+
+        self.assertEqual(mock_process.call_args_list, [
+            call(target=develop.builder, args=(False, ANY, None)),
+            call(target=develop.builder, args=(True, ANY, None)),
+        ])
