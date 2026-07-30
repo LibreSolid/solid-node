@@ -5,6 +5,10 @@ History
 Unreleased
 ----------
 
+* New ``solid develop --no-web`` flag: run the watch-and-rebuild loop with no
+  viewer, leaving ``SOLID_NODE_PORT`` free, for a host that renders the
+  published build directory itself. Pairs with ``--callback URL``.
+* Projects scaffolded by ``solid new`` ignore ``__pycache__/``.
 * The build directory is now a symlink to a versioned sibling directory,
   rebound atomically on each publication (ADR-032). A reader following it
   always reaches one complete artifact set, and a verification build no

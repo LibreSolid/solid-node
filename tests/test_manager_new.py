@@ -52,6 +52,7 @@ class NewCommandTest(TestCase):
         # `_build/` would not match the build path, which is a symlink to
         # a versioned directory; `_build*` covers both.
         self.assertIn('_build*', gitignore_content.split())
+        self.assertIn('__pycache__/', gitignore_content.split())
         self.assertIn('snapshot.png', gitignore_content)
 
     def test_generated_init_is_valid_python_matching_template(self):
