@@ -189,7 +189,17 @@ class Builder(FileSystemEventHandler):
             return outcome
 
         self._write_viewer_snapshot()
-        self._publish()
+        try:
+            self._publish()
+        except Exception:
+            # Losing a publication race is not a broken model: another
+            # publisher installed its own complete artifact set, which is
+            # a correct state for every reader. Report it the way a failed
+            # render is reported instead of letting it escape the builder
+            # process and fail a build that succeeded.
+            error_message = traceback.format_exc()
+            logger.error(error_message)
+            return await self.report_error(error_message)
         self._notify_callback()
         if not self.watch:
             return BuildOutcome.CURRENT
@@ -311,25 +321,101 @@ class Builder(FileSystemEventHandler):
             self.file_changed.set_result(True)
 
 
+def exclude_build_from_git(build_dir):
+    """Keep published artifacts out of `git status` without touching a
+    tracked file.
+
+    The build path is a symlink, and git's `_build/` pattern -- what the
+    project template used to install -- does not match a symlink, so an
+    unmodified project would show the symlink and every versioned
+    directory as untracked. `.gitignore` is tracked, so writing to it
+    during a build would dirty the working tree at an arbitrary moment
+    and could be swept into an unrelated commit; `.git/info/exclude` is
+    local, invisible to `git status`, and cannot be committed.
+
+    Only acts when the project's own `.gitignore` does not already carry
+    the pattern, and only when `.git` is a real directory -- in a
+    worktree or submodule it is a file pointing elsewhere, and finding
+    the real one would mean running git from the build path. Every
+    failure is ignored: publication matters, this does not.
+    """
+    parent = os.path.dirname(os.path.abspath(build_dir))
+    pattern = f'{os.path.basename(build_dir)}*'
+    try:
+        gitignore = os.path.join(parent, '.gitignore')
+        if os.path.isfile(gitignore):
+            with open(gitignore) as handle:
+                if pattern in handle.read().split():
+                    return
+
+        info = os.path.join(parent, '.git', 'info')
+        if not os.path.isdir(info):
+            return
+        exclude = os.path.join(info, 'exclude')
+        if os.path.isfile(exclude):
+            with open(exclude) as handle:
+                if pattern in handle.read().split():
+                    return
+        with open(exclude, 'a') as handle:
+            handle.write(f'{pattern}\n')
+    except OSError as error:
+        logger.debug('Could not record the build exclusion for %s: %s',
+                     build_dir, error)
+
+
 class BuildSessionPublisher:
-    """Publish a candidate directory from a builder child process."""
+    """Publish a candidate directory from a builder child process.
+
+    The build path is a symlink to a versioned sibling directory. A
+    publication renames the completed candidate into place under a fresh
+    version and moves a new symlink onto the build path with
+    `os.replace`, which is atomic on POSIX. A reader following the build
+    path therefore reaches the previous complete artifact set or the new
+    one, never a missing path and never a mixture -- and two publishers
+    racing settle on one of the two rather than colliding mid-rename.
+
+    `os.symlink` and `os.replace` are all this needs, so one code path
+    serves every POSIX platform.
+    """
 
     def __init__(self, staging_dir, build_dir):
         self.staging_dir = staging_dir
         self.build_dir = build_dir
 
     def publish(self):
-        previous = None
-        if os.path.lexists(self.build_dir):
-            previous = tempfile.mktemp(
-                prefix='.solid-node-previous-',
-                dir=os.path.dirname(self.build_dir) or '.')
-            os.replace(self.build_dir, previous)
+        parent = os.path.dirname(os.path.abspath(self.build_dir)) or '.'
+        version = tempfile.mktemp(prefix=f'{os.path.basename(self.build_dir)}.',
+                                  dir=parent)
+
+        superseded = None
+        if os.path.islink(self.build_dir):
+            superseded = os.path.realpath(self.build_dir)
+        elif os.path.lexists(self.build_dir):
+            # A project built before this layout: its build path is a
+            # plain directory, which cannot be replaced by a symlink in
+            # one step. Migrate it once -- this single publication is not
+            # atomic; every later one is.
+            superseded = tempfile.mktemp(
+                prefix='.solid-node-previous-', dir=parent)
+            os.replace(self.build_dir, superseded)
+
+        os.replace(self.staging_dir, version)
+        link = tempfile.mktemp(prefix='.solid-node-link-', dir=parent)
+        os.symlink(os.path.basename(version), link)
         try:
-            os.replace(self.staging_dir, self.build_dir)
+            os.replace(link, self.build_dir)
         except Exception:
-            if previous is not None and not os.path.lexists(self.build_dir):
-                os.replace(previous, self.build_dir)
+            shutil.rmtree(version, ignore_errors=True)
+            if os.path.lexists(link):
+                os.remove(link)
+            if superseded is not None and not os.path.lexists(self.build_dir):
+                os.replace(superseded, self.build_dir)
             raise
-        if previous is not None:
-            shutil.rmtree(previous, ignore_errors=True)
+
+        exclude_build_from_git(self.build_dir)
+
+        # Only ever the tree this publication replaced. A concurrent
+        # publisher's fresh version is reached through its own symlink and
+        # must survive.
+        if superseded is not None and superseded != os.path.realpath(self.build_dir):
+            shutil.rmtree(superseded, ignore_errors=True)

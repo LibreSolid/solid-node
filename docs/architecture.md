@@ -131,7 +131,15 @@ model paths, so private NodeAPI consumers can serve a completed build without
 loading project Python (ADR-031).
 artifacts build privately and replace the normal build directory only once
 the complete tree is current, so a failed rebuild leaves the last successful
-artifacts readable. Errors go to `errors.json` in the build dir — file-based
+artifacts readable. That replacement is a **symlink swap** (ADR-032): the
+build path is a symlink to a versioned sibling directory, rebound with
+`os.replace`, so a reader always reaches one complete artifact set and two
+overlapping publishers settle on one rather than colliding. It uses only
+`os.symlink` and `os.replace`, so nothing here is platform-specific. A
+publication that loses such a race is reported through `errors.json` rather
+than escaping the builder. The project template ignores `<build>*`, and a
+project whose `.gitignore` predates the layout gets that pattern recorded in
+`.git/info/exclude` instead of a tracked file. Errors go to `errors.json` in the build dir — file-based
 IPC, no broker (ADR-018). A broken initial build kills develop; a broken
 reload falls back to a broad recursive watch and keeps the loop alive.
 

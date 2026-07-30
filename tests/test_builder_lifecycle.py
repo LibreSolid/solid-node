@@ -139,3 +139,34 @@ class BuilderLifecycleTest(TestCase):
 
         self.assertEqual(outcome, BuildOutcome.FAILED)
         callback.assert_not_called()
+
+
+class LostPublicationRaceTest(TestCase):
+    """Another publisher winning the race is not a broken model: it left
+    its own complete artifact set behind, which every reader can use. A
+    build that produced a correct model must not fail with a traceback
+    because it lost that race."""
+
+    def test_publication_failure_is_reported_not_raised(self):
+        published = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, published, ignore_errors=True)
+        builder = Builder('model.py', build_dir='/tmp/candidate',
+                          published_build_dir=published, watch=False,
+                          callback='http://listener/build-ready')
+        notified = []
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=Mock()), \
+             patch.object(builder, 'generate_stl',
+                          return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_write_viewer_snapshot'), \
+             patch.object(builder, '_publish',
+                          side_effect=OSError('another publisher won')), \
+             patch.object(builder, '_notify_callback',
+                          side_effect=lambda: notified.append('callback')):
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.FAILED)
+        self.assertEqual(notified, [])
+        with open(os.path.join(published, 'errors.json')) as report:
+            self.assertIn('another publisher won', json.load(report)['error'])

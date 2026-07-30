@@ -2,6 +2,21 @@
 History
 =======
 
+Unreleased
+----------
+
+* The build directory is now a symlink to a versioned sibling directory,
+  rebound atomically on each publication (ADR-032). A reader following it
+  always reaches one complete artifact set, and a verification build no
+  longer fails when it publishes beside a running watch loop. Consumers that
+  require the build path to be a real directory are affected; it still
+  behaves as a directory for ordinary reads.
+* Projects scaffolded by ``solid new`` ignore ``_build*``. An existing
+  project gets that pattern recorded in ``.git/info/exclude`` on its next
+  build, leaving its tracked ``.gitignore`` untouched. Because that exclude
+  file is per-clone, a project created before this change may need
+  ``_build*`` added to its ``.gitignore`` when cloned elsewhere.
+
 0.4.0 (2026-07-20)
 ------------------
 
