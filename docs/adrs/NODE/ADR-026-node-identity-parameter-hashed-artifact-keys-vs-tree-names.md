@@ -73,7 +73,7 @@ A related fix (`6ea4622`) ensures positional and keyword forms of the *same* cal
 
 **Child name = parent-attribute-derived.** `_link_child(child)` sets the child's `_parent` and, **unless the child has an explicit name** (`_explicit_name`), derives `child.name` via `_attr_name_for`: the parent attribute referencing the child (`self.wheel` → `"wheel"`), or `<attr>-<index>` for a list/tuple member. A plain attribute is preferred over a list membership (two passes), private `_`-prefixed attributes are skipped, and the derivation is **idempotent** (a second assemble recomputes the identical name — overwrites, never stacks). It is called both from `InternalNode.as_scad` and from the web NodeAPI (ADR-014), which walks `render()` output without a full assemble.
 
-**Class resolution = explicit `NODE` marker.** `find_class` still returns the sole `AbstractBaseNode` subclass in a single-node file, but when a file defines **several** node classes it must set module-level `NODE = MyClass` to name the node; otherwise it raises `AmbiguousNodeError` instead of silently picking the first. The marker must name a class **defined in that same file** (an imported class is rejected). `TestCase` resolution (`load_test`) is unaffected — the marker rule is for node classes only.
+**Class resolution = explicit `NODE` marker.** `find_class` still returns the sole `AbstractBaseNode` subclass defined in the loaded file, but when a file defines **several** node classes it must set module-level `NODE = MyClass` to name the node; otherwise it raises `AmbiguousNodeError` instead of silently picking the first. An explicit marker may name a node class imported from another module inside the active project, enabling a package facade to re-export its root node; it rejects a class outside that project. Implicit discovery remains limited to classes defined in the loaded file. `load_node` also tracks the loaded facade alongside the selected class's implementation/import closure, so an entry-point edit invalidates the active node and wakes develop. `TestCase` resolution (`load_test`) is unaffected — the marker rule is for node classes only.
 
 Rationale:
 
@@ -97,7 +97,8 @@ Rationale:
 
 ### Class resolution — explicit `NODE` marker (chosen)
 - Good: unambiguous; multi-class files fail loudly with an actionable message.
-- Good: single-node files need no marker (backward compatible); marker must be same-file (rejects imported-class mistakes).
+- Good: single-node files need no marker (backward compatible); an explicit marker may select a project-local imported node for a conventional package facade, while implicit discovery remains same-file-only.
+- Good: the facade and selected implementation source are tracked, so either edit invalidates the root node; classes outside the active project remain rejected.
 - Bad: authors of multi-class files must remember to add the marker.
 
 ### Class resolution — first-class-in-file convention
@@ -119,7 +120,7 @@ Rationale:
 - **The cache contract (ADR-006) is sound.** Because the key is a hash of the class plus the full parameter serialization, cache hits imply identical geometry inputs; differently-parameterized nodes — and now differently-*classed* nodes — can never share an STL. Two instances of the **same class with the same args** still share one cached artifact (that intended dedup is unchanged), and `name=` still never influences `uniq_id`.
 - **Filenames are bounded and stable.** Basename length no longer depends on parameter size; the readable prefix aids debugging without affecting identity. Every artifact basename now carries a `<readable-prefix>-<shorthash>` suffix — including no-arg nodes, which no longer keep a bare script basename.
 - **Child names are useful for the tree, API, and tests.** Derivation runs both under `as_scad` and in the NodeAPI, so the web viewer and tests see the same names; explicit `name=` remains authoritative.
-- **Multi-class node files are now first-class and safe.** A file may legitimately define several node classes; the `NODE` marker makes the choice explicit and same-file-scoped, which is also what makes the "one file, several node classes" pattern viable at all — this is the loader-side (ADR-005) extension of the identity model.
+- **Multi-class node files and package facades are first-class and safe.** A file may legitimately define several node classes; the `NODE` marker makes the choice explicit. Implicit discovery remains same-file-scoped, while an explicit marker may name a project-local imported class so a package facade can re-export its root node. The loaded facade joins the selected implementation source set, which preserves cache invalidation and develop watches — this is the loader-side (ADR-005) extension of the identity model.
 - **Small author-facing obligations.** Multi-class files need a `NODE` marker; children needing a specific name still pass `name=`. Both fail-safe (loud error, or class-name fallback) rather than silently misbehaving.
 - **Hash truncation is a bounded risk.** 12 hex digits is not cryptographically collision-proof, but is more than sufficient for a single project's artifact set; it can be widened via `_HASH_LEN` if ever needed.
 

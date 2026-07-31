@@ -15,7 +15,14 @@ sys.path.append(os.getcwd())
 def load_node(path):
     if not path.endswith('.py'):
         raise Exception(f"Can only load .py files, not {path}")
-    return load_instance(path, AbstractBaseNode)
+    path = os.path.realpath(path)
+    node = load_instance(path, AbstractBaseNode)
+    # A package facade can explicitly select a node class defined in a
+    # sibling module. The class tracks its own implementation/import
+    # closure, while the loaded facade also determines which class is
+    # active and must therefore invalidate and wake develop on edits.
+    node.files.add(path)
+    return node
 
 
 def load_test(path):
@@ -94,9 +101,11 @@ def _resolve_marker(path, BaseClass, marker):
         raise AmbiguousNodeError(
             f"{path} sets NODE = {marker!r}, which is not a "
             f"{BaseClass.__name__} subclass.")
-    if inspect.getfile(marker) != path:
+    marker_path = os.path.realpath(inspect.getfile(marker))
+    project_root = os.path.realpath(os.getcwd())
+    if os.path.commonpath((marker_path, project_root)) != project_root:
         raise AmbiguousNodeError(
             f"{path} sets NODE = {marker.__name__}, but that class "
-            f"is not defined in this file (it's imported) -- NODE "
-            f"must name a class defined in this same file.")
+            f"is defined outside the active project ({project_root}) -- "
+            f"NODE must name a project-local class.")
     return marker

@@ -13,9 +13,9 @@ machinery real node fixtures need.
 """
 
 import os
-from unittest import TestCase
+from unittest import TestCase, mock
 from solid_node.core.loader import (
-    import_module_from_path, find_class, AmbiguousNodeError,
+    import_module_from_path, find_class, load_node, AmbiguousNodeError,
 )
 from solid_node.node.base import AbstractBaseNode
 from solid_node.test import TestCase as SolidTestCase
@@ -92,20 +92,48 @@ class MarkerWrongTypeTest(TestCase):
         self.assertIn('NotANode', message)
 
 
-class MarkerNotDefinedHereTest(TestCase):
-    """NODE naming a class that is a real AbstractBaseNode subclass
-    but defined in a DIFFERENT file (imported here) must fail with a
-    clear error -- the same inspect.getfile check that already
-    excludes imported classes from candidacy must reject the marker
-    too."""
+class ProjectLocalImportedMarkerTest(TestCase):
+    """An explicit NODE marker may name a project-local imported node.
 
-    def test_raises_clear_error(self):
+    Imported classes remain excluded from implicit discovery; this is
+    only an explicit, author-declared entry point.
+    """
+
+    def test_loads_the_imported_class(self):
         path, module = load('marker_not_defined_here')
-        with self.assertRaises(AmbiguousNodeError) as ctx:
-            find_class(path, module, AbstractBaseNode)
+        klass = find_class(path, module, AbstractBaseNode)
+        self.assertEqual(klass.__name__, 'Imported')
+
+
+class PackageEntrypointTest(TestCase):
+    """A package facade can re-export the root node it selects."""
+
+    def test_loads_imported_node_and_tracks_facade_and_implementation(self):
+        path = os.path.realpath(os.path.join(
+            FIXTURES, 'imported_entrypoint', '__init__.py'))
+
+        node = load_node(path)
+
+        implementation = os.path.realpath(os.path.join(
+            FIXTURES, 'imported_entrypoint', 'snowman_body.py'))
+        self.assertEqual(node.__class__.__name__, 'SnowmanBody')
+        self.assertEqual(os.path.realpath(node.src), implementation)
+        self.assertIn(path, {os.path.realpath(source) for source in node.files})
+        self.assertIn(implementation,
+                      {os.path.realpath(source) for source in node.files})
+
+
+class ExternalImportedMarkerTest(TestCase):
+    """An explicit marker may not redirect a project into framework code."""
+
+    def test_raises_actionable_error(self):
+        path, module = load('marker_outside_project')
+        with mock.patch('solid_node.core.loader.os.getcwd', return_value=FIXTURES):
+            with self.assertRaises(AmbiguousNodeError) as ctx:
+                find_class(path, module, AbstractBaseNode)
         message = str(ctx.exception)
         self.assertIn(path, message)
-        self.assertIn('Imported', message)
+        self.assertIn('AbstractBaseNode', message)
 
 
 class TestCaseResolutionUnaffectedTest(TestCase):
