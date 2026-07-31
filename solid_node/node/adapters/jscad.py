@@ -40,6 +40,10 @@ class JScadNode(LeafNode):
         return self
 
     def as_scad(self, _):
+        # An STL already produced from this jscad source needs no
+        # second run of the external renderer.
+        if self._up_to_date(self.stl_file):
+            return import_stl(self.local_stl)
 
         cmd = [
             'jscad',

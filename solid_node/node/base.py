@@ -14,6 +14,7 @@ from decimal import Decimal
 from subprocess import Popen
 from solid2 import scad_render, import_stl, color
 from .operations import Rotation, Translation
+from .sources import source_closure
 
 
 logger = logging.getLogger('node.base')
@@ -267,8 +268,12 @@ class AbstractBaseNode:
         self.local_stl = f'{basename}.stl'
         self.basepath = basepath
 
-        # Track source of this node and all children
-        self.files = set([self.src])
+        # Track source of this node and all children. The node's own
+        # source is not the whole story: a module it imports for its
+        # dimensions decides its geometry just as much, so the set is
+        # the project-local import closure (see sources.py). Internal
+        # nodes union in their children's sets while assembling.
+        self.files = source_closure(self.src)
 
         # Holds the result of render()
         self.model = None
@@ -302,18 +307,25 @@ class AbstractBaseNode:
         if root:
             self.root = root
 
-        rendered = self.render()
-
-        self.validate(rendered)
-        self.model = self.as_scad(rendered)
-        if not self.optimize:
-            self.model = self._colorize(self.model)
-        self.generate_scad()
-
-        if self.optimize:
+        if self._render_can_be_skipped():
+            # Everything below would recompute an artifact that is
+            # already on disk and already current. import_optimized()
+            # imports it instead; self.model stays unset and is
+            # rendered lazily if something actually asks for the scad.
             assembled = self.import_optimized()
         else:
-            assembled = self.model
+            rendered = self.render()
+
+            self.validate(rendered)
+            self.model = self.as_scad(rendered)
+            if not self.optimize:
+                self.model = self._colorize(self.model)
+            self.generate_scad()
+
+            if self.optimize:
+                assembled = self.import_optimized()
+            else:
+                assembled = self.model
 
         for operation in self.operations:
             # Apply scad operation
@@ -322,6 +334,32 @@ class AbstractBaseNode:
         self._assembled = assembled
 
         return assembled
+
+    def _render_can_be_skipped(self):
+        """Whether assemble() can import this node's artifact instead of
+        producing it. False here: an internal node's file set is the
+        union of its children's, and it only learns that by walking them
+        (see InternalNode.as_scad), so it cannot know whether it is
+        current without doing the very work the answer would skip. A
+        leaf can -- its set is known at construction. LeafNode overrides.
+        """
+        return False
+
+    def _require_model(self):
+        """This node's own geometry as scad.
+
+        A leaf whose artifact was already current never rendered, so
+        self.model is unset. Nothing in the build path needs it -- the
+        parent imports the STL -- but a caller that genuinely wants the
+        scad gets it rendered on demand rather than getting None.
+        """
+        if self.model is None:
+            rendered = self.render()
+            self.validate(rendered)
+            self.model = self.as_scad(rendered)
+            if not self.optimize:
+                self.model = self._colorize(self.model)
+        return self.model
 
     def import_optimized(self):
         if self.rigid and self._up_to_date(self.stl_file):
@@ -371,7 +409,7 @@ class AbstractBaseNode:
 
     @property
     def scad_code(self):
-        code = scad_render(self.model)
+        code = scad_render(self._require_model())
         if self.fn:
             code = f'$fn = {self.fn};\n\n{code}'
         return code

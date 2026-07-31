@@ -31,6 +31,22 @@ class LeafNode(AbstractBaseNode):
         """Returns an empty tuple, as leaf nodes have no children"""
         return tuple()
 
+    def _render_can_be_skipped(self):
+        """A leaf knows its own source set at construction, so it can
+        answer this before doing any work -- unlike an internal node.
+
+        Both artifacts must be current, not just the STL: the scad is
+        what regenerates the STL if it is ever lost, and skipping is
+        only safe while the pair on disk is the pair this source would
+        produce.
+        """
+        return (
+            self.optimize
+            and self.rigid
+            and self._up_to_date(self.stl_file)
+            and self._up_to_date(self.scad_file)
+        )
+
     def as_scad(self, rendered):
         """Internally, the project is composed using OpenScad to render
         all STLs, so each LeafNode subclass must be able to output

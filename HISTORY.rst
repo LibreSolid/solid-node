@@ -5,6 +5,24 @@ History
 Unreleased
 ----------
 
+* A node now tracks the project modules its source imports, not just its own
+  file, and a leaf whose artifacts are already current is no longer rendered
+  (ADR-033). Editing a module that holds shared geometry but defines no node
+  — the conventional ``kinematics.py`` — used to move no tracked mtime, so
+  every artifact went on reporting up to date and ``solid develop`` never
+  saw the edit; now it invalidates exactly the nodes that import it. Because
+  the up-to-date check used to run *after* ``render()``, caching saved
+  almost nothing: a no-op rebuild of a CadQuery-heavy project cost the same
+  as building it from scratch (19.8 s either way), and now costs 3.2 s.
+  ``CadQueryNode`` and ``JScadNode`` no longer rewrite an artifact that is
+  already current. Two consequences worth knowing: ``assemble()`` may now
+  call ``render()`` zero times rather than exactly once, so anything relying
+  on a render side effect is affected; and a node whose geometry depends on
+  something a static import walk cannot see — a data file read at runtime, a
+  module reached through ``importlib``, an environment variable — can look
+  current when it is not, where the old unconditional render hid it. An
+  existing build directory rebuilds once as the corrected source set takes
+  effect.
 * New ``solid develop --no-web`` flag: run the watch-and-rebuild loop with no
   viewer, leaving ``SOLID_NODE_PORT`` free, for a host that renders the
   published build directory itself. Pairs with ``--callback URL``.

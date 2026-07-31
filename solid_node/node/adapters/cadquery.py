@@ -27,7 +27,15 @@ class CadQueryNode(LeafNode, metaclass=CheckCQEditor):
     namespace = 'cadquery.cq'
 
     def as_scad(self, rendered):
-        """Export the model to STL and returns a scad code to render it"""
-        cq.exporters.export(rendered, self.stl_file, 'STL')
-        os.utime(self.stl_file, (time.time(), self.mtime))
+        """Export the model to STL and returns a scad code to render it.
+
+        The export is skipped when the STL on disk was already produced
+        from these sources -- the same guard generate_stl() has always
+        had, which this path used to run upstream of. A node that opts
+        out of optimization still reaches here, so the guard belongs on
+        the adapter and not only on the assemble() shortcut.
+        """
+        if not self._up_to_date(self.stl_file):
+            cq.exporters.export(rendered, self.stl_file, 'STL')
+            os.utime(self.stl_file, (time.time(), self.mtime))
         return import_stl(self.local_stl)

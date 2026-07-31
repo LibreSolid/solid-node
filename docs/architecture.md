@@ -47,11 +47,14 @@ Three architectural commitments shape almost every subsystem:
    plurality at the price of OpenSCAD's CSG model being the common
    denominator.
 2. **The build artifact is the currency, mtime is its clock**
-   (ADR-006/026). STLs are cached per parameter-hashed identity and
+   (ADR-006/026/033). STLs are cached per parameter-hashed identity and
    validated by mtime *equality* against the max source mtime. Caches
    at every layer — meshes, Manifolds, HTTP responses — key on the same
    `(artifact, mtime)` signal, so "the STL is fresh" is the one
-   invalidation concept the whole system shares.
+   invalidation concept the whole system shares. The source set behind
+   that clock is a node's own file plus the project-local modules it
+   imports, transitively (ADR-033), so a module holding shared geometry
+   invalidates the nodes that read it — and only those.
 3. **One kinematic truth, recomputed absolutely, consumed everywhere**
    (ADR-023/027/028). A node's placement is its operation list. Every
    consumer — SCAD output, world-space meshes for assertions, the two
@@ -120,7 +123,17 @@ STL generation is asynchronous: `StlRenderStart` carries a spawned
 `openscad` process, PID lock files guard concurrency, and
 `build_stls()` loops until nothing is stale. Staleness is **mtime
 equality** — generated files are back-dated with `os.utime` to the max
-source mtime (ADR-006).
+source mtime (ADR-006), taken over `node.files`: the node's own source
+plus its project-local import closure, unioned upward from children
+(ADR-033).
+
+A rigid, optimizing **leaf** whose artifacts are current assembles by
+importing its STL — `render()` and `as_scad()` never run (ADR-033), so
+the check happens before the expensive work rather than after it.
+Internal nodes always render: their file set is the union of their
+children's and is only known by walking them. The adapters that write
+their artifact inside `as_scad()` — CadQuery, JSCAD — carry the same
+guard, for nodes that opt out of optimization.
 
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
@@ -230,6 +243,11 @@ The short list that changes must not silently break:
 
 - An artifact is fresh **iff** its mtime equals the node's max source
   mtime; every cache keys on that signal (ADR-006/028/029).
+- A node's source set is its own file plus the project-local modules it
+  imports, transitively — never the `__init__.py` of a package the walk
+  merely traverses, which would make every node depend on every file
+  (ADR-033). The set over-approximates on purpose: a spurious rebuild is
+  cheap, a stale model is not.
 - `name=` never influences geometry or `uniq_id`; any parameter change
   changes the artifact key (ADR-026).
 - Re-rendering an instant is absolute, never cumulative; only
