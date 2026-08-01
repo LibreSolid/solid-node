@@ -1,2 +1,6 @@
-node_modules/
-dist/
+# Anchored (not `node_modules/`) so a symlink at this path is ignored too.
+# `scripts/dev-env` in the shop links these directories from the primary clone
+# into a worktree; a trailing-slash pattern matches directories but not links,
+# which would leave every bench worktree dirty.
+/node_modules
+/dist
