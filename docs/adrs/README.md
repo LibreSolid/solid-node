@@ -75,6 +75,7 @@ that way.
 ### EXPORT — static distribution
 - [ADR-020](EXPORT/ADR-020-static-export-and-embeddable-viewer-widget.md) — Static export and embeddable widget — **Accepted**
 - [ADR-034](EXPORT/ADR-034-shared-node-tree-document-schema.md) — Shared node-tree document schema across export and build snapshots — **Accepted**
+- [ADR-035](EXPORT/ADR-035-reusable-viewer-core-and-declared-api.md) — Reusable viewer core and declared API version — **Accepted**
 
 ADR-019 (the solid-builder agent system) predates the shop and lives
 with the agent tooling's own history, not in this framework log.

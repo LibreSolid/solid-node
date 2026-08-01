@@ -5,6 +5,9 @@
  */
 
 import { build } from 'esbuild';
+import { readFile } from 'node:fs/promises';
+
+const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 
 // The banner satisfies the MIT notice-retention requirement for the
 // bundled dependencies in every downstream copy of the bundle (git,
@@ -27,6 +30,9 @@ await build({
   format: 'iife',
   globalName: 'SolidNodeWidget',
   outfile: 'dist/solid-widget.js',
+  define: {
+    __VIEWER_API_VERSION__: JSON.stringify(pkg.solidNodeViewerApi),
+  },
   banner: { js: banner },
   logLevel: 'info',
 });

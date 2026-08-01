@@ -90,24 +90,17 @@ one file, and same-named scripts in different directories do not collide.
   reference it
 
 ### Requirement: Embeddable widget behavior
-The widget SHALL auto-mount on every element with `data-solid-widget="<manifest
-url>"` at DOMContentLoaded, render the tree as a Z-up three.js group hierarchy
-with per-frame local matrices computed from operations (degrees→radians,
-premultiplied in order), fit the camera to the model bounds, and provide orbit
-controls. Node colors apply from the manifest, inherited from the parent when
-unset. Models without an explicit or inherited color SHALL use the same
-normal-based material as the development viewer. When any operation
-expression contains `$t` the widget SHALL show a play/pause button and a 0..1
-timeline slider (step `1/frames`), autoplaying by default at `frames / fps`
-seconds per cycle; static models get no controls. Page query parameters SHALL
-set the initial state: `?t=<0..1>` for time, `?autoplay=0` to start paused.
-
-#### Scenario: Colorless assembly embed
-
-- **WHEN** an export contains multiple model nodes with no explicit or
-  inherited colors
-- **THEN** the widget renders those models with the development viewer's
-  normal-based material
+The export channel SHALL ship the framework's viewer as an auto-mounting bundle,
+so an export directory renders on any static host with no solid-node process
+running. It SHALL keep its published names — the bundle `solid-widget.js`, the
+auto-mount attribute `data-solid-widget="<manifest url>"`, and the browser
+global `SolidNodeWidget` — and SHALL auto-mount every element carrying that
+attribute once the page is ready, presenting animation as an always-visible
+inline bar. The page query string SHALL set the initial state: `?t=<0..1>` for
+time, `?autoplay=0` to start paused. How the model itself is rendered — tree
+composition, camera, colour, and animation semantics — is the
+`viewer-package` capability, which the export channel embeds rather than
+reimplements.
 
 #### Scenario: Static pose embed
 
@@ -120,8 +113,8 @@ set the initial state: `?t=<0..1>` for time, `?autoplay=0` to start paused.
   through an iframe
 - **THEN** the widget renders and animates with no solid-node process running
 
-#### Scenario: Explicit model colors
+#### Scenario: An existing host page keeps working
 
-- **WHEN** an export supplies explicit or inherited node colors
-- **THEN** the widget renders those colors rather than replacing them with a
-  normal-based material
+- **WHEN** a hand-written page embeds an export by the documented bundle
+  filename, auto-mount attribute, and browser global
+- **THEN** it mounts and renders as before

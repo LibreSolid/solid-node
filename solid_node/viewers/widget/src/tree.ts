@@ -83,6 +83,18 @@ export class WidgetTree {
       child.update(t);
     }
   }
+
+  dispose(): void {
+    this.group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) {
+        return;
+      }
+      object.geometry.dispose();
+      const materials = Array.isArray(object.material)
+        ? object.material : [object.material];
+      materials.forEach((material) => material.dispose());
+    });
+  }
 }
 
 function operationIsAnimated(op: RawOperation): boolean {

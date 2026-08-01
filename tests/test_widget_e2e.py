@@ -7,12 +7,17 @@ fixture, serve the output directory over HTTP, render it in headless
 chromium and assert on the pixels -- models load with their colors,
 and the ?t= URL parameter actually poses the $t animation.
 
+The mount-interface tests below them drive a real page with playwright
+instead, because a screenshot cannot click a control or read an
+attribute.
+
 These tests need artifacts a plain python environment may not have,
 and skip when missing:
 - the widget bundle (dist/solid-widget.js, built by npm)
 - a headless chromium (playwright's cache, $SOLID_HEADLESS_CHROME,
   or a chromium/chrome on PATH)
 - Pillow, for pixel assertions
+- playwright, for the mount-interface tests
 """
 
 import glob
@@ -34,6 +39,12 @@ try:
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+try:
+    from playwright.sync_api import sync_playwright
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
 
 
 def find_headless_chrome():
@@ -156,3 +167,192 @@ class WidgetE2ETest(BaseNodeTest):
 
         self.assertLess(changed, 500,
                         't=0 and t=1 should render the same pose')
+
+
+HARNESS_PAGE = """<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      html, body { margin: 0; }
+      #host { width: 800px; height: 600px; position: relative; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <script src="solid-widget.js"></script>
+  </body>
+</html>
+"""
+
+
+@unittest.skipUnless(os.path.exists(WIDGET_BUNDLE),
+                     'widget bundle not built (npm run build)')
+@unittest.skipUnless(HAS_PLAYWRIGHT, 'playwright not installed')
+class ViewerMountApiTest(BaseNodeTest):
+    """The mount interface hosts other than an export page need.
+
+    The pixel tests above render one URL and compare images, which
+    cannot click a control, read an attribute, or see that a container
+    was emptied. These drive a real page instead: they load the bundle
+    with nothing to auto-mount, call mount() themselves, and assert on
+    the live DOM.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.out_dir = os.path.join(self.build_dir, 'export_out')
+        export_node(spinner_project.Spinner(), self.out_dir)
+        with open(os.path.join(self.out_dir, 'harness.html'), 'w') as page:
+            page.write(HARNESS_PAGE)
+
+        handler = partial(QuietHandler, directory=self.out_dir)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+        threading.Thread(target=self.server.serve_forever,
+                         daemon=True).start()
+        self.addCleanup(self.server.shutdown)
+        port = self.server.server_address[1]
+        self.harness_url = f'http://127.0.0.1:{port}/harness.html'
+
+    def in_page(self, script):
+        """Run one script in a page that has the bundle but nothing
+        auto-mounted, and fail on any uncaught page error."""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(args=[
+                '--no-sandbox',
+                '--disable-gpu',
+                '--use-angle=swiftshader',
+            ])
+            try:
+                page = browser.new_page(
+                    viewport={'width': 800, 'height': 600})
+                errors = []
+                page.on('pageerror', lambda error: errors.append(str(error)))
+                page.goto(self.harness_url)
+                page.wait_for_function(
+                    'typeof SolidNodeWidget !== "undefined"')
+                result = page.evaluate(script)
+                self.assertEqual(errors, [], f'uncaught page errors: {errors}')
+                return result
+            finally:
+                browser.close()
+
+    def test_dispose_leaves_the_container_empty(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const viewer = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          const mounted = host.children.length;
+          viewer.dispose();
+          return { mounted, after: host.children.length };
+        }""")
+
+        self.assertGreater(result['mounted'], 0, 'nothing was mounted')
+        self.assertEqual(result['after'], 0,
+                         'dispose() left elements in the container')
+
+    def test_the_bundle_and_mount_handle_report_one_api_version(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const viewer = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          return {
+            bundle: SolidNodeWidget.apiVersion,
+            handle: viewer.apiVersion,
+          };
+        }""")
+
+        self.assertIsInstance(result['bundle'], int)
+        self.assertEqual(result['bundle'], result['handle'])
+
+    def test_a_captured_view_survives_a_remount(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const first = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          // Move away from the fitted camera, so restoring is
+          // distinguishable from fitting again
+          const moved = {
+            camera: first.view().camera.clone().multiplyScalar(2),
+            target: first.view().target.clone(),
+          };
+          first.dispose();
+
+          const second = await SolidNodeWidget.mount(
+            host, 'manifest.json', { view: moved });
+          const got = second.view();
+          return {
+            want: [moved.camera.x, moved.camera.y, moved.camera.z],
+            got: [got.camera.x, got.camera.y, got.camera.z],
+          };
+        }""")
+
+        for want, got in zip(result['want'], result['got']):
+            self.assertAlmostEqual(want, got, places=4,
+                                   msg='remount did not restore the view')
+
+    def test_reload_keeps_the_maker_looking_where_they_were(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const viewer = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          const before = viewer.view();
+          const want = [before.camera.x, before.camera.y, before.camera.z];
+          await viewer.reload();
+          const after = viewer.view();
+          return {
+            want,
+            got: [after.camera.x, after.camera.y, after.camera.z],
+          };
+        }""")
+
+        for want, got in zip(result['want'], result['got']):
+            self.assertAlmostEqual(want, got, places=4,
+                                   msg='reload() moved the camera')
+
+    def test_the_host_names_the_canvas(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          await SolidNodeWidget.mount(host, 'manifest.json', {
+            className: 'functional-model',
+            role: 'img',
+            ariaLabel: 'Functional model',
+          });
+          const canvas = host.querySelector('canvas');
+          return {
+            className: canvas.className,
+            role: canvas.getAttribute('role'),
+            label: canvas.getAttribute('aria-label'),
+          };
+        }""")
+
+        self.assertEqual(result['className'], 'functional-model')
+        self.assertEqual(result['role'], 'img')
+        self.assertEqual(result['label'], 'Functional model')
+
+    def test_the_toggle_presentation_starts_collapsed(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          await SolidNodeWidget.mount(host, 'manifest.json', {
+            animation: 'toggle',
+          });
+          const toggle = host.querySelector('.timeline-toggle');
+          const bar = host.querySelector('.animation-controls');
+          const collapsed = {
+            expanded: toggle.getAttribute('aria-expanded'),
+            barVisible: bar.offsetParent !== null,
+          };
+          toggle.click();
+          return {
+            collapsed,
+            expanded: toggle.getAttribute('aria-expanded'),
+            barVisible: bar.offsetParent !== null,
+          };
+        }""")
+
+        self.assertEqual(result['collapsed']['expanded'], 'false')
+        self.assertFalse(result['collapsed']['barVisible'],
+                         'the timeline was visible before it was asked for')
+        self.assertEqual(result['expanded'], 'true')
+        self.assertTrue(result['barVisible'],
+                        'the timeline stayed hidden after the toggle')

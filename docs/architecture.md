@@ -224,13 +224,16 @@ A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
 
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
-`solid export` (ADR-020/034) emits a self-contained static artifact:
+`solid export` (ADR-020/034/035) emits a self-contained static artifact:
 `manifest.json` (`format: solid-node-export, version: 1` — a versioned
 tree-document schema shared with `viewer.json`, not a portability claim),
 deduplicated `models/*.stl`, and a
-React-free three.js **widget** that auto-mounts on
-`data-solid-widget` containers, animates `$t` client-side (play/pause
-+ timeline when animated), and honors `?t=`/`?autoplay=0`. The tree
+React-free three.js **widget** whose side-effect-free imperative core mounts a
+published tree into a host and returns a lifecycle handle; its published entry
+auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
+pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
+global exposes API version 1 so a host can check compatibility before mounting.
+The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core
 serializer, which links rendered children before recursion and includes
