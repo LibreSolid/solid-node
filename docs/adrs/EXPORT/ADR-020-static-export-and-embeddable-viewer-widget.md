@@ -91,6 +91,16 @@ The widget evaluates `$t` expressions in the browser (jokenizer + a `Math`-popul
 
 Future work this opens up: additional export targets (glTF/3MF), signed or pinned manifest versions, and possibly converging the two renderers if drift becomes costly.
 
+## Amendment — 2026-08-01
+
+[ADR-034](ADR-034-shared-node-tree-document-schema.md) makes the manifest's
+tree schema shared with the normal-build `viewer.json`: both carry
+`format: "solid-node-export"`, version 1, and the same linked node fields,
+including additive per-node `mtime`. This amendment does not make
+`viewer.json` an export. `manifest.json` remains the portable public contract
+with copied, deduplicated `models/` artifacts; `viewer.json` remains a private
+build-root-relative snapshot.
+
 ## References
 
 - `solid_node/core/export.py` -- export pipeline, manifest format, tree serialization, widget copy

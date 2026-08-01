@@ -15,6 +15,7 @@ from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import load_node
+from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
 from solid_node.node.base import StlRenderStart
 
 
@@ -90,25 +91,6 @@ def write_error(error_message, build_dir=None):
             'error': error_message,
             'tstamp': time.time(),
         }, f)
-
-
-def _viewer_state(node, build_dir):
-    state = {
-        'name': node.name,
-        'type': node._type,
-        'color': node.color,
-        'mtime': node.mtime,
-        'operations': [operation.serialized for operation in node.operations],
-    }
-    if node.rigid:
-        state['model'] = os.path.relpath(node.stl_file, build_dir)
-        return state
-    children = node.render()
-    if type(children) in (list, tuple):
-        for child in children:
-            node._link_child(child)
-        state['children'] = [_viewer_state(child, build_dir) for child in children]
-    return state
 
 
 class Builder(FileSystemEventHandler):
@@ -282,9 +264,14 @@ class Builder(FileSystemEventHandler):
             return
         os.makedirs(self.build_dir, exist_ok=True)
         with open(os.path.join(self.build_dir, 'viewer.json'), 'w') as snapshot:
-            json.dump({'version': 1,
+            json.dump({'format': DOCUMENT_FORMAT,
+                       'version': DOCUMENT_VERSION,
                        'animation': {'fps': 30, 'frames': 360},
-                       'root': _viewer_state(self.node, self.build_dir)}, snapshot)
+                       'root': serialize_node(
+                           self.node,
+                           lambda rigid_node: os.path.relpath(
+                               rigid_node.stl_file, self.build_dir),
+                       )}, snapshot)
 
     def _notify_callback(self):
         if not self.callback:

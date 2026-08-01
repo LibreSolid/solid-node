@@ -14,11 +14,13 @@ import logging
 import os
 import shutil
 
+from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+
 
 logger = logging.getLogger('core.export')
 
-MANIFEST_FORMAT = 'solid-node-export'
-MANIFEST_VERSION = 1
+MANIFEST_FORMAT = DOCUMENT_FORMAT
+MANIFEST_VERSION = DOCUMENT_VERSION
 
 # The standalone viewer: a static index.html plus the JS bundle built
 # by npm/CI inside viewers/widget (dist/ is not committed to git)
@@ -58,7 +60,12 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
 
     # Maps each rigid node's stl_file to its manifest-relative path
     models = {}
-    root = _serialize_tree(node, models)
+    root = serialize_node(
+        node,
+        lambda rigid_node: models.setdefault(
+            rigid_node.stl_file, _model_path(rigid_node),
+        ),
+    )
 
     manifest = {
         'format': MANIFEST_FORMAT,
@@ -92,34 +99,6 @@ def _copy_widget(output_dir):
         target = os.path.join(output_dir, os.path.basename(source))
         shutil.copy2(source, target)
         logger.info(f'{source} -> {target}')
-
-
-def _serialize_tree(node, models):
-    """Serializes a node and, recursively, its children -- the same
-    walk NodeAPI does: rigid nodes are a single mesh and stop the
-    recursion; non-rigid nodes recurse into their rendered children."""
-    data = {
-        'name': node.name,
-        'type': node._type,
-        'color': node.color,
-        'operations': [op.serialized for op in node.operations],
-    }
-
-    if node.rigid:
-        data['model'] = models.setdefault(
-            node.stl_file, _model_path(node),
-        )
-        return data
-
-    children = node.render()
-    if type(children) not in (list, tuple):
-        # A non-rigid leaf: nothing to recurse into
-        return data
-
-    data['children'] = [
-        _serialize_tree(child, models) for child in children
-    ]
-    return data
 
 
 def _model_path(node):

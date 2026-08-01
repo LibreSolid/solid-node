@@ -4,16 +4,249 @@
 
 import json
 import os
+import shutil
 import sys
+import tempfile
 from unittest import TestCase
 from unittest.mock import patch
 
 from solid_node.cli import manage
+from solid_node.core.builder import Builder
 from solid_node.core.export import export_node, WidgetBundleMissing
 from solid_node.node import AssemblyNode
+from solid_node.node.base import AbstractBaseNode
 
 from .base import BaseNodeTest
 from . import flat_project
+
+
+class SerializedOperation:
+    """The producer contract consumes the raw serialized operation value."""
+
+    def __init__(self, serialized):
+        self.serialized = serialized
+
+
+class Cube(AbstractBaseNode):
+    """A real rigid node with a fixture-owned STL, avoiding OpenSCAD.
+
+    The parity fixture deliberately uses a concrete node instead of a mock so
+    the producer walks exercise ``AssemblyNode._link_child`` exactly as a
+    project does.  Its artifact is already present because the test is about
+    document serialization, not STL compilation.
+    """
+
+    _type = 'Cube'
+    rigid = True
+
+    def __init__(self, build_dir, name=None, color='#123456'):
+        self._fixture_build_dir = build_dir
+        super().__init__(name=name)
+        self.color = color
+        self.stl_file = os.path.join(build_dir, 'parts', 'cube.stl')
+        os.makedirs(os.path.dirname(self.stl_file), exist_ok=True)
+        with open(self.stl_file, 'w') as artifact:
+            artifact.write('solid cube\nendsolid cube\n')
+        self.operations = [
+            SerializedOperation(['t', ['1', '2', '3']]),
+        ]
+
+    @property
+    def mtime(self):
+        return 42
+
+
+class RecreatedAndReboundAssembly(AssemblyNode):
+    """Recreates ``gear`` on every render, exposing producer drift."""
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        super().__init__()
+        self.color = '#abcdef'
+        self.operations = [
+            SerializedOperation(['r', '$t * 360', [0, 0, 1]]),
+        ]
+
+    @property
+    def mtime(self):
+        return 24
+
+    def render(self):
+        self.gear = Cube(self._fixture_build_dir)
+        return [self.gear]
+
+
+class ExplicitNameAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        super().__init__()
+
+    def render(self):
+        self.gear = Cube(self._fixture_build_dir, name='drive_gear')
+        return [self.gear]
+
+
+class AttributeNameAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        self.input_gear = Cube(build_dir)
+        self.output_gear = Cube(build_dir)
+        super().__init__()
+
+    def render(self):
+        return [self.input_gear, self.output_gear]
+
+
+class ListAndTupleNameAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        self.gears = [Cube(build_dir), Cube(build_dir)]
+        self.posts = (Cube(build_dir), Cube(build_dir))
+        super().__init__()
+
+    def render(self):
+        return [*self.gears, *self.posts]
+
+
+class ChildrenOnlyNameAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        super().__init__()
+
+    def render(self):
+        child = Cube(self._fixture_build_dir)
+        self.children = [child]
+        return [child]
+
+
+class ClassNameFallbackAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        super().__init__()
+
+    def render(self):
+        return [Cube(self._fixture_build_dir)]
+
+
+class NonListNonRigidAssembly(AssemblyNode):
+
+    def __init__(self, build_dir):
+        self._fixture_build_dir = build_dir
+        super().__init__()
+
+    def render(self):
+        return Cube(self._fixture_build_dir)
+
+
+class ExportBuildSnapshotParityTest(TestCase):
+    """Both document producers must serialize the same node tree."""
+
+    def _documents(self, factory=RecreatedAndReboundAssembly):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        export_build = os.path.join(root, 'export-build')
+        build_build = os.path.join(root, 'normal-build')
+        export_dir = os.path.join(root, 'export')
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': export_build}):
+            export_root = factory(export_build)
+            with patch.object(export_root, 'build_stls'):
+                export_node(export_root, export_dir, widget=False)
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': build_build}):
+            build_root = factory(build_build)
+            builder = Builder('model.py', build_dir=build_build)
+            builder.node = build_root
+            builder._write_viewer_snapshot()
+
+        with open(os.path.join(export_dir, 'manifest.json')) as manifest:
+            export = json.load(manifest)
+        with open(os.path.join(build_build, 'viewer.json')) as snapshot:
+            build = json.load(snapshot)
+        return export, build, export_dir, build_build
+
+    def test_recreated_rebound_child_names_match(self):
+        export, build, _, _ = self._documents()
+
+        self.assertEqual(
+            [child['name'] for child in export['root']['children']],
+            [child['name'] for child in build['root']['children']],
+        )
+
+    def test_common_document_fields_and_distinct_model_roots(self):
+        export, build, export_dir, build_dir = self._documents()
+
+        self.assertEqual(export['format'], 'solid-node-export')
+        self.assertEqual(build['format'], 'solid-node-export')
+        self.assertEqual(export['version'], build['version'])
+        self.assertEqual(export['animation'], build['animation'])
+
+        export_root = export['root']
+        build_root = build['root']
+        self.assertEqual(
+            {key: export_root[key] for key in
+             ('name', 'type', 'color', 'mtime', 'operations')},
+            {key: build_root[key] for key in
+             ('name', 'type', 'color', 'mtime', 'operations')},
+        )
+        export_child = export_root['children'][0]
+        build_child = build_root['children'][0]
+        self.assertEqual(
+            {key: export_child[key] for key in
+             ('name', 'type', 'color', 'mtime', 'operations')},
+            {key: build_child[key] for key in
+             ('name', 'type', 'color', 'mtime', 'operations')},
+        )
+        self.assertEqual(export_child['model'], 'models/parts/cube.stl')
+        self.assertEqual(build_child['model'], 'parts/cube.stl')
+        self.assertTrue(os.path.isfile(
+            os.path.join(export_dir, export_child['model'])))
+        self.assertFalse(os.path.isdir(os.path.join(build_dir, 'models')))
+        self.assertEqual(export_root['color'], '#abcdef')
+        self.assertEqual(export_root['operations'],
+                         [['r', '$t * 360', [0, 0, 1]]])
+        self.assertEqual(export_child['color'], '#123456')
+        self.assertEqual(export_child['operations'],
+                         [['t', ['1', '2', '3']]])
+
+    def test_attribute_linking_boundaries_match(self):
+        boundaries = (
+            (ExplicitNameAssembly, ['drive_gear']),
+            (AttributeNameAssembly, ['input_gear', 'output_gear']),
+            (ListAndTupleNameAssembly,
+             ['gears-0', 'gears-1', 'posts-0', 'posts-1']),
+            (ChildrenOnlyNameAssembly, ['children-0']),
+            (ClassNameFallbackAssembly, ['Cube']),
+        )
+        for factory, expected in boundaries:
+            with self.subTest(factory=factory.__name__):
+                export, build, _, _ = self._documents(factory)
+                self.assertEqual(
+                    [child['name'] for child in export['root']['children']],
+                    expected,
+                )
+                self.assertEqual(
+                    [child['name'] for child in build['root']['children']],
+                    expected,
+                )
+
+    def test_rigid_and_non_list_non_rigid_boundaries_match(self):
+        export, build, _, _ = self._documents(Cube)
+        self.assertEqual(export['root']['model'], 'models/parts/cube.stl')
+        self.assertEqual(build['root']['model'], 'parts/cube.stl')
+        self.assertNotIn('children', export['root'])
+        self.assertNotIn('children', build['root'])
+
+        export, build, _, _ = self._documents(NonListNonRigidAssembly)
+        self.assertNotIn('model', export['root'])
+        self.assertNotIn('children', export['root'])
+        self.assertNotIn('model', build['root'])
+        self.assertNotIn('children', build['root'])
 
 
 class ExportBaseTest(BaseNodeTest):

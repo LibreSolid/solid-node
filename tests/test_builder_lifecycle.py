@@ -123,9 +123,18 @@ class BuilderLifecycleTest(TestCase):
 
         with open(os.path.join(root, 'viewer.json')) as snapshot:
             data = json.load(snapshot)
+        self.assertEqual(data['format'], 'solid-node-export')
+        self.assertEqual(data['version'], 1)
         self.assertEqual(data['root']['name'], 'part')
         self.assertEqual(data['root']['model'], 'part.stl')
+        self.assertEqual(data['root']['mtime'], 0)
+        self.assertEqual(
+            set(data['root']),
+            {'name', 'type', 'color', 'mtime', 'operations', 'model'},
+        )
         self.assertEqual(data['animation'], {'fps': 30, 'frames': 360})
+        self.assertFalse(os.path.isdir(os.path.join(root, 'models')))
+        self.assertEqual(sorted(os.listdir(root)), ['part.stl', 'viewer.json'])
 
     def test_failed_build_does_not_notify_callback(self):
         builder = Builder('model.py', build_dir='/tmp/candidate',

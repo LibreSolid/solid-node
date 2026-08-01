@@ -27,3 +27,13 @@ Callback consumers can treat a completed build publication as both geometry
 and viewer state, and retain the prior viewer state when a later build fails.
 The snapshot remains a private framework interface; hosts reuse NodeAPI rather
 than parsing it themselves.
+
+## Amendment — 2026-08-01
+
+[ADR-034](../EXPORT/ADR-034-shared-node-tree-document-schema.md) gives the
+snapshot the same versioned tree-document schema marker as a portable export:
+`viewer.json` now declares `format: "solid-node-export"` and shares linked
+node fields, including `mtime`, with `manifest.json`. The marker identifies
+schema identity, not distribution semantics: this document remains named
+`viewer.json`, uses build-root-relative model paths, copies no meshes, and is
+still private framework state.

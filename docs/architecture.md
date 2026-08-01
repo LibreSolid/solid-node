@@ -146,9 +146,12 @@ The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
 `solid develop` (which also restarts the viewer process). `solid build`
 uses the same builder passes without a viewer or watch loop. Candidate
-builds publish `viewer.json` with the recursive viewer state and build-relative
-model paths, so private NodeAPI consumers can serve a completed build without
-loading project Python (ADR-031).
+builds publish `viewer.json` with the versioned `solid-node-export` tree
+schema, linked node names, per-node `mtime`, and build-root-relative model
+paths, so private NodeAPI consumers can serve a completed build without
+loading project Python (ADR-031/034). Sharing that schema marker with export
+does not make a build publication portable: it copies no meshes and retains
+its private `viewer.json` document boundary.
 artifacts build privately and replace the normal build directory only once
 the complete tree is current, so a failed rebuild leaves the last successful
 artifacts readable. That replacement is a **symlink swap** (ADR-032): the
@@ -221,14 +224,17 @@ A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
 
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
-`solid export` (ADR-020) emits a self-contained static artifact:
+`solid export` (ADR-020/034) emits a self-contained static artifact:
 `manifest.json` (`format: solid-node-export, version: 1` — a versioned
-contract with three consumers), deduplicated `models/*.stl`, and a
+tree-document schema shared with `viewer.json`, not a portability claim),
+deduplicated `models/*.stl`, and a
 React-free three.js **widget** that auto-mounts on
 `data-solid-widget` containers, animates `$t` client-side (play/pause
 + timeline when animated), and honors `?t=`/`?autoplay=0`. The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
-operations ship as raw expression strings.
+operations ship as raw expression strings. Both producers use the same core
+serializer, which links rendered children before recursion and includes
+`mtime`; export alone maps and copies rigid models beneath `models/`.
 
 The Sphinx extension (`.. solid-node:: <export-dir>`) embeds exports
 as iframes, copies them at `html-collect-pages`, and completes missing
@@ -264,9 +270,11 @@ The short list that changes must not silently break:
 - A non-empty, zero-volume flush contact fouls at
   `volume_epsilon=0`; kinematic fit needs the Blocked **and** Free
   pair (ADR-025/029).
-- `manifest.json` format/version is a public contract; breaking it
-  means bumping the version and updating exporter, widget, and Sphinx
-  extension together (ADR-020).
+- The `solid-node-export` format/version identifies a shared tree-document
+  schema; breaking its tree shape or operation serialization means bumping the
+  version and updating every producer and consumer together. Portability stays
+  producer-specific: `manifest.json` is copied and portable, `viewer.json` is
+  build-root-relative and private (ADR-020/031/034).
 - Every `$t` evaluator uses degree trig and treats `^` as power
   (ADR-022).
 - Users never override `assemble()`; rigid geometry is time-invariant
@@ -296,5 +304,5 @@ The short list that changes must not silently break:
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029 |
 | Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 027 |
-| Export & widget | `core/export.py`, `viewers/widget/` | `export` | 020 |
+| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |
