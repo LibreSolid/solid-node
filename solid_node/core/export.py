@@ -15,6 +15,7 @@ import os
 import shutil
 
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+from solid_node.viewers import bundle as viewer_bundle
 
 
 logger = logging.getLogger('core.export')
@@ -22,26 +23,13 @@ logger = logging.getLogger('core.export')
 MANIFEST_FORMAT = DOCUMENT_FORMAT
 MANIFEST_VERSION = DOCUMENT_VERSION
 
-# The standalone viewer: a static index.html plus the JS bundle built
-# by npm/CI inside viewers/widget (dist/ is not committed to git)
-WIDGET_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'viewers', 'widget',
-)
-WIDGET_BUNDLE = os.path.join(WIDGET_DIR, 'dist', 'solid-widget.js')
-WIDGET_INDEX = os.path.join(WIDGET_DIR, 'index.html')
-
-
 class WidgetBundleMissing(Exception):
-    """The prebuilt widget JS bundle is not present (source checkouts
-    only ship its sources; releases ship the built artifact)."""
+    """The prebuilt widget JS bundle is not present."""
 
     def __init__(self):
         super().__init__(
-            f'Widget bundle not found at {WIDGET_BUNDLE}. '
-            f'Build it with: cd {WIDGET_DIR} && npm install && '
-            'npm run build -- or pass --no-widget to export only '
-            'the manifest and models.'
+            f'{viewer_bundle.missing_bundle_remedy()} Or pass --no-widget '
+            'to export only the manifest and models.'
         )
 
 
@@ -93,9 +81,9 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
 
 
 def _copy_widget(output_dir):
-    if not os.path.exists(WIDGET_BUNDLE):
+    if not viewer_bundle.has_bundle():
         raise WidgetBundleMissing()
-    for source in (WIDGET_BUNDLE, WIDGET_INDEX):
+    for source in (viewer_bundle.bundle_path(), viewer_bundle.index_path()):
         target = os.path.join(output_dir, os.path.basename(source))
         shutil.copy2(source, target)
         logger.info(f'{source} -> {target}')

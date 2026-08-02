@@ -143,3 +143,11 @@ class CommandFirstGrammarTest(TestCase):
         args = handle.call_args[0][0]
         self.assertEqual(args.name, 'myproj')
         self.assertFalse(hasattr(args, 'path'))
+
+    def test_viewer_dispatches_without_requiring_path(self):
+        with patch.object(sys, 'argv', ['solid', 'viewer']):
+            with patch('solid_node.manager.viewer.Viewer.handle') as handle:
+                manage()
+
+        self.assertTrue(handle.called)
+        self.assertFalse(hasattr(handle.call_args[0][0], 'path'))

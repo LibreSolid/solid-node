@@ -36,6 +36,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.osutil import relative_uri
 
 from solid_node import __version__
+from solid_node.viewers import bundle as viewer_bundle
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,6 @@ MANIFEST_FORMAT = 'solid-node-export'
 OUTPUT_DIR = '_solid_node'
 
 WIDGET_FILES = ('index.html', 'solid-widget.js')
-
-# Keep these paths local to the Sphinx extension.  Importing
-# solid_node.core.export pulls in the CAD runtime, which documentation builds
-# deliberately do not need in order to complete a --no-widget export.
-WIDGET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          'viewers', 'widget')
-WIDGET_INDEX = os.path.join(WIDGET_DIR, 'index.html')
-WIDGET_BUNDLE = os.path.join(WIDGET_DIR, 'dist', 'solid-widget.js')
 
 DEFAULT_HEIGHT = '480px'
 
@@ -185,8 +178,8 @@ def _complete_widget(target):
     if not missing:
         return
     sources = {
-        'index.html': WIDGET_INDEX,
-        'solid-widget.js': WIDGET_BUNDLE,
+        'index.html': viewer_bundle.index_path(),
+        'solid-widget.js': viewer_bundle.bundle_path(),
     }
     for name in missing:
         source = sources[name]
@@ -194,8 +187,7 @@ def _complete_widget(target):
             shutil.copy2(source, os.path.join(target, name))
         else:
             logger.warning(
-                f'solid-node: widget bundle not found at {source}. Build it '
-                f'with: cd {WIDGET_DIR} && npm ci && npm run build.'
+                f'solid-node: {viewer_bundle.missing_bundle_remedy()}'
             )
 
 

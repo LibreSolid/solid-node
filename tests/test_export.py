@@ -9,6 +9,7 @@ import sys
 import tempfile
 from unittest import TestCase
 from unittest.mock import patch
+from pathlib import Path
 
 from solid_node.cli import manage
 from solid_node.core.builder import Builder
@@ -400,10 +401,10 @@ class ExportWidgetTest(ExportBaseTest):
         self.fake_bundle = os.path.join(self.build_dir, 'solid-widget.js')
         with open(self.fake_bundle, 'w') as fh:
             fh.write(self.BUNDLE_CONTENT)
-        patcher = patch('solid_node.core.export.WIDGET_BUNDLE',
-                        self.fake_bundle)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        bundle = patch('solid_node.core.export.viewer_bundle.bundle_path',
+                       return_value=Path(self.fake_bundle))
+        bundle.start()
+        self.addCleanup(bundle.stop)
 
     def test_widget_files_are_copied(self):
         self.export(flat_project.SimpleCylinder(), widget=True)

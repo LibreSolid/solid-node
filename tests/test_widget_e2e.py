@@ -29,7 +29,8 @@ from functools import partial
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from subprocess import run
 
-from solid_node.core.export import export_node, WIDGET_BUNDLE
+from solid_node.core.export import export_node
+from solid_node.viewers.bundle import bundle_path
 
 from .base import BaseNodeTest
 from . import spinner_project
@@ -77,7 +78,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
-@unittest.skipUnless(os.path.exists(WIDGET_BUNDLE),
+@unittest.skipUnless(os.path.exists(bundle_path()),
                      'widget bundle not built (npm run build)')
 @unittest.skipUnless(CHROME, 'no headless chromium available')
 @unittest.skipUnless(HAS_PIL, 'Pillow not installed')
@@ -186,7 +187,7 @@ HARNESS_PAGE = """<!doctype html>
 """
 
 
-@unittest.skipUnless(os.path.exists(WIDGET_BUNDLE),
+@unittest.skipUnless(os.path.exists(bundle_path()),
                      'widget bundle not built (npm run build)')
 @unittest.skipUnless(HAS_PLAYWRIGHT, 'playwright not installed')
 class ViewerMountApiTest(BaseNodeTest):
