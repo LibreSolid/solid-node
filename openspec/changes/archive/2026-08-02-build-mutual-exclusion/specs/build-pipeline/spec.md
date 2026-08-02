@@ -52,11 +52,15 @@ already governing artifact currency.
   same source-changed outcome an ordinary edit produces, so its lifecycle loop
   rebuilds from current source.
 - When the published artifact set is already current for the loaded node, the
-  builder SHALL publish nothing and SHALL report the model current.
+  builder SHALL publish nothing. A one-shot build SHALL report the model
+  current; a watching builder SHALL go on waiting for the next source change
+  rather than ending.
 
-This decision SHALL be derived from source and artifact mtimes; the system
-SHALL NOT record build state, generation counters, or source identity inside
-published artifacts for this purpose.
+Currency SHALL be judged where a consumer reads artifacts — the published build
+directory — and never from a builder's private candidate directory, whose
+contents no consumer can reach. This decision SHALL be derived from source and
+artifact mtimes; the system SHALL NOT record build state, generation counters,
+or source identity inside published artifacts for this purpose.
 
 #### Scenario: The newest source wins
 
@@ -71,6 +75,20 @@ published artifacts for this purpose.
   current for its sources
 - **THEN** no artifact is rendered, no publication occurs, and the outcome
   reports the model current
+
+#### Scenario: Rendered but unpublished artifacts are not a publication
+
+- **WHEN** a build needing several render passes has rendered artifacts into
+  its candidate directory and the next pass acquires the lock
+- **THEN** the artifacts are published, because no consumer can read a
+  candidate directory
+
+#### Scenario: A watching builder finds nothing to do
+
+- **WHEN** a builder that watches for source changes acquires the lock and the
+  published set is already current
+- **THEN** it publishes nothing and keeps watching, and the development loop
+  does not respawn it
 
 #### Scenario: An ordinary change still builds
 

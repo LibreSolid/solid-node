@@ -11,6 +11,9 @@ import logging
 import time
 import shutil
 import tempfile
+import fcntl
+import threading
+from contextlib import contextmanager
 from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -20,6 +23,56 @@ from solid_node.node.base import StlRenderStart
 
 
 logger = logging.getLogger('core.builder')
+
+
+_build_locks = threading.local()
+
+
+def get_build_lock_path(build_dir=None):
+    """Return the project-scoped lock beside the published build path."""
+    return f'{os.path.abspath(build_dir or get_build_dir())}.lock'
+
+
+@contextmanager
+def project_build_lock(build_dir=None):
+    """Serialize artifact producers for one published build directory.
+
+    ``flock`` is deliberately advisory: every framework producer takes this
+    lock, while readers remain free to consume the currently published build.
+    The descriptor is opened by the acquiring process, so it is never inherited
+    by a builder child. Re-entry on the same thread shares that descriptor.
+    """
+    path = get_build_lock_path(build_dir)
+    held = getattr(_build_locks, 'held', {})
+    entry = held.get(path)
+    if entry:
+        entry['depth'] += 1
+        try:
+            yield
+        finally:
+            entry['depth'] -= 1
+        return
+
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    exclude_build_from_git(build_dir or get_build_dir())
+    handle = open(path, 'a+')
+    try:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            logger.info('Waiting for project build lock %s', path)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        held[path] = {'handle': handle, 'depth': 1}
+        _build_locks.held = held
+        yield
+    finally:
+        entry = held.get(path)
+        if entry:
+            entry['depth'] -= 1
+            if entry['depth'] == 0:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                handle.close()
+                del held[path]
 
 
 class BuildOutcome(Enum):
@@ -155,34 +208,48 @@ class Builder(FileSystemEventHandler):
         except Exception as e:
             return await self._on_reload_exception(e, 'assemble')
 
+        loaded_source_mtime = self.node.mtime
+
         if self.watch:
             for path in self.node.files:
                 self.observer.schedule(self, path, recursive=False)
             self.observer.start()
 
-        try:
-            outcome = await self.generate_stl()
-        except Exception as e:
-            error_message = traceback.format_exc()
-            logger.error(error_message)
+        error_message = None
+        published = False
+        with project_build_lock(self.published_build_dir):
+            # A process may have waited while a newer edit was built. Never
+            # let the model it loaded before waiting publish over that result.
+            if self.node.mtime != loaded_source_mtime:
+                return BuildOutcome.SOURCE_CHANGED
+            if self._published_model_is_current():
+                # Nothing to do -- but this builder is not finished. A
+                # watching builder still has to wait for the next source
+                # change below; returning here would exit it at once and
+                # spin the develop loop respawning it.
+                logger.info('Published model is already current')
+            else:
+                # Losing a publication race is not a broken model: another
+                # publisher installed its own complete artifact set, which is
+                # a correct state for every reader. Report it the way a failed
+                # render is reported instead of letting it escape the builder
+                # process and fail a build that succeeded.
+                try:
+                    outcome = await self.generate_stl()
+                    if outcome is BuildOutcome.RENDERED:
+                        return outcome
+                    self._write_viewer_snapshot()
+                    self._publish()
+                    published = True
+                except Exception:
+                    error_message = traceback.format_exc()
+                    logger.error(error_message)
+        if error_message:
             return await self.report_error(error_message)
-
-        if outcome is BuildOutcome.RENDERED:
-            return outcome
-
-        self._write_viewer_snapshot()
-        try:
-            self._publish()
-        except Exception:
-            # Losing a publication race is not a broken model: another
-            # publisher installed its own complete artifact set, which is
-            # a correct state for every reader. Report it the way a failed
-            # render is reported instead of letting it escape the builder
-            # process and fail a build that succeeded.
-            error_message = traceback.format_exc()
-            logger.error(error_message)
-            return await self.report_error(error_message)
-        self._notify_callback()
+        # Outside the lock: notifying a consumer is not build work, and a
+        # callback that blocks must not hold the next builder off.
+        if published:
+            self._notify_callback()
         if not self.watch:
             return BuildOutcome.CURRENT
         return await self.wait_for_change()
@@ -272,6 +339,36 @@ class Builder(FileSystemEventHandler):
                            lambda rigid_node: os.path.relpath(
                                rigid_node.stl_file, self.build_dir),
                        )}, snapshot)
+
+    def _published_model_is_current(self):
+        """Whether the publication already covers this loaded source state.
+
+        The question is about the *published* directory, never the candidate:
+        a candidate holds artifacts this builder has rendered but not yet
+        published, so reading it would let a builder stand down over work
+        nobody can see. Every rigid artifact is checked where a consumer would
+        find it, with the established mtime equality rule, together with the
+        published manifest that makes those artifacts reachable.
+        """
+        if (not self.published_build_dir or
+                not os.path.isfile(os.path.join(self.published_build_dir,
+                                                'viewer.json'))):
+            return False
+
+        def current(node):
+            if node.rigid and not node._up_to_date(
+                    self._published_artifact(node.stl_file)):
+                return False
+            return all(current(child) for child in node.children)
+
+        return current(self.node)
+
+    def _published_artifact(self, artifact):
+        """Where a consumer reads an artifact this build writes privately."""
+        if not self.build_dir or self.build_dir == self.published_build_dir:
+            return artifact
+        return os.path.join(self.published_build_dir,
+                            os.path.relpath(artifact, self.build_dir))
 
     def _notify_callback(self):
         if not self.callback:

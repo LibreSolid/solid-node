@@ -12,7 +12,10 @@ resolution and ordinary build pipeline as `solid develop <path>`. It SHALL
 produce the complete current model in the normal project build directory and
 exit 0 without starting a watcher or viewer. Its exit status SHALL reflect
 whether the model built, not whether it won a publication race with another
-publisher of the same project.
+publisher of the same project. When its builder stands down because the source
+moved while it waited for the project build lock, the command SHALL build again
+from the source on disk rather than exiting, so what it publishes is the
+current model.
 
 #### Scenario: Build a package node
 
@@ -27,6 +30,13 @@ publisher of the same project.
   watching the same project
 - **THEN** the command does not fail with a publication error for a model
   that built correctly
+
+#### Scenario: The source moves while the build waits
+
+- **WHEN** the project source is edited while `solid build` is waiting for the
+  project build lock
+- **THEN** the command rebuilds from the edited source and exits 0 with the
+  current model published
 
 ### Requirement: Missing model is a distinct build outcome
 

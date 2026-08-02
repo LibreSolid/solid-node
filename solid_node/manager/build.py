@@ -46,6 +46,14 @@ class Build:
                 proc.join()
                 if proc.exitcode == BuildOutcome.RENDERED.value:
                     continue
+                if proc.exitcode == BuildOutcome.SOURCE_CHANGED.value:
+                    # The source moved while this build waited for the
+                    # project build lock, so the builder stood down instead
+                    # of publishing what it had loaded. Start again from the
+                    # source on disk: `solid build` promises the current
+                    # model, not the one it happened to read first.
+                    session.reset()
+                    continue
                 if proc.exitcode == BuildOutcome.CURRENT.value:
                     return
                 sys.exit(proc.exitcode or BuildOutcome.FAILED.value)

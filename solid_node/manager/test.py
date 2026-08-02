@@ -12,6 +12,7 @@ from solid_node.core.loader import (
     load_test, load_node, import_module_from_path, find_class,
     AmbiguousNodeError,
 )
+from solid_node.core.builder import project_build_lock
 from solid_node.node.base import AbstractBaseNode
 
 
@@ -78,7 +79,8 @@ class Test:
         node.set_keyframe(time)
         rendered = node.render()
         node.assemble()
-        node.build_stls()
+        with project_build_lock():
+            node.build_stls()
         return node
 
     def ensure_node_class(self, path):

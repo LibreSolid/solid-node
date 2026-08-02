@@ -108,5 +108,11 @@ ENV/
 # meta-test harness build artifacts
 tests/_build_meta/
 
+# project build locks left beside a test build directory. The framework
+# records this exclusion itself for a user's project, but only where `.git`
+# is a real directory -- never in a worktree, which is where this repo's
+# own suite runs.
+tests/_build*.lock
+
 # dev-env worktrees (scripts/dev-env)
 WTs/

@@ -7,11 +7,35 @@ import json
 import os
 import shutil
 import tempfile
+from contextlib import contextmanager
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from solid_node.core.builder import Builder, BuildOutcome, BuildSession
 from solid_node.node.base import StlRenderStart
+
+from .test_build_lock import lock_is_held
+
+
+class FakeNode:
+    """A node stand-in with the real artifact-currency rule.
+
+    A `Mock` cannot be used where currency is under test: `_up_to_date`
+    would answer with a truthy Mock and every artifact would look current.
+    """
+
+    def __init__(self, stl_file=None, mtime=0, children=()):
+        self.stl_file = stl_file
+        self.rigid = stl_file is not None
+        self.mtime = mtime
+        self.children = children
+        self.files = []
+
+    def assemble(self):
+        pass
+
+    def _up_to_date(self, path):
+        return os.path.exists(path) and os.path.getmtime(path) == self.mtime
 
 
 class BuilderLifecycleTest(TestCase):
@@ -102,6 +126,153 @@ class BuilderLifecycleTest(TestCase):
 
         self.assertEqual(outcome, BuildOutcome.CURRENT)
         self.assertEqual(events, ['publish', 'callback'])
+
+    def dedup_fixture(self, artifact_in):
+        """A one-artifact model whose STL is current in `artifact_in`.
+
+        The candidate and the published directory are distinct, as they are
+        in every real build, so where the artifact sits decides whether the
+        publication already covers this source state.
+        """
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        candidate = os.path.join(root, 'candidate')
+        published = os.path.join(root, 'published')
+        os.makedirs(candidate)
+        os.makedirs(published)
+        with open(os.path.join(published, 'viewer.json'), 'w') as snapshot:
+            snapshot.write('{}')
+
+        artifact = os.path.join(
+            {'candidate': candidate, 'published': published}[artifact_in],
+            'part.stl')
+        with open(artifact, 'w') as handle:
+            handle.write('solid part')
+        os.utime(artifact, (0, 0))
+
+        node = FakeNode(stl_file=os.path.join(candidate, 'part.stl'), mtime=0)
+        return Builder('model.py', build_dir=candidate,
+                       published_build_dir=published, watch=False), node
+
+    def test_current_published_model_is_not_published_again(self):
+        builder, node = self.dedup_fixture(artifact_in='published')
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=node), \
+             patch.object(builder, 'generate_stl') as generate, \
+             patch.object(builder, '_publish') as publish:
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.CURRENT)
+        generate.assert_not_called()
+        publish.assert_not_called()
+
+    def test_candidate_artifacts_do_not_count_as_published(self):
+        """A rendered artifact nobody can read yet is not a publication.
+
+        A build that needs more than one render pass leaves its artifacts in
+        the candidate directory and exits; the next pass must still publish
+        them. Reading currency from the candidate made every multi-pass build
+        report the model current and publish nothing, so an edited model
+        never reached a consumer.
+        """
+        builder, node = self.dedup_fixture(artifact_in='candidate')
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=node), \
+             patch.object(builder, 'generate_stl',
+                          return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_write_viewer_snapshot'), \
+             patch.object(builder, '_publish') as publish:
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.CURRENT)
+        publish.assert_called_once()
+
+    def test_a_watching_builder_waits_after_finding_the_model_current(self):
+        """Skipping redundant work does not end a watch.
+
+        A watching builder that exits the moment it finds the model current
+        is respawned immediately by the develop loop, which then spins on
+        that builder forever instead of waiting for the next edit.
+        """
+        builder, node = self.dedup_fixture(artifact_in='published')
+        builder.watch = True
+        self.addCleanup(builder.observer.stop)
+
+        async def scenario():
+            building = asyncio.ensure_future(builder._start())
+            for _ in range(200):
+                await asyncio.sleep(0.01)
+                if builder.file_changed is not None:
+                    break
+            self.assertIsNotNone(builder.file_changed,
+                                 'the builder exited instead of waiting')
+            self.assertFalse(lock_is_held(builder.published_build_dir),
+                             'waiting for an edit held the build lock')
+            builder.file_changed.set_result(True)
+            return await building
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=node), \
+             patch.object(builder, 'generate_stl') as generate, \
+             patch.object(builder, '_publish') as publish:
+            outcome = asyncio.run(scenario())
+
+        self.assertEqual(outcome, BuildOutcome.SOURCE_CHANGED)
+        generate.assert_not_called()
+        publish.assert_not_called()
+
+    def test_source_moving_under_a_waiting_build_stands_it_down(self):
+        """The newest source wins: a build that waited for the lock while a
+        newer edit was built must not publish what it loaded first."""
+        builder, node = self.dedup_fixture(artifact_in='candidate')
+
+        @contextmanager
+        def lock_taken_late(build_dir=None):
+            node.mtime += 1          # an edit landed while this build waited
+            yield
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=node), \
+             patch('solid_node.core.builder.project_build_lock',
+                   lock_taken_late), \
+             patch.object(builder, 'generate_stl') as generate, \
+             patch.object(builder, '_publish') as publish:
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.SOURCE_CHANGED)
+        generate.assert_not_called()
+        publish.assert_not_called()
+
+    def test_callback_is_notified_outside_the_build_lock(self):
+        """Notifying a consumer is not build work; a callback that blocks
+        must not hold the next builder off."""
+        builder, node = self.dedup_fixture(artifact_in='candidate')
+        builder.callback = 'http://listener/build-ready'
+        held = []
+
+        @contextmanager
+        def recording_lock(build_dir=None):
+            held.append('acquired')
+            try:
+                yield
+            finally:
+                held.append('released')
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': '_build'}), \
+             patch('solid_node.core.builder.load_node', return_value=node), \
+             patch('solid_node.core.builder.project_build_lock',
+                   recording_lock), \
+             patch.object(builder, 'generate_stl',
+                          return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_write_viewer_snapshot'), \
+             patch.object(builder, '_publish'), \
+             patch.object(builder, '_notify_callback',
+                          side_effect=lambda: held.append('callback')):
+            asyncio.run(builder._start())
+
+        self.assertEqual(held, ['acquired', 'released', 'callback'])
 
     def test_complete_build_writes_viewer_snapshot_before_publishing(self):
         root = tempfile.mkdtemp()

@@ -49,6 +49,9 @@ None. This extends the existing build pipeline rather than adding a capability.
   while a builder waits for a source change.
 - `test-framework`: the test runner lifecycle builds under the project build
   lock and releases it before running test methods.
+- `one-shot-build-and-notification`: `solid build` rebuilds from the source on
+  disk when its builder stands down under the dedup rule, so the one-shot
+  command still publishes the current model.
 
 ## Impact
 
@@ -57,9 +60,9 @@ None. This extends the existing build pipeline rather than adding a capability.
   acquisition.
 - `solid_node/manager/test.py` — `build_node` builds under the lock, and the
   lock is released before `run_tests`.
-- `solid_node/manager/build.py`, `solid_node/manager/develop.py` — the
-  render-loop parents keep their current shape; their child builders become lock
-  participants.
+- `solid_node/manager/build.py` — the one-shot loop rebuilds when its builder
+  stands down under the dedup rule. `solid_node/manager/develop.py` is
+  unchanged; its child builders become lock participants.
 - New tests exercising two concurrent builders, a stale builder finishing last,
   and a test run that does not block a rebuild.
 - No new dependency: `fcntl.flock` is in the standard library and POSIX. No

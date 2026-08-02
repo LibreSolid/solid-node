@@ -15,6 +15,7 @@ import os
 import shutil
 
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+from .builder import project_build_lock
 from solid_node.viewers import bundle as viewer_bundle
 
 
@@ -44,7 +45,8 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
       making the directory a self-contained, embeddable viewer
 
     Returns the manifest dict."""
-    node.build_stls()
+    with project_build_lock():
+        node.build_stls()
 
     # Maps each rigid node's stl_file to its manifest-relative path
     models = {}
