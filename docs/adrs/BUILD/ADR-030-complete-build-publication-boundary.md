@@ -1,6 +1,6 @@
 # ADR-030: Complete-build publication boundary
 
-- **Status:** Accepted
+- **Status:** Reversed by [ADR-038](ADR-038-per-artifact-atomic-build-publication.md)
 - **Date:** 2026-07-20
 - **Subsystem:** BUILD
 - **Change:** `build-command-develop-callback`

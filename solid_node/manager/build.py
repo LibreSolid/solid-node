@@ -6,7 +6,7 @@ import os
 import sys
 from multiprocessing import Process
 
-from solid_node.core.builder import Builder, BuildOutcome, BuildSession
+from solid_node.core.builder import Builder, BuildOutcome
 
 
 MODEL_NOT_FOUND = 66
@@ -20,11 +20,9 @@ class Build:
     def add_arguments(self, parser):
         pass
 
-    def builder(self, build_dir, published_build_dir):
+    def builder(self):
         Builder(
             self.path,
-            build_dir=build_dir,
-            published_build_dir=published_build_dir,
             watch=False,
             lifecycle=True,
         ).start()
@@ -35,27 +33,13 @@ class Build:
             sys.stderr.write(f'Model not found: {self.path}\n')
             sys.exit(MODEL_NOT_FOUND)
 
-        session = BuildSession()
-        try:
-            while True:
-                proc = Process(
-                    target=self.builder,
-                    args=(session.staging_dir, session.build_dir),
-                )
-                proc.start()
-                proc.join()
-                if proc.exitcode == BuildOutcome.RENDERED.value:
-                    continue
-                if proc.exitcode == BuildOutcome.SOURCE_CHANGED.value:
-                    # The source moved while this build waited for the
-                    # project build lock, so the builder stood down instead
-                    # of publishing what it had loaded. Start again from the
-                    # source on disk: `solid build` promises the current
-                    # model, not the one it happened to read first.
-                    session.reset()
-                    continue
-                if proc.exitcode == BuildOutcome.CURRENT.value:
-                    return
-                sys.exit(proc.exitcode or BuildOutcome.FAILED.value)
-        finally:
-            session.discard()
+        while True:
+            proc = Process(target=self.builder)
+            proc.start()
+            proc.join()
+            if proc.exitcode in (BuildOutcome.RENDERED.value,
+                                 BuildOutcome.SOURCE_CHANGED.value):
+                continue
+            if proc.exitcode == BuildOutcome.CURRENT.value:
+                return
+            sys.exit(proc.exitcode or BuildOutcome.FAILED.value)

@@ -24,19 +24,16 @@ class BuildCommandTest(TestCase):
 
     def test_repeats_render_passes_until_current(self):
         command = Build()
-        session = MagicMock(staging_dir='/tmp/stage', build_dir='/tmp/build')
         render = MagicMock(exitcode=BuildOutcome.RENDERED.value)
         current = MagicMock(exitcode=BuildOutcome.CURRENT.value)
 
         with patch('solid_node.manager.build.os.path.isfile', return_value=True), \
-             patch('solid_node.manager.build.BuildSession', return_value=session), \
              patch('solid_node.manager.build.Process', side_effect=[render, current]) as process:
             command.handle(Namespace(path='model.py'))
 
         self.assertEqual(process.call_args_list, [
-            call(target=command.builder, args=('/tmp/stage', '/tmp/build')),
-            call(target=command.builder, args=('/tmp/stage', '/tmp/build')),
+            call(target=command.builder),
+            call(target=command.builder),
         ])
         self.assertEqual(render.start.call_count, 1)
         self.assertEqual(current.start.call_count, 1)
-        session.discard.assert_called_once()

@@ -152,19 +152,20 @@ paths, so private NodeAPI consumers can serve a completed build without
 loading project Python (ADR-031/034). Sharing that schema marker with export
 does not make a build publication portable: it copies no meshes and retains
 its private `viewer.json` document boundary.
-artifacts build privately and replace the normal build directory only once
-the complete tree is current, so a failed rebuild leaves the last successful
-artifacts readable. That replacement is a **symlink swap** (ADR-032): the
-build path is a symlink to a versioned sibling directory, rebound with
-`os.replace`, so a reader always reaches one complete artifact set and two
-overlapping publishers settle on one rather than colliding. It uses only
-`os.symlink` and `os.replace`, so nothing here is platform-specific. A
-publication that loses such a race is reported through `errors.json` rather
-than escaping the builder. The project template ignores `<build>*`, and a
-project whose `.gitignore` predates the layout gets that pattern recorded in
-`.git/info/exclude` instead of a tracked file. Errors go to `errors.json` in the build dir — file-based
-IPC, no broker (ADR-018). A broken initial build kills develop; a broken
-reload falls back to a broad recursive watch and keeps the loop alive.
+artifacts write directly into one ordinary build directory. Each artifact is
+written to a temporary sibling and replaced with `os.replace`; OpenSCAD renders
+to a temporary STL and publishes it only on completion. `viewer.json` is the
+manifest and is written last, so it never names a partial artifact; a later
+sweep removes files it no longer names. A build whose artifacts are all current
+still republishes that manifest when it no longer matches the model, since the
+pass that renders an artifact exits before writing the document. The project
+lock serializes builders, while readers remain lock-free. This intentionally
+permits a mixed model during a build and a failed build can leave partial new
+work, but no reader sees a torn file (ADR-038, reversing ADR-030 and
+superseding ADR-032). Errors go to an atomically written `errors.json` in the
+build dir — file-based IPC, no broker
+(ADR-018). A broken initial build kills develop; a broken reload falls back to
+a broad recursive watch and keeps the loop alive.
 
 ### CLI (BUILD · spec `cli`)
 

@@ -84,40 +84,6 @@ class BuildOutcome(Enum):
     FAILED = 1
 
 
-class BuildSession:
-    """A private candidate build directory with an explicit publish step.
-
-    Each builder subprocess receives the same candidate directory until the
-    model is current.  The public project build directory only changes when
-    that candidate is complete, so a failed reload cannot expose a mixture of
-    old and newly generated artifacts.
-    """
-
-    def __init__(self, build_dir=None):
-        self.build_dir = os.path.abspath(build_dir or get_build_dir())
-        self.staging_dir = None
-        self.reset()
-
-    def reset(self):
-        self.discard()
-        parent = os.path.dirname(self.build_dir) or '.'
-        os.makedirs(parent, exist_ok=True)
-        self.staging_dir = tempfile.mkdtemp(
-            prefix='.solid-node-build-', dir=parent)
-        if os.path.isdir(self.build_dir):
-            shutil.copytree(self.build_dir, self.staging_dir, dirs_exist_ok=True)
-
-    def publish(self):
-        """Replace the visible build tree only after a complete build."""
-        BuildSessionPublisher(self.staging_dir, self.build_dir).publish()
-        self.staging_dir = None
-
-    def discard(self):
-        if self.staging_dir and os.path.isdir(self.staging_dir):
-            shutil.rmtree(self.staging_dir, ignore_errors=True)
-        self.staging_dir = None
-
-
 def get_build_dir():
     """Get the base build directory from environment or default"""
     return os.environ.get('SOLID_BUILD_DIR', '_build')
@@ -126,6 +92,48 @@ def get_build_dir():
 def get_errors_file(build_dir=None):
     """Get the path to the errors.json file in the build directory"""
     return os.path.join(build_dir or get_build_dir(), 'errors.json')
+
+
+def atomic_write(path, content):
+    """Replace one artifact without ever exposing a partial file."""
+    directory = os.path.dirname(os.path.abspath(path)) or '.'
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
+    try:
+        with os.fdopen(descriptor, 'wb') as output:
+            output.write(content)
+        os.replace(temporary, path)
+    except Exception:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+        raise
+
+
+def prepare_build_dir(build_dir=None):
+    """Migrate an ADR-032 symlink once, then return a real build directory.
+
+    The caller holds the project build lock. This one-time conversion has the
+    same bounded migration caveat as the previous publication transition.
+    """
+    build_dir = os.path.abspath(build_dir or get_build_dir())
+    parent = os.path.dirname(build_dir) or '.'
+    if os.path.islink(build_dir):
+        target = os.path.realpath(build_dir)
+        os.unlink(build_dir)
+        if os.path.exists(target):
+            os.replace(target, build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+    for sibling in os.listdir(parent):
+        path = os.path.join(parent, sibling)
+        if path != build_dir and sibling.startswith(
+                f'{os.path.basename(build_dir)}.'):
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+    exclude_build_from_git(build_dir)
+    return build_dir
 
 
 def clear_errors(build_dir=None):
@@ -138,18 +146,16 @@ def clear_errors(build_dir=None):
 def write_error(error_message, build_dir=None):
     """Write build error to file for WebViewer to read"""
     errors_file = get_errors_file(build_dir)
-    os.makedirs(os.path.dirname(errors_file), exist_ok=True)
-    with open(errors_file, 'w') as f:
-        json.dump({
-            'error': error_message,
-            'tstamp': time.time(),
-        }, f)
+    atomic_write(errors_file, json.dumps({
+        'error': error_message,
+        'tstamp': time.time(),
+    }).encode())
 
 
 class Builder(FileSystemEventHandler):
     """Monitors .py files. On any change, generate STLs and exit"""
     def __init__(self, path, is_reload=False, build_dir=None,
-                 published_build_dir=None, watch=True, callback=None,
+                 watch=True, callback=None,
                  lifecycle=False):
         super().__init__()
         self.path = path
@@ -162,8 +168,7 @@ class Builder(FileSystemEventHandler):
         # behavior -- a broken project at launch exits with a clear
         # error instead of looping.
         self.is_reload = is_reload
-        self.build_dir = build_dir
-        self.published_build_dir = published_build_dir or build_dir
+        self.build_dir = os.path.abspath(build_dir or get_build_dir())
         self.watch = watch
         self.callback = callback
         self.lifecycle = lifecycle
@@ -192,16 +197,12 @@ class Builder(FileSystemEventHandler):
     async def _start(self):
         logger.info('START')
 
-        if self.build_dir is not None:
-            os.environ['SOLID_BUILD_DIR'] = self.build_dir
+        os.environ['SOLID_BUILD_DIR'] = self.build_dir
 
         try:
             self.node = load_node(self.path)
         except Exception as e:
             return await self._on_reload_exception(e, 'load')
-
-        # Clear any previous errors on successful load
-        clear_errors(self.published_build_dir)
 
         try:
             self.node.assemble()
@@ -217,29 +218,39 @@ class Builder(FileSystemEventHandler):
 
         error_message = None
         published = False
-        with project_build_lock(self.published_build_dir):
+        with project_build_lock(self.build_dir):
+            prepare_build_dir(self.build_dir)
             # A process may have waited while a newer edit was built. Never
             # let the model it loaded before waiting publish over that result.
             if self.node.mtime != loaded_source_mtime:
                 return BuildOutcome.SOURCE_CHANGED
             if self._published_model_is_current():
-                # Nothing to do -- but this builder is not finished. A
-                # watching builder still has to wait for the next source
-                # change below; returning here would exit it at once and
-                # spin the develop loop respawning it.
-                logger.info('Published model is already current')
+                # No artifact needs rendering -- but the document naming them
+                # may still be a build behind, because the pass that rendered
+                # an artifact exits before writing it and the next pass finds
+                # that artifact current.  Nothing else republishes it, so a
+                # consumer would keep reading the previous model's manifest.
+                #
+                # This builder is also not finished: a watching builder still
+                # has to wait for the next source change below; returning here
+                # would exit it at once and spin the develop loop respawning
+                # it.
+                logger.info('Published artifacts are already current')
+                try:
+                    published = self._write_viewer_snapshot()
+                except Exception:
+                    error_message = traceback.format_exc()
+                    logger.error(error_message)
             else:
-                # Losing a publication race is not a broken model: another
-                # publisher installed its own complete artifact set, which is
-                # a correct state for every reader. Report it the way a failed
-                # render is reported instead of letting it escape the builder
-                # process and fail a build that succeeded.
+                # A render or publication failure is reported through the
+                # error channel rather than escaping the builder process, so
+                # the develop loop keeps running and the artifacts already in
+                # place stay readable.
                 try:
                     outcome = await self.generate_stl()
                     if outcome is BuildOutcome.RENDERED:
                         return outcome
                     self._write_viewer_snapshot()
-                    self._publish()
                     published = True
                 except Exception:
                     error_message = traceback.format_exc()
@@ -283,7 +294,7 @@ class Builder(FileSystemEventHandler):
             return await self.report_error(error_message)
 
         logger.error(f'{self.path}: failed to {stage} project: {exc}')
-        write_error(error_message, self.published_build_dir)
+        write_error(error_message, self.build_dir)
         return BuildOutcome.FAILED
 
     def _watch_broadly(self):
@@ -308,7 +319,7 @@ class Builder(FileSystemEventHandler):
             return BuildOutcome.RENDERED
 
     async def report_error(self, error_message):
-        write_error(error_message, self.published_build_dir)
+        write_error(error_message, self.build_dir)
         if not self.watch:
             return BuildOutcome.FAILED
         return await self.wait_for_change()
@@ -320,55 +331,76 @@ class Builder(FileSystemEventHandler):
             await self.file_changed
         return BuildOutcome.SOURCE_CHANGED
 
-    def _publish(self):
-        if self.build_dir is None or self.published_build_dir is None:
-            return
-        BuildSessionPublisher(self.build_dir, self.published_build_dir).publish()
-
     def _write_viewer_snapshot(self):
-        """Record the source-backed viewer tree beside a completed build."""
-        if self.build_dir is None:
-            return
+        """Record the source-backed viewer tree beside a completed build.
+
+        Returns whether this made anything new reachable, so a build that
+        found everything already published notifies nobody.
+        """
         os.makedirs(self.build_dir, exist_ok=True)
-        with open(os.path.join(self.build_dir, 'viewer.json'), 'w') as snapshot:
-            json.dump({'format': DOCUMENT_FORMAT,
-                       'version': DOCUMENT_VERSION,
-                       'animation': {'fps': 30, 'frames': 360},
-                       'root': serialize_node(
-                           self.node,
-                           lambda rigid_node: os.path.relpath(
-                               rigid_node.stl_file, self.build_dir),
-                       )}, snapshot)
+        snapshot = {'format': DOCUMENT_FORMAT,
+                    'version': DOCUMENT_VERSION,
+                    'animation': {'fps': 30, 'frames': 360},
+                    'root': serialize_node(
+                        self.node,
+                        lambda rigid_node: os.path.relpath(
+                            rigid_node.stl_file, self.build_dir),
+                    )}
+        document = json.dumps(snapshot).encode()
+        if self._published_document() == document:
+            return False
+        # An old error must be gone before this manifest exposes new work.
+        clear_errors(self.build_dir)
+        atomic_write(os.path.join(self.build_dir, 'viewer.json'), document)
+        self._sweep_unreferenced_artifacts(snapshot)
+        return True
+
+    def _published_document(self):
+        try:
+            with open(os.path.join(self.build_dir, 'viewer.json'), 'rb') as f:
+                return f.read()
+        except OSError:
+            return None
 
     def _published_model_is_current(self):
         """Whether the publication already covers this loaded source state.
 
-        The question is about the *published* directory, never the candidate:
-        a candidate holds artifacts this builder has rendered but not yet
-        published, so reading it would let a builder stand down over work
-        nobody can see. Every rigid artifact is checked where a consumer would
-        find it, with the established mtime equality rule, together with the
-        published manifest that makes those artifacts reachable.
+        Every rigid artifact is checked where a consumer reads it, together
+        with the manifest that makes those artifacts reachable.
         """
-        if (not self.published_build_dir or
-                not os.path.isfile(os.path.join(self.published_build_dir,
+        if (not self.build_dir or
+                not os.path.isfile(os.path.join(self.build_dir,
                                                 'viewer.json'))):
             return False
 
         def current(node):
             if node.rigid and not node._up_to_date(
-                    self._published_artifact(node.stl_file)):
+                    node.stl_file):
                 return False
             return all(current(child) for child in node.children)
 
         return current(self.node)
 
-    def _published_artifact(self, artifact):
-        """Where a consumer reads an artifact this build writes privately."""
-        if not self.build_dir or self.build_dir == self.published_build_dir:
-            return artifact
-        return os.path.join(self.published_build_dir,
-                            os.path.relpath(artifact, self.build_dir))
+    def _sweep_unreferenced_artifacts(self, snapshot):
+        referenced = set()
+
+        def collect(node):
+            if 'model' in node:
+                referenced.add(os.path.normpath(node['model']))
+            for child in node.get('children', []):
+                collect(child)
+
+        collect(snapshot['root'])
+        for root, _, files in os.walk(self.build_dir):
+            for filename in files:
+                path = os.path.join(root, filename)
+                relative = os.path.normpath(os.path.relpath(path,
+                                                            self.build_dir))
+                if (relative in referenced or filename in ('viewer.json',
+                                                            'errors.json') or
+                        filename.endswith(('.scad', '.stl.lock', '.tmp'))):
+                    continue
+                os.remove(path)
 
     def _notify_callback(self):
         if not self.callback:
@@ -409,10 +441,10 @@ def exclude_build_from_git(build_dir):
     """Keep published artifacts out of `git status` without touching a
     tracked file.
 
-    The build path is a symlink, and git's `_build/` pattern -- what the
-    project template used to install -- does not match a symlink, so an
-    unmodified project would show the symlink and every versioned
-    directory as untracked. `.gitignore` is tracked, so writing to it
+    The build path is an ordinary directory, but a project may still hold
+    the lock file this build writes beside it, and a project converted from
+    the previous layout may hold leftovers, so the pattern covers siblings
+    as well. `.gitignore` is tracked, so writing to it
     during a build would dirty the working tree at an arbitrary moment
     and could be swept into an unrelated commit; `.git/info/exclude` is
     local, invisible to `git status`, and cannot be committed.
@@ -445,61 +477,3 @@ def exclude_build_from_git(build_dir):
     except OSError as error:
         logger.debug('Could not record the build exclusion for %s: %s',
                      build_dir, error)
-
-
-class BuildSessionPublisher:
-    """Publish a candidate directory from a builder child process.
-
-    The build path is a symlink to a versioned sibling directory. A
-    publication renames the completed candidate into place under a fresh
-    version and moves a new symlink onto the build path with
-    `os.replace`, which is atomic on POSIX. A reader following the build
-    path therefore reaches the previous complete artifact set or the new
-    one, never a missing path and never a mixture -- and two publishers
-    racing settle on one of the two rather than colliding mid-rename.
-
-    `os.symlink` and `os.replace` are all this needs, so one code path
-    serves every POSIX platform.
-    """
-
-    def __init__(self, staging_dir, build_dir):
-        self.staging_dir = staging_dir
-        self.build_dir = build_dir
-
-    def publish(self):
-        parent = os.path.dirname(os.path.abspath(self.build_dir)) or '.'
-        version = tempfile.mktemp(prefix=f'{os.path.basename(self.build_dir)}.',
-                                  dir=parent)
-
-        superseded = None
-        if os.path.islink(self.build_dir):
-            superseded = os.path.realpath(self.build_dir)
-        elif os.path.lexists(self.build_dir):
-            # A project built before this layout: its build path is a
-            # plain directory, which cannot be replaced by a symlink in
-            # one step. Migrate it once -- this single publication is not
-            # atomic; every later one is.
-            superseded = tempfile.mktemp(
-                prefix='.solid-node-previous-', dir=parent)
-            os.replace(self.build_dir, superseded)
-
-        os.replace(self.staging_dir, version)
-        link = tempfile.mktemp(prefix='.solid-node-link-', dir=parent)
-        os.symlink(os.path.basename(version), link)
-        try:
-            os.replace(link, self.build_dir)
-        except Exception:
-            shutil.rmtree(version, ignore_errors=True)
-            if os.path.lexists(link):
-                os.remove(link)
-            if superseded is not None and not os.path.lexists(self.build_dir):
-                os.replace(superseded, self.build_dir)
-            raise
-
-        exclude_build_from_git(self.build_dir)
-
-        # Only ever the tree this publication replaced. A concurrent
-        # publisher's fresh version is reached through its own symlink and
-        # must survive.
-        if superseded is not None and superseded != os.path.realpath(self.build_dir):
-            shutil.rmtree(superseded, ignore_errors=True)

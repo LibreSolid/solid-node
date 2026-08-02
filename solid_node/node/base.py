@@ -8,6 +8,7 @@ import time
 import inspect
 import hashlib
 import logging
+import tempfile
 import numpy as np
 import trimesh
 from decimal import Decimal
@@ -18,6 +19,22 @@ from .sources import source_closure
 
 
 logger = logging.getLogger('node.base')
+
+
+def _atomic_write_text(path, content, mtime):
+    directory = os.path.dirname(path) or '.'
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
+    try:
+        with os.fdopen(descriptor, 'w') as output:
+            output.write(content)
+        os.utime(temporary, (time.time(), mtime))
+        os.replace(temporary, path)
+    except Exception:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+        raise
 
 
 # Module-level cache of loaded base meshes (no operations applied),
@@ -414,8 +431,7 @@ class AbstractBaseNode:
         return code
 
     def generate_scad(self):
-        open(self.scad_file, 'w').write(self.scad_code)
-        os.utime(self.scad_file, (time.time(), self.mtime))
+        _atomic_write_text(self.scad_file, self.scad_code, self.mtime)
         logger.info(f"{self.scad_file} generated with {self.mtime}!")
 
     def trigger_stl(self):
@@ -457,23 +473,27 @@ class AbstractBaseNode:
 
         fh = open(self.lock_file, 'w')
 
-        try:
-            os.remove(self.stl_file)
-        except FileNotFoundError:
-            pass
-
-        proc = Popen(self.stl_builder_command)
+        os.makedirs(os.path.dirname(self.stl_file) or '.', exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f'.{os.path.basename(self.stl_file)}.', suffix='.tmp',
+            dir=os.path.dirname(self.stl_file) or '.')
+        os.close(descriptor)
+        proc = Popen(self.stl_builder_command_for(temporary))
 
         fh.write(f'{proc.pid}')
         fh.close()
         logger.info(f'Job started with pid {proc.pid}')
-        raise StlRenderStart(proc, self.stl_file, self.mtime, self.lock_file)
+        raise StlRenderStart(proc, self.stl_file, temporary, self.mtime,
+                             self.lock_file)
 
     @property
     def stl_builder_command(self):
+        return self.stl_builder_command_for(self.stl_file)
+
+    def stl_builder_command_for(self, output):
         return [
             'openscad', self.scad_file,
-            '-o', self.stl_file,
+            '-o', output,
             '--export-format', 'binstl',
         ]
 
@@ -596,15 +616,17 @@ class AbstractBaseNode:
 
 class StlRenderStart(Exception):
 
-    def __init__(self, proc, stl_file, mtime, lock_file):
+    def __init__(self, proc, stl_file, temporary_file, mtime, lock_file):
         super().__init__()
         self.proc = proc
         self.stl_file = stl_file
+        self.temporary_file = temporary_file
         self.mtime = mtime
         self.lock_file = lock_file
 
     def finish(self):
-        os.utime(self.stl_file, (time.time(), self.mtime))
+        os.utime(self.temporary_file, (time.time(), self.mtime))
+        os.replace(self.temporary_file, self.stl_file)
         logger.info(f"{self.stl_file} generated with {self.mtime}!")
         if os.path.exists(self.lock_file):
             os.remove(self.lock_file)

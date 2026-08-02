@@ -15,13 +15,13 @@ and every required STL artifact is current. The document SHALL declare
 behavior as export `manifest.json`. The root SHALL include node identity, type,
 colour, `mtime`, serialized operations, child relationships, and
 build-root-relative rigid-model paths. The shared format SHALL identify this
-versioned tree-document schema without implying portability. The snapshot and
-all referenced model files SHALL become visible together through the normal
-atomic build publication. The build publication SHALL remain non-portable: it
-SHALL NOT create an export-style `models/` directory or copy models into one.
-Changes to the shared tree shape or operation serialization are breaking and
-MUST bump `version` and update every producer and consumer of the shared schema
-together.
+versioned tree-document schema without implying portability. The snapshot SHALL
+be written after the model files it references, atomically, so that every path
+it names is readable the moment the snapshot itself is. The build publication
+SHALL remain non-portable: it SHALL NOT create an export-style `models/`
+directory or copy models into one. Changes to the shared tree shape or operation
+serialization are breaking and MUST bump `version` and update every producer and
+consumer of the shared schema together.
 
 #### Scenario: A complete model is built once
 - **WHEN** `solid build <project>` completes successfully
@@ -48,9 +48,20 @@ together.
   build-root-relative model files, creates no export-style `models/` tree, and
   copies no mesh
 
+#### Scenario: Every path a new snapshot names is readable
+
+- **WHEN** a consumer reads a newly published `viewer.json`
+- **THEN** every model file it names is already present and complete
+
 ### Requirement: Failed later builds retain viewer state
-A build failure after a successful publication SHALL leave the preceding viewer snapshot and all of its referenced model files available to snapshot consumers.
+A build failure after a successful publication SHALL leave a readable viewer
+snapshot naming readable model files, and SHALL report the failure through
+`errors.json`. The snapshot and models MAY reflect a partially updated model
+rather than the preceding complete one.
 
 #### Scenario: A later project edit fails to build
 - **WHEN** a later `solid develop` build fails after a completed publication
-- **THEN** the callback is not emitted and the previous viewer snapshot remains readable from `_build`
+- **THEN** the callback is not emitted, `errors.json` reports the failure, and
+  the snapshot readable from `_build` still names model files that are present
+  and complete
+

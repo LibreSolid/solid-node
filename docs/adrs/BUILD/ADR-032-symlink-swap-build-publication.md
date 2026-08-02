@@ -1,6 +1,6 @@
 # ADR 032: Symlink-swap build publication
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-038](ADR-038-per-artifact-atomic-build-publication.md)
 
 **Date:** 2026-07-30
 

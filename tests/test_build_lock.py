@@ -6,6 +6,7 @@
 
 import fcntl
 import glob
+import json
 import multiprocessing
 import os
 import shutil
@@ -260,6 +261,16 @@ class PublishedModelFollowsSourceTest(TestCase):
         self.assertEqual(os.path.getmtime(published),
                          os.path.getmtime(self.source),
                          'the published artifact is not the current source')
+        # The document is what a consumer reads to find that artifact and to
+        # decide whether its geometry moved. A build that renders an artifact
+        # exits before writing the document, so the pass that finds the
+        # artifact current has to publish it or the model a viewer sees stays
+        # a build behind.
+        with open(os.path.join(self.build_dir, 'viewer.json')) as document:
+            snapshot = json.load(document)
+        self.assertEqual(snapshot['root']['mtime'],
+                         os.path.getmtime(self.source),
+                         'the published document still names the old model')
 
     def test_concurrent_builds_publish_one_current_model(self):
         self.build(count=3)

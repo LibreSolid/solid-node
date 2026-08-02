@@ -2,12 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""Publication is what a consumer of the build directory actually sees.
-
-These tests exercise `BuildSessionPublisher` directly: no CAD, no
-OpenSCAD, just the filesystem transition a reader can observe while a
-build is published.
-"""
+"""Filesystem-level proofs for direct, per-artifact publication."""
 
 import os
 import shutil
@@ -15,193 +10,123 @@ import tempfile
 import threading
 from unittest import TestCase
 
-from solid_node.core.builder import BuildSessionPublisher
+from solid_node.core.builder import atomic_write, prepare_build_dir
 
 
-class PublicationTestCase(TestCase):
+class AtomicArtifactPublicationTest(TestCase):
 
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix='solid-node-publication-')
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        self.build_dir = os.path.join(self.root, '_build')
+        self.artifact = os.path.join(self.root, '_build', 'part.stl')
+        os.makedirs(os.path.dirname(self.artifact))
 
-    def candidate(self, name, content):
-        """A completed candidate directory ready to be published."""
-        path = os.path.join(self.root, f'.candidate-{name}')
-        os.makedirs(path, exist_ok=True)
-        with open(os.path.join(path, 'viewer.json'), 'w') as snapshot:
-            snapshot.write(content)
-        return path
-
-    def publish(self, name, content):
-        BuildSessionPublisher(self.candidate(name, content),
-                              self.build_dir).publish()
-
-    def published(self):
-        with open(os.path.join(self.build_dir, 'viewer.json')) as snapshot:
-            return snapshot.read()
-
-
-class ReaderNeverSeesAMissingBuildTest(PublicationTestCase):
-    """A consumer serving the build directory over HTTP must not 404 a
-    model that is present before and after the publication."""
-
-    def test_published_snapshot_is_readable_throughout_publication(self):
-        self.publish('initial', 'v0')
-
-        absent = []
+    def test_polling_reader_never_observes_a_partial_artifact(self):
+        atomic_write(self.artifact, b'old-artifact')
+        observed = []
         stop = threading.Event()
 
         def reader():
             while not stop.is_set():
-                try:
-                    self.published()
-                except FileNotFoundError:
-                    absent.append(1)
+                with open(self.artifact, 'rb') as artifact:
+                    observed.append(artifact.read())
 
         watcher = threading.Thread(target=reader)
         watcher.start()
         try:
-            for revision in range(50):
-                self.publish(f'r{revision}', f'v{revision}')
+            for _ in range(100):
+                atomic_write(self.artifact, b'new-artifact' * 1000)
+                atomic_write(self.artifact, b'old-artifact')
         finally:
             stop.set()
             watcher.join()
 
-        self.assertEqual(
-            absent, [],
-            f'reader saw the published snapshot absent {len(absent)} times')
+        self.assertTrue(observed)
+        self.assertTrue(all(value in (b'old-artifact',
+                                      b'new-artifact' * 1000)
+                            for value in observed))
+
+    def test_open_reader_finishes_old_artifact_after_replacement(self):
+        atomic_write(self.artifact, b'old-artifact')
+        with open(self.artifact, 'rb') as reader:
+            atomic_write(self.artifact, b'new-artifact')
+            self.assertEqual(reader.read(), b'old-artifact')
+        with open(self.artifact, 'rb') as reader:
+            self.assertEqual(reader.read(), b'new-artifact')
 
 
-class OverlappingPublicationsTest(PublicationTestCase):
-    """A verification build may publish while a watch loop publishes.
+class PreviousPublicationMigrationTest(TestCase):
 
-    Only `test_concurrent_publishers_do_not_raise` is red against the
-    two-rename publisher. The other two characterize properties that
-    publisher already has and the symlink publisher must keep -- in
-    particular that removing a superseded artifact set never removes a
-    concurrent publisher's fresh one, which is a hazard the versioned
-    layout introduces and the old one did not have.
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='solid-node-migration-')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.build_dir = os.path.join(self.root, '_build')
+        self.previous = os.path.join(self.root, '_build.previous')
+        self.stale = os.path.join(self.root, '_build.stale')
+        os.makedirs(self.previous)
+        os.makedirs(self.stale)
+        with open(os.path.join(self.previous, 'viewer.json'), 'w') as output:
+            output.write('{}')
+        os.symlink(os.path.basename(self.previous), self.build_dir)
+
+    def test_symlink_publication_is_converted_once_in_place(self):
+        prepare_build_dir(self.build_dir)
+
+        self.assertTrue(os.path.isdir(self.build_dir))
+        self.assertFalse(os.path.islink(self.build_dir))
+        self.assertTrue(os.path.isfile(os.path.join(self.build_dir,
+                                                    'viewer.json')))
+        self.assertFalse(os.path.exists(self.stale))
+
+
+class RenderVisibilityTest(TestCase):
+    """A render must not make the previous artifact disappear.
+
+    Rendering used to delete the artifact and point OpenSCAD at its final
+    path, so for the whole render — seconds on a real part — a consumer saw
+    no file at all, then a growing one. The render now writes a temporary
+    sibling that `finish()` moves into place.
     """
 
-    def _publish_concurrently(self, tags):
-        failures = []
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='solid-node-render-')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
 
-        def worker(tag):
-            try:
-                self.publish(tag, tag)
-            except Exception as error:              # noqa: BLE001
-                failures.append(f'{tag}: {type(error).__name__}: {error}')
+    def test_render_leaves_the_previous_artifact_in_place(self):
+        from unittest.mock import Mock, patch
+        from solid_node.node.base import AbstractBaseNode, StlRenderStart
 
-        threads = [threading.Thread(target=worker, args=(tag,))
-                   for tag in tags]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-        return failures
+        node = Mock(spec=AbstractBaseNode)
+        node.stl_file = os.path.join(self.root, 'part.stl')
+        node.scad_file = os.path.join(self.root, 'part.scad')
+        node.lock_file = os.path.join(self.root, 'part.stl.lock')
+        node.mtime = 0
+        node.rigid = True
+        node._up_to_date = lambda path: False
+        node._stl_generation_locked = False
+        node.stl_builder_command_for = \
+            AbstractBaseNode.stl_builder_command_for.__get__(node)
+        with open(node.stl_file, 'w') as previous:
+            previous.write('previous complete artifact')
 
-    # One round of three publishers usually interleaves harmlessly, so a
-    # single round proves nothing either way. Repeat until a collision is
-    # overwhelmingly likely: the two-rename publisher this replaces fails
-    # roughly once per round.
-    ROUNDS = 25
+        with patch('solid_node.node.base.Popen',
+                   return_value=Mock(pid=4321)) as popen:
+            with self.assertRaises(StlRenderStart) as raised:
+                AbstractBaseNode.generate_stl(node)
 
-    def test_concurrent_publishers_do_not_raise(self):
-        self.publish('initial', 'v0')
+        with open(node.stl_file) as artifact:
+            self.assertEqual(artifact.read(), 'previous complete artifact',
+                             'the render removed the artifact readers hold')
+        output = popen.call_args[0][0][popen.call_args[0][0].index('-o') + 1]
+        self.assertNotEqual(output, node.stl_file,
+                            'OpenSCAD wrote straight to the published path')
+        self.assertEqual(output, raised.exception.temporary_file)
+        self.assertTrue(output.endswith('.tmp'))
 
-        failures = []
-        for round_ in range(self.ROUNDS):
-            failures.extend(
-                self._publish_concurrently([f'A{round_}', f'B{round_}',
-                                            f'C{round_}']))
+        with open(output, 'w') as rendered:
+            rendered.write('new artifact')
+        raised.exception.finish()
 
-        self.assertEqual(failures, [])
-
-    def test_concurrent_publishers_leave_one_complete_artifact_set(self):
-        self.publish('initial', 'v0')
-
-        for round_ in range(self.ROUNDS):
-            tags = [f'A{round_}', f'B{round_}', f'C{round_}']
-            self._publish_concurrently(tags)
-            self.assertIn(self.published(), set(tags))
-
-    def test_superseded_cleanup_spares_a_concurrent_publication(self):
-        """Removing the tree this publication replaced must never remove
-        a tree another publisher just published."""
-        self.publish('initial', 'v0')
-
-        for _ in range(20):
-            self._publish_concurrently(['A', 'B'])
-            # Whichever publisher won, its artifact set must still be
-            # readable: the loser's cleanup must not have removed it.
-            self.assertIn(self.published(), {'A', 'B'})
-
-
-class GitInvisibilityTest(PublicationTestCase):
-    """Published artifacts must not show up in `git status`, without the
-    user editing anything and without the framework touching a tracked
-    file."""
-
-    def repository(self, gitignore=None):
-        os.makedirs(os.path.join(self.root, '.git', 'info'), exist_ok=True)
-        if gitignore is not None:
-            with open(os.path.join(self.root, '.gitignore'), 'w') as handle:
-                handle.write(gitignore)
-
-    def exclude_file(self):
-        return os.path.join(self.root, '.git', 'info', 'exclude')
-
-    def exclude_contents(self):
-        if not os.path.isfile(self.exclude_file()):
-            return ''
-        with open(self.exclude_file()) as handle:
-            return handle.read()
-
-    def test_pattern_is_recorded_when_gitignore_does_not_cover_it(self):
-        self.repository(gitignore='_build/\nsnapshot.png\n')
-
-        self.publish('initial', 'v0')
-
-        self.assertIn('_build*', self.exclude_contents())
-
-    def test_tracked_gitignore_is_never_modified(self):
-        original = '_build/\nsnapshot.png\n'
-        self.repository(gitignore=original)
-
-        self.publish('initial', 'v0')
-
-        with open(os.path.join(self.root, '.gitignore')) as handle:
-            self.assertEqual(handle.read(), original)
-
-    def test_nothing_is_recorded_when_gitignore_already_covers_it(self):
-        self.repository(gitignore='_build*\nsnapshot.png\n')
-
-        self.publish('initial', 'v0')
-
-        self.assertNotIn('_build*', self.exclude_contents())
-
-    def test_recording_is_idempotent(self):
-        self.repository(gitignore='_build/\n')
-
-        self.publish('first', 'v0')
-        self.publish('second', 'v1')
-        self.publish('third', 'v2')
-
-        self.assertEqual(self.exclude_contents().count('_build*'), 1)
-
-    def test_publication_succeeds_outside_a_git_repository(self):
-        self.publish('initial', 'v0')
-
-        self.assertEqual(self.published(), 'v0')
-        self.assertFalse(os.path.exists(os.path.join(self.root, '.git')))
-
-    def test_publication_succeeds_when_the_exclude_file_cannot_be_written(self):
-        self.repository(gitignore='_build/\n')
-        info = os.path.join(self.root, '.git', 'info')
-        os.chmod(info, 0o500)
-        self.addCleanup(os.chmod, info, 0o700)
-
-        self.publish('initial', 'v0')
-
-        self.assertEqual(self.published(), 'v0')
+        with open(node.stl_file) as artifact:
+            self.assertEqual(artifact.read(), 'new artifact')
+        self.assertFalse(os.path.exists(output))

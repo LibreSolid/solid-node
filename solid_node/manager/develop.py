@@ -5,7 +5,7 @@
 import sys
 import logging
 from multiprocessing import Process
-from solid_node.core.builder import Builder, BuildOutcome, BuildSession
+from solid_node.core.builder import Builder, BuildOutcome
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer, WebDevServer
 
@@ -53,8 +53,6 @@ class Develop:
         Builder(
             self.path,
             is_reload=is_reload,
-            build_dir=build_dir,
-            published_build_dir=self.build_session.build_dir,
             callback=callback,
             lifecycle=True,
         ).start()
@@ -98,14 +96,8 @@ class Develop:
             web_proc = Process(target=self.web)
             web_proc.start()
 
-        self.build_session = BuildSession()
-
         if args.debug_builder:
-            try:
-                return self.builder(build_dir=self.build_session.staging_dir,
-                                    callback=callback)
-            finally:
-                self.build_session.discard()
+            return self.builder(callback=callback)
 
         # Only the very first builder attempt is "startup": a project
         # that is already broken at launch exits cleanly instead of
@@ -114,8 +106,7 @@ class Develop:
         # edited source (see Builder.is_reload / _on_reload_exception).
         first_run = True
 
-        try:
-            while True:
+        while True:
                 if web_proc and builder_proc:
                     logger.info('Restarting WEB')
                     web_proc.terminate()
@@ -123,10 +114,8 @@ class Develop:
                     web_proc = Process(target=self.web)
                     web_proc.start()
 
-                builder_proc = Process(
-                    target=self.builder,
-                    args=(not first_run, self.build_session.staging_dir, callback),
-                )
+                builder_proc = Process(target=self.builder,
+                                       args=(not first_run, None, callback))
                 builder_proc.start()
 
                 try:
@@ -139,7 +128,6 @@ class Develop:
                     first_run = False
                     continue
                 if exitcode == BuildOutcome.SOURCE_CHANGED.value:
-                    self.build_session.reset()
                     first_run = False
                     continue
                 if first_run and exitcode:
@@ -150,5 +138,3 @@ class Develop:
                             proc.join()
                     sys.exit(exitcode)
                 first_run = False
-        finally:
-            self.build_session.discard()

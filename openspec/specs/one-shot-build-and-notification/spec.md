@@ -11,11 +11,10 @@ The system SHALL provide `solid build <path>`, using the same node-path
 resolution and ordinary build pipeline as `solid develop <path>`. It SHALL
 produce the complete current model in the normal project build directory and
 exit 0 without starting a watcher or viewer. Its exit status SHALL reflect
-whether the model built, not whether it won a publication race with another
-publisher of the same project. When its builder stands down because the source
-moved while it waited for the project build lock, the command SHALL build again
-from the source on disk rather than exiting, so what it publishes is the
-current model.
+whether the model built. When its builder stands down because the source moved
+while it waited for the project build lock, the command SHALL build again from
+the source on disk rather than exiting, so what it publishes is the current
+model.
 
 #### Scenario: Build a package node
 
@@ -28,8 +27,8 @@ current model.
 
 - **WHEN** a user runs `solid build root` while `solid develop root` is
   watching the same project
-- **THEN** the command does not fail with a publication error for a model
-  that built correctly
+- **THEN** the two builds serialise on the project build lock and the command
+  exits 0 for a model that built correctly
 
 #### Scenario: The source moves while the build waits
 
@@ -80,4 +79,3 @@ not invoke the callback.
 - **WHEN** a development build does not complete successfully
 - **THEN** no callback is issued and the previously published build directory
   is left in place
-
