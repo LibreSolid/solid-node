@@ -1,6 +1,6 @@
 # ADR-014: Recursive NodeAPI REST Pattern Mirroring Node Tree
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-036](ADR-036-snapshot-served-shared-viewer-shell.md)
 **Date:** 2024-06-15
 **Depends on:**
 - [ADR-001: Composite Pattern for Node Tree Architecture](../NODE/ADR-001-composite-pattern-node-tree-architecture.md)

@@ -206,18 +206,19 @@ faster on real assemblies.
 
 `solid develop` serves a FastAPI + Uvicorn app (ADR-015, post-018 the
 only HTTP service): static React build by default, npm-proxy under
-`--web-dev`. The **NodeAPI** (ADR-014) recursively mounts one sub-API
-per tree node — URLs mirror the assembly; rigid nodes serve STLs (with
-Last-Modified/304 and wait-for-file), non-rigid nodes list children.
+`--web-dev`. It serves the current atomically published build directory
+under `/build/` and the installed shared viewer bundle under `/_viewer`.
+The server does not import project source; an absent build or bundle leaves
+the reload socket and build-error endpoint available, with a bundle remedy
+for the browser shell to display.
 
-The browser app (React + three.js, ADR-012/013) renders each mesh from
-one absolute world matrix composed from the operation levels
-(ADR-027 — same semantics as `node.mesh`), evaluates `$t` expressions
-per frame with degree-convention trig and `^`→`pow()` (ADR-022), and
-reloads through `/ws/reload`: the develop loop restarts the server per
-rebuild, the socket reconnect delivers the signal, `/_build_error`
-gates whether to show a traceback or reload the tree, and a generation
-counter disposes superseded trees.
+The browser app is a small React shell (ADR-013, amended by ADR-036). It
+loads the shared viewer bundle, mounts it against `/build/viewer.json` with
+inline autoplay controls, names the tab from the snapshot, and uses the
+mount handle's `reload()` after `/ws/reload` reports a successful build.
+Tree traversal, world-matrix composition, expression evaluation, animation,
+and stale-load disposal live once in the reusable viewer package (ADR-035),
+not in the development app.
 
 A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
 `snapshot` command cover the non-browser cases.
@@ -306,6 +307,6 @@ The short list that changes must not silently break:
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029 |
-| Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 027 |
+| Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
 | Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

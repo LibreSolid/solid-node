@@ -2,145 +2,173 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-import os
-import tempfile
+"""HTTP coverage for the snapshot-backed development viewer."""
+
 import json
-from unittest import TestCase
+import os
+import shutil
+import socket
+import tempfile
+import threading
+from pathlib import Path
+from subprocess import run
+from unittest import TestCase, skipUnless
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
-from solid_node.viewers.web.viewer import NodeAPI, WebViewer
+import uvicorn
+
+from solid_node.core.export import export_node
+from solid_node.viewers.bundle import bundle_path
+from solid_node.viewers.web.viewer import WebViewer
+
+from . import spinner_project
+from .test_widget_e2e import CHROME, HAS_PIL
+
+if HAS_PIL:
+    from PIL import Image
 
 
-class FakeRigidNode:
-    """Minimal stand-in for a real Node instance, providing only what
-    NodeAPI.__init__ touches for a rigid (leaf) node: `name`, `rigid`,
-    `operations` and `stl` -- avoids pulling in the real node/build stack.
-    """
-    rigid = True
-    operations = ()
+class WebViewerSnapshotTest(TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
+        self.build_dir = Path(self.tempdir.name) / 'published-build'
+        self.build_dir.mkdir()
+        (self.build_dir / 'models').mkdir()
+        (self.build_dir / 'models' / 'part.stl').write_text('solid part')
+        (self.build_dir / 'viewer.json').write_text(json.dumps({
+            'format': 'solid-node-viewer',
+            'version': 1,
+            'animation': {'fps': 30, 'frames': 360},
+            'root': {'name': 'part', 'model': 'models/part.stl'},
+        }))
+        self.env = patch.dict(os.environ, {
+            'SOLID_BUILD_DIR': str(self.build_dir),
+        })
+        self.env.start()
+        self.addCleanup(self.env.stop)
 
-    def __init__(self, name, stl, stl_file=None):
-        self.name = name
-        self.stl = stl
-        self.stl_file = stl_file or f'{name}.stl'
+    def viewer(self):
+        return WebViewer('project-that-must-not-be-imported.py', dev=True)
 
+    def test_serves_the_published_snapshot_and_models(self):
+        client = TestClient(self.viewer().app)
 
-def make_api(node):
-    return NodeAPI(node, prefix=f'/{node.name}')
+        snapshot = client.get('/build/viewer.json')
+        model = client.get('/build/models/part.stl')
 
+        self.assertEqual(snapshot.status_code, 200)
+        self.assertEqual(snapshot.json()['root']['model'], 'models/part.stl')
+        self.assertEqual(model.status_code, 200)
+        self.assertEqual(model.text, 'solid part')
 
-class WaitForFileTest(TestCase):
-    """Regression tests for B7: `wait_for_file` returned `None` (bare
-    `return`) instead of the file path once the file appeared, so the
-    caller `stl()` did `os.path.getmtime(None)` -> TypeError -> HTTP 500,
-    exactly when a client requested an STL still being generated.
-    """
+    def test_reports_an_absent_snapshot_without_failing_the_server(self):
+        (self.build_dir / 'viewer.json').unlink()
 
-    def test_returns_the_path_when_file_already_exists(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, 'existing.stl')
-            with open(path, 'w') as f:
-                f.write('solid')
+        client = TestClient(self.viewer().app)
 
-            api = make_api(FakeRigidNode('existing', stl=path))
+        self.assertEqual(client.get('/build/viewer.json').status_code, 404)
+        self.assertEqual(client.get('/_build_error').status_code, 200)
 
-            result = asyncio.run(api.wait_for_file(path))
-
-            self.assertEqual(result, path)
-
-    def test_returns_the_path_once_file_appears(self):
-        # Exercises the polling branch (file not there yet, then created),
-        # not just the immediate-hit case above.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, 'delayed.stl')
-            api = make_api(FakeRigidNode('delayed', stl=None, stl_file=path))
-
-            async def create_after_delay():
-                await asyncio.sleep(0.05)
-                with open(path, 'w') as f:
-                    f.write('solid')
-
-            async def run_both():
-                _, result = await asyncio.gather(
-                    create_after_delay(),
-                    api.wait_for_file(path),
-                )
-                return result
-
-            result = asyncio.run(run_both())
-
-            self.assertEqual(result, path)
-
-
-class StlEndpointTest(TestCase):
-    """Straightforward TestClient coverage for the common case: the STL
-    is already available, so `stl()` never needs to wait at all.
-    """
-
-    def test_stl_endpoint_serves_available_file_with_last_modified(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, 'available.stl')
-            with open(path, 'w') as f:
-                f.write('solid')
-
-            node = FakeRigidNode('available', stl=path)
-            api = make_api(node)
-            client = TestClient(api.app)
-
-            response = client.get('/available.stl')
-
-            self.assertEqual(response.status_code, 200)
-            self.assertIn('last-modified', response.headers)
-
-    def test_snapshot_node_api_serves_without_loading_project(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with open(os.path.join(tmpdir, 'part.stl'), 'w') as stl:
-                stl.write('solid part')
-            with open(os.path.join(tmpdir, 'viewer.json'), 'w') as snapshot:
-                json.dump({'version': 1, 'root': {
-                    'name': 'part', 'type': 'SolidNode', 'color': None,
-                    'operations': [], 'model': 'part.stl'}}, snapshot)
-
-            api = NodeAPI.from_build(tmpdir)
-            client = TestClient(api.app)
-            self.assertEqual(client.get('/').json()['name'], 'part')
-            self.assertEqual(client.get('/part.stl').status_code, 200)
-
-
-class WebViewerSurvivesBrokenNodeTest(TestCase):
-    """Regression for improvements.md #7: Develop.handle() restarts the
-    web viewer on every builder reload cycle ("Restarting WEB"), and
-    WebViewer.__init__ calls load_node(path) itself to mount the node
-    routes. That call used to be unguarded, so a project broken at the
-    exact moment of restart crashed the whole webserver subprocess --
-    taking down the reload websocket and the /_build_error endpoint
-    with it, exactly when the browser most needed this server to stay
-    reachable to show the build error.
-    """
-
-    def test_construction_does_not_raise_when_node_fails_to_load(self):
-        with patch('solid_node.viewers.web.viewer.load_node',
-                   side_effect=NameError('boom')):
-            viewer = WebViewer('broken/project.py', dev=True)
-
-        self.assertIsNone(viewer.node)
-
-    def test_build_error_endpoint_still_reachable(self):
-        with patch('solid_node.viewers.web.viewer.load_node',
-                   side_effect=NameError('boom')):
-            viewer = WebViewer('broken/project.py', dev=True)
-
-        client = TestClient(viewer.app)
-        response = client.get('/_build_error')
+    def test_serving_a_snapshot_never_imports_project_source(self):
+        with patch('solid_node.core.loader.load_node',
+                   side_effect=AssertionError('project source was imported')) as load_node:
+            client = TestClient(self.viewer().app)
+            response = client.get('/build/viewer.json')
 
         self.assertEqual(response.status_code, 200)
+        load_node.assert_not_called()
 
-    def test_reload_websocket_still_connects(self):
-        with patch('solid_node.viewers.web.viewer.load_node',
-                   side_effect=NameError('boom')):
-            viewer = WebViewer('broken/project.py', dev=True)
 
-        client = TestClient(viewer.app)
-        with client.websocket_connect('/ws/reload') as websocket:
-            self.assertEqual(websocket.receive_text(), 'reload')
+class WebViewerBundleTest(TestCase):
+    def test_reports_available_bundle_and_api_version(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = Path(tmpdir) / 'solid-widget.js'
+            bundle.write_text('window.SolidNodeWidget = {};')
+            with patch('solid_node.viewers.web.viewer.bundle_path', return_value=bundle), \
+                 patch('solid_node.viewers.web.viewer.has_bundle', return_value=True), \
+                 patch('solid_node.viewers.web.viewer.api_version', return_value=1):
+                client = TestClient(WebViewer('ignored.py', dev=True).app)
+                status = client.get('/_viewer')
+                script = client.get('/_viewer/bundle.js')
+
+        self.assertEqual(status.json(), {
+            'available': True, 'apiVersion': 1, 'remedy': None,
+        })
+        self.assertEqual(script.status_code, 200)
+        self.assertIn('SolidNodeWidget', script.text)
+
+    def test_reports_the_remedy_when_the_bundle_is_missing(self):
+        with patch('solid_node.viewers.web.viewer.has_bundle', return_value=False), \
+             patch('solid_node.viewers.web.viewer.api_version', return_value=1), \
+             patch('solid_node.viewers.web.viewer.missing_bundle_remedy',
+                   return_value='run npm run build'):
+            client = TestClient(WebViewer('ignored.py', dev=True).app)
+            status = client.get('/_viewer')
+            script = client.get('/_viewer/bundle.js')
+
+        self.assertEqual(status.json(), {
+            'available': False, 'apiVersion': 1, 'remedy': 'run npm run build',
+        })
+        self.assertEqual(script.status_code, 503)
+        self.assertEqual(script.json()['remedy'], 'run npm run build')
+
+
+@skipUnless(os.path.exists(bundle_path()), 'widget bundle not built (npm run build)')
+@skipUnless(CHROME, 'no headless chromium available')
+@skipUnless(HAS_PIL, 'Pillow not installed')
+class DevelopmentViewerBrowserTest(TestCase):
+    """The development shell must render through the shared bundle."""
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
+        self.build_dir = Path(self.tempdir.name) / '_build'
+        export_dir = Path(self.tempdir.name) / 'export'
+        export_node(spinner_project.Spinner(), export_dir)
+        shutil.copytree(export_dir, self.build_dir)
+        (self.build_dir / 'manifest.json').rename(self.build_dir / 'viewer.json')
+
+        self.env = patch.dict(os.environ, {
+            'SOLID_BUILD_DIR': str(self.build_dir),
+        })
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
+        with socket.socket() as reserved:
+            reserved.bind(('127.0.0.1', 0))
+            port = reserved.getsockname()[1]
+        self.server = uvicorn.Server(uvicorn.Config(
+            WebViewer('fixture.py', dev=False).app,
+            host='127.0.0.1', port=port, log_level='error',
+        ))
+        self.thread = threading.Thread(target=self.server.run, daemon=True)
+        self.thread.start()
+        self.addCleanup(self.stop_server)
+        self.url = f'http://127.0.0.1:{port}/'
+        for _ in range(50):
+            if self.server.started:
+                break
+            threading.Event().wait(0.1)
+        self.assertTrue(self.server.started, 'development viewer did not start')
+
+    def stop_server(self):
+        self.server.should_exit = True
+        self.thread.join(timeout=5)
+
+    def test_built_spinner_renders_with_declared_colour(self):
+        image_path = Path(self.tempdir.name) / 'development-viewer.png'
+        result = run([
+            CHROME, '--headless', '--no-sandbox', '--disable-gpu',
+            '--use-angle=swiftshader', '--window-size=800,600',
+            '--virtual-time-budget=4000', f'--screenshot={image_path}', self.url,
+        ], capture_output=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr.decode()[-500:])
+
+        image = Image.open(image_path).convert('RGB')
+        red = sum(1 for r, g, b in image.getdata()
+                  if r > 100 and r > 1.4 * g and r > 1.4 * b)
+        blue = sum(1 for r, g, b in image.getdata()
+                   if b > 100 and b > 1.4 * r and b > 1.4 * g)
+        self.assertGreater(red, 500, 'red hub not visible')
+        self.assertGreater(blue, 2000, 'blue blades not visible')

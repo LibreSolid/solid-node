@@ -54,9 +54,8 @@ def _compose_world_matrix(node):
     """Composes node's own operations (in list order) then each
     ancestor's (walking node -> parent -> ... -- exactly the order the
     old per-operation while-loop applied them) into ONE 4x4 world
-    matrix: the same composition solid-node's web viewer applies
-    (skill-repo improvements.md #23, commit 23bd5e1's
-    composeOperations()), so mesh and viewer placement share one
+    matrix: the same composition the shared viewer applies, so mesh and
+    viewer placement share one
     semantics. Later operations are outermost (each op's matrix is
     premultiplied onto the running total).
 
@@ -493,7 +492,7 @@ class AbstractBaseNode:
         """Link `child` to this node as its parent, and derive its
         name from the attribute holding it. Called from the same spot
         the tree links parent/child today (InternalNode.as_scad) and
-        from the web viewer's NodeAPI, which walks render() output
+        from the shared viewer serializer, which walks render() output
         directly without a full assemble(). Idempotent: re-deriving
         the same attribute mapping twice (e.g. a second assemble())
         always recomputes the identical name -- it overwrites rather

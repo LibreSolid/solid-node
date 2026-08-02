@@ -1,6 +1,6 @@
 # ADR-013: React as Frontend Framework for Web Viewer
 
-**Status:** Accepted
+**Status:** Accepted, amended by [ADR-036](ADR-036-snapshot-served-shared-viewer-shell.md)
 **Date:** Unknown
 **Depends on:** [ADR-012: Three.js for 3D Mesh Rendering and Visualization](./ADR-012-threejs-for-3d-rendering.md)
 
@@ -76,3 +76,10 @@ Create React App's deprecation creates future technical debt requiring migration
 - `solid_node/viewers/web/app/src/App.tsx` - Main component with state management via hooks
 - `solid_node/viewers/web/app/src/viewer/STLViewer.tsx` - Three.js integration via refs and useEffect
 - `solid_node/viewers/web/app/src/index.tsx` - React app bootstrap
+
+## Amendment (2026-08-02)
+
+ADR-036 reduces React's responsibility to the development page shell: lifecycle,
+reload, offline state, build errors, and one imperative shared-viewer mount.
+The local Three.js renderer, navigation tree, animation clock, and associated
+dependencies are no longer part of this application's architecture.

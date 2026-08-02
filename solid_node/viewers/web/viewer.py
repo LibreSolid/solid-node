@@ -2,89 +2,62 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import json
-import asyncio
-import uvicorn
-import httpx
 import logging
+import os
 import subprocess
-import traceback
-from datetime import datetime
-from fastapi import FastAPI, Request, Response, WebSocket
-from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+import httpx
+import uvicorn
+from fastapi import FastAPI, HTTPException, Response, WebSocket
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketDisconnect
-from solid_node.core import load_node
+
+from solid_node.core.builder import get_build_dir, get_errors_file
 from solid_node.core.logging import uvicorn_config
-from solid_node.core.builder import get_errors_file
+from solid_node.viewers.bundle import (
+    api_version, bundle_path, has_bundle, missing_bundle_remedy,
+)
 
 
 logger = logging.getLogger('viewer.web')
-basedir = os.path.dirname(
-    os.path.realpath(__file__)
-)
+basedir = os.path.dirname(os.path.realpath(__file__))
 
-# Ports are overridable so several checkouts (e.g. worktrees made by
-# scripts/dev-env) can run side by side.
+
 def backend_port():
     return int(os.environ.get('SOLID_NODE_PORT', 8000))
+
 
 def frontend_port():
     return int(os.environ.get('SOLID_NODE_FRONTEND_PORT', 3000))
 
+
 class WebDevServer:
-    """For development purposes, run a "npm run start" command
-    to be proxyed by WebViewer
-    """
+    """Run the development React server proxied by :class:`WebViewer`."""
     def __init__(self, path):
         self.path = path
         self.app_dir = os.path.join(basedir, 'app')
 
     def start(self):
         proc = subprocess.Popen(
-            ['npm', 'run', 'start'],
-            cwd=self.app_dir,
+            ['npm', 'run', 'start'], cwd=self.app_dir,
             env=dict(os.environ, PORT=str(frontend_port())),
         )
         proc.communicate()
 
 
 class WebViewer:
-    """Starts a webserver that can serve either a built html app
-    or make a proxy to WebDevServer instance.
-    The react app is inside app/ in the same folder as this class' file.
-    """
+    """Serve the published build snapshot and the shared viewer bundle."""
     def __init__(self, path, dev=True):
         self.path = path
-        self.node = None
-
         self.frontend_dir = os.path.join(basedir, 'app/build')
-
         self.app = FastAPI()
 
-        try:
-            self.node = load_node(path)
-            root_node = NodeAPI(self.node,
-                                f'/{self.node.name}',
-                                )
-            self.app.mount(f'/node', root_node.app)
-        except Exception:
-            # A project broken at the moment the web viewer (re)starts
-            # must not crash this server -- the browser depends on this
-            # same process for the reload websocket and the
-            # /_build_error endpoint below (fed by the builder's
-            # errors.json) to recover once a fix lands and Develop
-            # restarts this viewer with a working node. Don't duplicate
-            # error reporting here: the builder subprocess already owns
-            # writing errors.json for the exact same failure.
-            logger.error(
-                f'Failed to load node from {path} for web viewer:\n'
-                f'{traceback.format_exc()}'
-            )
-
         self._setup_build_error()
-
+        self._setup_build_snapshot()
+        self._setup_viewer_bundle()
         self._setup_reload_websocket()
 
         if dev:
@@ -94,189 +67,80 @@ class WebViewer:
 
     def start(self):
         port = backend_port()
-        logger.info(f"START - will listen on port {port}")
-        uvicorn.run(self.app, host="0.0.0.0", port=port,
+        logger.info('START - will listen on port %s', port)
+        uvicorn.run(self.app, host='0.0.0.0', port=port,
                     log_config=uvicorn_config)
 
     def _setup_reload_websocket(self):
-        @self.app.websocket("/ws/reload")
+        @self.app.websocket('/ws/reload')
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
-            await websocket.send_text("reload")
-            monitoring = set()
+            await websocket.send_text('reload')
             try:
                 while True:
-                    path = await websocket.receive_text()
-                    monitoring.add(path)
+                    await websocket.receive_text()
             except WebSocketDisconnect:
                 return
 
     def _setup_build_error(self):
-        @self.app.get("/_build_error")
+        @self.app.get('/_build_error')
         async def get_status():
             errors_file = get_errors_file()
             if os.path.exists(errors_file):
-                with open(errors_file, 'r') as f:
-                    error = json.load(f)
-                return JSONResponse(error)
+                with open(errors_file, 'r') as stream:
+                    return JSONResponse(json.load(stream))
             return JSONResponse({})
 
+    def _setup_build_snapshot(self):
+        @self.app.get('/build/{requested_path:path}')
+        async def get_build_file(requested_path: str):
+            build_dir = Path(get_build_dir()).resolve()
+            candidate = (build_dir / requested_path).resolve()
+            try:
+                candidate.relative_to(build_dir)
+            except ValueError:
+                raise HTTPException(status_code=404)
+            if not candidate.is_file():
+                raise HTTPException(status_code=404, detail='Published build artifact not found')
+            return FileResponse(candidate)
+
+    def _setup_viewer_bundle(self):
+        @self.app.get('/_viewer')
+        async def get_viewer_status():
+            available = has_bundle()
+            return {
+                'available': available,
+                'apiVersion': api_version(),
+                'remedy': None if available else missing_bundle_remedy(),
+            }
+
+        @self.app.get('/_viewer/bundle.js')
+        async def get_viewer_bundle():
+            if not has_bundle():
+                return JSONResponse({
+                    'remedy': missing_bundle_remedy(),
+                }, status_code=503)
+            return FileResponse(bundle_path(), media_type='application/javascript')
+
     def _setup_frontend_server(self):
-        # Serve a static application.
-        # It's generated with "npm run build" inside app/ application
-        @self.app.get("/")
+        @self.app.get('/')
         async def read_root():
             return FileResponse(os.path.join(self.frontend_dir, 'index.html'))
 
-        self.app.mount(f'/',
-                       StaticFiles(directory=self.frontend_dir),
-                       name="frontend")
-
+        self.app.mount('/', StaticFiles(directory=self.frontend_dir), name='frontend')
 
     def _setup_proxy_server(self):
-        # This makes a proxy to a running "npm start" development server
-        # inside app/ application.
         @self.app.get('/')
-        async def proxy_root():#, request: Request):
-            return await _proxy('/')
+        async def proxy_root():
+            return await self._proxy('/')
 
-        @self.app.get('/{path}')
+        @self.app.get('/{path:path}')
         async def proxy_path(path: str):
-            return await _proxy(f'/{path}')
+            return await self._proxy('/' + path)
 
-        @self.app.get('/static/js/{path}')
-        async def proxy_static_js(path: str):
-            return await _proxy(f'/static/js/{path}')
-
-        async def _proxy(path: str):
-            async with httpx.AsyncClient() as client:
-                response = await client.request('GET', f'http://localhost:{frontend_port()}{path}')
-                return Response(
-                    content=response.content,
-                    media_type=response.headers.get('content-type'),
-                )
-
-
-class NodeAPI:
-    """Recursively define an API to serve the node structure
-    of a project to the web application"""
-
-    def __init__(self, node, prefix):
-        self.node = node
-        self.name = self.node.name
-
-        logger.info(f'Prefix {prefix} to {node.name}')
-        self.app = FastAPI()
-
-        self.app.add_api_route('/', self.state, methods=["GET"])
-
-        self.operations = [
-            op.serialized for op in self.node.operations
-        ]
-
-        self.subapps = []
-        self.children = []
-
-        if self.node.rigid:
-            stl_path = f'/{self.name}.stl'
-            self.app.add_api_route(stl_path, self.stl)
-            return
-
-        children = self.node.render()
-        if type(children) not in (list, tuple):
-            # This is a leaf
-            return
-
-        for child in children:
-            # NodeAPI walks render() output directly, never assemble(),
-            # so it never goes through InternalNode.as_scad -- link and
-            # derive the child's name here too (skill-repo
-            # improvements.md #16), so the viewer tree and the
-            # STL/test naming agree.
-            self.node._link_child(child)
-            child_path = f'/{child.name}'
-            subapp = NodeAPI(child, child_path)
-            logger.info(f'Mounting node {child_path}')
-            self.app.mount(child_path, subapp.app)
-            self.subapps.append(subapp)
-            self.children.append(child.name)
-
-    @classmethod
-    def from_build(cls, build_dir):
-        with open(os.path.join(build_dir, 'viewer.json')) as snapshot:
-            data = json.load(snapshot)
-        return SnapshotNodeAPI(data['root'], build_dir)
-
-    async def state(self):
-        state =  {
-            'operations': self.operations,
-            'type': self.node._type,
-            'name': self.node.name,
-            'color': self.node.color
-        }
-        if self.children:
-            state['children'] = self.children
-        else:
-            state['model'] = f'{self.name}.stl'
-
-        state['mtime'] = self.node.mtime
-        return state
-
-    async def stl(self, request: Request):
-        stl = self.node.stl
-        if not stl:
-            logger.info(f'Waiting for {self.node.stl_file} to be available')
-            stl = await self.wait_for_file(self.node.stl_file)
-            logger.info(f'Got {self.node.stl_file}')
-
-        last_modified_time = datetime.utcfromtimestamp(os.path.getmtime(stl))
-
-        # Check 'If-Modified-Since' header in the request
-        if_modified_since = request.headers.get('if-modified-since')
-        if if_modified_since:
-            if_modified_since_time = datetime.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
-            if last_modified_time <= if_modified_since_time:
-                return Response(status_code=304)
-
-        response = FileResponse(
-            stl,
-            media_type='application/octet-stream',
-            filename=f'{self.name}.stl',
-        )
-
-        last_modified_str = last_modified_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
-        response.headers['Last-Modified'] = last_modified_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
-
-        return response
-
-    async def wait_for_file(self, file_path):
-        while True:
-            if os.path.exists(file_path):
-                return file_path
-            await asyncio.sleep(0.1)
-
-
-class SnapshotNodeAPI:
-    """Private NodeAPI implementation backed only by a published build."""
-
-    def __init__(self, state, build_dir):
-        self.state_value = state
-        self.build_dir = build_dir
-        self.app = FastAPI()
-        self.app.add_api_route('/', self.state, methods=['GET'])
-        if 'model' in state:
-            self.app.add_api_route('/' + state['model'], self.stl, methods=['GET'])
-        for child in state.get('children', []):
-            self.app.mount('/' + child['name'], SnapshotNodeAPI(child, build_dir).app)
-
-    async def state(self):
-        result = {key: value for key, value in self.state_value.items()
-                  if key != 'children'}
-        if 'children' in self.state_value:
-            result['children'] = [child['name'] for child in self.state_value['children']]
-        return result
-
-    async def stl(self):
-        return FileResponse(os.path.join(self.build_dir, self.state_value['model']),
-                            media_type='application/octet-stream',
-                            filename=os.path.basename(self.state_value['model']))
+    async def _proxy(self, path: str):
+        async with httpx.AsyncClient() as client:
+            response = await client.request(
+                'GET', f'http://localhost:{frontend_port()}{path}')
+        return Response(content=response.content,
+                        media_type=response.headers.get('content-type'))

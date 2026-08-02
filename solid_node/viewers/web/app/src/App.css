@@ -7,28 +7,16 @@
     overflow: hidden;
 }
 
-.top {
-    width: 100%;
-    height: 50px;
-}
-
-.body {
-    display: flex;
+.model {
     flex: 1;
+    min-height: 0;
 }
 
-.pane {
-    border: 1px solid #ccc;
-    overflow: hidden;
-}
-
-.left, .right, .center {
-    height: 100%;
-    box-sizing: border-box;
-}
-
-.bottom {
-    width: 100%;
+.build-error {
+    margin: 1rem;
+    padding: 1rem;
+    overflow: auto;
+    white-space: pre-wrap;
 }
 
 /* Reloader (skill-repo improvements.md #12): loud, unmistakable strip

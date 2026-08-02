@@ -48,13 +48,6 @@ together.
   build-root-relative model files, creates no export-style `models/` tree, and
   copies no mesh
 
-### Requirement: The framework viewer can read a published snapshot
-The framework SHALL provide its existing private viewer implementation a snapshot-backed mode that serves the same recursive node state and model files from a published build directory without importing the project model.
-
-#### Scenario: A host serves a completed build
-- **WHEN** a host constructs the private framework viewer from a completed build directory
-- **THEN** the host can serve the root state and every referenced model without executing project Python
-
 ### Requirement: Failed later builds retain viewer state
 A build failure after a successful publication SHALL leave the preceding viewer snapshot and all of its referenced model files available to snapshot consumers.
 

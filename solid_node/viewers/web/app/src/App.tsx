@@ -4,113 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef, useState, useEffect } from 'react';
-import * as THREE from 'three';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
-import { Resizable } from 're-resizable';
-import { STLViewer, STLViewerHandles } from './viewer/STLViewer';
-import { ControlCube } from './viewer/ControlCube';
-//import { NodeProvider } from './context';
-import { RotationControl } from './viewer/viewer.d';
-import { BrowserRouter as Router } from 'react-router-dom';
-import { Node, Context, loadNode } from './node';
 import { Reloader } from './reloader';
-import { Animator } from './animator';
-import NavigationTree from './NavigationTree';
-
+import { ViewerShell } from './viewerShell';
 
 const App = () => {
-  const stlViewerRef = useRef<STLViewerHandles | null>(null);
-  const [time, setTime] = useState<number>(0);
-  const [error, setError] = useState<string>('');
-  const [node, setNode] = useState<Node>();
-  const [animator, setAnimator] = useState<Animator>();
-  const [context, setContext] = useState<Context>({
-    time: time,
-    setError,
-    scene: new THREE.Scene(),
-  });
-  const [reloader, setReloader] = useState<Reloader>();
-
-  const [rotation, setRotation] = useState<RotationControl>({
-    source: 0,
-    rotation: new THREE.Vector3(0, 0, 100),
-  });
+  const host = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (node) {
-      const newContext = Object.assign({}, context, { time });
-      node.setContext(newContext);
-      setContext(newContext);
-      document.title = node.name.replace(/([A-Z])/g, ' $1').trim();
-    }
-  }, [time, node]);
-
-  useEffect(() => {
-    // Avoid react double rendering bug
-    if (context.scene.background) return;
-
-    context.scene.background = new THREE.Color(0xe5e5e5);
-    const path = window.location.pathname;
-    loadNode(path, context).then((node) => {
-      setNode(node);
-      setAnimator(Animator.getInstance(setTime));
-      setReloader(new Reloader(setError, async () => {
-        const newNode = await node.reload();
-	if (newNode !== undefined) {
-	  setNode(newNode);
-	}
-      }));
+    if (!host.current) return;
+    const shell = new ViewerShell(host.current);
+    shell.start().catch((reason) => setError(String(reason)));
+    new Reloader(setError, () => {
+      shell.reload().catch((reason) => setError(String(reason)));
     });
+    return () => shell.dispose();
   }, []);
 
-  useEffect(() => {
-    if (animator) {
-      animator.setAnimation(30, 360);
-    }
-  }, [animator]);
-
-  /*
-  const handleViewerResize = () => {
-    stlViewerRef.current?.handleResize();
-  };
-  */
-
   return (
-    <Router>
-      <div className="app">
-        <div className="body">
-          <Resizable
-            className="pane left"
-            defaultSize={{ width: '100%', height: '100%' }}
-            enable={{ right: true }}
-          >
-            {!error &&
-              <STLViewer
-                controlId={1}
-                rotation={rotation}
-                context={context}
-                setRotation={setRotation}
-              />
-            }
-            {error &&
-              <div><pre>{error}</pre></div>
-            }
-            <div style={{ position: 'relative' }}>
-              {/*
-              <ControlCube
-                controlId={2}
-                setControl={setControl}
-                rotation={rotation}
-                setRotation={setRotation}
-              />
-              */}
-            </div>
-          </Resizable>
-        </div>
-      </div>
-    </Router>
+    <div className="app">
+      {error ? <pre className="build-error">{error}</pre> : <div ref={host} className="model" />}
+    </div>
   );
-}
+};
 
 export default App;

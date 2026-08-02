@@ -1,6 +1,6 @@
 # ADR-027: Absolute World-Matrix Composition for Viewer Transforms
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-036](ADR-036-snapshot-served-shared-viewer-shell.md)
 **Date:** 2026-07-17
 **Depends on:**
 - [ADR-012: Three.js for 3D Mesh Rendering and Visualization](./ADR-012-threejs-for-3d-rendering.md)

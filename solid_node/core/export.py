@@ -6,7 +6,7 @@
 describing the tree (with raw, unevaluated operation expressions, so a
 viewer can animate $t client-side) plus the STL meshes of every rigid
 node, deduplicated. This is the data layer of the export widget; the
-serialization mirrors what NodeAPI (viewers/web/viewer.py) streams to
+serialization mirrors what the published build snapshot serves to
 the live web app, but frozen on disk with no server."""
 
 import json
