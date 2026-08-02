@@ -30,6 +30,8 @@ export interface ViewerHandle {
   dispose(): void;
   view(): View;
   reload(): Promise<void>;
+  artifactChanged(path: string): Promise<void>;
+  manifestChanged(): Promise<void>;
   setTime(time: number): void;
   apiVersion: number;
 }
@@ -123,11 +125,15 @@ export async function mount(
     scene.add(tree.group);
     applyFrame(view);
 
+    refreshControls(document);
+  };
+
+  const refreshControls = (document: Manifest) => {
     controlElements.forEach((element) => element.remove());
     controlElements = [];
     slider = undefined;
-    const plan = controlPlan(resolved.animation, tree.animated);
-    playing = tree.animated && !plan.hostDriven && resolved.autoplay;
+    const plan = controlPlan(resolved.animation, tree!.animated);
+    playing = tree!.animated && !plan.hostDriven && resolved.autoplay;
     cycleSeconds = document.animation.frames / document.animation.fps;
     if (plan.bar) {
       const built = buildControls(
@@ -189,6 +195,19 @@ export async function mount(
     view: captureView,
     async reload() {
       await replaceTree(captureView());
+    },
+    async artifactChanged(path: string) {
+      await tree?.artifactChanged(path, baseUrl);
+      renderer.render(scene, camera);
+    },
+    async manifestChanged() {
+      const document = await loadDocument(sourceUrl);
+      await tree?.reconcile(document.root, baseUrl);
+      if (tree) {
+        tree.update(time);
+        refreshControls(document);
+      }
+      renderer.render(scene, camera);
     },
     setTime,
   };

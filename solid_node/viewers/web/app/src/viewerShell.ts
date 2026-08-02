@@ -7,6 +7,7 @@
 interface ViewerHandle {
   dispose(): void;
   reload(): Promise<void>;
+  manifestChanged(): Promise<void>;
 }
 
 interface ViewerBundle {
@@ -54,7 +55,7 @@ export class ViewerShell {
   }
 
   async reload(): Promise<void> {
-    await this.handle?.reload();
+    await this.handle?.manifestChanged();
   }
 
   dispose(): void {

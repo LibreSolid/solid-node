@@ -215,10 +215,14 @@ for the browser shell to display.
 The browser app is a small React shell (ADR-013, amended by ADR-036). It
 loads the shared viewer bundle, mounts it against `/build/viewer.json` with
 inline autoplay controls, names the tab from the snapshot, and uses the
-mount handle's `reload()` after `/ws/reload` reports a successful build.
+mount handle's `manifestChanged()` after `/ws/reload` reports a successful
+build. The shared viewer reconciles the document in place and refetches only
+geometry whose `(model path, mtime)` identity changed (ADR-037); the canvas,
+viewpoint, animation clock, and unchanged meshes survive. `reload()` remains
+available for a host that explicitly needs a complete replacement.
 Tree traversal, world-matrix composition, expression evaluation, animation,
-and stale-load disposal live once in the reusable viewer package (ADR-035),
-not in the development app.
+stale-load disposal, and targeted-update failure containment live once in the
+reusable viewer package (ADR-035/037), not in the development app.
 
 A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
 `snapshot` command cover the non-browser cases.
@@ -233,7 +237,7 @@ React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
 auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
 pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
-global exposes API version 1 so a host can check compatibility before mounting.
+global exposes API version 2 so a host can check compatibility before mounting.
 The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core

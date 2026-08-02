@@ -311,6 +311,28 @@ class ViewerMountApiTest(BaseNodeTest):
             self.assertAlmostEqual(want, got, places=4,
                                    msg='reload() moved the camera')
 
+    def test_manifest_update_keeps_the_canvas_and_camera(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const viewer = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          const canvas = host.querySelector('canvas');
+          const before = viewer.view();
+          await viewer.manifestChanged();
+          const after = viewer.view();
+          return {
+            sameCanvas: canvas === host.querySelector('canvas'),
+            before: [before.camera.x, before.camera.y, before.camera.z],
+            after: [after.camera.x, after.camera.y, after.camera.z],
+          };
+        }""")
+
+        self.assertTrue(result['sameCanvas'],
+                        'manifest update replaced the canvas')
+        for before, after in zip(result['before'], result['after']):
+            self.assertAlmostEqual(before, after, places=4,
+                                   msg='manifest update moved the camera')
+
     def test_the_host_names_the_canvas(self):
         result = self.in_page("""async () => {
           const host = document.getElementById('host');

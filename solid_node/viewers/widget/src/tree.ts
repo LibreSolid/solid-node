@@ -33,6 +33,10 @@ export class WidgetTree {
   group: THREE.Group;
   operations: RawOperation[];
   children: WidgetTree[];
+  name: string;
+  private model: string | undefined;
+  private mtime: number | undefined;
+  private color: string | null;
 
   // Resolves when this node's mesh (if any) and all descendants
   // finished loading, so the camera can be fit to the actual bounds.
@@ -42,10 +46,14 @@ export class WidgetTree {
               inheritedColor: string | null = null) {
     this.group = new THREE.Group();
     this.group.matrixAutoUpdate = false;
+    this.name = data.name;
     this.operations = data.operations;
     this.children = [];
 
     const color = data.color ?? inheritedColor;
+    this.color = color;
+    this.model = data.model;
+    this.mtime = data.mtime;
     const pending: Promise<void>[] = [];
 
     if (data.model) {
@@ -63,10 +71,108 @@ export class WidgetTree {
   }
 
   private async loadModel(url: string, color: string | null): Promise<void> {
-    const geometry = await stlLoader.loadAsync(url);
-    geometry.computeVertexNormals();
-    const material = materialForColor(color);
-    this.group.add(new THREE.Mesh(geometry, material));
+    this.group.add(await loadMesh(url, color));
+  }
+
+  /** Replace every mesh that names this artifact.  Unknown artifacts are
+   * deliberately harmless: a manifest update is authoritative for removals. */
+  async artifactChanged(path: string, baseUrl: string): Promise<void> {
+    const replacements: Array<{ tree: WidgetTree; mesh: THREE.Mesh }> = [];
+    const collect = (node: WidgetTree) => {
+      if (node.model === path) {
+        replacements.push({ tree: node, mesh: undefined as unknown as THREE.Mesh });
+      }
+      node.children.forEach(collect);
+    };
+    collect(this);
+    await Promise.all(replacements.map(async (replacement) => {
+      replacement.mesh = await loadMesh(baseUrl + path, replacement.tree.color);
+    }));
+    replacements.forEach(({ tree, mesh }) => tree.replaceMesh(mesh));
+  }
+
+  /** Fetch every stale mesh before changing the live tree.  This makes a
+   * rejected document update leave the previously rendered scene intact. */
+  async reconcile(data: ManifestNode, baseUrl: string,
+                  inheritedColor: string | null = null): Promise<void> {
+    const apply = await this.prepareReconcile(data, baseUrl, inheritedColor);
+    apply();
+  }
+
+  private async prepareReconcile(data: ManifestNode, baseUrl: string,
+                                 inheritedColor: string | null): Promise<() => void> {
+    const nextColor = data.color ?? inheritedColor;
+    const modelChanged = this.model !== data.model || this.mtime !== data.mtime;
+    const replacement = data.model && modelChanged
+      ? await loadMesh(baseUrl + data.model, nextColor) : undefined;
+
+    const existing = uniqueByName(this.children);
+    const incoming = uniqueDataByName(data.children ?? []);
+    const nextChildren = await Promise.all((data.children ?? []).map(async (childData) => {
+      const child = existing.get(childData.name);
+      if (!child || !incoming.has(childData.name)) {
+        const created = new WidgetTree(childData, baseUrl, nextColor);
+        await created.loaded;
+        return { tree: created, apply: () => undefined };
+      }
+      return {
+        tree: child,
+        apply: await child.prepareReconcile(childData, baseUrl, nextColor),
+      };
+    }));
+
+    return () => {
+      // All nested fetches succeeded.  Only now is it safe to mutate the
+      // live tree, including its children.
+      nextChildren.forEach((child) => child.apply());
+      if (replacement) {
+        this.replaceMesh(replacement);
+      } else if (!data.model && this.model) {
+        this.removeMesh();
+      }
+      this.name = data.name;
+      this.model = data.model;
+      this.mtime = data.mtime;
+      this.operations = data.operations;
+      this.setColor(nextColor);
+
+      const retained = new Set(nextChildren.map((child) => child.tree));
+      this.children.filter((child) => !retained.has(child)).forEach((child) => {
+        this.group.remove(child.group);
+        child.dispose();
+      });
+      this.children = nextChildren.map((child) => child.tree);
+      this.children.forEach((child) => {
+        this.group.remove(child.group);
+        this.group.add(child.group);
+      });
+    };
+  }
+
+  private replaceMesh(mesh: THREE.Mesh): void {
+    this.removeMesh();
+    this.group.add(mesh);
+  }
+
+  private removeMesh(): void {
+    this.group.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+      .forEach((mesh) => {
+        this.group.remove(mesh);
+        mesh.geometry.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach((material) => material.dispose());
+      });
+  }
+
+  private setColor(color: string | null): void {
+    if (this.color === color) return;
+    this.color = color;
+    this.group.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+      .forEach((mesh) => {
+        const previous = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mesh.material = materialForColor(color);
+        previous.forEach((material) => material.dispose());
+      });
   }
 
   get animated(): boolean {
@@ -95,6 +201,30 @@ export class WidgetTree {
       materials.forEach((material) => material.dispose());
     });
   }
+}
+
+async function loadMesh(url: string, color: string | null): Promise<THREE.Mesh> {
+  const geometry = await stlLoader.loadAsync(url);
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(geometry, materialForColor(color));
+}
+
+function uniqueByName(children: WidgetTree[]): Map<string, WidgetTree> {
+  const names = new Map<string, WidgetTree>();
+  const duplicate = new Set<string>();
+  children.forEach((child) => names.has(child.name)
+    ? duplicate.add(child.name) : names.set(child.name, child));
+  duplicate.forEach((name) => names.delete(name));
+  return names;
+}
+
+function uniqueDataByName(children: ManifestNode[]): Set<string> {
+  const seen = new Set<string>();
+  const duplicate = new Set<string>();
+  children.forEach((child) => seen.has(child.name)
+    ? duplicate.add(child.name) : seen.add(child.name));
+  duplicate.forEach((name) => seen.delete(name));
+  return seen;
 }
 
 function operationIsAnimated(op: RawOperation): boolean {

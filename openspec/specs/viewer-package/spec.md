@@ -13,8 +13,9 @@ The viewer SHALL mount into a caller-supplied container against a published tree
 document and resolve to a handle. The handle SHALL expose `dispose()` (stop
 rendering, release resources and empty the container), `view()` (camera position
 and orbit target), `reload()` (rebuild the document while preserving the view),
-and the declared API version. Loading the viewer core SHALL NOT modify the
-document; only an explicit mount may do so.
+`artifactChanged(path)` and `manifestChanged()` (update only what changed), and
+the declared API version. Loading the viewer core SHALL NOT modify the document;
+only an explicit mount may do so.
 
 #### Scenario: A host unmounts a viewer
 
@@ -39,6 +40,64 @@ document; only an explicit mount may do so.
 
 - **WHEN** a host loads the core without calling `mount()`
 - **THEN** no element is created, document fetched, or container modified
+
+### Requirement: A host updates only what changed
+
+The handle SHALL expose two targeted updates beside `reload()`.
+`artifactChanged(path)` SHALL refetch the model file at that document-relative
+path and replace the geometry of every node referencing it without adding or
+removing nodes. `manifestChanged()` SHALL refetch the document and reconcile the
+rendered tree in place, adding and removing nodes and applying changed operations
+and colour. Both updates preserve the camera, orbit target, animation clock, and
+every node the document still names.
+
+#### Scenario: One artifact changes
+
+- **WHEN** a host calls `artifactChanged()` with one model path
+- **THEN** only that model is requested and replaced
+
+#### Scenario: The model gains and loses parts
+
+- **WHEN** a document adds one node and removes another, and the host calls
+  `manifestChanged()`
+- **THEN** the added node is rendered, the removed node and its resources are
+  gone, and common nodes keep their meshes
+
+#### Scenario: A placement edit costs no fetch
+
+- **WHEN** a document changes only operations or colour
+- **THEN** `manifestChanged()` updates the render without requesting a model
+
+### Requirement: Geometry is refetched only when its identity changes
+
+The viewer SHALL treat geometry as current only while both its model path and
+`mtime` match the values it loaded, and SHALL refetch when either differs.
+
+#### Scenario: A parameter change moves the model path
+
+- **WHEN** a node's model path changes with an unchanged `mtime`
+- **THEN** its geometry is refetched
+
+#### Scenario: A source edit moves the mtime
+
+- **WHEN** a node's `mtime` changes with an unchanged model path
+- **THEN** its geometry is refetched
+
+### Requirement: A failed update leaves the model standing
+
+A targeted update that cannot fetch what it needs SHALL report the failure while
+leaving the rendered model and camera in place; the handle remains usable for a
+later update. The viewer SHALL fetch replacements before it removes any node.
+
+#### Scenario: An artifact fetch fails
+
+- **WHEN** `artifactChanged()` cannot fetch its model file
+- **THEN** the previous model remains displayed and a later update can succeed
+
+#### Scenario: A document fetch fails
+
+- **WHEN** `manifestChanged()` cannot fetch or parse the document
+- **THEN** the rendered tree is unchanged
 
 ### Requirement: One loader reads either published document
 
@@ -140,7 +199,8 @@ the canvas. Absent a host choice, it SHALL add no such attributes.
 
 The package SHALL declare one API version, expose it on every mount handle and
 the browser global, and make it readable without executing the bundle. It SHALL
-be raised whenever the mount interface or handle changes incompatibly.
+be raised whenever the mount interface or handle changes incompatibly, and when
+a capability a host may require is added to the handle.
 
 #### Scenario: A host checks compatibility before mounting
 
@@ -152,3 +212,8 @@ be raised whenever the mount interface or handle changes incompatibly.
 
 - **WHEN** a host inspects a mount handle or the browser global
 - **THEN** both report the same declared API version
+
+#### Scenario: A host requires targeted updates
+
+- **WHEN** a host needs `artifactChanged()` and `manifestChanged()`
+- **THEN** the declared API version tells it whether they are available

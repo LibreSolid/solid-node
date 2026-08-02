@@ -7,14 +7,14 @@
 import { ViewerShell } from './viewerShell';
 
 const mount = jest.fn();
-const reload = jest.fn();
+const manifestChanged = jest.fn();
 const dispose = jest.fn();
 
 beforeEach(() => {
   document.head.innerHTML = '';
   document.title = '';
-  mount.mockReset().mockResolvedValue({ reload, dispose });
-  reload.mockReset().mockResolvedValue(undefined);
+  mount.mockReset().mockResolvedValue({ manifestChanged, dispose });
+  manifestChanged.mockReset().mockResolvedValue(undefined);
   dispose.mockReset();
   delete window.SolidNodeWidget;
   (global as any).fetch = jest.fn((url: string) => {
@@ -31,7 +31,7 @@ beforeEach(() => {
 
 afterEach(() => jest.resetAllMocks());
 
-it('loads the shared bundle, mounts it, and delegates reload/dispose', async () => {
+it('loads the shared bundle, mounts it, and delegates manifest updates/dispose', async () => {
   const host = document.createElement('div');
   const shell = new ViewerShell(host);
   const starting = shell.start();
@@ -49,7 +49,7 @@ it('loads the shared bundle, mounts it, and delegates reload/dispose', async () 
 
   await shell.reload();
   shell.dispose();
-  expect(reload).toHaveBeenCalledTimes(1);
+  expect(manifestChanged).toHaveBeenCalledTimes(1);
   expect(dispose).toHaveBeenCalledTimes(1);
 });
 
@@ -66,7 +66,7 @@ it('reports the backend remedy instead of loading a missing bundle', async () =>
 });
 
 it('disposes a viewer that resolves after its shell was cleaned up', async () => {
-  let resolveMount: (handle: { reload: typeof reload; dispose: typeof dispose }) => void;
+  let resolveMount: (handle: { manifestChanged: typeof manifestChanged; dispose: typeof dispose }) => void;
   mount.mockImplementation(() => new Promise((resolve) => {
     resolveMount = resolve;
   }));
@@ -78,7 +78,7 @@ it('disposes a viewer that resolves after its shell was cleaned up', async () =>
   expect(mount).toHaveBeenCalledTimes(1);
 
   shell.dispose();
-  resolveMount!({ reload, dispose });
+  resolveMount!({ manifestChanged, dispose });
   await starting;
 
   expect(dispose).toHaveBeenCalledTimes(1);

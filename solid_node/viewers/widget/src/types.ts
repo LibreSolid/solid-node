@@ -18,6 +18,9 @@ export interface ManifestNode {
   // A rigid node has a model (path relative to the manifest) and no
   // children; a non-rigid node has children.
   model?: string;
+  // The builder publishes the source mtime with each model reference.  It is
+  // part of the geometry identity: a source edit can retain the same path.
+  mtime?: number;
   children?: ManifestNode[];
 }
 
