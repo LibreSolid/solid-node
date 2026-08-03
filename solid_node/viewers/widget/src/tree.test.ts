@@ -96,6 +96,19 @@ describe('WidgetTree targeted updates', () => {
     expect(tree.children[1].group).toBe(second);
   });
 
+  it('does not refetch a manifest reconcile that follows an artifact update for the same artifact', async () => {
+    const tree = new WidgetTree(root([leaf()]), '/build/');
+    await tree.loaded;
+    loadAsync.mockClear();
+
+    await tree.artifactChanged('leaf.stl', '/build/');
+    expect(loadAsync).toHaveBeenCalledTimes(1);
+    loadAsync.mockClear();
+
+    await tree.reconcile(root([leaf({ mtime: 2 })]), '/build/');
+    expect(loadAsync).not.toHaveBeenCalled();
+  });
+
   it('reconciles structure and operations without refetching unchanged geometry', async () => {
     const tree = new WidgetTree(root([leaf()]), '/build/');
     await tree.loaded;

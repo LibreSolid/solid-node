@@ -37,6 +37,12 @@ export class WidgetTree {
   private model: string | undefined;
   private mtime: number | undefined;
   private color: string | null;
+  // Set when artifactChanged() has already fetched this node's current
+  // geometry. The manifest publishes after the artifact (PRD D3), so the
+  // reconcile that follows would otherwise see an unmoved mtime as stale and
+  // refetch bytes already on screen. Consumed by the next reconcile either way,
+  // so a later genuine change is still detected.
+  private freshFromArtifact = false;
 
   // Resolves when this node's mesh (if any) and all descendants
   // finished loading, so the camera can be fit to the actual bounds.
@@ -88,7 +94,10 @@ export class WidgetTree {
     await Promise.all(replacements.map(async (replacement) => {
       replacement.mesh = await loadMesh(baseUrl + path, replacement.tree.color);
     }));
-    replacements.forEach(({ tree, mesh }) => tree.replaceMesh(mesh));
+    replacements.forEach(({ tree, mesh }) => {
+      tree.replaceMesh(mesh);
+      tree.freshFromArtifact = true;
+    });
   }
 
   /** Fetch every stale mesh before changing the live tree.  This makes a
@@ -102,7 +111,8 @@ export class WidgetTree {
   private async prepareReconcile(data: ManifestNode, baseUrl: string,
                                  inheritedColor: string | null): Promise<() => void> {
     const nextColor = data.color ?? inheritedColor;
-    const modelChanged = this.model !== data.model || this.mtime !== data.mtime;
+    const skipMtimeCheck = this.freshFromArtifact;
+    const modelChanged = this.model !== data.model || (this.mtime !== data.mtime && !skipMtimeCheck);
     const replacement = data.model && modelChanged
       ? await loadMesh(baseUrl + data.model, nextColor) : undefined;
 
@@ -133,6 +143,7 @@ export class WidgetTree {
       this.name = data.name;
       this.model = data.model;
       this.mtime = data.mtime;
+      this.freshFromArtifact = false;
       this.operations = data.operations;
       this.setColor(nextColor);
 

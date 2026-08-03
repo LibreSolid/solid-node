@@ -71,7 +71,11 @@ every node the document still names.
 ### Requirement: Geometry is refetched only when its identity changes
 
 The viewer SHALL treat geometry as current only while both its model path and
-`mtime` match the values it loaded, and SHALL refetch when either differs.
+`mtime` match the values it loaded, and SHALL refetch when either differs. A
+node whose geometry `artifactChanged()` has just fetched SHALL count as current
+for the `manifestChanged()` that immediately follows, even though the document
+it fetches names a new `mtime` for that node, because the two calls loaded the
+same bytes moments apart.
 
 #### Scenario: A parameter change moves the model path
 
@@ -82,6 +86,12 @@ The viewer SHALL treat geometry as current only while both its model path and
 
 - **WHEN** a node's `mtime` changes with an unchanged model path
 - **THEN** its geometry is refetched
+
+#### Scenario: A manifest update follows the artifact update it describes
+
+- **WHEN** `manifestChanged()` names a new `mtime` for a node whose geometry
+  `artifactChanged()` already replaced
+- **THEN** `manifestChanged()` does not refetch that node's geometry
 
 ### Requirement: A failed update leaves the model standing
 
