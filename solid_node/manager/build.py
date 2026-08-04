@@ -29,8 +29,11 @@ class Build:
 
     def handle(self, args):
         self.path = args.path
-        if not os.path.isfile(self.path):
-            sys.stderr.write(f'Model not found: {self.path}\n')
+        try:
+            from solid_node.core.loader import resolve_node
+            resolve_node(self.path)
+        except Exception as error:
+            sys.stderr.write(f'Model not found: {self.path or error}\n')
             sys.exit(MODEL_NOT_FOUND)
 
         while True:

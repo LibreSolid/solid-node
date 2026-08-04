@@ -37,10 +37,12 @@ class NewCommandTest(TestCase):
         with redirect_stdout(io.StringIO()):
             New().handle(args)
 
-        init_path = os.path.join(target, 'root', '__init__.py')
+        init_path = os.path.join(target, 'myproj', 'myproj.py')
+        manifest_path = os.path.join(target, 'pyproject.toml')
         gitignore_path = os.path.join(target, '.gitignore')
 
         self.assertTrue(os.path.isfile(init_path))
+        self.assertTrue(os.path.isfile(manifest_path))
         self.assertTrue(os.path.isfile(gitignore_path))
 
         with open(init_path) as f:
@@ -48,12 +50,13 @@ class NewCommandTest(TestCase):
         with open(gitignore_path) as f:
             gitignore_content = f.read()
 
-        self.assertEqual(init_content, EXPECTED_INIT)
+        self.assertEqual(init_content, EXPECTED_INIT.replace('DemoProject', 'Myproj'))
+        with open(manifest_path) as f:
+            self.assertIn('model = "myproj.myproj:Myproj"', f.read())
         # `_build/` would not match the build path, which is a symlink to
         # a versioned directory; `_build*` covers both.
         self.assertIn('_build*', gitignore_content.split())
         self.assertIn('__pycache__/', gitignore_content.split())
-        self.assertIn('snapshot.png', gitignore_content)
 
     def test_generated_init_is_valid_python_matching_template(self):
         target = os.path.join(self.tmpdir.name, 'myproj2')
@@ -62,12 +65,12 @@ class NewCommandTest(TestCase):
         with redirect_stdout(io.StringIO()):
             New().handle(args)
 
-        init_path = os.path.join(target, 'root', '__init__.py')
+        init_path = os.path.join(target, 'myproj2', 'myproj2.py')
         with open(init_path) as f:
             source = f.read()
 
         compile(source, init_path, 'exec')
-        self.assertEqual(source, EXPECTED_INIT)
+        self.assertEqual(source, EXPECTED_INIT.replace('DemoProject', 'Myproj2'))
 
     def test_refuses_to_overwrite_existing_directory(self):
         target = os.path.join(self.tmpdir.name, 'existing')
@@ -88,4 +91,4 @@ class NewCommandTest(TestCase):
 
         # Nothing should have been clobbered.
         self.assertTrue(os.path.isfile(marker))
-        self.assertFalse(os.path.isdir(os.path.join(target, 'root')))
+        self.assertFalse(os.path.isdir(os.path.join(target, 'existing')))

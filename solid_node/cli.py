@@ -78,9 +78,10 @@ def manage():
         )
         if getattr(command, 'needs_node', True):
             command_parser.add_argument(
-                'path',
+                'path', nargs='?',
                 type=str,
-                help='Path of the python source file for a Node to work on',
+                metavar='reference',
+                help='Node reference: package.module:Class, path/to/file.py, or path/to/file.py:Class',
             )
         command.add_arguments(command_parser)
         index[name] = command
@@ -92,7 +93,7 @@ def manage():
 
     command = index[args.command]
 
-    if getattr(command, 'needs_node', True) and os.path.isdir(args.path):
-        args.path = os.path.join(args.path, '__init__.py')
+    if getattr(command, 'needs_node', True) and args.path and os.path.isdir(args.path):
+        parser.error('A directory is not a node reference; use package.module:Class, path/to/file.py, or path/to/file.py:Class')
 
     command.handle(args)

@@ -33,6 +33,3 @@ class Trap(AssemblyNode):
 
     def render(self):
         return [self.a, self.b]
-
-
-NODE = Trap

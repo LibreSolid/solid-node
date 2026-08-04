@@ -1,39 +1,39 @@
 ## 1. Project root discovery
 
-- [ ] 1.1 Red: a test that the root is the directory of the nearest ancestor
+- [x] 1.1 Red: a test that the root is the directory of the nearest ancestor
       `pyproject.toml` carrying `[tool.solid-node]`, that a `pyproject.toml`
       without the table is walked past, and that the search failing raises an
       error naming the origin directory.
 - [ ] 1.2 Red: a test that `source_closure` returns the identical set for a
       node whether the command runs from the project root or from a
       subdirectory — the wrong-answer case that `os.getcwd()` produces today.
-- [ ] 1.3 Implement discovery in `solid_node/core/loader.py`, and anchor
+- [x] 1.3 Implement discovery in `solid_node/core/loader.py`, and anchor
       `sys.path`, the dotted module name, and `sources.source_closure` on the
       discovered root instead of `os.getcwd()`.
 
 ## 2. Node references
 
-- [ ] 2.1 Red: a parse test over the three spellings — qualifier, path, hybrid
+- [x] 2.1 Red: a parse test over the three spellings — qualifier, path, hybrid
       — including a path containing a colon, a module name containing a dot,
       and a bare path to a file that does not exist.
-- [ ] 2.2 Red: a test that `pkg.module:Sail` and `pkg/module.py:Sail` return
+- [x] 2.2 Red: a test that `pkg.module:Sail` and `pkg/module.py:Sail` return
       the same class object and that `sys.modules` holds one entry for the file;
       assert on object identity, because two entries corrupt `source_closure`.
-- [ ] 2.3 Red: a test that a bare path to a file with one node class loads it,
+- [x] 2.3 Red: a test that a bare path to a file with one node class loads it,
       and that a bare path to a file with several raises `AmbiguousNodeError`
       naming the candidates and directing the caller to name a class.
-- [ ] 2.4 Red: a test that a reference to a non-`AbstractBaseNode` target, and
+- [x] 2.4 Red: a test that a reference to a non-`AbstractBaseNode` target, and
       one to a class defined outside the discovered root, are both rejected —
       `solid_node.node.leaf:Leaf` is the concrete case the qualifier makes
       expressible for the first time.
-- [ ] 2.5 Implement one resolver in `loader.py` used by every caller.
+- [x] 2.5 Implement one resolver in `loader.py` used by every caller.
 
 ## 3. Removing NODE
 
-- [ ] 3.1 Red: a test that a file defining two node classes and setting `NODE`
+- [x] 3.1 Red: a test that a file defining two node classes and setting `NODE`
       still raises `AmbiguousNodeError` when loaded by bare path — the marker
       decides nothing.
-- [ ] 3.2 Delete `NODE_MARKER`, `_resolve_marker`, and the marker branch of
+- [x] 3.2 Delete `NODE_MARKER`, `_resolve_marker`, and the marker branch of
       `find_class`, keeping `AmbiguousNodeError` with its new message.
 - [ ] 3.3 Migrate the framework's own fixtures off the marker:
       `tests/test_loader_node_marker.py`, `tests/loader_fixtures/*`,
@@ -65,14 +65,14 @@
       error naming the accepted spellings.
 - [ ] 5.2 Red: a test that `solid build` exits with `MODEL_NOT_FOUND` for an
       unresolvable reference, replacing today's `os.path.isfile` guard.
-- [ ] 5.3 Implement the optional positional in `cli.py`, remove the
+- [x] 5.3 Implement the optional positional in `cli.py`, remove the
       directory-to-`__init__.py` coercion, and update `build.py`, `develop.py`,
       `export.py`, `test.py`, `snapshot.py`.
 - [ ] 5.4 Red: a test that `solid snapshot` holds the project build lock while
       preparing its node and has released it before the OpenSCAD render, and a
       test that `-o` defaults from the resolved node rather than
       `snapshot.png`.
-- [ ] 5.5 Implement the lock and the output default in `snapshot.py`.
+- [x] 5.5 Implement the lock and the output default in `snapshot.py`.
 
 ## 6. Scaffolding
 
@@ -80,7 +80,7 @@
       `snowman_3/snowman_3/snowman_3.py` and a manifest declaring
       `model = "snowman_3.snowman_3:Snowman3"`, and that the scaffolded project
       builds and tests without further edits.
-- [ ] 6.2 Implement `new.py` and replace the `root/__init__.py` template; update
+- [x] 6.2 Implement `new.py` and replace the `root/__init__.py` template; update
       the printed next steps to `solid develop`.
 
 ## 7. Whole-system checks

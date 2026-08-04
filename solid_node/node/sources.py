@@ -42,7 +42,9 @@ def source_closure(src):
     imports, transitively. The spelling of `src` is preserved: callers
     compare it against node.src.
     """
-    root = os.path.realpath(os.getcwd())
+    # Local import avoids the loader -> node.base -> sources import cycle.
+    from solid_node.core.loader import project_root
+    root = project_root(src)
     start = os.path.realpath(src)
 
     found = {start}

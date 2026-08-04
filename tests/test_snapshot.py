@@ -487,7 +487,7 @@ class SnapshotArgumentParsingTest(TestCase):
     def test_default_output(self):
         """Test default output filename"""
         args = self.parser.parse_args([])
-        self.assertEqual(args.output, 'snapshot.png')
+        self.assertIsNone(args.output)
 
     def test_custom_output(self):
         """Test custom output filename"""

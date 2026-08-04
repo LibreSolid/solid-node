@@ -24,6 +24,3 @@ class Assembly(AssemblyNode):
 
     def render(self):
         return [Cyl(), Lonely()]
-
-
-NODE = Assembly

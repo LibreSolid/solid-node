@@ -9,8 +9,8 @@ import time
 import traceback
 from termcolor import colored
 from solid_node.core.loader import (
-    load_test, load_node, import_module_from_path, find_class,
-    AmbiguousNodeError,
+    load_tests, load_node, resolve_node, import_module_from_path, find_class,
+    AmbiguousNodeError, project_root, _defined_classes,
 )
 from solid_node.core.builder import project_build_lock
 from solid_node.node.base import AbstractBaseNode
@@ -40,13 +40,38 @@ class Test:
                             help='Stop the test run on the first error.')
 
     def handle(self, args):
-        path = self.resolve_path(args.path)
-        self.node = self.build_node(path)
-        self.test_case = load_test(path)
-        if self.test_case:
-            self.test_case.set_node(self.node)
         self.failfast = args.failfast
-        self.run_tests()
+        path = self.resolve_path(args.path) if args.path else args.path
+        try:
+            klass, node_path, root = resolve_node(path)
+            selections = [(klass, node_path, path)]
+        except AmbiguousNodeError:
+            # A bare file is the one reference deliberately allowed to name
+            # every node it defines when testing.
+            root = project_root(path)
+            node_path = os.path.realpath(path)
+            module = import_module_from_path(node_path, root)
+            selections = [(klass, node_path, f'{node_path}:{name}')
+                          for name, klass in _defined_classes(
+                              node_path, module, AbstractBaseNode)]
+        for klass, node_path, reference in selections:
+            self.node = self.build_node(reference)
+            self.test_case = None
+            self.test_cases = []
+            candidates = _defined_classes(
+                node_path, import_module_from_path(node_path, root),
+                AbstractBaseNode)
+            for case_class in load_tests(node_path, root):
+                declared = getattr(case_class, 'node', None)
+                if declared is None and len(candidates) != 1:
+                    self.fail(f"{case_class.__name__} must declare node; candidates: "
+                              + ', '.join(name for name, _ in candidates))
+                if declared is not None and declared is not klass:
+                    continue
+                case = case_class()
+                case.set_node(self.node)
+                self.test_cases.append(case)
+            self.run_tests()
         if self.num_failed:
             sys.exit(1)
 
@@ -74,8 +99,10 @@ class Test:
         return node_path
 
     def build_node(self, path, time=0):
-        self.ensure_node_class(path)
-        node = load_node(path)
+        try:
+            node = load_node(path)
+        except Exception as error:
+            self.fail(str(error))
         node.set_keyframe(time)
         rendered = node.render()
         node.assemble()
@@ -109,8 +136,10 @@ class Test:
 
         try:
             self.run_class_tests(self.node, self.node)
-            if self.test_case:
-                self.run_class_tests(self.test_case, self.node)
+            for test_case in getattr(self, 'test_cases',
+                                     [self.test_case] if self.test_case else []):
+                self.test_case = test_case
+                self.run_class_tests(test_case, self.node)
         except StopTestRun:
             pass
 
