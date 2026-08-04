@@ -61,3 +61,27 @@ class ProjectManifestReferenceTest(TestCase):
             with self.assertRaises(ProjectManifestError) as error:
                 discover_project()
         self.assertIn(empty, str(error.exception))
+
+    def test_a_path_names_its_own_project_not_the_callers(self):
+        """A path identifies a project as surely as it identifies a file. If
+        discovery keyed on the working directory instead, a path in another
+        project would resolve against the caller's root and be rejected as
+        foreign -- and a repository holding fixture projects would have to
+        declare itself a project to reach them."""
+        with tempfile.TemporaryDirectory() as elsewhere:
+            os.mkdir(os.path.join(elsewhere, 'shed'))
+            open(os.path.join(elsewhere, 'shed', '__init__.py'), 'w').close()
+            with open(os.path.join(elsewhere, 'shed', 'sail.py'), 'w') as stream:
+                stream.write('from solid_node.node import Solid2Node\n'
+                             'class Sail(Solid2Node):\n'
+                             '    def render(self): return None\n')
+            with open(os.path.join(elsewhere, 'pyproject.toml'), 'w') as stream:
+                stream.write('[tool.solid-node]\nmodel = "shed.sail:Sail"\n')
+
+            # Standing in one project, naming a file in another.
+            with chdir(self.root):
+                klass, path, root = resolve_node(
+                    os.path.join(elsewhere, 'shed', 'sail.py'))
+
+        self.assertEqual(os.path.realpath(root), os.path.realpath(elsewhere))
+        self.assertEqual(klass.__name__, 'Sail')

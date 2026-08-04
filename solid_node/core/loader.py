@@ -109,7 +109,7 @@ def find_class(path, module, BaseClass):
     return candidates[0][1] if candidates else None
 
 
-def _reference_parts(reference, root):
+def _reference_parts(reference):
     left, separator, name = reference.rpartition(':')
     target = left if separator else reference
     candidate = target if os.path.isabs(target) else os.path.join(os.getcwd(), target)
@@ -123,9 +123,19 @@ def resolve_node(reference=None, origin=None):
     Path and qualifier routes deliberately import the module by its project
     dotted name, preserving class identity and ``sys.modules`` coherence.
     """
-    root, model = discover_project(origin)
-    reference = reference or model
-    target, class_name, is_path = _reference_parts(reference, root)
+    if reference is None:
+        # Only the manifest can say what the project's model is, so the
+        # working directory is what identifies the project.
+        root, reference = discover_project(origin)
+        target, class_name, is_path = _reference_parts(reference)
+    else:
+        target, class_name, is_path = _reference_parts(reference)
+        # A path identifies the project as surely as it identifies the file:
+        # discover from the file itself, not from wherever the caller happens
+        # to be standing. A qualifier carries no location, so it falls back to
+        # the working directory.
+        root = project_root(origin or (
+            os.path.abspath(target) if is_path else None))
     if is_path:
         path = target if os.path.isabs(target) else os.path.realpath(
             os.path.join(os.getcwd(), target))

@@ -2,21 +2,26 @@
 
 ### Requirement: Project root discovery and model reference
 
-The system SHALL determine a project's root by walking upward from the working
-directory to the nearest ancestor `pyproject.toml` containing a
+The system SHALL determine a project's root by walking upward from a discovery
+origin to the nearest ancestor `pyproject.toml` containing a
 `[tool.solid-node]` table, and SHALL treat the directory holding that file as
 the project root. That table's `model` key SHALL hold an entry-point object
 reference naming the project's model node, in the form
 `package.module:ClassName`.
 
+The discovery origin SHALL be the referenced file when the reference names a
+path, because a path identifies a project as surely as it identifies a file.
+It SHALL be the working directory when there is no reference, or when the
+reference is a qualifier, which carries no location.
+
 The discovered root — never the working directory — SHALL anchor the import
 path used to load project modules, the dotted module name computed for a file
-loaded by path, and the boundary of a node's tracked source closure. A command
-SHALL therefore resolve the same node and the same source closure from any
-directory inside the project.
+loaded by path, the boundary of a node's tracked source closure, and the
+project's build directory. A command SHALL therefore resolve the same node, the
+same source closure, and the same artifact paths from any directory.
 
 When no ancestor `pyproject.toml` carries the table, a command that needs a
-node SHALL fail with an actionable error naming the directory it searched from.
+node SHALL fail with an actionable error naming the origin it searched from.
 
 #### Scenario: Command run from a subdirectory
 
@@ -26,13 +31,64 @@ node SHALL fail with an actionable error naming the directory it searched from.
 - **AND** the node's tracked source closure is the same set it would be from
   the project root
 
-#### Scenario: No manifest above the working directory
+#### Scenario: A path outside the working directory's project
+
+- **WHEN** a user names a path in a different project from the one containing
+  the working directory
+- **THEN** the root is discovered from that path, and the node is resolved
+  against its own project
+
+#### Scenario: No manifest above the origin
 
 - **WHEN** a node-scoped command runs with no argument and no ancestor
   `pyproject.toml` carries a `[tool.solid-node]` table
 - **THEN** the command exits nonzero with an error naming the search origin
 
 ## MODIFIED Requirements
+
+### Requirement: Build artifact layout
+
+The system SHALL write build artifacts under `$SOLID_BUILD_DIR` (default
+`_build`), mirroring the source file's directory, with basename
+`<script-name>-<uniq_id>`. A relative `$SOLID_BUILD_DIR`, and the default,
+SHALL resolve against the discovered project root and never against the working
+directory, so that a project has one build directory and — because the build
+lock is derived from it — one build lock, whichever directory a command was run
+from. An absolute `$SOLID_BUILD_DIR` SHALL be used as given. Artifacts per node:
+`.scad` (base geometry, no transforms), `.stl` (rendered), and `.stl.lock`
+during rendering. World-space spatial math does not use on-disk artifacts — the
+`mesh` property loads the plain `.stl` and applies operations in memory (the
+`.mesh.scad`/`.mesh.stl` path attributes exist but are vestigial; nothing
+writes or reads them). The build path SHALL be an ordinary directory that every
+builder writes into directly; the system SHALL NOT publish through a symlink, a
+versioned sibling directory, or a private candidate copy. A build path left as
+a symlink by an earlier layout SHALL be converted to an ordinary directory
+holding the artifacts it referenced.
+
+#### Scenario: Custom build dir
+
+- **WHEN** `SOLID_BUILD_DIR` is set in the environment
+- **THEN** all artifacts, and `errors.json`, are written under that
+  directory instead of `_build`
+
+#### Scenario: One build directory whatever the working directory
+
+- **WHEN** a project is built from its root and then from a subdirectory
+- **THEN** both builds publish into the same build directory and contend for
+  the same build lock
+
+#### Scenario: Consumer reads through the build path
+
+- **WHEN** a consumer opens the published viewer snapshot at the build path
+- **THEN** it reads the snapshot without resolving a symlink or naming any
+  other directory
+
+#### Scenario: Project published under the previous layout
+
+- **WHEN** a project whose build path is a symlink to a versioned directory is
+  built
+- **THEN** the build path becomes an ordinary directory holding those
+  artifacts, and the versioned siblings are removed
 
 ### Requirement: Path-based node loading
 

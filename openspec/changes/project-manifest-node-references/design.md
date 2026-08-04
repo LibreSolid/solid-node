@@ -46,9 +46,21 @@ model = "dutch_windmill.dutch_windmill:DutchWindmill"
 ```
 
 The project root is the directory holding the nearest ancestor `pyproject.toml`
-carrying that table. Discovery walks up from the working directory. That root —
-not `os.getcwd()` — anchors `sys.path`, the dotted module name of any file
-loaded by path, and `source_closure`'s boundary.
+carrying that table. Discovery walks up from the *reference* when the reference
+names a path, and from the working directory only when there is no reference or
+the reference is a qualifier, which carries no location. A path identifies a
+project as surely as it identifies a file; keying discovery on the caller's
+directory instead would reject a path in another project as foreign, and would
+force any repository holding fixture projects to declare itself a project to
+reach them.
+
+That root — not `os.getcwd()` — anchors `sys.path`, the dotted module name of
+any file loaded by path, `source_closure`'s boundary, and the project's build
+directory. The build directory belongs on that list for the same reason as the
+rest: the build lock is derived from it, so a build directory resolved against
+the caller's cwd would give a command run from a subdirectory a private build
+tree and a private lock, and mutual exclusion would hold per directory rather
+than per project.
 
 *Rejected: a dedicated `solid.toml` or a `[solid-node]` top-level table.* A
 project already has `pyproject.toml`, because a solid-node project is a Python

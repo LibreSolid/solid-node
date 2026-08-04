@@ -1,0 +1,7 @@
+# The fixture projects under tests/ are real Solid projects: the framework
+# discovers a root and a model through a manifest, so its own fixtures must
+# carry one rather than borrowing the framework's. The framework repository
+# itself is not a Solid project and declares no model.
+
+[tool.solid-node]
+model = "flat_project.simple_cylinder:SimpleCylinder"

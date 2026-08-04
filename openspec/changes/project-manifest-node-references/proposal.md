@@ -38,8 +38,10 @@ node: the wrong node is visible on screen, the missing test is visible nowhere.
 - **Project manifest.** `pyproject.toml` gains `[tool.solid-node]` with
   `model = "dutch_windmill.dutch_windmill:DutchWindmill"`. The project root is
   the directory holding the nearest ancestor `pyproject.toml` that carries that
-  table. The notation is the entry-point object reference the framework already
-  uses for itself (`solid = "solid_node.cli:manage"`).
+  table, searched from the referenced file when the reference is a path and
+  from the working directory otherwise. The notation is the entry-point object
+  reference the framework already uses for itself
+  (`solid = "solid_node.cli:manage"`).
 - **Node references.** Every node-scoped command accepts three spellings that
   resolve to the same class object: the qualifier `package.module:Class`, a
   file path, and the hybrid `path/to/file.py:Class`. A path with no colon means
@@ -54,10 +56,14 @@ node: the wrong node is visible on screen, the missing test is visible nowhere.
   a qualifier makes `solid snapshot solid_node.node.leaf:Leaf` expressible for
   the first time, so the guard matters more than it did, not less.
 - **Root anchoring.** `sys.path`, the dotted module name computed in
-  `import_module_from_path`, and `source_closure`'s boundary all derive from the
-  discovered root instead of `os.getcwd()`. Both spellings of a reference must
-  reach the same `sys.modules` entry; two entries for one file would give two
-  class objects and corrupt the closure that `sources.py` resolves by identity.
+  `import_module_from_path`, `source_closure`'s boundary, and the project's
+  build directory all derive from the discovered root instead of `os.getcwd()`.
+  The build directory is on that list because the build lock is derived from
+  it: resolved against the caller's cwd, a command run from a subdirectory
+  publishes into a private tree and takes a private lock. Both spellings of a
+  reference must reach the same `sys.modules` entry; two entries for one file
+  would give two class objects and corrupt the closure that `sources.py`
+  resolves by identity.
 - **Every companion `TestCase` runs.** The loader returns all of them, not the
   first. A `TestCase` may declare `node = <NodeClass>`; an undeclared one binds
   to the node module's single node class, and is a hard error naming the class

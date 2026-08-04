@@ -64,9 +64,6 @@ Homepage = "https://github.com/lfagundes/solid_node"
 [project.scripts]
 solid = "solid_node.cli:manage"
 
-[tool.solid-node]
-model = "tests.flat_project.simple_cylinder:SimpleCylinder"
-
 [tool.setuptools.packages.find]
 include = ["solid_node", "solid_node.*"]
 
