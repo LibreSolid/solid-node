@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase
 
+from .trap import Trap
+
 
 class TrapTest(TestCase):
+    node = Trap
 
     def test_cubes_do_not_intersect(self):
         self.assertNotIntersecting(self.trap.a, self.trap.b)

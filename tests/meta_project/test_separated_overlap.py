@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase
 
+from .separated_overlap import SeparatedOverlap
+
 
 class SeparatedOverlapTest(TestCase):
+    node = SeparatedOverlap
 
     def test_no_pairwise_intersections(self):
         """Deliberately red: LegA and the nested group's LegC share

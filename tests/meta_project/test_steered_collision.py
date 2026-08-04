@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase, testing_steps
 
+from .steered_collision import SteeringCollision
+
 
 class SteeringCollisionTest(TestCase):
+    node = SteeringCollision
 
     @testing_steps(2, start=0.5, end=1.0)
     def test_wheel_never_hits_obstacle(self):

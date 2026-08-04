@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase, testing_steps
 
+from .steered_wheel import Steering
+
 
 class SteeringTest(TestCase):
+    node = Steering
 
     @testing_steps(2, start=0.5, end=1.0)
     def test_wheel_tracks_both_drivers(self):

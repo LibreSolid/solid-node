@@ -214,6 +214,13 @@ class PublishedModelFollowsSourceTest(TestCase):
         shutil.copytree(FLAT_PROJECT, os.path.join(self.root, 'flat_project'),
                         ignore=shutil.ignore_patterns('__pycache__'))
         self.source = os.path.join(self.root, 'flat_project', 'simple_pipe.py')
+        # A scratch project is a real project: the framework finds its root
+        # and its model through the manifest, not through the working
+        # directory.
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\n'
+                         'model = "flat_project.simple_pipe:SimplePipe"\n')
+
         self.build_dir = os.path.join(self.root, '_build')
 
     def build(self, count=1):

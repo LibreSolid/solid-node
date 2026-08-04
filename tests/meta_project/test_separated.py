@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase
 
+from .separated import Separated
+
 
 class SeparatedTest(TestCase):
+    node = Separated
 
     def test_no_pairwise_intersections(self):
         self.assertNoPairwiseIntersections(self.separated)

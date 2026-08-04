@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase, testing_instant
 
+from .nested import Nested
+
 
 class NestedTest(TestCase):
+    node = Nested
 
     @testing_instant(0.5)
     def test_nested_cube_moves_with_time(self):

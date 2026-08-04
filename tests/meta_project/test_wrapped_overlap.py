@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase
 
+from .wrapped_overlap import WrappedOverlap
+
 
 class WrappedOverlapTest(TestCase):
+    node = WrappedOverlap
 
     def test_wrapped_leaf_clears_reference(self):
         """Deliberately red: in world space the wrapped cube sits

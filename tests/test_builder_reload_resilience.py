@@ -95,6 +95,13 @@ class BuilderReloadResilienceTest(TestCase):
         shutil.copytree(FLAT_PROJECT, project_copy,
                          ignore=shutil.ignore_patterns('__pycache__'))
         self.simple_pipe = os.path.join(project_copy, 'simple_pipe.py')
+        # A scratch project is a real project: the framework finds its root
+        # and its model through the manifest, not through the working
+        # directory.
+        with open(os.path.join(self.project_root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\n'
+                         'model = "flat_project.simple_pipe:SimplePipe"\n')
+
 
         self.build_dir = os.path.join(self.tmp_root, '_build')
         self.errors_file = os.path.join(self.build_dir, 'errors.json')
