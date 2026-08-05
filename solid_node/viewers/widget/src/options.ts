@@ -43,6 +43,9 @@ export function resolveOptions(
 
 export function resolveBaseUrl(sourceUrl: string, baseUrl?: string): string {
   const root = baseUrl ?? sourceUrl.replace(/[?#].*$/, '').replace(/[^/]*$/, '');
+  // A document naming no directory is beside its models, not at the server
+  // root -- './' keeps the base joinable without rooting it at the host.
+  if (!root) return './';
   return root.endsWith('/') ? root : `${root}/`;
 }
 

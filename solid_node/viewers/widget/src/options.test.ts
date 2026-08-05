@@ -66,6 +66,17 @@ describe('resolveBaseUrl', () => {
     expect(resolveBaseUrl('/state/viewer.json', '/artifacts'))
       .toBe('/artifacts/');
   });
+
+  // The shipped export page mounts this way, so a document URL naming no
+  // directory must stay beside the document: an export served under a
+  // subpath would otherwise request its models from the server root.
+  it('resolves beside a document that names no directory', () => {
+    expect(resolveBaseUrl('manifest.json')).toBe('./');
+  });
+
+  it('resolves beside such a document carrying a query string', () => {
+    expect(resolveBaseUrl('manifest.json?v=2')).toBe('./');
+  });
 });
 
 describe('controlPlan', () => {
