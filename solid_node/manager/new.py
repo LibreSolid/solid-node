@@ -19,7 +19,18 @@ class New:
                             help='Name of the project directory to create')
 
     def handle(self, args):
-        target = args.name
+        origin = args.name
+        directory, name = os.path.split(origin.rstrip(os.sep) or origin)
+
+        # The scaffold directory is named after the normalized package, not
+        # the raw argument: `solid new snowman-3` must not leave a hyphen in
+        # the one path component (the outer directory) the rest of this
+        # method does not otherwise touch, while `myproject/pyproject.toml`
+        # still declares the same identifier-safe name everywhere else.
+        package = re.sub(r'[^0-9A-Za-z_]', '_', name)
+        package = package.strip('_') or 'project'
+        class_name = ''.join(part.capitalize() for part in package.split('_'))
+        target = os.path.join(directory, package) if directory else package
 
         if os.path.exists(target):
             sys.stderr.write(f"Error: '{target}' already exists.\n")
@@ -27,9 +38,6 @@ class New:
 
         templates = resources.files('solid_node.manager') / 'templates' / 'project'
 
-        package = re.sub(r'[^0-9A-Za-z_]', '_', os.path.basename(target))
-        package = package.strip('_') or 'project'
-        class_name = ''.join(part.capitalize() for part in package.split('_'))
         package_dir = os.path.join(target, package)
         os.makedirs(package_dir)
         open(os.path.join(package_dir, '__init__.py'), 'w').close()
