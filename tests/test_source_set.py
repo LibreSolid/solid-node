@@ -18,8 +18,10 @@ render is what keeps a shared-module edit correct.
 """
 
 import os
+import tempfile
 import time
-from unittest import mock
+from contextlib import chdir
+from unittest import TestCase, mock
 
 from solid2 import scad_render
 
@@ -29,6 +31,8 @@ from .source_set_project.block import Block
 from .source_set_project.cyl import Cyl
 from .source_set_project.jsblock import JsBlock
 from .source_set_project.lonely import Lonely
+from solid_node.core.loader import import_module_from_path
+from solid_node.node.sources import source_closure
 
 
 PROJECT = os.path.dirname(os.path.realpath(dimensions.__file__))
@@ -188,3 +192,62 @@ class UpToDateLeafTest(BaseNodeTest):
         with mock.patch('solid_node.node.adapters.jscad.Popen') as popen:
             node.as_scad(None)
         popen.assert_called_once()
+
+
+class SourceClosureRootAnchoringTest(TestCase):
+    """Task 1.2: the wrong-answer case os.getcwd() used to produce.
+    Before this cycle, source_closure's project boundary was
+    `os.path.realpath(os.getcwd())` (sources.py's own module docstring
+    tells the story): run the same command from a subdirectory and the
+    closure silently lost files it genuinely depended on, so a build
+    trusted an artifact it should have rebuilt. sources.py:46-47 now
+    anchors on `loader.project_root(src)`, which is derived from `src`
+    itself rather than the working directory -- so this is a guard
+    against the regression coming back, not a fix; it should already
+    pass.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = self.tmp.name
+        os.mkdir(os.path.join(self.root, 'boat'))
+        open(os.path.join(self.root, 'boat', '__init__.py'), 'w').close()
+        with open(os.path.join(self.root, 'boat', 'dims.py'), 'w') as stream:
+            stream.write('BEAM = 3.5\n')
+        with open(os.path.join(self.root, 'boat', 'hull.py'), 'w') as stream:
+            stream.write(
+                'from solid_node.node import Solid2Node\n'
+                'from solid2 import cube\n'
+                'from .dims import BEAM\n'
+                '\n'
+                'class Hull(Solid2Node):\n'
+                '    def render(self):\n'
+                '        return cube(BEAM, center=True)\n'
+            )
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\nmodel = "boat.hull:Hull"\n')
+        self.hull_path = os.path.realpath(
+            os.path.join(self.root, 'boat', 'hull.py'))
+        self.dims_path = os.path.realpath(
+            os.path.join(self.root, 'boat', 'dims.py'))
+
+    def test_closure_is_identical_from_root_and_from_a_subdirectory(self):
+        # source_closure walks sys.modules to map an import name back to a
+        # file (_project_file), so the module has to actually be imported
+        # first -- exactly as it would be by the loader before a real node
+        # ever reaches source_closure. Importing once, from the root, is
+        # enough; both calls below then read the same populated
+        # sys.modules, which is what makes this a test of source_closure's
+        # own boundary rather than of import machinery.
+        with chdir(self.root):
+            import_module_from_path(self.hull_path, self.root)
+            from_root = source_closure(self.hull_path)
+        with chdir(os.path.join(self.root, 'boat')):
+            from_subdirectory = source_closure(self.hull_path)
+
+        self.assertEqual(from_root, from_subdirectory)
+        # Not a vacuous equality: the sibling module the node depends on
+        # is genuinely part of the set both times, which is the whole
+        # thing a wrong project boundary would have silently dropped.
+        self.assertIn(self.dims_path, from_root)
