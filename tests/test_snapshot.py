@@ -11,6 +11,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, MagicMock
 
 from solid_node.manager.snapshot import Snapshot, COLORSCHEMES, VIEW_OPTIONS
+from tests.test_build_lock import lock_is_held
 
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
@@ -487,7 +488,7 @@ class SnapshotArgumentParsingTest(TestCase):
     def test_default_output(self):
         """Test default output filename"""
         args = self.parser.parse_args([])
-        self.assertEqual(args.output, 'snapshot.png')
+        self.assertIsNone(args.output)
 
     def test_custom_output(self):
         """Test custom output filename"""
@@ -763,6 +764,84 @@ class SnapshotHeadlessRenderTest(TestCase):
 
         self.assertEqual(cm.exception.code, 1)
         self.assertFalse(os.path.exists(self.output_path))
+
+
+class SnapshotBuildLockTest(TestCase):
+    """Task 5.4: node preparation takes the project build lock and
+    releases it before the OpenSCAD render begins, so a snapshot never
+    blocks a rebuild while an image is being produced --
+    `_load_and_prepare_node` wraps only load_node/set_keyframe/assemble
+    in `with project_build_lock():`. Mirrors
+    tests/test_build_lock.py::LockParticipantsTest, which covers the
+    same contract for the test runner and export."""
+
+    def setUp(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        self.snapshot = Snapshot()
+
+    def tearDown(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+
+    def test_lock_is_held_during_preparation_and_released_before_render(self):
+        node = Mock()
+        node.scad_file = '/tmp/test.scad'
+        observed = {}
+        node.assemble.side_effect = lambda: observed.update(
+            held=lock_is_held(BUILD_DIR))
+
+        self.snapshot.path = 'model.py'
+        self.snapshot.time = 0.0
+
+        with patch('solid_node.manager.snapshot.load_node', return_value=node):
+            self.snapshot._load_and_prepare_node()
+
+        self.assertTrue(
+            observed.get('held'),
+            'node preparation ran without the project build lock held')
+        self.assertFalse(
+            lock_is_held(BUILD_DIR),
+            'the lock is still held after preparation -- the OpenSCAD '
+            'render would block a rebuild of the same project')
+
+
+class SnapshotOutputDefaultTest(TestCase):
+    """Task 5.4: `-o` defaults from the resolved node's class name, not
+    the fixed `snapshot.png` it used to -- so two snapshots taken
+    without `-o`, of two different nodes, never silently overwrite each
+    other."""
+
+    def setUp(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        self.snapshot = Snapshot()
+
+    def tearDown(self):
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+
+    def test_default_output_name_is_derived_from_the_resolved_node(self):
+        args = argparse.Namespace(
+            path=os.path.join(BASEDIR, 'flat_project', 'simple_cylinder.py'),
+            output=None,
+            time=0.0,
+            camera=None,
+            autocenter=False,
+            viewall=False,
+            imgsize='1920x1080',
+            projection='perspective',
+            colorscheme='Cornfield',
+            render=True,
+            preview=False,
+            view=None,
+        )
+
+        with patch('solid_node.manager.snapshot.run'):
+            self.snapshot.handle(args)
+
+        self.assertEqual(self.snapshot.output, 'simplecylinder.png')
+        self.assertNotEqual(self.snapshot.output, 'snapshot.png')
 
 
 class SnapshotConstantsTest(TestCase):

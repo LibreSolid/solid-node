@@ -250,14 +250,23 @@ class AbstractBaseNode:
         # a base for scad and stl file paths
         self.src = self.get_source_file()
 
-        build_dir = os.environ.get('SOLID_BUILD_DIR', "_build")
+        # Local import avoids the loader -> node.base import cycle, the same
+        # way sources.py reaches project discovery.
+        from solid_node.core.builder import get_build_dir
+        from solid_node.core.loader import project_root
 
         self.basedir = os.path.dirname(self.src)
 
-        self.build_dir = os.path.join(
-            os.path.relpath(build_dir),
-            os.path.relpath(self.basedir),
-        )
+        # Artifacts mirror the project's source tree inside the one project
+        # build directory. Both halves anchor on the project root, never on
+        # the working directory: a node's artifact path must not depend on
+        # the directory the command happened to run from, or a build from a
+        # subdirectory publishes a second, private tree.
+        root = project_root(self.src)
+        self.build_dir = os.path.normpath(os.path.join(
+            get_build_dir(self.src),
+            os.path.relpath(self.basedir, root),
+        ))
 
         script = self.src.split('/')[-1]
         script = '.'.join(script.split('.')[:-1])  # remove extension
@@ -602,16 +611,9 @@ class AbstractBaseNode:
         )
 
     def _make_build_dirs(self):
-        path = self.build_dir.split('/')
-        build_dirs = []
-        while path:
-            build_dirs.append(path.pop(0))
-            build_dir = '/'.join(build_dirs)
-            if not os.path.exists(build_dir):
-                try:
-                    os.mkdir(build_dir)
-                except FileExistsError:
-                    pass
+        # The build directory is absolute once anchored on the project root,
+        # so create the whole chain at once rather than walking it.
+        os.makedirs(self.build_dir, exist_ok=True)
 
 
 class StlRenderStart(Exception):

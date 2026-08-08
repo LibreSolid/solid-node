@@ -8,6 +8,7 @@ import shutil
 import logging
 from subprocess import run, CalledProcessError
 from solid_node.core.loader import load_node
+from solid_node.core.builder import project_build_lock
 
 
 logger = logging.getLogger('manager.snapshot')
@@ -34,8 +35,8 @@ class Snapshot:
         parser.add_argument(
             '-o', '--output',
             type=str,
-            default='snapshot.png',
-            help='Output file path (default: snapshot.png)'
+            default=None,
+            help='Output file path (default: derived from the node reference)'
         )
 
         # Animation time
@@ -137,6 +138,8 @@ class Snapshot:
         # Load and prepare the node
         try:
             node = self._load_and_prepare_node()
+            if self.output is None:
+                self.output = f'{node.__class__.__name__.lower()}.png'
         except Exception as e:
             sys.stderr.write(f"Error loading node: {e}\n")
             sys.exit(1)
@@ -206,14 +209,11 @@ class Snapshot:
 
     def _load_and_prepare_node(self):
         """Load the node and prepare it for rendering."""
-        node = load_node(self.path)
-
-        # Set animation time if this is an AssemblyNode
-        # set_keyframe is a no-op for non-animated nodes
-        node.set_keyframe(self.time)
-
-        # Generate the SCAD file
-        node.assemble()
+        with project_build_lock():
+            node = load_node(self.path)
+            # set_keyframe is a no-op for non-animated nodes
+            node.set_keyframe(self.time)
+            node.assemble()
 
         return node
 

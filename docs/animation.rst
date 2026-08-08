@@ -9,7 +9,7 @@ An `AssemblyNode` can use the property `self.time` to position its
 children. The time is a number between 0 and 1 that will be resolved in
 the viewer, and you can use it to position elements relative to time.
 
-Edit `root/__init__.py` to rotate the pointer of the
+Edit `myproject/myproject.py` to rotate the pointer of the
 :doc:`simple clock <assemblies>`:
 
 .. code-block:: python

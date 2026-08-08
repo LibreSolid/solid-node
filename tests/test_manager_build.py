@@ -20,14 +20,18 @@ class BuildCommandTest(TestCase):
             Build().handle(Namespace(path='missing-model.py'))
 
         self.assertEqual(ctx.exception.code, MODEL_NOT_FOUND)
-        self.assertIn('Model not found: missing-model.py', stderr.getvalue())
+        # The reason travels with the report: a reference can fail to name a
+        # node in more ways than one, and the exit code distinguishes none of
+        # them.
+        self.assertIn('Model not found', stderr.getvalue())
+        self.assertIn('missing-model.py', stderr.getvalue())
 
     def test_repeats_render_passes_until_current(self):
         command = Build()
         render = MagicMock(exitcode=BuildOutcome.RENDERED.value)
         current = MagicMock(exitcode=BuildOutcome.CURRENT.value)
 
-        with patch('solid_node.manager.build.os.path.isfile', return_value=True), \
+        with patch('solid_node.manager.build.resolve_node'), \
              patch('solid_node.manager.build.Process', side_effect=[render, current]) as process:
             command.handle(Namespace(path='model.py'))
 

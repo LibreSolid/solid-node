@@ -7,6 +7,9 @@ import sys
 from multiprocessing import Process
 
 from solid_node.core.builder import Builder, BuildOutcome
+from solid_node.core.loader import (
+    AmbiguousNodeError, ProjectManifestError, resolve_node,
+)
 
 
 MODEL_NOT_FOUND = 66
@@ -29,8 +32,14 @@ class Build:
 
     def handle(self, args):
         self.path = args.path
-        if not os.path.isfile(self.path):
-            sys.stderr.write(f'Model not found: {self.path}\n')
+        try:
+            resolve_node(self.path)
+        except (ProjectManifestError, AmbiguousNodeError) as error:
+            # The reference did not name a node. Report why -- an ambiguous
+            # file, a class outside the project and a missing file are
+            # different problems, and "Model not found" describes only one of
+            # them. Anything else is a bug and keeps its traceback.
+            sys.stderr.write(f'Model not found: {error}\n')
             sys.exit(MODEL_NOT_FOUND)
 
         while True:

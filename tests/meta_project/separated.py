@@ -52,6 +52,3 @@ class LegB(Cube):
 
 class LegC(Cube):
     pass
-
-
-NODE = Separated

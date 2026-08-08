@@ -35,7 +35,7 @@ Solid2Node
 ==========
 
 The starting structure created by `solid new` implements a **Solid2Node**
-node, which uses **solidpython2** to create models. Open `root/__init__.py`:
+node, which uses **solidpython2** to create models. Open `myproject/myproject.py`:
 
 .. code-block:: python
 
@@ -104,7 +104,7 @@ python wrapper around an OpenScad module.
 
         scad_source = 'demo.scad'
 
-Create a file `root/demo.scad` with a module to create the model:
+Create a file `myproject/demo.scad` with a module to create the model:
 
 .. code-block:: openscad
 
@@ -155,7 +155,7 @@ installed in the directory you run `solid` from.
 
         jscad_source = 'demo.js'
 
-Create a file `root/demo.js` with a module to create the model:
+Create a file `myproject/demo.js` with a module to create the model:
 
 .. code-block:: javascript
 

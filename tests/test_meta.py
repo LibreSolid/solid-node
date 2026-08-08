@@ -78,11 +78,16 @@ def solid_test_at_path(path):
 
 
 def run_solid_test_path(path):
+    return run_solid('test', path)
+
+
+def run_solid(*arguments):
+    """Run any `solid` command against the meta fixtures."""
     env = dict(os.environ, SOLID_BUILD_DIR=BUILD_DIR)
     return subprocess.run(
         [sys.executable, '-c',
          'from solid_node.cli import manage; manage()',
-         'test', path],
+         *arguments],
         cwd=REPO_DIR, env=env,
         capture_output=True, text=True, timeout=300,
     )
@@ -426,29 +431,38 @@ class TestPathMetaTest(TestCase):
         self.assertIn('tests/meta_project/totally_bogus.py', proc.stderr)
 
 
-class NodeMarkerMetaTest(TestCase):
-    """The NODE marker (skill-repo improvements.md #14): the loader
-    used to return the FIRST AbstractBaseNode subclass defined in a
-    file -- an unenforced "main class first" convention that, when
-    violated, silently loaded the wrong node. A file defining several
-    node classes and no NODE marker must now fail loudly instead,
-    naming the file, the candidate classes, and the remedy."""
+class NodeReferenceMetaTest(TestCase):
+    """The loader used to return the FIRST AbstractBaseNode subclass
+    defined in a file -- an unenforced "main class first" convention
+    that, when violated, silently loaded the wrong node. A caller now
+    names the class it means, and a command needing exactly one node
+    refuses an ambiguous file instead of guessing."""
 
-    def test_unmarked_multi_class_file_fails_loudly_with_remedy(self):
-        proc = solid_test_at_path('tests/meta_project/unmarked.py')
+    def test_ambiguous_file_is_refused_naming_its_candidates(self):
+        proc = run_solid('build', 'tests/meta_project/unmarked.py')
 
         self.assertNotEqual(proc.returncode, 0)
         self.assertNotIn('Traceback', proc.stderr)
         self.assertIn('tests/meta_project/unmarked.py', proc.stderr)
         self.assertIn('Unmarked', proc.stderr)
         self.assertIn('AlsoANode', proc.stderr)
-        self.assertIn('NODE = ', proc.stderr)
+        self.assertIn('name a class', proc.stderr)
 
-    def test_marker_loads_main_class_despite_helper_defined_first(self):
-        """The exact trap from the recent session: a helper subclass
-        defined BEFORE the main node class. With NODE naming the main
-        class, `solid test` must exercise Trap -- not Helper -- and
-        the same genuine contract as apart.py must hold."""
+    def test_a_class_can_be_named_in_an_ambiguous_file(self):
+        """The remedy the error points at has to work: the same file
+        that is ambiguous by path builds when the reference names one
+        of its classes."""
+        proc = run_solid('build', 'tests/meta_project/unmarked.py:AlsoANode')
+
+        self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+
+    def test_helper_defined_first_does_not_shadow_the_node(self):
+        """The exact trap from the session that introduced the marker:
+        a helper subclass defined BEFORE the main node class. With no
+        marker to consult, the companion case declares its node, so
+        `solid test` must exercise Trap -- not Helper -- and the same
+        genuine contract as apart.py must hold. One summary line covers
+        the whole file, however many nodes it defines."""
         run = solid_test('trap')
         self.assertEqual(run.results, {
             'test_cubes_do_not_intersect': 'passed',

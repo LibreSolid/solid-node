@@ -41,15 +41,19 @@ An explicit ``name=`` passed to the constructor always wins over the
 derived name. Attributes starting with an underscore are ignored by
 the derivation.
 
-The NODE marker
+Node references
 ===============
 
-Solid Node loads one node class per file: `solid develop root` finds
-the class defined in `root/__init__.py` and makes it the root of the
-tree. When a file defines a single node class, nothing needs to be
-said. When it defines several — like the panel-plus-assembly file in
-:doc:`Fusing parts <fusion>` — set the module-level ``NODE`` marker to
-name the intended one:
+A node is named by **reference**: a qualifier (`package.module:Class`),
+a file path, or a file path plus class (`path/to/file.py:Class`). With
+no reference, a node-scoped command like `solid develop` operates on
+the project's model, declared as `model = "package.module:Class"` under
+`[tool.solid-node]` in `pyproject.toml` — what `solid new` writes for
+you.
+
+A bare path resolves to the single node class defined in that file.
+When a file defines several — like the panel-plus-assembly file in
+:doc:`Fusing parts <fusion>` — name the one you mean:
 
 .. code-block:: python
 
@@ -59,12 +63,13 @@ name the intended one:
     class VolumeControl(AssemblyNode):
         ...
 
-    NODE = VolumeControl
-
-Without the marker, loading a multi-class file fails with an
-`AmbiguousNodeError` instead of silently picking one. Test classes
-(:doc:`Test-driven CAD <testing>`) are not affected by the marker —
-it only selects among node classes.
+A bare path to that file fails with an `AmbiguousNodeError` instead of
+silently picking one; name the class you mean, either by qualifier
+(`panel_and_knob:VolumeControl`) or hybrid path
+(`panel_and_knob.py:VolumeControl`). See the :doc:`command line
+reference <cli>` for the full reference grammar. Test classes
+(:doc:`Test-driven CAD <testing>`) resolve independently and may each
+declare the node they bind to.
 
 Build identity and caching
 ==========================

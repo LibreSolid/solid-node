@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from .loader import load_node
+from .loader import ProjectManifestError, load_node, project_root
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
 from solid_node.node.base import StlRenderStart
 
@@ -84,9 +84,26 @@ class BuildOutcome(Enum):
     FAILED = 1
 
 
-def get_build_dir():
-    """Get the base build directory from environment or default"""
-    return os.environ.get('SOLID_BUILD_DIR', '_build')
+def get_build_dir(origin=None):
+    """The project's build directory, anchored on the project root.
+
+    A relative `SOLID_BUILD_DIR` -- and the `_build` default -- resolves
+    against the discovered project root, never the working directory. A
+    project has one build tree and one build lock (the lock path is derived
+    from this directory), so resolving it against the caller's cwd would give
+    a command run from a subdirectory a private build tree and a private lock:
+    artifacts the floor never sees, and mutual exclusion that silently holds
+    per-directory instead of per-project.
+    """
+    configured = os.environ.get('SOLID_BUILD_DIR', '_build')
+    if os.path.isabs(configured):
+        return configured
+    try:
+        return os.path.join(project_root(origin), configured)
+    except ProjectManifestError:
+        # Nothing to anchor on. The caller is about to fail resolving its own
+        # reference; do not pre-empt that with a less useful error here.
+        return configured
 
 
 def get_errors_file(build_dir=None):

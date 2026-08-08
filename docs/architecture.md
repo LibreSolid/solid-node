@@ -53,10 +53,8 @@ Three architectural commitments shape almost every subsystem:
    `(artifact, mtime)` signal, so "the STL is fresh" is the one
    invalidation concept the whole system shares. The source set behind
    that clock is a node's own file plus the project-local modules it
-   imports, transitively (ADR-033), with a package facade entry point also
-   tracked when it explicitly re-exports the selected root node (ADR-026), so
-   a contributing module or facade edit invalidates the nodes that read it —
-   and only those.
+   imports, transitively (ADR-033), so a contributing module edit
+   invalidates the nodes that read it — and only those.
 3. **One kinematic truth, recomputed absolutely, consumed everywhere**
    (ADR-023/027/028). A node's placement is its operation list. Every
    consumer — SCAD output, world-space meshes for assertions, the two
@@ -116,14 +114,18 @@ is mutated by design. The base mesh under it is cached per
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
-Nodes are addressed by **filesystem path**, dynamically imported
-(ADR-005); a multi-class file needs a `NODE = Class` marker (ADR-026).
-An explicit marker may name a project-local imported node class, so a package
-facade can re-export its root; implicit discovery remains limited to classes
-defined in the loaded file. Artifacts remain keyed to the selected class's
-real implementation source. The source set tracks that implementation/import
-closure and the loaded facade, so an edit to either invalidates and reloads
-the active node. Artifacts land under `$SOLID_BUILD_DIR` (default `_build`),
+Nodes are addressed by **reference** — a qualifier
+(`package.module:Class`), a filesystem path, or a path plus class —
+dynamically imported and resolved against a project root discovered
+from the nearest ancestor `pyproject.toml` carrying `[tool.solid-node]`
+(ADR-005, superseded by project-manifest-node-references). A bare path
+to a file defining several node classes must name the one meant in the
+reference; implicit discovery remains limited to classes defined in the
+loaded file. Artifacts remain keyed to the selected class's real
+implementation source. The source set tracks that implementation/import
+closure, so an edit to it invalidates and reloads the active node.
+Artifacts land under `$SOLID_BUILD_DIR` (default `_build`, resolved
+against the discovered project root rather than the working directory),
 mirroring the source layout, basename `<script>-<uniq_id>`.
 
 STL generation is asynchronous: `StlRenderStart` carries a spawned

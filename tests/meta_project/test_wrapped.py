@@ -4,8 +4,11 @@
 
 from solid_node.test import TestCase
 
+from .wrapped import Wrapped
+
 
 class WrappedTest(TestCase):
+    node = Wrapped
 
     def test_leaf_mesh_is_at_world_position(self):
         self.assertAlmostEqual(

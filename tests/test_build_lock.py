@@ -18,7 +18,9 @@ from argparse import Namespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from solid_node.core.builder import get_build_lock_path, project_build_lock
+from solid_node.core.builder import (
+    get_build_dir, get_build_lock_path, project_build_lock,
+)
 
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,6 +72,50 @@ def _run_build(project_root, build_dir):
     os.environ['SOLID_BUILD_DIR'] = build_dir
     from solid_node.manager.build import Build
     Build().handle(Namespace(path='flat_project/simple_pipe.py'))
+
+
+class BuildDirectoryAnchorTest(TestCase):
+    """A project has one build tree and one build lock. Both are derived from
+    the project root, never from the working directory: a command run from a
+    subdirectory that published into its own `_build` would take its own lock
+    too, so mutual exclusion would hold per-directory instead of per-project
+    while the floor watched a tree nothing wrote to."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='solid_node_build_anchor_')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\n'
+                         'model = "package.model:Model"\n')
+        self.package = os.path.join(self.root, 'package')
+        os.mkdir(self.package)
+        self.previous = os.getcwd()
+        self.addCleanup(os.chdir, self.previous)
+        # Another test in this process may have left SOLID_BUILD_DIR set; this
+        # one is about the default, so it owns its own environment.
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop('SOLID_BUILD_DIR', None)
+
+    def test_build_dir_and_lock_do_not_move_with_the_working_directory(self):
+        os.chdir(self.root)
+        from_root = (os.path.realpath(get_build_dir()),
+                     os.path.realpath(get_build_lock_path()))
+
+        os.chdir(self.package)
+        from_subdirectory = (os.path.realpath(get_build_dir()),
+                             os.path.realpath(get_build_lock_path()))
+
+        self.assertEqual(from_root, from_subdirectory)
+        self.assertEqual(from_root[0],
+                         os.path.realpath(os.path.join(self.root, '_build')))
+
+    def test_an_absolute_build_dir_is_left_alone(self):
+        elsewhere = os.path.join(self.root, 'somewhere-else')
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': elsewhere}):
+            os.chdir(self.package)
+            self.assertEqual(get_build_dir(), elsewhere)
 
 
 class ProjectBuildLockTest(TestCase):
@@ -214,6 +260,13 @@ class PublishedModelFollowsSourceTest(TestCase):
         shutil.copytree(FLAT_PROJECT, os.path.join(self.root, 'flat_project'),
                         ignore=shutil.ignore_patterns('__pycache__'))
         self.source = os.path.join(self.root, 'flat_project', 'simple_pipe.py')
+        # A scratch project is a real project: the framework finds its root
+        # and its model through the manifest, not through the working
+        # directory.
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\n'
+                         'model = "flat_project.simple_pipe:SimplePipe"\n')
+
         self.build_dir = os.path.join(self.root, '_build')
 
     def build(self, count=1):

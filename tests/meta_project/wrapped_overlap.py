@@ -34,6 +34,3 @@ class Unit(AssemblyNode):
 
     def render(self):
         return [self.cube]
-
-
-NODE = WrappedOverlap

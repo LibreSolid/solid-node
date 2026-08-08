@@ -6,8 +6,11 @@ import math
 
 from solid_node.test import TestCase, testing_steps
 
+from .conrod import Conrod
+
 
 class ConrodTest(TestCase):
+    node = Conrod
 
     @testing_steps(7, start=0.0, end=1.0)
     def test_rod_tip_follows_the_conrod_angle(self):

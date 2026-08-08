@@ -5,14 +5,15 @@
 The development viewer
 ======================
 
-``solid develop <path>`` is where you spend your time: it builds the
-node, serves a viewer, watches the source files, and rebuilds whenever
-you save — the CAD equivalent of a web framework's development server.
+``solid develop [reference]`` is where you spend your time: it builds
+the node, serves a viewer, watches the source files, and rebuilds
+whenever you save — the CAD equivalent of a web framework's
+development server.
 
 The web viewer
 ==============
 
-By default, ``solid develop root`` serves the web viewer at
+By default, ``solid develop`` serves the web viewer at
 http://localhost:8000. It shows the assembled model with orbit
 controls, a navigation tree of the nodes, and plays the animation of
 nodes that use `self.time`.
@@ -41,7 +42,7 @@ If you prefer OpenScad as a viewer, use:
 
 .. code-block:: bash
 
-    $ solid develop root --openscad
+    $ solid develop --openscad
 
 Solid Node keeps a `.scad` file of the tree up to date and OpenScad
 picks up the changes. To see animations, enable View → Animate and set
@@ -52,7 +53,7 @@ Hacking on the viewer itself
 ============================
 
 The web viewer is a React app served pre-built. To work on the viewer
-frontend with hot reloading, run ``solid develop root --web-dev``,
+frontend with hot reloading, run ``solid develop --web-dev``,
 which proxies to an npm dev server (port 3000, or
 ``SOLID_NODE_FRONTEND_PORT``). ``--debug-builder`` and ``--debug-web``
 add verbose logging — see the :doc:`command line reference <cli>`.

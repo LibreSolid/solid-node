@@ -33,13 +33,11 @@ class CommandFirstGrammarTest(TestCase):
         self.assertTrue(handle.called)
         self.assertEqual(handle.call_args[0][0].path, 'somefile.py')
 
-    def test_build_normalizes_directory_path_to_init_file(self):
+    def test_build_rejects_directory_reference(self):
         with patch.object(sys, 'argv', ['solid', 'build', 'tests/flat_project']):
-            with patch('solid_node.manager.build.Build.handle') as handle:
+            with self.assertRaises(SystemExit) as ctx:
                 manage()
-
-        self.assertEqual(handle.call_args[0][0].path,
-                         'tests/flat_project/__init__.py')
+        self.assertEqual(ctx.exception.code, 2)
 
     def test_build_rejects_callback_option(self):
         with patch.object(sys, 'argv', ['solid', 'build', 'model.py',
@@ -105,16 +103,17 @@ class CommandFirstGrammarTest(TestCase):
     def test_develop_rejects_no_web_with_debug_web(self):
         self._assert_no_web_conflict('--debug-web')
 
-    def test_test_normalizes_directory_path_to_init_file(self):
+    def test_test_rejects_directory_reference(self):
         with patch.object(sys, 'argv', ['solid', 'test', 'tests/flat_project']):
-            with patch('solid_node.manager.test.Test.handle') as handle:
+            with self.assertRaises(SystemExit) as ctx:
                 manage()
+        self.assertEqual(ctx.exception.code, 2)
 
-        args = handle.call_args[0][0]
-        self.assertEqual(
-            args.path,
-            'tests/flat_project/__init__.py',
-        )
+    def test_node_commands_accept_no_reference(self):
+        with patch.object(sys, 'argv', ['solid', 'build']):
+            with patch('solid_node.manager.build.Build.handle') as handle:
+                manage()
+        self.assertIsNone(handle.call_args[0][0].path)
 
     def test_old_order_exits_with_hint(self):
         with patch.object(sys, 'argv', ['solid', 'somefile.py', 'develop']):

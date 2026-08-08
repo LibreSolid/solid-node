@@ -39,6 +39,3 @@ class Conrod(AssemblyNode):
         self.rod.translate([2, 0, 0])
         self.rod.rotate(swing, [0, 0, 1])
         return [self.rod]
-
-
-NODE = Conrod

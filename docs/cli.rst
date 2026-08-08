@@ -7,12 +7,11 @@ Command line reference
 
 The ``solid`` command follows the grammar::
 
-    solid <command> <path> [options]
+    solid <command> [reference] [options]
 
-where ``<path>`` is the python source file of the node to work on. A
-directory can be given instead, in which case its ``__init__.py`` is
-used — so ``solid develop root`` and ``solid develop root/__init__.py``
-are equivalent. Commands must be run from the project root directory.
+where ``reference`` is a qualifier (``package.module:Class``), a Python
+file path, or a file path plus class. When omitted, the project model in
+``[tool.solid-node]`` of the nearest ancestor ``pyproject.toml`` is used.
 
 Run ``solid <command> -h`` to see the options of each command.
 
@@ -23,17 +22,15 @@ solid new
 
     solid new <name>
 
-Creates a new project directory ``<name>`` with a starting structure:
-a ``root`` node implementing a ``Solid2Node`` demo model, and a
-``.gitignore`` for the build artifacts. Fails if ``<name>`` already
-exists. See the :doc:`Quickstart <quickstart>`.
+Creates a new project directory ``<name>`` with a package, model module,
+``pyproject.toml`` manifest, and ``.gitignore``. Fails if ``<name>`` exists.
 
 solid develop
 =============
 
 ::
 
-    solid develop <path> [--web] [--web-dev] [--no-web] [--openscad]
+    solid develop [reference] [--web] [--web-dev] [--no-web] [--openscad]
                          [--debug-builder] [--debug-web] [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
@@ -79,7 +76,7 @@ solid build
 
 ::
 
-    solid build <path>
+    solid build [reference]
 
 Builds the node once using the same ordinary pipeline as ``solid develop``,
 publishes the complete current model in the normal build directory, and exits.
@@ -93,7 +90,7 @@ solid test
 
 ::
 
-    solid test <path> [--failfast]
+    solid test [reference] [--failfast]
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion
@@ -108,7 +105,7 @@ solid snapshot
 
 ::
 
-    solid snapshot <path> [options]
+    solid snapshot [reference] [options]
 
 Renders the node to a PNG image using the OpenSCAD CLI, without opening
 any viewer. This gives a headless way to inspect a model — in CI, or
@@ -116,11 +113,11 @@ for AI agents to visually check their work.
 
 .. code-block:: bash
 
-    $ solid snapshot root -o front.png --viewall --autocenter
-    $ solid snapshot root --time 0.25 --imgsize 800x600 --projection ortho
+    $ solid snapshot -o front.png --viewall --autocenter
+    $ solid snapshot windmill.windmill:Sail --time 0.25 --imgsize 800x600 --projection ortho
 
 ``-o``, ``--output``
-    Output file path. Default: ``snapshot.png``.
+    Output file path. Default: derived from the resolved node.
 
 ``--time``
     Animation time to render, between 0.0 and 1.0. Default: 0.0.
@@ -162,7 +159,7 @@ solid export
 
 ::
 
-    solid export <path> [options]
+    solid export [reference] [options]
 
 Builds the node's STL meshes and writes a static, self-contained
 directory that renders the model — animations included — in any
@@ -171,7 +168,7 @@ output contains and how to use it.
 
 .. code-block:: bash
 
-    $ solid export root -o export
+    $ solid export -o export
     $ python -m http.server -d export   # view at http://localhost:8000
 
 ``-o``, ``--output``
