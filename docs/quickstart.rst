@@ -48,20 +48,23 @@ Create a new project with a starting structure
     $ solid new myproject
     $ cd myproject
 
-Start the solid process. By default, the web viewer is used.
+Start the solid process. By default, the web viewer is used. With no
+argument, `solid develop` operates on the project's model, declared as
+`model = "myproject.myproject:Myproject"` in the `pyproject.toml`
+manifest `solid new` just wrote for you.
 
 .. code-block:: bash
 
-    $ solid develop root
+    $ solid develop
 
 Open the link http://localhost:8000 in your browser. If you prefer
 using Openscad as a viewer, use the --openscad parameter
 
 .. code-block:: bash
 
-    $ solid develop root --openscad
+    $ solid develop --openscad
 
-Open `root/__init__.py` file in your preferred code editor and
+Open `myproject/myproject.py` file in your preferred code editor and
 see your model update in the viewer as you modify the code.
 
 Check the _build directory for the STLs of your project.

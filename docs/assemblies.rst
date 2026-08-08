@@ -28,7 +28,7 @@ CadQuery and SolidPython. This example continues through
 :doc:`Animating with time <animation>` and :doc:`Test-driven CAD
 <testing>`.
 
-Create a new file `root/clock_base.py` and create a `CadQueryNode`:
+Create a new file `myproject/clock_base.py` and create a `CadQueryNode`:
 
 .. code-block:: python
 
@@ -49,7 +49,7 @@ Rendered — the clock base:
 .. solid-node:: _exports/clock_base
    :height: 360px
 
-Now, a file `root/pointer.py` with a `Solid2Node`:
+Now, a file `myproject/pointer.py` with a `Solid2Node`:
 
 .. code-block:: python
 
@@ -68,7 +68,7 @@ Rendered — the pointer:
 .. solid-node:: _exports/pointer_plain
    :height: 360px
 
-And at `root/__init__.py`, an `AssemblyNode`:
+And at `myproject/myproject.py`, an `AssemblyNode`:
 
 .. code-block:: python
 

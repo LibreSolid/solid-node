@@ -12,7 +12,7 @@ movement, or `assertIntersecting` to verify that a handle is not
 detached during movement.
 
 Tests can be written in two styles, both run by the same
-``solid test root`` command:
+``solid test`` command:
 
 * mixing `solid_node.test.TestCaseMixin` into the node class, so tests
   live next to the rendering logic — used through most of this page;
@@ -25,7 +25,7 @@ A pin for the clock
 
 To demonstrate testing, let's make a pin holding the pointer and base
 of the :doc:`simple clock <assemblies>` together.
-First, to create a 6mm hole at the base, edit `root/clock_base.py`
+First, to create a 6mm hole at the base, edit `myproject/clock_base.py`
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ Rendered — the base with its 6 mm hole:
 .. solid-node:: _exports/clock_base_hole
    :height: 360px
 
-And a hole in the pointer, at `root/pointer.py`
+And a hole in the pointer, at `myproject/pointer.py`
 
 .. code-block:: python
 
@@ -62,7 +62,7 @@ Rendered — the pointer with its hole:
 Now, you should see a hole through both pointer and
 base, while the pointer is rotating.
 
-Let's make a pin through them. Create the file `root/pin.py`:
+Let's make a pin through them. Create the file `myproject/pin.py`:
 
 .. code-block:: python
 
@@ -79,7 +79,7 @@ Rendered — the pin:
 .. solid-node:: _exports/pin
    :height: 360px
 
-And at `root/__init__.py`, assemble the pin together:
+And at `myproject/myproject.py`, assemble the pin together:
 
 .. code-block:: python
 
@@ -114,7 +114,7 @@ TestCaseMixin
 =============
 
 For that, we'll use `solid_node.test.TestCaseMixin`. Our SimpleClock
-class will extend it, and we'll add two tests to `root/__init__.py`:
+class will extend it, and we'll add two tests to `myproject/myproject.py`:
 
 .. code-block:: python
 
@@ -143,13 +143,13 @@ class will extend it, and we'll add two tests to `root/__init__.py`:
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.pointer, self.pin)
 
-On the command line, stop the `solid develop root` command, and
-run `solid test root`.
+On the command line, stop the `solid develop` command, and
+run `solid test`.
 
 You should see two tests failing, as in practice there is a very
 small intersection between rendered meshes even though mathematically
 they should not. Let's reduce the radius of our pin to 2.99, at
-`root/pin.py`:
+`myproject/pin.py`:
 
 .. code-block:: python
 
@@ -241,16 +241,16 @@ Instead of mixing `TestCaseMixin` into the node class, tests can live in
 their own file, extending `solid_node.test.TestCase`. The test runner
 looks for a companion file next to the node being tested:
 
-* for a node in a package, like `root/__init__.py`, it loads
-  `root/test.py`;
-* for a node in a module, like `root/pointer.py`, it loads
-  `root/test_pointer.py`.
+* for a node in a package, like `windmill/__init__.py`, it loads
+  `windmill/test.py`;
+* for a node in a module, like `myproject/pointer.py`, it loads
+  `myproject/test_pointer.py`.
 
 The test class receives the built node as `self.node`, plus an alias
 named after the test class (CamelCase converted to snake_case, with the
 `Test` suffix dropped) — so a `SimpleClockTest` can also refer to the
 node as `self.simple_clock`. The clock tests from above, in a separate
-`root/test.py`:
+`myproject/test_myproject.py`:
 
 .. code-block:: python
 
@@ -266,7 +266,7 @@ node as `self.simple_clock`. The clock tests from above, in a separate
         def test_pin_runs_free_in_pointer(self):
             self.assertNotIntersecting(self.node.pointer, self.node.pin)
 
-Both styles are run by the same `solid test root` command, and can be
+Both styles are run by the same `solid test` command, and can be
 combined — this is how the V8 engine in :doc:`Examples <examples>` keeps
 one test file per part.
 

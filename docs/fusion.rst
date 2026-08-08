@@ -11,7 +11,7 @@ read separately — but in reality it's a single rigid part, printed in
 one go. That's what a **FusionNode** is for: its children are fused
 into one mesh.
 
-Let's build that knob. Create `root/knob_shaft.py`:
+Let's build that knob. Create `myproject/knob_shaft.py`:
 
 .. code-block:: python
 
@@ -30,7 +30,7 @@ Rendered — the shaft:
 .. solid-node:: _exports/knob_shaft
    :height: 360px
 
-Then `root/knob_grip.py` — a tapered grip, with a small indicator mark
+Then `myproject/knob_grip.py` — a tapered grip, with a small indicator mark
 on top:
 
 .. code-block:: python
@@ -56,7 +56,7 @@ Rendered — the grip:
 .. solid-node:: _exports/knob_grip
    :height: 360px
 
-And the fusion, at `root/knob.py`:
+And the fusion, at `myproject/knob.py`:
 
 .. code-block:: python
 
@@ -89,7 +89,7 @@ A FusionNode takes part in the node tree like any other node, so it can
 be a child of an AssemblyNode — and this is where fusing pays off: the
 whole knob is placed, rotated and tested as one part.
 
-Let's mount the knob on a panel and turn it. At `root/__init__.py`:
+Let's mount the knob on a panel and turn it. At `myproject/myproject.py`:
 
 .. code-block:: python
 
@@ -115,14 +115,14 @@ Let's mount the knob on a panel and turn it. At `root/__init__.py`:
             self.knob.rotate(-270 * self.time, [0, 0, 1])
             return [self.panel, self.knob]
 
-    NODE = VolumeControl
-
 Press play to turn the volume up:
 
 .. solid-node:: _exports/knob_assembly
    :height: 360px
 
-This file defines two node classes, so the module-level ``NODE``
-marker tells Solid Node which one is *the* node of this file — without
-it, loading the file fails with an `AmbiguousNodeError`. See
-:doc:`Names, the node tree and caching <node-tree>`.
+This file defines two node classes, so a bare path to it is ambiguous
+— name the one you mean, either by qualifier
+(`myproject.myproject:VolumeControl`) or hybrid path
+(`myproject/myproject.py:VolumeControl`), e.g. `solid test
+myproject/myproject.py:VolumeControl`. See :doc:`Names, the node tree
+and caching <node-tree>`.
