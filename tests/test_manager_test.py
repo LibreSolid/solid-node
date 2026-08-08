@@ -5,8 +5,10 @@
 import io
 import os
 import tempfile
+from argparse import Namespace
 from contextlib import redirect_stdout, redirect_stderr
 from unittest import TestCase
+from unittest.mock import patch
 from trimesh.creation import box
 from solid_node.manager.test import Test as Runner, StopTestRun
 from solid_node.node.base import AbstractBaseNode
@@ -365,3 +367,194 @@ class NoNodeClassInModuleTest(TestCase):
         message = stderr.getvalue()
         self.assertIn(self.relative_path, message)
         self.assertNotIn('Traceback', message)
+
+
+class MultiTestCaseFixture(TestCase):
+    """Shared scratch-project setup for the companion TestCase binding
+    tests below (tasks 4.1-4.3): a real, tiny, temp-dir project with its
+    own manifest, built and rendered through openscad exactly as `solid
+    test` runs a maker's project -- not stubbed, because binding is
+    decided by real class identity (`declared is klass`) and a mock node
+    cannot stand in for that."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = self.tmp.name
+        os.mkdir(os.path.join(self.root, 'boat'))
+        open(os.path.join(self.root, 'boat', '__init__.py'), 'w').close()
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write(
+                '[tool.solid-node]\nmodel = "boat.windmill:Windmill"\n')
+        # Other test modules in this suite set SOLID_BUILD_DIR at import
+        # time (some to an absolute path elsewhere in the repo); a build
+        # driven from this scratch project must publish into ITS OWN
+        # _build, not one left behind by an unrelated module.
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop('SOLID_BUILD_DIR', None)
+
+    def write(self, relative, content):
+        path = os.path.join(self.root, relative)
+        with open(path, 'w') as stream:
+            stream.write(content)
+        return path
+
+    def run_solid_test(self, path, failfast=False):
+        """Drive Runner().handle() exactly as the CLI does, capturing
+        stdout/stderr and turning a raised SystemExit into (code, out,
+        err) instead of letting it propagate -- a passing run never
+        calls sys.exit, so code is 0 in that case."""
+        stdout, stderr = io.StringIO(), io.StringIO()
+        args = Namespace(path=path, failfast=failfast)
+        code = 0
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                Runner().handle(args)
+            except SystemExit as exc:
+                code = exc.code
+        return code, stdout.getvalue(), stderr.getvalue()
+
+
+WINDMILL_SOURCE = '''from solid_node.node import Solid2Node
+from solid2 import cube
+
+
+class Windmill(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+
+
+class Sail(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+'''
+
+WINDMILL_TEST_SOURCE = '''from solid_node.test import TestCase
+from .windmill import Windmill, Sail
+
+
+class WindmillTest(TestCase):
+    node = Windmill
+
+    def test_windmill_builds(self):
+        self.assertIsNotNone(self.node.mesh)
+
+
+class SailTest(TestCase):
+    node = Sail
+
+    def test_sail_builds(self):
+        self.assertIsNotNone(self.node.mesh)
+'''
+
+
+class CompanionMultipleTestCasesRunTest(MultiTestCaseFixture):
+    """Task 4.1, and the spec's 'Several test cases in one companion
+    file' scenario: before this cycle the loader returned only the
+    first TestCase defined in a companion file (`candidates[0][1]`) --
+    a second TestCase in the same file never ran, and the run still
+    reported success. The proposal's own words: a silently unrun test
+    is worse than a wrongly loaded node, because the wrong node is at
+    least visible on screen and the missing test is visible nowhere.
+    Each TestCase here declares the node it exercises, and both must
+    run, each bound to the one it declared."""
+
+    def test_both_test_cases_in_the_companion_file_run(self):
+        node_path = self.write('boat/windmill.py', WINDMILL_SOURCE)
+        self.write('boat/test_windmill.py', WINDMILL_TEST_SOURCE)
+
+        code, stdout, stderr = self.run_solid_test(node_path)
+
+        self.assertEqual(code, 0, stderr)
+        self.assertIn('WindmillTest.test_windmill_builds', stdout)
+        self.assertIn('SailTest.test_sail_builds', stdout)
+        self.assertIn('Ran 2 tests', stdout)
+        self.assertIn('2 passed, 0 failed', stdout)
+
+
+HULL_SOURCE = '''from solid_node.node import Solid2Node
+from solid2 import cube
+
+
+class Hull(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+
+
+class Deck(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+'''
+
+HULL_TEST_UNDECLARED_SOURCE = '''from solid_node.test import TestCase
+
+
+class HullTest(TestCase):
+    def test_never_runs(self):
+        pass
+'''
+
+
+class UndeclaredTestCaseInMultiNodeModuleTest(MultiTestCaseFixture):
+    """Task 4.2, failure branch: a TestCase with no `node = <Class>`
+    declaration, next to a module defining several node classes, has no
+    way to say which one it binds to. The run must fail loudly, naming
+    the test case and every candidate node class -- never silently
+    skip it and never silently guess one."""
+
+    def test_undeclared_case_fails_the_run_naming_case_and_candidates(self):
+        node_path = self.write('boat/hull.py', HULL_SOURCE)
+        self.write('boat/test_hull.py', HULL_TEST_UNDECLARED_SOURCE)
+
+        code, stdout, stderr = self.run_solid_test(node_path)
+
+        self.assertEqual(code, 1)
+        self.assertIn('HullTest', stderr)
+        self.assertIn('Hull', stderr)
+        self.assertIn('Deck', stderr)
+        self.assertIn('must declare node', stderr)
+        # Never silently skipped: the run must abort before any summary
+        # -- in particular never a summary claiming everything passed.
+        self.assertNotIn('passed', stdout)
+
+
+MAST_SOURCE = '''from solid_node.node import Solid2Node
+from solid2 import cube
+
+
+class Mast(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+'''
+
+MAST_TEST_SOURCE = '''from solid_node.test import TestCase
+
+
+class MastTest(TestCase):
+    def test_mast_builds(self):
+        self.assertIsNotNone(self.node.mesh)
+        # The snake_case alias TestCase.set_node derives from the class
+        # name is unaffected by whether `node` was declared or implied.
+        self.assertIsNotNone(self.mast.mesh)
+'''
+
+
+class UndeclaredTestCaseBesideSingleNodeModuleTest(MultiTestCaseFixture):
+    """Task 4.3: every project that predates this cycle has exactly one
+    node class per test file and never declared `node = ...` -- that
+    majority case must keep working unchanged. An undeclared TestCase
+    beside a single-node module binds to that module's one node class
+    implicitly, with no error and no behaviour change."""
+
+    def test_undeclared_case_still_binds_and_runs(self):
+        node_path = self.write('boat/mast.py', MAST_SOURCE)
+        self.write('boat/test_mast.py', MAST_TEST_SOURCE)
+
+        code, stdout, stderr = self.run_solid_test(node_path)
+
+        self.assertEqual(code, 0, stderr)
+        self.assertIn('MastTest.test_mast_builds', stdout)
+        self.assertIn('Ran 1 tests', stdout)
+        self.assertIn('1 passed, 0 failed', stdout)
