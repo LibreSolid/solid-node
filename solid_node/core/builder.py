@@ -254,6 +254,7 @@ class Builder(FileSystemEventHandler):
                 # it.
                 logger.info('Published artifacts are already current')
                 try:
+                    self._verify_declared_bodies()
                     published = self._write_viewer_snapshot()
                 except Exception:
                     error_message = traceback.format_exc()
@@ -267,6 +268,7 @@ class Builder(FileSystemEventHandler):
                     outcome = await self.generate_stl()
                     if outcome is BuildOutcome.RENDERED:
                         return outcome
+                    self._verify_declared_bodies()
                     self._write_viewer_snapshot()
                     published = True
                 except Exception:
@@ -371,6 +373,24 @@ class Builder(FileSystemEventHandler):
         atomic_write(os.path.join(self.build_dir, 'viewer.json'), document)
         self._sweep_unreferenced_artifacts(snapshot)
         return True
+
+    def _verify_declared_bodies(self):
+        """Hold every node that declares a `bodies` count to it, before
+        this build publishes anything.
+
+        Run on both publication paths rather than at STL completion,
+        because a build that finds every artifact already current
+        publishes too, and a model that arrives in pieces must not
+        reach the maker by that route either. Nodes declaring nothing
+        (the default) are skipped without their meshes being read, so
+        this costs nothing until a project asks for it.
+        """
+        def walk(node):
+            node.verify_bodies()
+            for child in node.children:
+                walk(child)
+
+        walk(self.node)
 
     def _published_document(self):
         try:

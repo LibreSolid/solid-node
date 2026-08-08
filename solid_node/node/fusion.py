@@ -14,6 +14,12 @@ class FusionNode(InternalNode):
 
     _type = 'FusionNode'
 
+    # "single, inseparable unit" is the whole point of this node, so it
+    # is checked rather than asserted in prose: a fusion whose children
+    # do not actually overlap fails the build instead of publishing a
+    # part that quietly arrives in pieces.
+    bodies = 1
+
     @property
     def time(self):
         """You can't use self.time with a FusionNode, as the resulting object

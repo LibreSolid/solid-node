@@ -205,6 +205,16 @@ class AbstractBaseNode:
     # This determines if stl can be generated for this Node
     rigid = True
 
+    # How many connected solids this node's own mesh must have, or None
+    # to leave it unchecked. None is the default so that no existing
+    # project starts loading its meshes at build time; a node that IS
+    # meant to be one printed piece says so, and the build then holds
+    # it to that. Watertightness cannot stand in for this: a mesh of
+    # several disjoint closed shells is watertight, so a part whose
+    # features never reached each other builds and exports cleanly and
+    # only looks wrong in the picture.
+    bodies = None
+
     # All children nodes, initialized as tuple for compliance
     children = tuple()
 
@@ -583,6 +593,23 @@ class AbstractBaseNode:
         mesh.apply_transform(_compose_world_matrix(self))
         return mesh
 
+    def verify_bodies(self):
+        """Raise DisconnectedBodyError if this node declares a `bodies`
+        count its built mesh does not have. A node that declares none,
+        or that is not rigid, is skipped.
+        """
+        if not self.bodies or not self.rigid:
+            return
+        actual = len(self.mesh.split(only_watertight=False))
+        if actual != self.bodies:
+            raise DisconnectedBodyError(
+                f"{self.name} must be {self.bodies} connected "
+                f"{'body' if self.bodies == 1 else 'bodies'} but is {actual}. "
+                f"Solids only fuse where they overlap -- features that just "
+                f"touch, or that miss each other entirely, stay separate "
+                f"bodies inside one watertight mesh"
+            )
+
     def build_stls(node):
         while True:
             try:
@@ -614,6 +641,11 @@ class AbstractBaseNode:
         # The build directory is absolute once anchored on the project root,
         # so create the whole chain at once rather than walking it.
         os.makedirs(self.build_dir, exist_ok=True)
+
+
+class DisconnectedBodyError(Exception):
+    """A node's built mesh does not have the number of connected solids
+    the node declares through its `bodies` attribute."""
 
 
 class StlRenderStart(Exception):

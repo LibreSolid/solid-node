@@ -53,6 +53,17 @@ def _cached_manifold(stl_file):
     return cached
 
 
+def _body_count(mesh):
+    """Number of connected components in `mesh`.
+
+    `only_watertight=False` is deliberate: the question is whether the
+    geometry hangs together, and a fragment that is itself watertight
+    is exactly the case worth catching -- filtering to watertight
+    components would silently drop the evidence.
+    """
+    return len(mesh.split(only_watertight=False))
+
+
 def _fast_geometry(node):
     """(Manifold, local_bounds, world_matrix) for `node` if it exposes
     the attributes the fast path needs (docs/performance-improvement.md
@@ -395,6 +406,76 @@ class TestCase(BaseTestCase):
                 raise AssertionError(message)
         finally:
             node.operations.remove(operation)
+
+    ########################################
+    # Connectivity
+
+    def assertOneBody(self, node):
+        """Assert `node` is a single connected solid -- the normal
+        contract for anything that gets printed as one part.
+
+        Watertightness does NOT imply this: a mesh of N disjoint closed
+        shells is watertight, has a positive volume and exports to a
+        perfectly valid STL, so a part whose features never actually
+        reached each other looks correct everywhere except in the
+        picture. This is the assertion that sees it.
+        """
+        self.assertBodyCount(node, 1)
+
+    def assertBodyCount(self, node, expected):
+        """Assert `node`'s mesh has exactly `expected` connected
+        components. Use `assertOneBody` for the ordinary case; this is
+        for a part that is deliberately more than one body, such as a
+        printed sprue of small items.
+        """
+        actual = _body_count(node.mesh)
+        if actual != expected:
+            raise AssertionError(
+                f"{node.name} should be {expected} connected "
+                f"{'body' if expected == 1 else 'bodies'}, but its mesh "
+                f"has {actual}. Features that must join have to overlap; "
+                f"solids that merely touch, or that miss each other, stay "
+                f"separate bodies in one watertight mesh"
+            )
+
+    def assertJoined(self, node1, node2, min_weld_volume=0.0):
+        """Assert node1 and node2 fuse into ONE connected body, i.e.
+        that they are genuinely the same printed part.
+
+        This is the one legitimate case in which two features must
+        share volume, and it is the exact inverse of the adjacency
+        rule that governs distinct parts. `min_weld_volume` (mm^3)
+        additionally requires the shared volume welding them to be
+        substantial rather than a numerical lick of contact.
+        """
+        _, weld_volume = _intersection_stats(node1, node2)
+        union = trimesh.boolean.union([node1.mesh, node2.mesh])
+        bodies = _body_count(union)
+        if bodies != 1:
+            raise AssertionError(
+                f"{node1.name} and {node2.name} should be joined into one "
+                f"body, but their union has {bodies} connected components "
+                f"(shared volume {weld_volume})"
+            )
+        if min_weld_volume > 0 and abs(weld_volume) < min_weld_volume:
+            raise AssertionError(
+                f"{node1.name} and {node2.name} are joined by a weld of "
+                f"only {weld_volume} mm^3, below the required "
+                f"{min_weld_volume} mm^3"
+            )
+
+    def assertNoDisconnectedParts(self, node):
+        """Walk the assembled tree rooted at `node` down to its leaves
+        and assert that each one is a single connected body -- or the
+        count it declares through its `bodies` class attribute.
+
+        The connectivity counterpart of assertNoPairwiseIntersections,
+        and needed for the same reason: without it the only geometric
+        pressure on a project is to keep parts APART, which a part that
+        has fallen into fragments satisfies perfectly.
+        """
+        for leaf in self._leaves(node):
+            self.assertBodyCount(leaf, getattr(leaf, 'bodies', None) or 1)
 
     ########################################
     # Adjacency sweep

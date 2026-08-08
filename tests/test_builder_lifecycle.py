@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 from solid_node.core.builder import (Builder, BuildOutcome, atomic_write,
                                      write_error)
-from solid_node.node.base import StlRenderStart
+from solid_node.node.base import AbstractBaseNode, StlRenderStart
 
 from .test_build_lock import lock_is_held
 
@@ -74,6 +74,11 @@ class FakeNode:
     would answer with a truthy Mock and every artifact would look current.
     """
 
+    # The real body-count check, not a no-op stand-in: with `bodies`
+    # left undeclared it returns before reading any mesh, which is
+    # exactly the behaviour a publication path needs to preserve.
+    verify_bodies = AbstractBaseNode.verify_bodies
+
     def __init__(self, stl_file=None, mtime=0, children=(), name='part'):
         self.stl_file = stl_file
         self.rigid = stl_file is not None
@@ -84,6 +89,7 @@ class FakeNode:
         self._type = 'SolidNode'
         self.color = None
         self.operations = ()
+        self.bodies = None
 
     def assemble(self):
         pass
@@ -279,7 +285,8 @@ class BuildCallbackTest(TestCase):
                           callback='http://listener/build-ready')
         events = []
 
-        with patch('solid_node.core.builder.load_node', return_value=Mock()), \
+        with patch('solid_node.core.builder.load_node',
+                   return_value=Mock(children=())), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
              patch.object(builder, '_write_viewer_snapshot',
@@ -306,7 +313,8 @@ class BuildCallbackTest(TestCase):
             finally:
                 held.append('released')
 
-        with patch('solid_node.core.builder.load_node', return_value=Mock()), \
+        with patch('solid_node.core.builder.load_node',
+                   return_value=Mock(children=())), \
              patch('solid_node.core.builder.project_build_lock',
                    recording_lock), \
              patch.object(builder, 'generate_stl',
