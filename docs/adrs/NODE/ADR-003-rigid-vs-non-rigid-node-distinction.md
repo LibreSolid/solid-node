@@ -76,10 +76,24 @@ The framework intentionally guides users toward its architectural vision through
 
 Build optimization benefits significantly: rigid nodes leverage mtime-based STL caching for fast incremental builds, while non-rigid assemblies always render SCAD directly. The constraint enables safe caching by guaranteeing cached geometry is time-invariant.
 
+## Amendment: Structural Rigidity (2026-08-10)
+
+[ADR-039](./ADR-039-solid-integrity-at-the-topmost-rigid-node.md) replaces
+automatic rigidity propagation with a structural hierarchy constraint.
+Rigidity is now determined by node type: leaves and `FusionNode` are rigid,
+while `AssemblyNode` is non-rigid. A fusion rejects any non-rigid child during
+render validation, because solids are fused first and assembled afterward.
+
+Consequently, `parent.rigid = parent.rigid AND child.rigid` no longer runs.
+The only case in which it could have changed a fusion's rigidity—an assembly
+under that fusion—is now invalid and raises before geometry is produced. The
+binary rigid/non-rigid distinction, STL caching boundary, and restriction of
+animation to assemblies remain accepted.
+
 ## References
 
 - solid-node/solid_node/node/base.py:54 (rigid property default)
 - solid-node/solid_node/node/base.py:188-192 (STL generation guard)
-- solid-node/solid_node/node/internal.py:41 (rigidity propagation)
+- solid-node/solid_node/node/internal.py (fusion hierarchy validation)
 - solid-node/solid_node/node/assembly.py:30 (non-rigid with time property)
 - solid-node/solid_node/node/fusion.py:30-33 (rigid blocks time access)

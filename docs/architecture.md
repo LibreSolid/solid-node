@@ -77,9 +77,12 @@ per instance (ADR-002).
 
 Two concrete internal nodes encode the **rigid/non-rigid** axis
 (ADR-003): `FusionNode` (rigid union, no `time`) and `AssemblyNode`
-(non-rigid, animatable). Rigidity propagates upward (`parent.rigid AND
-child.rigid`); only rigid nodes produce STLs, which is why rigid
-geometry must be time-invariant.
+(non-rigid, animatable). Rigidity is static and determined by node type;
+a fusion rejects any non-rigid child during validation, enforcing "fuse
+solids, then assemble them" (ADR-039). Only rigid nodes produce STLs, which
+is why rigid geometry must be time-invariant. A topmost rigid node is the
+first rigid node on a branch below an assembly, or a rigid root itself; its
+STL is the complete printed solid for that branch.
 
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` (exports to STL, re-imports), `OpenScadNode`
@@ -169,6 +172,12 @@ build dir — file-based IPC, no broker
 (ADR-018). A broken initial build kills develop; a broken reload falls back to
 a broad recursive watch and keeps the loop alive.
 
+Before either publication path writes `viewer.json`, the builder verifies each
+topmost rigid node directly from its own untransformed STL and requires exactly
+one connected body (ADR-039). The walk stops at that node because its STL
+already contains its rigid descendants. No placement matrix is composed, so
+the check is timeless and works unchanged beneath animated assemblies.
+
 ### CLI (BUILD · spec `cli`)
 
 `solid <command> <path>` — command-first grammar since 0.4, with an
@@ -188,7 +197,7 @@ builds first, then runs `test_` methods per declared animation instant
 (`@testing_instant` / `@testing_steps`, ADR-011) with operation
 checkpoints restored between instants.
 
-Assertions (ADR-009) are trimesh/manifold booleans over world-space
+Collision assertions (ADR-009) are trimesh/manifold booleans over world-space
 meshes: intersection/containment/distance/volume checks, plus the
 **paired kinematic fit contract** (ADR-025): `assertBlockedBeyond` +
 `assertFreeWithin` perturb a part along its working degree of freedom
@@ -204,6 +213,13 @@ provably disjoint pairs with a conservative world-AABB broad-phase,
 and reads `is_empty()`/`volume()` straight off lazy-transformed
 Manifolds — verdict-identical to the naive path, orders of magnitude
 faster on real assemblies.
+
+Connectivity is deliberately solid-local (ADR-039). The build guarantees one
+body per topmost rigid node, while `assertJoined(a, b, min_weld_volume=...)`
+checks the stronger pairwise claim that two named features meet directly. It
+composes operations only below their enclosing topmost rigid node, excluding
+whole-solid placement and every animated ancestor. Collision remains
+world-framed and time-dependent.
 
 ### Viewers (VIEWER-WEB · spec `web-viewer`)
 
@@ -290,6 +306,9 @@ The short list that changes must not silently break:
   (ADR-022).
 - Users never override `assemble()`; rigid geometry is time-invariant
   (ADR-002/003).
+- Every topmost rigid node publishes as exactly one connected body; body
+  declarations do not exist, connectivity uses the solid-local frame, and
+  collision uses the world frame (ADR-039).
 
 ## Known gaps and tensions
 

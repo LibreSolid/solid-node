@@ -2,9 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for the connectivity assertions and the declared body
-count -- the contract that a rigid printed part is ONE connected
-solid.
+"""Unit tests for solid integrity and solid-local connectivity.
 
 The gap these close: watertightness is a per-shell property, so a mesh
 made of N disjoint closed shells is watertight, has a positive volume,
@@ -18,12 +16,20 @@ Like tests/test_assertions.py these use tiny stand-ins with a real
 .mesh, rather than driving a full STL build.
 """
 
+import os
+import tempfile
+from types import SimpleNamespace
 from unittest import TestCase
-import numpy as np
+from unittest.mock import Mock
+import trimesh
 from trimesh.creation import box
 from trimesh.util import concatenate
 
 from solid_node.test import TestCase as AssertingTestCase
+from solid_node.node import AssemblyNode, FusionNode
+from solid_node.node.base import AbstractBaseNode
+from solid_node.node.internal import InternalNode
+from solid_node.node.operations import Translation
 
 
 asserter = AssertingTestCase()
@@ -33,10 +39,9 @@ class FakeNode:
     """Minimal stand-in for a rigid node: a name and a .mesh, which is
     all the connectivity assertions read."""
 
-    def __init__(self, mesh, name='Node', bodies=None):
+    def __init__(self, mesh, name='Node'):
         self.name = name
         self._mesh = mesh
-        self.bodies = bodies
         self.children = tuple()
         self.rigid = True
 
@@ -45,13 +50,22 @@ class FakeNode:
         return self._mesh.copy()
 
 
-class FakeAssembly:
-    """Stand-in for an internal node: children, and no mesh of its own."""
+class StlNode:
+    """Small real-STL node for exercising matrix composition paths."""
 
-    def __init__(self, children, name='Assembly'):
+    def __init__(self, stl_file, name, parent=None):
+        self.stl_file = stl_file
         self.name = name
-        self.children = children
-        self.rigid = False
+        self._parent = parent
+        self.operations = []
+        self.rigid = True
+
+    def as_number(self, value):
+        return float(value)
+
+    @property
+    def mesh(self):
+        return AbstractBaseNode.mesh.fget(self)
 
 
 def one_body(size=2.0):
@@ -75,14 +89,6 @@ def welded_pair(overlap=0.5):
     return first, second
 
 
-def touching_pair():
-    """Two boxes whose faces meet exactly, sharing no volume."""
-    first = box((2.0, 2.0, 2.0))
-    second = box((2.0, 2.0, 2.0))
-    second.apply_translation([2.0, 0.0, 0.0])
-    return first, second
-
-
 class DisjointShellsAreWatertightTest(TestCase):
     """The premise: this is why the framework could not see the bug."""
 
@@ -93,42 +99,51 @@ class DisjointShellsAreWatertightTest(TestCase):
         self.assertAlmostEqual(mesh.volume, 16.0, places=6)
 
 
-class AssertOneBodyTest(TestCase):
+class FusionHierarchyTest(TestCase):
 
-    def test_single_body_passes(self):
-        asserter.assertOneBody(FakeNode(one_body(), name='Shaft'))
+    def test_fusion_rejects_non_rigid_child_naming_both_nodes(self):
+        fusion = object.__new__(FusionNode)
+        fusion.name = 'OuterSolid'
+        assembly = object.__new__(AssemblyNode)
+        assembly.name = 'MovingParts'
 
-    def test_disconnected_part_fails(self):
-        node = FakeNode(two_bodies(), name='FanSails')
-        with self.assertRaises(AssertionError) as caught:
-            asserter.assertOneBody(node)
+        with self.assertRaises(Exception) as caught:
+            fusion.validate([assembly])
+
         message = str(caught.exception)
-        self.assertIn('FanSails', message)
-        self.assertIn('2', message)
+        self.assertIn('OuterSolid', message)
+        self.assertIn('MovingParts', message)
 
-    def test_tangential_contact_is_not_a_join(self):
-        """Faces that meet exactly do not weld: the union of two boxes
-        touching on a plane is still two components. This is precisely
-        what `union()` on non-overlapping solids produces."""
-        first, second = touching_pair()
-        node = FakeNode(concatenate([first, second]), name='ForkCarriage')
-        with self.assertRaises(AssertionError):
-            asserter.assertOneBody(node)
+    def test_as_scad_does_not_shadow_type_determined_rigidity(self):
+        fusion = object.__new__(FusionNode)
+        fusion.root = None
+        fusion.files = set()
+        fusion._link_child = Mock()
+        child = SimpleNamespace(
+            rigid=True,
+            files=set(),
+            assemble=Mock(return_value=object()),
+        )
+
+        InternalNode.as_scad(fusion, [child])
+
+        self.assertNotIn('rigid', fusion.__dict__)
 
 
-class AssertBodyCountTest(TestCase):
+class RemovedConnectivityApiTest(TestCase):
 
-    def test_expected_count_passes(self):
-        asserter.assertBodyCount(FakeNode(two_bodies(), name='Pair'), 2)
+    def test_declared_body_api_is_absent(self):
+        import solid_node.node.base as base
 
-    def test_wrong_count_fails_naming_both_numbers(self):
-        node = FakeNode(two_bodies(), name='SelectorGate')
-        with self.assertRaises(AssertionError) as caught:
-            asserter.assertBodyCount(node, 1)
-        message = str(caught.exception)
-        self.assertIn('SelectorGate', message)
-        self.assertIn('1', message)
-        self.assertIn('2', message)
+        self.assertFalse(hasattr(base.AbstractBaseNode, 'bodies'))
+        self.assertFalse(hasattr(base.AbstractBaseNode, 'verify_bodies'))
+        self.assertFalse(hasattr(base, 'DisconnectedBodyError'))
+        self.assertNotIn('bodies', FusionNode.__dict__)
+
+    def test_redundant_test_assertions_are_absent(self):
+        self.assertFalse(hasattr(asserter, 'assertOneBody'))
+        self.assertFalse(hasattr(asserter, 'assertBodyCount'))
+        self.assertFalse(hasattr(asserter, 'assertNoDisconnectedParts'))
 
 
 class AssertJoinedTest(TestCase):
@@ -164,82 +179,34 @@ class AssertJoinedTest(TestCase):
                               FakeNode(second, name='Carriage'),
                               min_weld_volume=1.0)
 
+    def test_animated_enclosing_solid_is_not_composed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            stl_file = os.path.join(directory, 'feature.stl')
+            one_body().export(stl_file)
+            assembly = SimpleNamespace(rigid=False, _parent=None, operations=[])
+            solid = SimpleNamespace(rigid=True, _parent=assembly, operations=[])
+            animated_placement = Mock()
+            animated_placement.matrix.side_effect = TypeError(
+                '(360 * $t) is not a number')
+            solid.operations.append(animated_placement)
+            first = StlNode(stl_file, 'Hub', parent=solid)
+            second = StlNode(stl_file, 'Blade', parent=solid)
+            second.operations.append(Translation([1, 0, 0], second))
 
-class AssertNoDisconnectedPartsTest(TestCase):
-    """The tree-walking safety net, sibling of
-    assertNoPairwiseIntersections."""
+            asserter.assertJoined(first, second)
+            asserter.assertJoined(first, second)
 
-    def test_all_single_body_leaves_pass(self):
-        root = FakeAssembly([
-            FakeNode(one_body(), name='a'),
-            FakeAssembly([FakeNode(one_body(), name='b')], name='sub'),
-        ])
-        asserter.assertNoDisconnectedParts(root)
+            animated_placement.matrix.assert_not_called()
 
-    def test_one_fragmented_leaf_anywhere_fails(self):
-        root = FakeAssembly([
-            FakeNode(one_body(), name='plinth'),
-            FakeAssembly([
-                FakeNode(one_body(), name='hub'),
-                FakeNode(two_bodies(), name='sails'),
-            ], name='fan_rotor'),
-        ])
-        with self.assertRaises(AssertionError) as caught:
-            asserter.assertNoDisconnectedParts(root)
-        self.assertIn('sails', str(caught.exception))
+    def test_pair_joined_only_through_third_feature_still_fails(self):
+        first = box((2, 2, 2))
+        second = box((2, 2, 2))
+        second.apply_translation([4, 0, 0])
+        bridge = box((4, 2, 2))
+        bridge.apply_translation([2, 0, 0])
+        whole = trimesh.boolean.union([first, bridge, second])
+        self.assertEqual(len(whole.split(only_watertight=False)), 1)
 
-    def test_a_leaf_may_declare_a_legitimate_body_count(self):
-        """A part that is deliberately several bodies (a printed sprue
-        of small items) declares it and is held to that number."""
-        root = FakeAssembly([
-            FakeNode(two_bodies(), name='sprue', bodies=2),
-        ])
-        asserter.assertNoDisconnectedParts(root)
-
-    def test_a_declared_count_is_still_enforced(self):
-        root = FakeAssembly([
-            FakeNode(two_bodies(), name='sprue', bodies=3),
-        ])
         with self.assertRaises(AssertionError):
-            asserter.assertNoDisconnectedParts(root)
-
-
-class DeclaredBodyCountTest(TestCase):
-    """Build-time enforcement: a node may declare how many connected
-    bodies its own STL must have, and the build refuses to publish a
-    model that violates it."""
-
-    def test_base_node_declares_no_body_count_by_default(self):
-        """Default is unchecked, so no existing project pays the cost
-        of loading its meshes at build time."""
-        from solid_node.node.base import AbstractBaseNode
-        self.assertIsNone(AbstractBaseNode.bodies)
-
-    def test_fusion_node_declares_one_body(self):
-        """'A fusion of components into a single, inseparable unit' was
-        a docstring promise with nothing behind it."""
-        from solid_node.node import FusionNode
-        self.assertEqual(FusionNode.bodies, 1)
-
-    def test_verify_bodies_passes_a_single_body(self):
-        from solid_node.node.base import AbstractBaseNode
-        node = FakeNode(one_body(), name='Fusion', bodies=1)
-        AbstractBaseNode.verify_bodies(node)
-
-    def test_verify_bodies_rejects_a_fragmented_result(self):
-        from solid_node.node.base import AbstractBaseNode, DisconnectedBodyError
-        node = FakeNode(two_bodies(), name='Fusion', bodies=1)
-        with self.assertRaises(DisconnectedBodyError) as caught:
-            AbstractBaseNode.verify_bodies(node)
-        self.assertIn('Fusion', str(caught.exception))
-
-    def test_verify_bodies_skips_an_undeclared_node(self):
-        from solid_node.node.base import AbstractBaseNode
-        node = FakeNode(two_bodies(), name='Whatever', bodies=None)
-        AbstractBaseNode.verify_bodies(node)
-
-    def test_verify_bodies_skips_a_non_rigid_node(self):
-        from solid_node.node.base import AbstractBaseNode
-        node = FakeNode(two_bodies(), name='Assembly', bodies=1)
-        node.rigid = False
-        AbstractBaseNode.verify_bodies(node)
+            asserter.assertJoined(FakeNode(first, name='A'),
+                                  FakeNode(second, name='B'))

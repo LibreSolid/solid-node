@@ -1,17 +1,15 @@
 # ADR-039: Solid integrity at the topmost rigid node
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-10
 - **Subsystem:** NODE
 - **Change:** `solid-body-integrity`
-- **Amends:** [ADR-003](../../../docs/adrs/NODE/ADR-003-rigid-vs-non-rigid-node-distinction.md)
+- **Amends:** [ADR-003](./ADR-003-rigid-vs-non-rigid-node-distinction.md)
 - **Reverses (in part):** the `bodies` declaration introduced by
   `connectivity-contracts` (archived 2026-08-09)
-- **Relates to:** [ADR-028](../../../docs/adrs/NODE/ADR-028-cached-base-meshes-and-single-matrix-world-composition.md),
-  [ADR-008](../../../docs/adrs/NODE/ADR-008-time-based-animation-system-for-assemblies.md)
-
-> Draft. Promoted to `docs/adrs/NODE/` with the implementation commit; the
-> relative links above resolve from that location.
+- **Relates to:** [ADR-028](./ADR-028-cached-base-meshes-and-single-matrix-world-composition.md),
+  [ADR-008](./ADR-008-time-based-animation-system-for-assemblies.md)
+- **Implemented by:** [`solid-body-integrity`](../../../openspec/changes/archive/2026-08-10-solid-body-integrity/)
 
 ## Context
 
@@ -117,12 +115,14 @@ frame.
   also cheaper than the one it replaces.
 - `rigid` becomes a static, type-determined fact, so the topmost rigid nodes are
   computable from the tree's shape without rendering.
-- Breaking, three ways: a project declaring `bodies` must delete it; calls to
-  the three removed assertions must go; a `FusionNode` over an `AssemblyNode`
-  now raises. Nothing in the framework, its examples, or any shipped project
-  does any of these — the only users are synthetic nodes in
-  `tests/test_connectivity.py` — and the third arrangement already produced no
-  STL, so a project relying on it was already getting nothing.
+- Breaking API changes: calls to the three removed assertions must go, and a
+  `FusionNode` over an `AssemblyNode` now raises. A stale `bodies` declaration
+  is an ordinary inert subclass attribute rather than an import error; projects
+  should delete it because the framework no longer reads it. The originating
+  `delme-claude` project supplied that migration evidence: its declaration is
+  ignored, both animated gears publish from their shared one-body STL, and no
+  operation value is resolved. The rejected fusion hierarchy already produced
+  no STL, so a project relying on it was already getting nothing.
 - Verification now reads one STL per printed part where it usually read none.
   Bounded by part count, served by the existing `(path, mtime)` base-mesh cache,
   with no boolean or transform work.
@@ -170,6 +170,7 @@ keeps teaching that a solid may legitimately be several pieces.
   `_compose_world_matrix`
 - `solid_node/node/internal.py` — rigidity propagation, `validate()`
 - `solid_node/node/fusion.py` — `bodies = 1`, `time` guard
-- `solid_node/core/builder.py` — `_verify_declared_bodies()`
+- `solid_node/core/builder.py` — `_topmost_rigid_nodes()`,
+  `_verify_solid_bodies()`
 - `solid_node/test.py` — the connectivity assertions
 - Originating evidence: `projects/delme-claude` (shop workspace)

@@ -11,7 +11,8 @@ import trimesh
 from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
-from solid_node.node.base import _cached_base_mesh, _compose_world_matrix
+from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
+                                  _compose_world_matrix)
 from solid_node.node.operations import Rotation, Translation
 
 
@@ -64,7 +65,7 @@ def _body_count(mesh):
     return len(mesh.split(only_watertight=False))
 
 
-def _fast_geometry(node):
+def _fast_geometry(node, compose_matrix=_compose_world_matrix):
     """(Manifold, local_bounds, world_matrix) for `node` if it exposes
     the attributes the fast path needs (docs/performance-improvement.md
     fixes 2+3) -- an .stl_file readable through the Manifold cache, so
@@ -76,7 +77,7 @@ def _fast_geometry(node):
     if stl_file is None:
         return None
     manifold, bounds = _cached_manifold(stl_file)
-    return manifold, bounds, _compose_world_matrix(node)
+    return manifold, bounds, compose_matrix(node)
 
 
 def _world_bounds(local_bounds, matrix):
@@ -102,7 +103,7 @@ def _boxes_disjoint(box1, box2):
     return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
 
 
-def _intersection_stats(node1, node2):
+def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
     """(is_empty, volume) for node1 ∩ node2 -- the shared helper the
     intersection-based assertions below route through. When BOTH
     nodes expose the fast-path attributes (see _fast_geometry):
@@ -137,8 +138,8 @@ def _intersection_stats(node1, node2):
     lacks the fast-path attributes at all (e.g. the FakeNode test
     doubles in tests/test_assertions.py).
     """
-    fast1 = _fast_geometry(node1)
-    fast2 = _fast_geometry(node2)
+    fast1 = _fast_geometry(node1, compose_matrix)
+    fast2 = _fast_geometry(node2, compose_matrix)
     if fast1 is not None and fast2 is not None:
         manifold1, bounds1, matrix1 = fast1
         manifold2, bounds2, matrix2 = fast2
@@ -155,6 +156,20 @@ def _intersection_stats(node1, node2):
     intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
     volume = 0.0 if intersection.is_empty else intersection.volume
     return intersection.is_empty, volume
+
+
+def _mesh_in_frame(node, compose_matrix):
+    """Copy a node's base STL and place it in the requested frame.
+
+    Mesh-only test doubles have no base artifact to reframe; their ``mesh`` is
+    already treated as the caller's local geometry.
+    """
+    stl_file = getattr(node, 'stl_file', None)
+    if stl_file is None:
+        return node.mesh
+    mesh = _cached_base_mesh(stl_file).copy()
+    mesh.apply_transform(compose_matrix(node))
+    return mesh
 
 
 class TestCase(BaseTestCase):
@@ -410,34 +425,6 @@ class TestCase(BaseTestCase):
     ########################################
     # Connectivity
 
-    def assertOneBody(self, node):
-        """Assert `node` is a single connected solid -- the normal
-        contract for anything that gets printed as one part.
-
-        Watertightness does NOT imply this: a mesh of N disjoint closed
-        shells is watertight, has a positive volume and exports to a
-        perfectly valid STL, so a part whose features never actually
-        reached each other looks correct everywhere except in the
-        picture. This is the assertion that sees it.
-        """
-        self.assertBodyCount(node, 1)
-
-    def assertBodyCount(self, node, expected):
-        """Assert `node`'s mesh has exactly `expected` connected
-        components. Use `assertOneBody` for the ordinary case; this is
-        for a part that is deliberately more than one body, such as a
-        printed sprue of small items.
-        """
-        actual = _body_count(node.mesh)
-        if actual != expected:
-            raise AssertionError(
-                f"{node.name} should be {expected} connected "
-                f"{'body' if expected == 1 else 'bodies'}, but its mesh "
-                f"has {actual}. Features that must join have to overlap; "
-                f"solids that merely touch, or that miss each other, stay "
-                f"separate bodies in one watertight mesh"
-            )
-
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.
         that they are genuinely the same printed part.
@@ -448,8 +435,12 @@ class TestCase(BaseTestCase):
         additionally requires the shared volume welding them to be
         substantial rather than a numerical lick of contact.
         """
-        _, weld_volume = _intersection_stats(node1, node2)
-        union = trimesh.boolean.union([node1.mesh, node2.mesh])
+        _, weld_volume = _intersection_stats(
+            node1, node2, compose_matrix=_compose_solid_matrix)
+        union = trimesh.boolean.union([
+            _mesh_in_frame(node1, _compose_solid_matrix),
+            _mesh_in_frame(node2, _compose_solid_matrix),
+        ])
         bodies = _body_count(union)
         if bodies != 1:
             raise AssertionError(
@@ -463,19 +454,6 @@ class TestCase(BaseTestCase):
                 f"only {weld_volume} mm^3, below the required "
                 f"{min_weld_volume} mm^3"
             )
-
-    def assertNoDisconnectedParts(self, node):
-        """Walk the assembled tree rooted at `node` down to its leaves
-        and assert that each one is a single connected body -- or the
-        count it declares through its `bodies` class attribute.
-
-        The connectivity counterpart of assertNoPairwiseIntersections,
-        and needed for the same reason: without it the only geometric
-        pressure on a project is to keep parts APART, which a part that
-        has fallen into fragments satisfies perfectly.
-        """
-        for leaf in self._leaves(node):
-            self.assertBodyCount(leaf, getattr(leaf, 'bodies', None) or 1)
 
     ########################################
     # Adjacency sweep

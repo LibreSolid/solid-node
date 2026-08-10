@@ -223,35 +223,53 @@ this purpose.
   the published set is not current for them
 - **THEN** it renders and publishes exactly as it does without contention
 
-### Requirement: A declared body count is verified before publication
+### Requirement: Every topmost rigid node is one connected body
 
-Before publishing, a builder SHALL walk the loaded node tree and hold every
-node that declares a `bodies` count to it. Verification SHALL happen on every
-path that publishes, including the one that finds the artifact set already
-current, so a model that arrives in pieces cannot reach the maker by that
-route either. A violation SHALL prevent publication and SHALL be reported
-through the same error channel as any other build failure, leaving the
-previously published artifacts in place. Nodes that declare no count SHALL be
-skipped without their meshes being read, so the check costs nothing until a
-project asks for it.
+Before publishing, a builder SHALL verify that each topmost rigid node in the
+loaded tree is exactly one connected solid. The count SHALL be taken from that
+node's own built STL with no operations applied, and components SHALL be
+counted without filtering to watertight ones, so a fragment that is itself
+closed still counts as a body.
+
+The sweep SHALL stop at each topmost rigid node and SHALL NOT descend into its
+rigid descendants: geometry below a topmost rigid node is already composed into
+its STL, and a leaf or nested fusion is free to be several separated pieces so
+long as the enclosing solid joins them. No world matrix SHALL be composed for
+this check, so no operation value can require resolution and an animated
+subtree is verified exactly as a static one is.
+
+Verification SHALL happen on every path that publishes, including the one that
+finds the artifact set already current, so a model that arrives in pieces
+cannot reach the maker by that route either. A violation SHALL prevent
+publication and SHALL be reported through the same error channel as any other
+build failure, naming the node and the number of bodies found, and leaving the
+previously published artifacts in place.
 
 #### Scenario: A fragmented model is not published
 
-- **WHEN** a build completes rendering and a node's built mesh has a different
-  number of connected solids than the node declares
+- **WHEN** a build completes rendering and a topmost rigid node's STL has more
+  than one connected solid
 - **THEN** no viewer snapshot is published and the failure is reported through
-  `errors.json`
+  `errors.json`, naming that node and the count found
 
 #### Scenario: The already-current path is checked too
 
 - **WHEN** a builder finds the published artifact set already current for a
-  node that violates its declared body count
+  tree containing a fragmented topmost rigid node
 - **THEN** it republishes nothing and reports the failure
 
-#### Scenario: A project that declares nothing pays nothing
+#### Scenario: An animated part is verified like any other
 
-- **WHEN** a build runs on a tree in which no node declares a body count
-- **THEN** no mesh is read for this check and publication proceeds as usual
+- **WHEN** a topmost rigid node's placement is driven by an enclosing assembly,
+  so its operations hold unresolved animation expressions
+- **THEN** verification reads its STL directly, resolves no operation value,
+  and publication proceeds when the STL is one body
+
+#### Scenario: Pieces inside a solid are permitted
+
+- **WHEN** a `FusionNode` joins two leaves that are each several separated
+  solids, and the fused result is one connected body
+- **THEN** the fusion passes, and neither leaf is checked
 
 ### Requirement: Asynchronous STL render protocol
 
@@ -426,4 +444,3 @@ when it cannot.
 
 - **WHEN** the project's tracked ignore file already covers the build path
 - **THEN** no local exclusion is recorded
-

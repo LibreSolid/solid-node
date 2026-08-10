@@ -12,9 +12,12 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from trimesh.creation import box
+from trimesh.util import concatenate
+
 from solid_node.core.builder import (Builder, BuildOutcome, atomic_write,
-                                     write_error)
-from solid_node.node.base import AbstractBaseNode, StlRenderStart
+                                     _topmost_rigid_nodes, write_error)
+from solid_node.node.base import StlRenderStart
 
 from .test_build_lock import lock_is_held
 
@@ -74,11 +77,6 @@ class FakeNode:
     would answer with a truthy Mock and every artifact would look current.
     """
 
-    # The real body-count check, not a no-op stand-in: with `bodies`
-    # left undeclared it returns before reading any mesh, which is
-    # exactly the behaviour a publication path needs to preserve.
-    verify_bodies = AbstractBaseNode.verify_bodies
-
     def __init__(self, stl_file=None, mtime=0, children=(), name='part'):
         self.stl_file = stl_file
         self.rigid = stl_file is not None
@@ -89,7 +87,6 @@ class FakeNode:
         self._type = 'SolidNode'
         self.color = None
         self.operations = ()
-        self.bodies = None
 
     def assemble(self):
         pass
@@ -98,16 +95,118 @@ class FakeNode:
         return os.path.exists(path) and os.path.getmtime(path) == self.mtime
 
 
+class SolidBodyIntegrityTest(TestCase):
+
+    def setUp(self):
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def artifact(self, name, mesh, mtime=0):
+        path = os.path.join(self.root, name)
+        mesh.export(path)
+        os.utime(path, (mtime, mtime))
+        return path
+
+    def fragmented_mesh(self):
+        first = box((2, 2, 2))
+        second = box((2, 2, 2))
+        second.apply_translation([5, 0, 0])
+        return concatenate([first, second])
+
+    def test_topmost_rigid_walk_stops_at_outer_solid(self):
+        leaf = FakeNode('missing-leaf.stl', name='leaf')
+        nested = FakeNode('missing-nested.stl', children=(leaf,),
+                          name='nested')
+        outer = FakeNode('missing-outer.stl', children=(nested,),
+                         name='outer')
+        assembly = FakeNode(None, children=(outer,), name='assembly')
+
+        self.assertEqual(list(_topmost_rigid_nodes(assembly)), [outer])
+
+    def test_rigid_root_is_its_own_topmost_rigid_node(self):
+        child = FakeNode('missing-child.stl', name='child')
+        root = FakeNode('missing-root.stl', children=(child,), name='root')
+
+        self.assertEqual(list(_topmost_rigid_nodes(root)), [root])
+
+    def test_verification_checks_outer_stl_and_not_fragmented_children(self):
+        outer_path = self.artifact('outer.stl', box((2, 2, 2)))
+        leaf = FakeNode('missing-fragmented-leaf.stl', name='ingredients')
+        outer = FakeNode(outer_path, children=(leaf,), name='joined-solid')
+        builder = Builder('model.py', build_dir=self.root, watch=False)
+        builder.node = outer
+
+        builder._verify_solid_bodies()
+
+    def test_animated_placement_is_not_resolved(self):
+        part_path = self.artifact('gear.stl', box((2, 2, 2)))
+        part = FakeNode(part_path, name='gear')
+        operation = Mock()
+        operation.matrix.side_effect = TypeError('(360 * $t) is not a number')
+        part.operations = (operation,)
+        assembly = FakeNode(None, children=(part,), name='gear-pair')
+        builder = Builder('model.py', build_dir=self.root, watch=False)
+        builder.node = assembly
+
+        builder._verify_solid_bodies()
+
+        operation.matrix.assert_not_called()
+
+    def test_fragmented_solid_fails_both_publication_paths(self):
+        for already_current in (False, True):
+            with self.subTest(already_current=already_current):
+                build_dir = os.path.join(
+                    self.root, 'current' if already_current else 'rendered')
+                os.makedirs(build_dir)
+                artifact = os.path.join(build_dir, 'fragmented.stl')
+                self.fragmented_mesh().export(artifact)
+                os.utime(artifact, (0, 0))
+                if already_current:
+                    with open(os.path.join(build_dir, 'viewer.json'), 'w') as f:
+                        f.write('{"previous": true}')
+                node = FakeNode(artifact, mtime=0, name='broken-gear')
+                builder = Builder('model.py', build_dir=build_dir, watch=False)
+
+                with patch('solid_node.core.builder.load_node',
+                           return_value=node), \
+                     patch.object(builder, 'generate_stl',
+                                  return_value=BuildOutcome.CURRENT):
+                    outcome = asyncio.run(builder._start())
+
+                self.assertEqual(outcome, BuildOutcome.FAILED)
+                with open(os.path.join(build_dir, 'errors.json')) as error_file:
+                    message = json.load(error_file)['error']
+                self.assertIn('broken-gear', message)
+                self.assertIn('2', message)
+                if already_current:
+                    with open(os.path.join(build_dir, 'viewer.json')) as f:
+                        self.assertEqual(json.load(f), {'previous': True})
+                else:
+                    self.assertFalse(os.path.exists(
+                        os.path.join(build_dir, 'viewer.json')))
+
+
 class BuildOutcomeTest(TestCase):
     """The process supervisor needs lifecycle meanings, not just exit 0."""
 
     def setUp(self):
         self.builder = Builder('model.py')
-        self.builder.node = Mock()
+        self.builder.node = Mock(rigid=False, children=())
 
     def test_current_model_is_a_complete_build(self):
         self.assertEqual(asyncio.run(self.builder.generate_stl()),
                          BuildOutcome.CURRENT)
+
+    def test_a_locked_but_missing_artifact_is_not_current(self):
+        node = FakeNode(stl_file='still-rendering.stl')
+        node.trigger_stl = Mock()
+        self.builder.node = node
+
+        self.assertEqual(asyncio.run(self.builder.generate_stl()),
+                         BuildOutcome.RENDERED)
 
     def test_source_change_has_its_own_outcome(self):
         async def wait_for_source_change():
@@ -148,8 +247,7 @@ class RedundantAndSupersededBuildTest(TestCase):
 
         artifact = os.path.join(build_dir, 'part.stl')
         if artifact_current:
-            with open(artifact, 'w') as handle:
-                handle.write('solid part')
+            box((2, 2, 2)).export(artifact)
             os.utime(artifact, (0, 0))
 
         node = FakeNode(stl_file=artifact, mtime=0)
@@ -289,6 +387,7 @@ class BuildCallbackTest(TestCase):
                    return_value=Mock(children=())), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_verify_solid_bodies'), \
              patch.object(builder, '_write_viewer_snapshot',
                           side_effect=lambda: events.append('snapshot')), \
              patch.object(builder, '_notify_callback',
@@ -319,6 +418,7 @@ class BuildCallbackTest(TestCase):
                    recording_lock), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
+             patch.object(builder, '_verify_solid_bodies'), \
              patch.object(builder, '_write_viewer_snapshot'), \
              patch.object(builder, '_notify_callback',
                           side_effect=lambda: held.append('callback')):

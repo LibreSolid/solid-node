@@ -75,56 +75,45 @@ whose artifact is absent or stale SHALL follow the full lifecycle above.
 
 ### Requirement: Rigid vs non-rigid distinction
 
-The system SHALL distinguish rigid nodes (default `rigid = True`; can produce
-a cached STL) from non-rigid nodes. `AssemblyNode` is non-rigid; rigidity
-SHALL propagate upward as `parent.rigid = parent.rigid AND child.rigid`, so
-any non-rigid descendant makes all ancestors non-rigid. Only rigid nodes
-generate STL files.
+The system SHALL distinguish rigid nodes (`rigid = True`; can produce a cached
+STL) from non-rigid nodes. Rigidity SHALL be determined by node type and SHALL
+NOT be recomputed from a node's children: `LeafNode` and `FusionNode` are
+rigid, `AssemblyNode` is non-rigid. Only rigid nodes generate STL files.
 
-#### Scenario: Non-rigid child makes parent non-rigid
+A `FusionNode` SHALL reject a non-rigid child. Fusion combines solids into one
+solid; an assembled thing cannot be fused. The rejection SHALL name the fusion
+and the offending child and SHALL happen during render validation, before any
+geometry is produced.
 
-- **WHEN** a `FusionNode` renders a child subtree containing an
-  `AssemblyNode`
-- **THEN** the fusion's effective `rigid` is False and no STL is generated
-  for it
+A **topmost rigid node** is a rigid node whose parent is non-rigid, or the root
+node when the root is itself rigid. Because a fusion cannot contain an
+assembly, every rigid node is either a topmost rigid node or a descendant of
+exactly one.
+
+#### Scenario: An assembly cannot be fused
+
+- **WHEN** a `FusionNode` renders a child that is an `AssemblyNode`, or any
+  other non-rigid node
+- **THEN** an exception is raised naming the fusion and that child, and no
+  geometry is produced
+
+#### Scenario: Rigidity is not recomputed from children
+
+- **WHEN** a `FusionNode` renders a subtree of leaves and nested fusions
+- **THEN** it remains rigid, and its rigidity is its type's, not derived by
+  combining its children's
 
 #### Scenario: STL access on non-rigid node
 
 - **WHEN** the `stl` property is read on a non-rigid node
 - **THEN** an exception is raised
 
-### Requirement: Declared connected-body count
+#### Scenario: The topmost rigid node under an assembly
 
-A node MAY declare, through a class-level `bodies` attribute, how many
-connected solids its own built mesh must have. The default SHALL be `None`,
-leaving the node unchecked so that a project which does not ask for the check
-never loads its meshes on account of it. `FusionNode` SHALL declare
-`bodies = 1`, making "a single, inseparable unit" a checked property rather
-than a docstring promise.
-
-`verify_bodies()` SHALL raise `DisconnectedBodyError`, naming the node, the
-declared count, and the actual one, when a declared count does not match the
-number of connected components of the node's mesh. A node that declares no
-count, and a node that is not rigid, SHALL be skipped without its mesh being
-read.
-
-#### Scenario: A fusion arrives in pieces
-
-- **WHEN** `verify_bodies()` runs on a `FusionNode` whose children do not
-  actually overlap
-- **THEN** it raises `DisconnectedBodyError` naming the node and its body
-  count
-
-#### Scenario: An undeclared node is not checked
-
-- **WHEN** `verify_bodies()` runs on a node that leaves `bodies` at its
-  default
-- **THEN** it returns without reading the node's mesh
-
-#### Scenario: A non-rigid node is not checked
-
-- **WHEN** `verify_bodies()` runs on a non-rigid node that declares a count
-- **THEN** it returns without reading the node's mesh
+- **WHEN** an `AssemblyNode` holds a `FusionNode` that itself holds leaves and
+  a nested fusion
+- **THEN** the outer `FusionNode` is the topmost rigid node of that branch, and
+  the leaves and nested fusion are not
 
 ### Requirement: Animation-time access restrictions
 

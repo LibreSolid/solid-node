@@ -19,13 +19,22 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
-from solid_node.node.base import StlRenderStart
+from solid_node.node.base import StlRenderStart, _cached_base_mesh
 
 
 logger = logging.getLogger('core.builder')
 
 
 _build_locks = threading.local()
+
+
+def _topmost_rigid_nodes(node):
+    """Yield each printed solid and stop before its rigid ingredients."""
+    if node.rigid:
+        yield node
+        return
+    for child in node.children:
+        yield from _topmost_rigid_nodes(child)
 
 
 def get_build_lock_path(build_dir=None):
@@ -254,7 +263,7 @@ class Builder(FileSystemEventHandler):
                 # it.
                 logger.info('Published artifacts are already current')
                 try:
-                    self._verify_declared_bodies()
+                    self._verify_solid_bodies()
                     published = self._write_viewer_snapshot()
                 except Exception:
                     error_message = traceback.format_exc()
@@ -268,7 +277,7 @@ class Builder(FileSystemEventHandler):
                     outcome = await self.generate_stl()
                     if outcome is BuildOutcome.RENDERED:
                         return outcome
-                    self._verify_declared_bodies()
+                    self._verify_solid_bodies()
                     self._write_viewer_snapshot()
                     published = True
                 except Exception:
@@ -330,6 +339,12 @@ class Builder(FileSystemEventHandler):
         exits to be restarted."""
         try:
             self.node.trigger_stl()
+            if not self._artifacts_are_current():
+                # Another builder may own a node's per-STL render lock.  In
+                # that case generate_stl() deliberately does nothing, but the
+                # missing artifact is not a complete build: make the
+                # supervisor retry instead of running publication checks.
+                return BuildOutcome.RENDERED
             return BuildOutcome.CURRENT
         except StlRenderStart as job:
             logger.info(f"Building {job.stl_file} by pid {job.proc.pid}")
@@ -374,23 +389,22 @@ class Builder(FileSystemEventHandler):
         self._sweep_unreferenced_artifacts(snapshot)
         return True
 
-    def _verify_declared_bodies(self):
-        """Hold every node that declares a `bodies` count to it, before
-        this build publishes anything.
+    def _verify_solid_bodies(self):
+        """Require each topmost rigid node's own STL to be one body.
 
-        Run on both publication paths rather than at STL completion,
-        because a build that finds every artifact already current
-        publishes too, and a model that arrives in pieces must not
-        reach the maker by that route either. Nodes declaring nothing
-        (the default) are skipped without their meshes being read, so
-        this costs nothing until a project asks for it.
+        The STL is read without applying any node or ancestor operations:
+        connectivity is local and invariant under rigid placement.  The walk
+        stops at the first rigid node on each branch because its STL already
+        contains all rigid descendants.
         """
-        def walk(node):
-            node.verify_bodies()
-            for child in node.children:
-                walk(child)
-
-        walk(self.node)
+        for node in _topmost_rigid_nodes(self.node):
+            actual = len(_cached_base_mesh(node.stl_file).split(
+                only_watertight=False))
+            if actual != 1:
+                raise ValueError(
+                    f"{node.name} must be one connected body but its STL "
+                    f"contains {actual}. Solids only fuse where they overlap; "
+                    "features that touch or miss stay separate bodies")
 
     def _published_document(self):
         try:
@@ -409,6 +423,11 @@ class Builder(FileSystemEventHandler):
                 not os.path.isfile(os.path.join(self.build_dir,
                                                 'viewer.json'))):
             return False
+
+        return self._artifacts_are_current()
+
+    def _artifacts_are_current(self):
+        """Whether every rigid artifact in the loaded tree is current."""
 
         def current(node):
             if node.rigid and not node._up_to_date(
