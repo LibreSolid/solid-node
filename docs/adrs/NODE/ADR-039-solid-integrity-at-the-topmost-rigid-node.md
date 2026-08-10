@@ -106,6 +106,21 @@ required weld volume (a 0.001 mm³ overlap is topologically one body and snaps
 off the printer). Being a connectivity claim, it is rebased on the solid-local
 frame.
 
+**Solid-local framing requires both nodes to be in the same solid.** The frame
+is only meaningful relative to one part. Two nodes from different solids would
+each be placed at their own part's origin, discarding the distance the assembly
+holds between the parts — so two features that share nothing would read as
+welded, a false *pass* in an assertion whose whole purpose is catching a
+missing join. `assertJoined` therefore refuses that pair, naming both nodes and
+both solids, rather than answering a question posed in an incoherent frame. A
+node not linked into a tree is not evidence of a second solid, so plain mesh
+geometry stays comparable.
+
+**The fusion rule lives on `FusionNode`.** It is a rule about fusion, so it
+belongs to the class that has it, as a `validate()` override calling `super()`
+— not as a type test inside `InternalNode`, which would make the base class
+depend on one of its own subclasses and force a circular import to express.
+
 ## Consequences
 
 - The guarantee strengthens: unconditional where it was opt-in, and at the unit
@@ -131,6 +146,16 @@ frame.
 - The solid-local frame needs a matrix composer parameterised by its stop
   condition, shared with the world composer rather than a second walker that can
   drift from it.
+- Solid-local framing introduces a failure mode the world frame did not have —
+  a cross-solid pair reading as welded — so the same-solid guard is part of the
+  decision, not an optimisation. The meta-project harness carries the
+  adversarial pair for it: `welded` (green, animated solid) alongside
+  `unwelded` and `cross_part_weld` (both red), the last of which passes
+  vacuously if the guard is ever removed.
+- Publication reads every topmost rigid node's STL, so a build that ends with a
+  rigid artifact still absent — its lock held by another builder — is an
+  incomplete render, not a verification failure. `generate_stl` reports that
+  case so the supervisor retries.
 
 ## Alternatives considered
 

@@ -218,7 +218,9 @@ Connectivity is deliberately solid-local (ADR-039). The build guarantees one
 body per topmost rigid node, while `assertJoined(a, b, min_weld_volume=...)`
 checks the stronger pairwise claim that two named features meet directly. It
 composes operations only below their enclosing topmost rigid node, excluding
-whole-solid placement and every animated ancestor. Collision remains
+whole-solid placement and every animated ancestor. That frame is meaningful
+only within one part, so the assertion refuses a pair drawn from two different
+solids instead of comparing them at their own origins. Collision remains
 world-framed and time-dependent.
 
 ### Viewers (VIEWER-WEB · spec `web-viewer`)

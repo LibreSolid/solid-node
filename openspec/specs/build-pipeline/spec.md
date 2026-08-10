@@ -129,6 +129,18 @@ The system SHALL guard STL generation with a `.stl.lock` file containing the
 rendering process PID, and SHALL treat a lock as stale when that PID is no
 longer alive (`os.kill(pid, 0)` fails). A locked node skips generation.
 
+Because publication reads each topmost rigid node's STL, a build that finishes
+with any rigid artifact still absent SHALL be reported as an incomplete render
+rather than proceeding to verification, so a node whose lock another builder
+holds makes the supervisor retry instead of failing on a missing file.
+
+#### Scenario: A locked node leaves the build incomplete
+
+- **WHEN** a builder finishes triggering renders but a rigid node's STL is
+  still absent because another process holds its lock
+- **THEN** the build reports an incomplete render and nothing is verified or
+  published
+
 #### Scenario: Stale lock
 
 - **WHEN** a lock file references a dead PID

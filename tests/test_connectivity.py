@@ -16,6 +16,7 @@ Like tests/test_assertions.py these use tiny stand-ins with a real
 .mesh, rather than driving a full STL build.
 """
 
+import inspect
 import os
 import tempfile
 from types import SimpleNamespace
@@ -114,6 +115,26 @@ class FusionHierarchyTest(TestCase):
         self.assertIn('OuterSolid', message)
         self.assertIn('MovingParts', message)
 
+    def test_the_rule_belongs_to_fusion_not_to_the_base_class(self):
+        """InternalNode must not know its own subclasses: the fusion
+        rule lives on FusionNode, and a plain InternalNode subclass
+        that is not a fusion imposes no rigidity requirement."""
+        self.assertIn('validate', FusionNode.__dict__)
+
+        source = inspect.getsource(InternalNode.validate)
+        self.assertNotIn('FusionNode', source)
+
+        class OuterAssembly(AssemblyNode):
+            pass
+
+        outer = object.__new__(OuterAssembly)
+        outer.name = 'Outer'
+        inner = object.__new__(AssemblyNode)
+        inner.name = 'Inner'
+        self.assertFalse(inner.rigid)
+
+        InternalNode.validate(outer, [inner])
+
     def test_as_scad_does_not_shadow_type_determined_rigidity(self):
         fusion = object.__new__(FusionNode)
         fusion.root = None
@@ -197,6 +218,37 @@ class AssertJoinedTest(TestCase):
             asserter.assertJoined(first, second)
 
             animated_placement.matrix.assert_not_called()
+
+    def test_features_of_different_solids_are_refused(self):
+        """The dangerous direction of solid-local framing: each node
+        placed in its OWN solid's frame lands at that part's origin, so
+        the distance the assembly holds between the parts vanishes and
+        two features that share nothing would read as welded."""
+        with tempfile.TemporaryDirectory() as directory:
+            stl_file = os.path.join(directory, 'feature.stl')
+            one_body().export(stl_file)
+            assembly = SimpleNamespace(rigid=False, _parent=None,
+                                       operations=[], name='Rig')
+            left = StlNode(stl_file, 'LeftBracket', parent=assembly)
+            right = StlNode(stl_file, 'RightBracket', parent=assembly)
+            right.operations.append(Translation([1000, 0, 0], right))
+
+            with self.assertRaises(AssertionError) as caught:
+                asserter.assertJoined(left, right)
+
+        message = str(caught.exception)
+        self.assertIn('different solids', message)
+        self.assertIn('LeftBracket', message)
+        self.assertIn('RightBracket', message)
+
+    def test_unassembled_doubles_are_still_comparable(self):
+        """A node with no parent is not linked into a tree, so it is
+        not evidence of a second part: the guard stays out of the way
+        of plain mesh geometry."""
+        first, second = welded_pair()
+
+        asserter.assertJoined(FakeNode(first, name='Hub'),
+                              FakeNode(second, name='Boss'))
 
     def test_pair_joined_only_through_third_feature_still_fails(self):
         first = box((2, 2, 2))

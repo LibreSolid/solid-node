@@ -12,7 +12,7 @@ from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
 from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
-                                  _compose_world_matrix)
+                                  _compose_world_matrix, _enclosing_solid)
 from solid_node.node.operations import Rotation, Translation
 
 
@@ -434,7 +434,26 @@ class TestCase(BaseTestCase):
         rule that governs distinct parts. `min_weld_volume` (mm^3)
         additionally requires the shared volume welding them to be
         substantial rather than a numerical lick of contact.
+
+        Both nodes must belong to the SAME solid. The comparison runs
+        in that solid's frame, so two nodes from different solids would
+        each be placed at their own part's origin -- discarding the
+        distance the assembly holds between the parts, and reporting
+        two features that share nothing as welded. Being asked whether
+        two separate parts are one part is a question about the model,
+        not the geometry, so it fails as such rather than being
+        silently answered in the wrong frame.
         """
+        solid1 = _enclosing_solid(node1)
+        solid2 = _enclosing_solid(node2)
+        if solid1 is not None and solid2 is not None and solid1 is not solid2:
+            raise AssertionError(
+                f"{node1.name} and {node2.name} cannot be joined: they "
+                f"belong to different solids ({solid1.name} and "
+                f"{solid2.name}). Features weld only inside one printed "
+                f"part; parts placed by an assembly are separate by "
+                f"construction"
+            )
         _, weld_volume = _intersection_stats(
             node1, node2, compose_matrix=_compose_solid_matrix)
         union = trimesh.boolean.union([

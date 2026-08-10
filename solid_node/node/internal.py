@@ -43,8 +43,6 @@ class InternalNode(AbstractBaseNode):
 
     def validate(self, rendered):
         """Check that rendered result is a list"""
-        from .fusion import FusionNode
-
         if type(rendered) not in (list, tuple):
             raise Exception(f"{self.__class__}.render() should return a list, "
                             f"not {type(rendered)}")
@@ -56,7 +54,3 @@ class InternalNode(AbstractBaseNode):
             if type(child) is type(self):
                 raise Exception(f"{self.__class__}.render() cannot return its "
                                 "own type")
-            if isinstance(self, FusionNode) and not child.rigid:
-                raise Exception(
-                    f"{self.name} cannot fuse non-rigid child {child.name}; "
-                    "fuse solids first, then assemble them")

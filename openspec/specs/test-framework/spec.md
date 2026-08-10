@@ -210,10 +210,25 @@ assertions are unaffected and continue to operate on world-space meshes,
 because whether two separately placed parts clash is a world-framed,
 time-dependent question.
 
+Both nodes SHALL belong to the same solid. When two assembled nodes resolve to
+different topmost rigid ancestors, `assertJoined` SHALL fail naming both nodes
+and both solids, rather than comparing them: each would be placed at its own
+part's origin, discarding the distance the assembly holds between the parts and
+reporting two features that share nothing as welded. A node not linked into a
+tree SHALL NOT be treated as evidence of a second solid, so plain mesh geometry
+remains comparable.
+
 `assertJoined` remains necessary alongside the build's guarantee: a solid can
 be one connected component while the two features the designer cared about
 never reach each other, joined only by a detour through others; and no body
 count can express a required weld volume.
+
+#### Scenario: Features of two different parts are refused
+
+- **WHEN** `assertJoined` runs on two nodes whose enclosing solids differ,
+  however far apart the assembly holds those solids
+- **THEN** the assertion fails naming both nodes and both solids, and no
+  geometric comparison is made
 
 #### Scenario: Tangential contact is not a join
 

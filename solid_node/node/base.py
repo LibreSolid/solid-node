@@ -88,12 +88,24 @@ def _compose_matrix(node, stop_before):
 
 
 def _compose_world_matrix(node):
-    """Compose node and ancestor operations into one world matrix."""
+    """The node's placement in WORLD coordinates: its own operations
+    then each ancestor's, walking node -> parent -> ... -- the same
+    composition the shared viewer applies, so mesh and viewer placement
+    share one semantics (ADR-028). Later operations are outermost (each
+    op's matrix is premultiplied onto the running total).
+
+    This is the right frame for COLLISION: whether two separately
+    placed parts clash is a world-framed, time-dependent question. It
+    is the wrong frame for connectivity -- see _compose_solid_matrix.
+    """
     return _compose_matrix(node, lambda current: False)
 
 
 def _topmost_rigid_ancestor(node):
-    """Return the rigid root of the solid containing ``node``."""
+    """Return the rigid root of the solid containing ``node``: walk up
+    while the parent is rigid, so the result is the node whose STL is
+    the whole printed part. A node directly under an assembly is its
+    own solid."""
     current = node
     while True:
         parent = getattr(current, '_parent', None)
@@ -102,8 +114,31 @@ def _topmost_rigid_ancestor(node):
         current = parent
 
 
+def _enclosing_solid(node):
+    """The topmost rigid ancestor of an ASSEMBLED node, or None when
+    the node is not linked into a tree at all.
+
+    The distinction matters for the same-solid guard in assertJoined:
+    two unlinked nodes (mesh-only test doubles, or geometry examined
+    before assemble()) are not evidence of two different parts, while
+    two linked nodes resolving to different solids are.
+    """
+    if getattr(node, '_parent', None) is None:
+        return None
+    return _topmost_rigid_ancestor(node)
+
+
 def _compose_solid_matrix(node):
-    """Compose placement inside a solid, excluding whole-solid pose."""
+    """The node's placement WITHIN its enclosing solid: operations
+    below the topmost rigid ancestor only, stopping before that node's
+    own operations, which are pose of the whole body.
+
+    This is the right frame for CONNECTIVITY: whether two features of
+    one part meet is local and timeless, invariant under the rigid
+    placement an assembly applies to the part as a whole. Composing no
+    further also means no animated ancestor operation is ever resolved,
+    so the question has the same answer at every instant.
+    """
     solid = _topmost_rigid_ancestor(node)
     return _compose_matrix(node, lambda current: current is solid)
 

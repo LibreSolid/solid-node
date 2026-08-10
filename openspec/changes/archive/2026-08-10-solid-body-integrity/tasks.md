@@ -82,3 +82,24 @@
 - [x] 7.4 Update the narrative docs that mention body counts
       (`docs/testing.rst`, `docs/fusion.rst`) if they do.
 - [x] 7.5 Sync delta specs into `openspec/specs/` and archive the change.
+
+## 8. Review corrections (ratified after first implementation)
+
+- [x] 8.1 Red: `assertJoined` on two nodes in different solids must fail; it
+      passed vacuously, because each node was placed at its own part's origin.
+- [x] 8.2 Add the same-solid guard, treating an unlinked node as no evidence of
+      a second solid so mesh-only doubles stay comparable.
+- [x] 8.3 Meta-project adversarial set for `assertJoined`, which had none:
+      `welded` (green, animated enclosing solid), `unwelded` (red, one body but
+      the named pair meets only through a third feature), `cross_part_weld`
+      (red, two solids 40mm apart — passes vacuously without 8.2).
+- [x] 8.4 Move the fusion hierarchy rule from a type test in
+      `InternalNode.validate` to a `FusionNode.validate` override, so the base
+      class no longer depends on a subclass or need a circular import.
+- [x] 8.5 Specify the locked-artifact lifecycle under "Concurrent render
+      locking": publication reads every topmost rigid node's STL, so a missing
+      rigid artifact is an incomplete render, not a verification failure.
+- [x] 8.6 Restore the ADR-028 world/collision rationale on
+      `_compose_world_matrix` and state the connectivity/collision split on
+      `_compose_solid_matrix`.
+- [x] 8.7 Record 8.1–8.5 in ADR-039 and the architecture synthesis.

@@ -138,6 +138,40 @@ class KeyframePropagationMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class SolidLocalConnectivityMetaTest(TestCase):
+    """assertJoined asks whether two features of ONE printed part meet.
+    That is a local, timeless question, so it is answered in the
+    enclosing solid's frame -- not the world frame, which would resolve
+    an animated ancestor's $t, and not each node's own frame, which
+    would discard the distance an assembly holds between two parts.
+
+    All three fixtures run the real pipeline: real fusions, real STLs,
+    real keyframes. Unit doubles cannot establish that composition
+    stops in the right place under a live assembly."""
+
+    def test_features_of_an_animated_solid_stay_joined(self):
+        run = solid_test('welded')
+        self.assertEqual(run.results, {
+            'test_features_stay_joined_through_the_cycle': 'passed',
+            'test_the_weld_meets_its_required_volume': 'passed',
+        })
+        self.assertEqual(run.returncode, 0)
+
+    def test_one_body_cannot_mask_an_unjoined_pair(self):
+        run = solid_test('unwelded')
+        self.assertEqual(run.results,
+                         {'test_hub_and_boss_are_joined': 'failed'})
+        self.assertIn('should be joined into one body', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_solid_local_framing_cannot_weld_two_separate_parts(self):
+        run = solid_test('cross_part_weld')
+        self.assertEqual(run.results,
+                         {'test_separate_parts_are_joined': 'failed'})
+        self.assertIn('belong to different solids', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+
 class MeshCompositionMetaTest(TestCase):
     """Bug: node.mesh applied only the node's own operations, so any
     placement living on an ancestor assembly was invisible to mesh
