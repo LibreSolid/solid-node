@@ -9,6 +9,9 @@
 **Extended by:**
 - [ADR-029: Manifold Cache and AABB Broad-Phase for Intersection Assertions](./ADR-029-manifold-cache-and-aabb-broad-phase-for-assertions.md) — accelerates the intersection path while preserving the strict `volume_epsilon=0` flush-contact contract
 
+**Superseded in part by:**
+- [ADR-040: Topmost-Rigid Assembly Integrity Certificate](./ADR-040-topmost-rigid-assembly-integrity-certificate.md) — replaces the adjacency sweep as guidance for new whole-assembly safety tests; the old API remains compatibility behavior
+
 **Related to:**
 - [ADR-010: TestCaseMixin Pattern for Embedded Tests](./ADR-010-testcasemixin-pattern-for-embedded-tests.md)
 - [ADR-011: Animation Testing Decorators for Time-Based Validation](./ADR-011-animation-testing-decorators.md)

@@ -400,6 +400,60 @@ class PairwiseAdjacencyMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class AssemblyIntegrityMetaTest(TestCase):
+    """The default assembly certificate through the real CLI and kernel."""
+
+    def test_single_rigid_root_passes(self):
+        run = solid_test('assembly_integrity_single')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_separated_nested_topmost_solids_pass(self):
+        run = solid_test('assembly_integrity_nested')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_exact_boundary_contact_passes(self):
+        run = solid_test('assembly_integrity_contact')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_animated_world_placement_reports_positive_interference(self):
+        run = solid_test('assembly_integrity_animated')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'failed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 0, 1))
+        self.assertRegex(
+            run.stdout,
+            r'Running AssemblyIntegrityAnimatedTest\.test_assembly_integrity'
+            r'\.\.\.FAIL!',
+        )
+        self.assertIn('fixed should not interfere with moving', run.stdout)
+        self.assertIn('intersection volume', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_failfast_stops_the_animated_instant_loop(self):
+        proc = run_solid(
+            'test', '--failfast',
+            'tests/meta_project/assembly_integrity_animated.py',
+        )
+        stdout = ANSI.sub('', proc.stdout)
+        self.assertRegex(
+            stdout,
+            r'Running AssemblyIntegrityAnimatedTest\.test_assembly_integrity'
+            r'\.\.FAIL!',
+        )
+        self.assertNotRegex(
+            stdout,
+            r'Running AssemblyIntegrityAnimatedTest\.test_assembly_integrity'
+            r'\.\.\.FAIL!',
+        )
+        self.assertIn('fixed should not interfere with moving', stdout)
+        self.assertNotEqual(proc.returncode, 0)
+
+
 class VolumeEpsilonMetaTest(TestCase):
     """volume_epsilon on assertNoPairwiseIntersections/
     assertBlockedBeyond/assertFreeWithin (skill-repo improvements.md

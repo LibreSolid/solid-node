@@ -32,6 +32,9 @@ class DemoProjectTest(TestCase):
 
     def test_solid_integrity(self):
         self.assertNoDisconnectedSolids(self.node)
+
+    def test_assembly_integrity(self):
+        self.assertNoSolidInterference(self.node)
 '''
 
 
@@ -175,5 +178,5 @@ class ScaffoldAcceptanceTest(TestCase):
 
         self.assertTrue(os.path.isdir(os.path.join(project_dir, '_build')),
                         'solid build did not publish a build directory')
-        self.assertIn('Ran 1 tests', test_output.getvalue())
-        self.assertIn('1 passed, 0 failed', test_output.getvalue())
+        self.assertIn('Ran 2 tests', test_output.getvalue())
+        self.assertIn('2 passed, 0 failed', test_output.getvalue())

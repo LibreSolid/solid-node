@@ -111,6 +111,14 @@ writing tests: mixing ``TestCaseMixin`` into a node class, or writing a
 .. autoclass:: solid_node.test.TestCase
    :members:
 
+   ``assertNoDisconnectedSolids(node)`` checks that every topmost rigid solid
+   in a subtree is one connected body. ``assertNoSolidInterference(node)``
+   checks that those same printed solids have no positive-volume world-space
+   overlap at the runner's current keyframe; exact boundary contact passes and
+   there is no public overlap epsilon. The older
+   ``assertNoPairwiseIntersections`` leaf sweep is deprecated and retained
+   only for compatibility.
+
 .. autoclass:: solid_node.test.TestCaseMixin
 
 .. autofunction:: solid_node.test.testing_steps

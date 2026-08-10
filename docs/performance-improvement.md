@@ -267,3 +267,47 @@ spike's C mode because it includes the AABB culling from the first
 pass, mixing fixes 2+3's cost together; the warm-cache number isolates
 steady-state suite behavior once the caches are populated, matching
 the spike's D mode closely).
+
+## Assembly integrity certificate benchmark
+
+Measured 2026-08-10 in the same development environment (manifold3d 3.5.2,
+no GPU). This compares the complete new ``assertNoSolidInterference`` path
+(same-kernel batch union plus sweep-and-prune candidate verification) with the
+deprecated ``assertNoPairwiseIntersections`` sweep. One cached STL is placed
+repeatedly at separated world positions; results are the best of three warm
+runs in milliseconds.
+
+| geometry | triangles/part | parts | batch union + candidates | deprecated sweep |
+|----------|---------------:|------:|-------------------------:|-----------------:|
+| box | 12 | 16 | 0.624 | 6.368 |
+| box | 12 | 32 | 1.146 | 25.767 |
+| box | 12 | 64 | 2.160 | 103.814 |
+| box | 12 | 128 | 4.435 | 451.253 |
+| icosphere | 320 | 16 | 2.257 | 6.659 |
+| icosphere | 320 | 32 | 3.417 | 26.475 |
+| icosphere | 320 | 64 | 7.033 | 111.385 |
+| icosphere | 320 | 128 | 10.875 | 445.972 |
+
+For these sparse clean assemblies, the deprecated method still visits every
+pair in Python even though its per-pair AABB test rejects each Boolean. Its
+time grows approximately fourfold as part count doubles. The combined new
+path grew near-linearly across this bounded sample; that is measured behavior,
+not a universal complexity claim for mesh union.
+
+An early offending pair is the adverse case for the new safety certificate:
+the deprecated method can fail immediately, while the new method deliberately
+batch-unions the whole assembly before localizing the pair.
+
+| geometry | triangles/part | parts | batch union + candidates | deprecated early fail |
+|----------|---------------:|------:|-------------------------:|----------------------:|
+| box | 12 | 32 | 1.627 | 0.170 |
+| box | 12 | 128 | 5.641 | 0.200 |
+| icosphere | 320 | 32 | 7.291 | 0.634 |
+| icosphere | 320 | 128 | 23.484 | 0.635 |
+
+The trade-off is intentional: the global union is an order-independent
+root-level certificate and guards against a candidate-index omission, while
+the spatial index prevents unconditional pair construction and supplies an
+actionable diagnostic. Dense overlapping AABBs and expensive union geometry
+remain worst cases. The path executes in the CPU Manifold kernel; the framework
+does not upload meshes to a GPU.

@@ -325,8 +325,8 @@ requires both to agree; `directions='forward'` checks only
 sleeve blocked sliding inward by a lip but free to slide outward).
 
 `volume_epsilon` (mm^3, default ``0.0``) guards against boolean-noise
-slivers from a legitimate flush contact (see
-`assertNoPairwiseIntersections` below): above zero, a perturbation
+slivers from a legitimate flush contact (the deprecated leaf sweep has the
+same historical parameter): above zero, a perturbation
 only counts as fouling once its intersection volume exceeds the
 epsilon.
 
@@ -368,19 +368,56 @@ Because the assertion reads local STLs and composes no placement matrix, it
 has the same verdict beneath an animated assembly at every instant. Passing a
 subassembly scopes the check to that subtree.
 
-Adjacency sweep
----------------
+Assembly integrity
+------------------
 
-* `assertNoPairwiseIntersections(node, volume_epsilon=0.0)` — walks
-  the assembled tree rooted at `node` down to its leaves and asserts
-  that every pair of leaves is non-intersecting. This is a safety net
-  that holds regardless of which specific contracts exist: any two
-  parts you forgot to test against each other directly are still
-  covered. Combine it with `@testing_steps` to sweep the whole
-  animation. `volume_epsilon` (mm³) is for parts that legitimately
-  abut flush: their boolean intersection is float noise, orders of
-  magnitude below any real interference — above zero, only fouling
-  volumes exceeding the epsilon count as intersections.
+``assertNoSolidInterference(node)`` is the world-space complement to solid
+integrity. It descends through assemblies and selects the first rigid node on
+each branch: the same topmost printed-solid boundary used by
+``assertNoDisconnectedSolids``. It then certifies that those solids have no
+positive-volume overlap at the testing instant already selected by the
+runner. Ingredients inside a rigid fusion are not treated as separate parts.
+
+A rigid root contains only one selected solid, so the assertion passes without
+loading geometry. This makes both initial tests useful from a project's first
+generated leaf through its later evolution into a nested assembly:
+
+.. code-block:: python
+
+    def test_solid_integrity(self):
+        self.assertNoDisconnectedSolids(self.node)
+
+    def test_assembly_integrity(self):
+        self.assertNoSolidInterference(self.node)
+
+The assembly assertion uses current world transforms. Decorate the ordinary
+test with :ref:`@testing_steps <testing-steps>` or ``@testing_instant`` when
+the contract must cover motion; the assertion itself neither accepts nor sets
+a keyframe.
+
+Empty intersections and exact zero-volume boundary contact pass. Every
+positive intersection volume reported by the geometry kernel fails, and the
+diagnostic names an offending pair. There is deliberately no public overlap
+epsilon. A volume waiver can hide a real narrow penetration and is not a
+production allowance. Where parts must run free, encode physical clearance in
+the model and add a pair-specific distance or fit contract with a
+manufacturing margin expressed in length.
+
+Internally, the assertion compares the stable sum of individual Manifold
+volumes with one Manifold batch union, then uses a sweep-and-prune index over
+world AABBs to find an offending pair. Its private numerical uncertainty only
+detects inconsistent aggregate arithmetic; it never permits overlap. This is
+a CPU geometry-kernel path (Manifold may use its own CPU parallelism), not a
+GPU computation.
+
+Deprecated leaf-pair sweep
+--------------------------
+
+``assertNoPairwiseIntersections(node, volume_epsilon=0.0)`` is retained for
+compatibility but deprecated. It visits every leaf pair and preserves its
+historical ``volume_epsilon`` behavior. New tests should use
+``assertNoSolidInterference`` and account for the deliberate scope change:
+topmost rigid printed solids instead of every leaf, with no overlap epsilon.
 
 See the :doc:`API Reference <api-reference>` for details. All the
 standard `unittest.TestCase` assertions are available as well.

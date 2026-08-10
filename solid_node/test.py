@@ -6,9 +6,10 @@ import itertools
 import math
 import os
 import re
+import warnings
 import numpy as np
 import trimesh
-from manifold3d import Manifold, Mesh
+from manifold3d import Manifold, Mesh, OpType
 from unittest import TestCase as BaseTestCase
 
 from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
@@ -102,6 +103,87 @@ def _boxes_disjoint(box1, box2):
     of the parts they bound exactly empty, whatever their real shapes
     are."""
     return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
+
+
+def _bounds_candidates(bounds):
+    """Yield index pairs whose conservative world AABBs overlap.
+
+    Sweep along X, retaining only intervals that can still reach the current
+    box, then filter that active set on all three axes. The yielded set contains
+    only genuine AABB overlaps and never materializes the N*(N-1)/2 pair set.
+    As with every broad phase the dense worst case remains quadratic, but a
+    sparse assembly keeps only its local neighborhood active.
+    """
+    order = sorted(range(len(bounds)),
+                   key=lambda index: (bounds[index][0][0],
+                                      bounds[index][1][0], index))
+    active = []
+    for current in order:
+        current_min_x = bounds[current][0][0]
+        active = [index for index in active
+                  if bounds[index][1][0] >= current_min_x]
+        for candidate in active:
+            if _boxes_disjoint(bounds[candidate], bounds[current]):
+                continue
+            yield (min(candidate, current), max(candidate, current))
+        active.append(current)
+
+
+def _placed_assembly_solids(node):
+    """Cached local and lazily world-placed Manifolds below ``node``.
+
+    Each tuple is ``(solid, local_manifold, placed_manifold, world_bounds)``.
+    Selection is deliberately done before any geometry access so a rigid root
+    can pass the public assertion without requiring its STL.
+    """
+    placed = []
+    for solid in _topmost_rigid_nodes(node):
+        manifold, local_bounds = _cached_manifold(solid.stl_file)
+        matrix = _compose_world_matrix(solid)
+        placed.append((
+            solid,
+            manifold,
+            manifold.transform(matrix[:3, :4]),
+            _world_bounds(local_bounds, matrix),
+        ))
+    return placed
+
+
+def _assembly_volume_certificate(solids):
+    """Return ``(deficit, uncertainty)`` for placed topmost solids.
+
+    Both sides stay in Manifold: local volumes are invariant under the rigid
+    world transforms, and the placed inputs are batch-unioned without a
+    Trimesh round trip. The private uncertainty is deliberately conservative
+    and is only a control-flow signal; callers still verify spatial candidates
+    and never use it as permitted overlap.
+    """
+    total_volume = math.fsum(item[1].volume() for item in solids)
+    union = Manifold.batch_boolean(
+        [item[2] for item in solids], OpType.Add)
+    union_volume = union.volume()
+    deficit = total_volume - union_volume
+
+    # A surface displaced by the kernel's length tolerance changes volume on
+    # the order of area*tolerance. Add the analogous union term and an ulp
+    # allowance for the scalar accumulation. This bound does not decide a
+    # pass; it decides whether the aggregate result is self-consistent after
+    # candidate verification.
+    geometric = math.fsum(
+        abs(item[2].surface_area()) * max(item[2].get_tolerance(), 0.0)
+        for item in solids)
+    geometric += (
+        abs(union.surface_area()) * max(union.get_tolerance(), 0.0))
+    magnitude = max(abs(total_volume), abs(union_volume), 1.0)
+    arithmetic = math.ulp(magnitude) * max(8, 2 * len(solids))
+    return deficit, geometric + arithmetic
+
+
+def _candidate_intersection(solids, first, second):
+    """Engine-native emptiness and volume for one placed solid pair."""
+    result = solids[first][2] ^ solids[second][2]
+    is_empty = result.is_empty()
+    return is_empty, 0.0 if is_empty else result.volume()
 
 
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
@@ -442,6 +524,45 @@ class TestCase(BaseTestCase):
                     f"{solid.name} should be one connected body, but its STL "
                     f"contains {bodies} connected bodies")
 
+    def assertNoSolidInterference(self, node):
+        """Assert the printed solids below ``node`` share no volume.
+
+        The topmost rigid nodes are placed in world coordinates at the testing
+        instant already selected by the runner. Empty and zero-volume boundary
+        contact pass; every positive candidate intersection reported by the
+        kernel fails. There is intentionally no public overlap epsilon:
+        manufacturing clearances are length-based project contracts, not a
+        globally permitted volume of interpenetration.
+        """
+        selected = list(_topmost_rigid_nodes(node))
+        if len(selected) <= 1:
+            return
+
+        solids = _placed_assembly_solids(node)
+        deficit, uncertainty = _assembly_volume_certificate(solids)
+        for first, second in _bounds_candidates(
+                [item[3] for item in solids]):
+            is_empty, volume = _candidate_intersection(
+                solids, first, second)
+            if is_empty or volume == 0.0:
+                continue
+            solid1 = solids[first][0]
+            solid2 = solids[second][0]
+            raise AssertionError(
+                f"{solid1.name} should not interfere with {solid2.name} "
+                f"(intersection volume {volume})")
+
+        if not math.isfinite(deficit):
+            raise AssertionError(
+                "Assembly interference volume certificate is non-finite "
+                f"({deficit}) after candidate verification")
+        if abs(deficit) > uncertainty:
+            raise AssertionError(
+                "Assembly interference volume certificate is inconsistent "
+                "with spatial candidate verification "
+                f"(volume deficit {deficit}, numerical uncertainty "
+                f"{uncertainty})")
+
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.
         that they are genuinely the same printed part.
@@ -495,13 +616,13 @@ class TestCase(BaseTestCase):
     # Adjacency sweep
 
     def assertNoPairwiseIntersections(self, node, volume_epsilon=0.0):
-        """Walk the assembled tree rooted at `node` down to its
-        leaves (a node with no children is a leaf; every other node's
-        children are walked recursively) and assert that every pair
-        of leaves is non-intersecting. The safety net that holds
-        regardless of which specific contracts exist: any two parts
-        someone forgot to test against each other directly are still
-        covered here.
+        """Deprecated compatibility assertion over every leaf pair.
+
+        New whole-assembly tests should use ``assertNoSolidInterference``.
+        This method retains its historical traversal and verdicts: walk the
+        assembled tree rooted at `node` down to its leaves (a node with no
+        children is a leaf; every other node's children are walked
+        recursively) and assert that every pair is non-intersecting.
 
         `volume_epsilon` (mm^3, default 0.0 keeps exact `is_empty`
         strictness): two parts that legitimately abut flush (e.g.
@@ -513,6 +634,13 @@ class TestCase(BaseTestCase):
         volume exceeds `volume_epsilon`; a genuine overlap comfortably
         above the epsilon is still reported.
         """
+        warnings.warn(
+            "assertNoPairwiseIntersections is deprecated; use "
+            "assertNoSolidInterference, which checks topmost rigid solids "
+            "without a public overlap epsilon",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         leaves = self._leaves(node)
         for leaf1, leaf2 in itertools.combinations(leaves, 2):
             is_empty, volume = _intersection_stats(leaf1, leaf2)

@@ -207,17 +207,30 @@ pair. `volume_epsilon` separates real interference from boolean noise,
 with a deliberately strict default: a flush contact that is non-empty
 at exactly 0.0 mm³ **is** a foul until the test opts into an epsilon.
 
-The intersection path (ADR-029) caches one Manifold per
+The shared intersection path (ADR-029) caches one Manifold per
 `(stl_file, mtime)` (watertightness checked once, at fill), culls
 provably disjoint pairs with a conservative world-AABB broad-phase,
 and reads `is_empty()`/`volume()` straight off lazy-transformed
 Manifolds — verdict-identical to the naive path, orders of magnitude
 faster on real assemblies.
 
-Connectivity is deliberately solid-local (ADR-039, amended 2026-08-10).
+The root-level integrity boundary is the first rigid node on every branch
+(ADR-039/040). Connectivity is deliberately solid-local.
 `assertNoDisconnectedSolids(node)` explicitly checks that every printed solid
 in a selected subtree is one connected body; it reads each topmost rigid
-node's local STL and is never run automatically. `assertJoined(a, b,
+node's local STL. `assertNoSolidInterference(node)` is its world-space
+assembly complement: zero or one selected solid passes without geometry work;
+otherwise it compares a stable sum of cached-Manifold volumes with one
+same-kernel batch union, and independently searches conservative world-AABB
+candidates for the first positive-volume overlap. Exact zero-volume boundary
+contact passes. A private numerical bound can identify inconsistent aggregate
+arithmetic but can never waive candidate overlap, and no public volume epsilon
+is exposed. The old all-leaf `assertNoPairwiseIntersections` sweep remains
+deprecated and behavior-compatible.
+
+Both integrity assertions run only when ordinary project test source calls
+them. `solid new` declares them as two counted companion tests; non-test
+commands do not load that companion. `assertJoined(a, b,
 min_weld_volume=...)` checks the separate pairwise claim that two named
 features meet directly. It composes operations only below their enclosing
 topmost rigid node, excluding whole-solid placement and every animated
@@ -337,7 +350,7 @@ The short list that changes must not silently break:
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
-| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029 |
+| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040 |
 | Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
 | Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |
