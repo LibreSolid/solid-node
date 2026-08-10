@@ -88,7 +88,9 @@ geometry is produced.
 A **topmost rigid node** is a rigid node whose parent is non-rigid, or the root
 node when the root is itself rigid. Because a fusion cannot contain an
 assembly, every rigid node is either a topmost rigid node or a descendant of
-exactly one.
+exactly one. A topmost rigid node is the boundary of one printed solid and the
+unit selected by whole-solid assertions; this definition does not itself run
+an assertion or guarantee that the solid's geometry is connected.
 
 #### Scenario: An assembly cannot be fused
 
@@ -114,6 +116,13 @@ exactly one.
   a nested fusion
 - **THEN** the outer `FusionNode` is the topmost rigid node of that branch, and
   the leaves and nested fusion are not
+
+#### Scenario: The solid boundary does not imply a test
+
+- **WHEN** a topmost rigid node's STL contains disconnected geometry and no
+  project test calls `assertNoDisconnectedSolids`
+- **THEN** its status as a topmost rigid node neither rejects the model nor
+  causes a connectivity assertion to run
 
 ### Requirement: Animation-time access restrictions
 

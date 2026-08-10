@@ -114,6 +114,19 @@ def _topmost_rigid_ancestor(node):
         current = parent
 
 
+def _topmost_rigid_nodes(node):
+    """Yield each printed solid below ``node``.
+
+    A rigid node is already the complete printed solid for its branch, so the
+    walk stops there rather than inspecting its rigid ingredients.
+    """
+    if node.rigid:
+        yield node
+        return
+    for child in node.children:
+        yield from _topmost_rigid_nodes(child)
+
+
 def _enclosing_solid(node):
     """The topmost rigid ancestor of an ASSEMBLED node, or None when
     the node is not linked into a tree at all.

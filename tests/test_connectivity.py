@@ -28,7 +28,7 @@ from trimesh.util import concatenate
 
 from solid_node.test import TestCase as AssertingTestCase
 from solid_node.node import AssemblyNode, FusionNode
-from solid_node.node.base import AbstractBaseNode
+from solid_node.node.base import AbstractBaseNode, _topmost_rigid_nodes
 from solid_node.node.internal import InternalNode
 from solid_node.node.operations import Translation
 
@@ -98,6 +98,77 @@ class DisjointShellsAreWatertightTest(TestCase):
         self.assertTrue(mesh.is_watertight)
         self.assertTrue(mesh.is_volume)
         self.assertAlmostEqual(mesh.volume, 16.0, places=6)
+
+
+class TopmostRigidNodesTest(TestCase):
+
+    def test_walk_stops_at_outer_solid_and_rigid_root_selects_itself(self):
+        leaf = SimpleNamespace(rigid=True, children=(), name='leaf')
+        nested = SimpleNamespace(rigid=True, children=(leaf,), name='nested')
+        outer = SimpleNamespace(rigid=True, children=(nested,), name='outer')
+        assembly = SimpleNamespace(rigid=False, children=(outer,),
+                                   name='assembly')
+
+        self.assertEqual(list(_topmost_rigid_nodes(assembly)), [outer])
+        self.assertEqual(list(_topmost_rigid_nodes(outer)), [outer])
+
+
+class AssertNoDisconnectedSolidsTest(TestCase):
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+
+    def stl_node(self, name, mesh, *, rigid=True, children=(), parent=None):
+        path = os.path.join(self.directory.name, f'{name}.stl')
+        mesh.export(path)
+        return SimpleNamespace(name=name, stl_file=path, rigid=rigid,
+                               children=children, _parent=parent,
+                               operations=[])
+
+    def test_names_disconnected_solid_and_body_count(self):
+        broken = self.stl_node('broken-gear', two_bodies())
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertNoDisconnectedSolids(broken)
+
+        self.assertIn('broken-gear', str(caught.exception))
+        self.assertIn('2', str(caught.exception))
+
+    def test_passes_each_selected_single_body_solid(self):
+        left = self.stl_node('left', one_body())
+        right = self.stl_node('right', one_body())
+        assembly = SimpleNamespace(name='assembly', rigid=False,
+                                   children=(left, right))
+
+        asserter.assertNoDisconnectedSolids(assembly)
+
+    def test_stops_at_enclosing_fusion(self):
+        ingredient = self.stl_node('fragmented-ingredient', two_bodies())
+        fusion = self.stl_node('joined-fusion', one_body(),
+                               children=(ingredient,))
+
+        asserter.assertNoDisconnectedSolids(fusion)
+
+    def test_checks_only_the_passed_subtree(self):
+        good = self.stl_node('selected', one_body())
+        broken = self.stl_node('outside', two_bodies())
+        SimpleNamespace(name='assembly', rigid=False, children=(good, broken))
+
+        asserter.assertNoDisconnectedSolids(good)
+
+    def test_does_not_compose_animated_placement(self):
+        animated = Mock()
+        animated.matrix.side_effect = TypeError('(360 * $t) is not a number')
+        solid = self.stl_node('animated-solid', one_body())
+        solid.operations.append(animated)
+        assembly = SimpleNamespace(name='assembly', rigid=False,
+                                   children=(solid,), operations=[])
+        solid._parent = assembly
+
+        asserter.assertNoDisconnectedSolids(assembly)
+
+        animated.matrix.assert_not_called()
 
 
 class FusionHierarchyTest(TestCase):

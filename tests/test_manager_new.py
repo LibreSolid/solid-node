@@ -25,6 +25,15 @@ class DemoProject(Solid2Node):
         ) - cylinder(r=10, h=100)
 '''
 
+EXPECTED_TEST = '''from solid_node.test import TestCase
+
+
+class DemoProjectTest(TestCase):
+
+    def test_solid_integrity(self):
+        self.assertNoDisconnectedSolids(self.node)
+'''
+
 
 class NewCommandTest(TestCase):
 
@@ -40,10 +49,12 @@ class NewCommandTest(TestCase):
             New().handle(args)
 
         init_path = os.path.join(target, 'myproj', 'myproj.py')
+        test_path = os.path.join(target, 'myproj', 'test_myproj.py')
         manifest_path = os.path.join(target, 'pyproject.toml')
         gitignore_path = os.path.join(target, '.gitignore')
 
         self.assertTrue(os.path.isfile(init_path))
+        self.assertTrue(os.path.isfile(test_path))
         self.assertTrue(os.path.isfile(manifest_path))
         self.assertTrue(os.path.isfile(gitignore_path))
 
@@ -51,8 +62,12 @@ class NewCommandTest(TestCase):
             init_content = f.read()
         with open(gitignore_path) as f:
             gitignore_content = f.read()
+        with open(test_path) as f:
+            test_content = f.read()
 
         self.assertEqual(init_content, EXPECTED_INIT.replace('DemoProject', 'Myproj'))
+        self.assertEqual(test_content,
+                         EXPECTED_TEST.replace('DemoProject', 'Myproj'))
         with open(manifest_path) as f:
             self.assertIn('model = "myproj.myproj:Myproj"', f.read())
         # `_build/` would not match the build path, which is a symlink to
@@ -152,9 +167,13 @@ class ScaffoldAcceptanceTest(TestCase):
         from solid_node.manager.build import Build
         from solid_node.manager.test import Test
 
+        test_output = io.StringIO()
         with redirect_stdout(io.StringIO()):
             Build().handle(Namespace(path=None))
+        with redirect_stdout(test_output):
             Test().handle(Namespace(path=None, failfast=False))
 
         self.assertTrue(os.path.isdir(os.path.join(project_dir, '_build')),
                         'solid build did not publish a build directory')
+        self.assertIn('Ran 1 tests', test_output.getvalue())
+        self.assertIn('1 passed, 0 failed', test_output.getvalue())

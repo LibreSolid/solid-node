@@ -172,11 +172,11 @@ build dir — file-based IPC, no broker
 (ADR-018). A broken initial build kills develop; a broken reload falls back to
 a broad recursive watch and keeps the loop alive.
 
-Before either publication path writes `viewer.json`, the builder verifies each
-topmost rigid node directly from its own untransformed STL and requires exactly
-one connected body (ADR-039). The walk stops at that node because its STL
-already contains its rigid descendants. No placement matrix is composed, so
-the check is timeless and works unchanged beneath animated assemblies.
+Publication enforces build mechanics and model validity, not project-selected
+geometry contracts. It therefore does not count STL components or invoke
+whole-solid connectivity assertions. The incomplete-render guard remains: a
+manifest may not name a rigid artifact that has not been written, independently
+of any geometric test (ADR-039, amended 2026-08-10).
 
 ### CLI (BUILD · spec `cli`)
 
@@ -214,14 +214,16 @@ and reads `is_empty()`/`volume()` straight off lazy-transformed
 Manifolds — verdict-identical to the naive path, orders of magnitude
 faster on real assemblies.
 
-Connectivity is deliberately solid-local (ADR-039). The build guarantees one
-body per topmost rigid node, while `assertJoined(a, b, min_weld_volume=...)`
-checks the stronger pairwise claim that two named features meet directly. It
-composes operations only below their enclosing topmost rigid node, excluding
-whole-solid placement and every animated ancestor. That frame is meaningful
-only within one part, so the assertion refuses a pair drawn from two different
-solids instead of comparing them at their own origins. Collision remains
-world-framed and time-dependent.
+Connectivity is deliberately solid-local (ADR-039, amended 2026-08-10).
+`assertNoDisconnectedSolids(node)` explicitly checks that every printed solid
+in a selected subtree is one connected body; it reads each topmost rigid
+node's local STL and is never run automatically. `assertJoined(a, b,
+min_weld_volume=...)` checks the separate pairwise claim that two named
+features meet directly. It composes operations only below their enclosing
+topmost rigid node, excluding whole-solid placement and every animated
+ancestor. That frame is meaningful only within one part, so the assertion
+refuses a pair drawn from two different solids instead of comparing them at
+their own origins. Collision remains world-framed and time-dependent.
 
 ### Viewers (VIEWER-WEB · spec `web-viewer`)
 
@@ -308,9 +310,10 @@ The short list that changes must not silently break:
   (ADR-022).
 - Users never override `assemble()`; rigid geometry is time-invariant
   (ADR-002/003).
-- Every topmost rigid node publishes as exactly one connected body; body
-  declarations do not exist, connectivity uses the solid-local frame, and
-  collision uses the world frame (ADR-039).
+- A topmost rigid node is the boundary of one printed solid, not a guarantee
+  that its geometry is connected. Whole-solid integrity is an explicit
+  project assertion; connectivity uses the solid-local frame and collision
+  uses the world frame (ADR-039, amended 2026-08-10).
 
 ## Known gaps and tensions
 

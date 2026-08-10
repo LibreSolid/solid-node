@@ -121,6 +121,35 @@ belongs to the class that has it, as a `validate()` override calling `super()`
 — not as a type test inside `InternalNode`, which would make the base class
 depend on one of its own subclasses and force a circular import to express.
 
+## Amendment — 2026-08-10: integrity is an explicit project test
+
+Implementation exposed a lifecycle contradiction in the decision above:
+verification in `Builder` ran during `solid build`, `solid develop`, and
+`solid snapshot`, but `solid test` builds STLs without constructing a builder.
+The geometric contract therefore failed publications while remaining absent
+from the test count, project source, `--failfast`, and animation-test lifecycle.
+
+The sentence **“Verification stays in the builder, on both publication
+paths” is superseded.** The topmost-rigid-node unit, local-STL measurement,
+static rigidity rule, fusion hierarchy constraint, and connectivity/collision
+framing remain accepted.
+
+Whole-solid integrity is now the ordinary project assertion
+`TestCase.assertNoDisconnectedSolids(node)`. It selects topmost rigid nodes
+relative to the argument, reads each selected node's untransformed STL, splits
+with `only_watertight=False`, and requires exactly one component. It runs only
+when project test code calls it. The builder performs no project geometry
+assertion; a disconnected solid can publish when no test declares the
+contract. `solid new` mitigates that accepted consequence by scaffolding a
+visible companion test that makes the call.
+
+The incomplete-render guard remains for a different reason: `viewer.json`
+must not advertise a rigid artifact that does not exist. That is manifest
+integrity, not geometric verification.
+
+Implemented by
+[`explicit-solid-integrity-test`](../../../openspec/changes/archive/2026-08-10-explicit-solid-integrity-test/).
+
 ## Consequences
 
 - The guarantee strengthens: unconditional where it was opt-in, and at the unit

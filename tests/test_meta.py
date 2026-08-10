@@ -172,6 +172,29 @@ class SolidLocalConnectivityMetaTest(TestCase):
         self.assertNotEqual(run.returncode, 0)
 
 
+class ExplicitSolidIntegrityMetaTest(TestCase):
+
+    def test_declared_connected_solid_passes(self):
+        run = solid_test('solid_integrity_green')
+        self.assertEqual(run.results, {'test_solid_integrity': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_declared_fragmented_solid_fails_with_count(self):
+        run = solid_test('solid_integrity_red')
+        self.assertEqual(run.results, {'test_solid_integrity': 'failed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 0, 1))
+        self.assertIn('SolidIntegrityRed', run.stdout)
+        self.assertIn('2', run.stdout)
+        self.assertEqual(run.returncode, 1)
+
+    def test_undeclared_fragmented_solid_adds_no_test(self):
+        run = solid_test('solid_integrity_undeclared')
+        self.assertEqual(run.results, {})
+        self.assertEqual((run.total, run.passed, run.failed), (0, 0, 0))
+        self.assertNotIn('connected body', run.stdout)
+        self.assertEqual(run.returncode, 0)
+
 class MeshCompositionMetaTest(TestCase):
     """Bug: node.mesh applied only the node's own operations, so any
     placement living on an ancestor assembly was invisible to mesh

@@ -129,17 +129,18 @@ The system SHALL guard STL generation with a `.stl.lock` file containing the
 rendering process PID, and SHALL treat a lock as stale when that PID is no
 longer alive (`os.kill(pid, 0)` fails). A locked node skips generation.
 
-Because publication reads each topmost rigid node's STL, a build that finishes
-with any rigid artifact still absent SHALL be reported as an incomplete render
-rather than proceeding to verification, so a node whose lock another builder
-holds makes the supervisor retry instead of failing on a missing file.
+Because the published manifest references every rigid node's STL by path, a
+build that finishes with any rigid artifact still absent SHALL be reported as
+an incomplete render rather than publishing, so a node whose lock another
+builder holds makes the supervisor retry instead of advertising a file that is
+not there. This requirement rests on manifest integrity alone and does not
+depend on any geometric check.
 
 #### Scenario: A locked node leaves the build incomplete
 
 - **WHEN** a builder finishes triggering renders but a rigid node's STL is
   still absent because another process holds its lock
-- **THEN** the build reports an incomplete render and nothing is verified or
-  published
+- **THEN** the build reports an incomplete render and nothing is published
 
 #### Scenario: Stale lock
 
@@ -235,53 +236,39 @@ this purpose.
   the published set is not current for them
 - **THEN** it renders and publishes exactly as it does without contention
 
-### Requirement: Every topmost rigid node is one connected body
+### Requirement: Publication runs no project geometry assertion
 
-Before publishing, a builder SHALL verify that each topmost rigid node in the
-loaded tree is exactly one connected solid. The count SHALL be taken from that
-node's own built STL with no operations applied, and components SHALL be
-counted without filtering to watertight ones, so a fragment that is itself
-closed still counts as a body.
+The build and publication pipeline SHALL NOT count connected components, read
+an STL to evaluate a geometric contract, or invoke
+`assertNoDisconnectedSolids`. A disconnected solid SHALL NOT by itself be a
+build or publication failure.
 
-The sweep SHALL stop at each topmost rigid node and SHALL NOT descend into its
-rigid descendants: geometry below a topmost rigid node is already composed into
-its STL, and a leaf or nested fusion is free to be several separated pieces so
-long as the enclosing solid joins them. No world matrix SHALL be composed for
-this check, so no operation value can require resolution and an animated
-subtree is verified exactly as a static one is.
+The pipeline remains responsible for build mechanics and model validity —
+render failures, missing artifacts, and structurally invalid trees such as a
+fusion containing an assembly. Those are properties of a well-formed model,
+not geometric contracts a project selected, and they SHALL continue to fail
+the build.
 
-Verification SHALL happen on every path that publishes, including the one that
-finds the artifact set already current, so a model that arrives in pieces
-cannot reach the maker by that route either. A violation SHALL prevent
-publication and SHALL be reported through the same error channel as any other
-build failure, naming the node and the number of bodies found, and leaving the
-previously published artifacts in place.
-
-#### Scenario: A fragmented model is not published
+#### Scenario: A fragmented solid publishes
 
 - **WHEN** a build completes rendering and a topmost rigid node's STL has more
-  than one connected solid
-- **THEN** no viewer snapshot is published and the failure is reported through
-  `errors.json`, naming that node and the count found
+  than one connected solid, with no other failure
+- **THEN** the viewer snapshot is published normally and no connectivity error
+  is written
 
-#### Scenario: The already-current path is checked too
+#### Scenario: The already-current path checks nothing either
 
-- **WHEN** a builder finds the published artifact set already current for a
-  tree containing a fragmented topmost rigid node
-- **THEN** it republishes nothing and reports the failure
+- **WHEN** a builder finds the artifact set already current for a tree
+  containing a fragmented solid
+- **THEN** it publishes on its ordinary terms and reports no connectivity
+  failure
 
-#### Scenario: An animated part is verified like any other
+#### Scenario: A declared test does not change build behavior
 
-- **WHEN** a topmost rigid node's placement is driven by an enclosing assembly,
-  so its operations hold unresolved animation expressions
-- **THEN** verification reads its STL directly, resolves no operation value,
-  and publication proceeds when the STL is one body
-
-#### Scenario: Pieces inside a solid are permitted
-
-- **WHEN** a `FusionNode` joins two leaves that are each several separated
-  solids, and the fused result is one connected body
-- **THEN** the fusion passes, and neither leaf is checked
+- **WHEN** a project declares a test method calling
+  `assertNoDisconnectedSolids`
+- **THEN** `solid build`, `solid develop` and `solid snapshot` neither discover
+  nor execute it
 
 ### Requirement: Asynchronous STL render protocol
 

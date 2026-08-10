@@ -176,10 +176,73 @@ flush-contact noise.
   than the epsilon
 - **THEN** an `AssertionError` names the offending pair
 
+### Requirement: Explicit whole-solid connectivity assertion
+
+The system SHALL provide `assertNoDisconnectedSolids(node)` as an ordinary
+`TestCase` assertion.
+
+Starting from `node`, the assertion SHALL descend through non-rigid nodes and
+SHALL stop at the first rigid node on each branch, so each selected node is one
+printed solid. The assertion SHALL read that node's own built STL, split it
+without filtering to watertight components, and require exactly one connected
+component. A rigid node passed directly SHALL be its own only selected solid,
+and rigid ingredients inside a selected solid SHALL NOT be checked
+independently.
+
+The assertion SHALL NOT compose node or ancestor operations and SHALL NOT read
+a world-framed mesh. Connected-component count is invariant under rigid
+placement, so assembly placement, animation instant, and unresolved `$t`
+expressions SHALL have no effect on its verdict.
+
+On violation the assertion SHALL raise `AssertionError` naming the solid and
+the number of bodies found, and MAY fail at the first disconnected solid.
+
+The framework SHALL execute this assertion only when project test code calls
+it. The test runner, builder, node base classes, and scaffold SHALL NOT
+register, schedule, or invoke it automatically, and no declaration attribute,
+mixin, decorator, or registry SHALL cause it to run.
+
+#### Scenario: A declared integrity test passes
+
+- **WHEN** a test method calls `assertNoDisconnectedSolids(self.node)` and every
+  selected solid's STL has one connected component
+- **THEN** it passes as one ordinary counted test
+
+#### Scenario: A declared integrity test fails
+
+- **WHEN** a test method calls the assertion and a selected solid's STL has
+  three components
+- **THEN** the test fails with an `AssertionError` naming that solid and the
+  three bodies, and the run's summary counts the failure
+
+#### Scenario: An undeclared contract does not run
+
+- **WHEN** a project whose geometry is disconnected declares no test calling
+  `assertNoDisconnectedSolids`
+- **THEN** `solid test` adds no integrity test to its count and reports no
+  connectivity failure
+
+#### Scenario: An animated solid is asserted like a static one
+
+- **WHEN** the assertion runs over an assembly that drives a selected solid's
+  placement with an operation holding `$t`
+- **THEN** it reads that solid's STL directly, resolves no operation value, and
+  reaches the same verdict at every animation instant
+
+#### Scenario: Pieces inside a solid are permitted
+
+- **WHEN** a `FusionNode` joins ingredients that are each several separated
+  solids, and the fused STL is one connected body
+- **THEN** the fusion passes and its ingredients are not checked independently
+
+#### Scenario: The assertion is scoped to the node it is given
+
+- **WHEN** the assertion is called on one subassembly of a larger model
+- **THEN** only the solids within that subtree are selected and checked
+
 ### Requirement: Connectivity assertions
 
-The system SHALL provide one connectivity assertion, over a pair of named
-nodes:
+The system SHALL provide two connectivity assertions:
 
 - `assertJoined(node1, node2, min_weld_volume=0.0)` — the union of the two
   nodes' meshes is exactly one connected component, so the two features are
@@ -187,10 +250,14 @@ nodes:
   requires the volume they share to reach that value. Solids that only touch
   tangentially SHALL NOT count as joined.
 
+- `assertNoDisconnectedSolids(node)` — every printed solid in the selected
+  subtree is one connected body, specified above.
+
+Neither SHALL be invoked by the framework; both run only when project test code
+calls them.
+
 `assertOneBody`, `assertBodyCount` and `assertNoDisconnectedParts` SHALL NOT be
-provided. The build guarantees unconditionally that every topmost rigid node is
-one connected body, so they assert a state a project can no longer reach;
-`assertBodyCount` additionally expressed the removed `bodies` declaration's
+provided. `assertBodyCount` expressed the removed `bodies` declaration's
 mistake that a solid may legitimately be several disconnected pieces, and
 `assertNoDisconnectedParts` swept leaves, holding a leaf to a contract that
 belongs to the solid enclosing it.
@@ -218,10 +285,10 @@ reporting two features that share nothing as welded. A node not linked into a
 tree SHALL NOT be treated as evidence of a second solid, so plain mesh geometry
 remains comparable.
 
-`assertJoined` remains necessary alongside the build's guarantee: a solid can
-be one connected component while the two features the designer cared about
-never reach each other, joined only by a detour through others; and no body
-count can express a required weld volume.
+The two assertions answer different questions and neither implies the other. A
+solid can be one connected component while the two features the designer cared
+about reach each other only by a detour through others; and no body count can
+express a required weld volume.
 
 #### Scenario: Features of two different parts are refused
 

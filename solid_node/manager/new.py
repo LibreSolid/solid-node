@@ -48,6 +48,15 @@ class New:
                 content = source.read().replace('DemoProject', class_name)
         with open(os.path.join(package_dir, f'{package}.py'), 'w') as output:
             output.write(content)
+
+        test_src = templates / 'test.py'
+        with resources.as_file(test_src) as test_path:
+            with open(test_path) as source:
+                test_content = source.read().replace(
+                    'DemoProject', class_name)
+        with open(os.path.join(package_dir, f'test_{package}.py'), 'w') as output:
+            output.write(test_content)
+
         with open(os.path.join(target, 'pyproject.toml'), 'w') as output:
             output.write('[tool.solid-node]\n')
             output.write(f'model = "{package}.{package}:{class_name}"\n')

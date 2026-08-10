@@ -19,22 +19,13 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
-from solid_node.node.base import StlRenderStart, _cached_base_mesh
+from solid_node.node.base import StlRenderStart
 
 
 logger = logging.getLogger('core.builder')
 
 
 _build_locks = threading.local()
-
-
-def _topmost_rigid_nodes(node):
-    """Yield each printed solid and stop before its rigid ingredients."""
-    if node.rigid:
-        yield node
-        return
-    for child in node.children:
-        yield from _topmost_rigid_nodes(child)
 
 
 def get_build_lock_path(build_dir=None):
@@ -263,7 +254,6 @@ class Builder(FileSystemEventHandler):
                 # it.
                 logger.info('Published artifacts are already current')
                 try:
-                    self._verify_solid_bodies()
                     published = self._write_viewer_snapshot()
                 except Exception:
                     error_message = traceback.format_exc()
@@ -277,7 +267,6 @@ class Builder(FileSystemEventHandler):
                     outcome = await self.generate_stl()
                     if outcome is BuildOutcome.RENDERED:
                         return outcome
-                    self._verify_solid_bodies()
                     self._write_viewer_snapshot()
                     published = True
                 except Exception:
@@ -388,23 +377,6 @@ class Builder(FileSystemEventHandler):
         atomic_write(os.path.join(self.build_dir, 'viewer.json'), document)
         self._sweep_unreferenced_artifacts(snapshot)
         return True
-
-    def _verify_solid_bodies(self):
-        """Require each topmost rigid node's own STL to be one body.
-
-        The STL is read without applying any node or ancestor operations:
-        connectivity is local and invariant under rigid placement.  The walk
-        stops at the first rigid node on each branch because its STL already
-        contains all rigid descendants.
-        """
-        for node in _topmost_rigid_nodes(self.node):
-            actual = len(_cached_base_mesh(node.stl_file).split(
-                only_watertight=False))
-            if actual != 1:
-                raise ValueError(
-                    f"{node.name} must be one connected body but its STL "
-                    f"contains {actual}. Solids only fuse where they overlap; "
-                    "features that touch or miss stay separate bodies")
 
     def _published_document(self):
         try:

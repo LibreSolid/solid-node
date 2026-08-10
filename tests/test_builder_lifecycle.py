@@ -16,7 +16,7 @@ from trimesh.creation import box
 from trimesh.util import concatenate
 
 from solid_node.core.builder import (Builder, BuildOutcome, atomic_write,
-                                     _topmost_rigid_nodes, write_error)
+                                     write_error)
 from solid_node.node.base import StlRenderStart
 
 from .test_build_lock import lock_is_held
@@ -95,7 +95,7 @@ class FakeNode:
         return os.path.exists(path) and os.path.getmtime(path) == self.mtime
 
 
-class SolidBodyIntegrityTest(TestCase):
+class PublicationGeometryTest(TestCase):
 
     def setUp(self):
         environment = patch.dict(os.environ)
@@ -116,46 +116,7 @@ class SolidBodyIntegrityTest(TestCase):
         second.apply_translation([5, 0, 0])
         return concatenate([first, second])
 
-    def test_topmost_rigid_walk_stops_at_outer_solid(self):
-        leaf = FakeNode('missing-leaf.stl', name='leaf')
-        nested = FakeNode('missing-nested.stl', children=(leaf,),
-                          name='nested')
-        outer = FakeNode('missing-outer.stl', children=(nested,),
-                         name='outer')
-        assembly = FakeNode(None, children=(outer,), name='assembly')
-
-        self.assertEqual(list(_topmost_rigid_nodes(assembly)), [outer])
-
-    def test_rigid_root_is_its_own_topmost_rigid_node(self):
-        child = FakeNode('missing-child.stl', name='child')
-        root = FakeNode('missing-root.stl', children=(child,), name='root')
-
-        self.assertEqual(list(_topmost_rigid_nodes(root)), [root])
-
-    def test_verification_checks_outer_stl_and_not_fragmented_children(self):
-        outer_path = self.artifact('outer.stl', box((2, 2, 2)))
-        leaf = FakeNode('missing-fragmented-leaf.stl', name='ingredients')
-        outer = FakeNode(outer_path, children=(leaf,), name='joined-solid')
-        builder = Builder('model.py', build_dir=self.root, watch=False)
-        builder.node = outer
-
-        builder._verify_solid_bodies()
-
-    def test_animated_placement_is_not_resolved(self):
-        part_path = self.artifact('gear.stl', box((2, 2, 2)))
-        part = FakeNode(part_path, name='gear')
-        operation = Mock()
-        operation.matrix.side_effect = TypeError('(360 * $t) is not a number')
-        part.operations = (operation,)
-        assembly = FakeNode(None, children=(part,), name='gear-pair')
-        builder = Builder('model.py', build_dir=self.root, watch=False)
-        builder.node = assembly
-
-        builder._verify_solid_bodies()
-
-        operation.matrix.assert_not_called()
-
-    def test_fragmented_solid_fails_both_publication_paths(self):
+    def test_fragmented_solid_publishes_on_both_publication_paths(self):
         for already_current in (False, True):
             with self.subTest(already_current=already_current):
                 build_dir = os.path.join(
@@ -176,17 +137,12 @@ class SolidBodyIntegrityTest(TestCase):
                                   return_value=BuildOutcome.CURRENT):
                     outcome = asyncio.run(builder._start())
 
-                self.assertEqual(outcome, BuildOutcome.FAILED)
-                with open(os.path.join(build_dir, 'errors.json')) as error_file:
-                    message = json.load(error_file)['error']
-                self.assertIn('broken-gear', message)
-                self.assertIn('2', message)
-                if already_current:
-                    with open(os.path.join(build_dir, 'viewer.json')) as f:
-                        self.assertEqual(json.load(f), {'previous': True})
-                else:
-                    self.assertFalse(os.path.exists(
-                        os.path.join(build_dir, 'viewer.json')))
+                self.assertEqual(outcome, BuildOutcome.CURRENT)
+                self.assertFalse(os.path.exists(
+                    os.path.join(build_dir, 'errors.json')))
+                with open(os.path.join(build_dir, 'viewer.json')) as f:
+                    self.assertEqual(json.load(f)['root']['name'],
+                                     'broken-gear')
 
 
 class BuildOutcomeTest(TestCase):
@@ -387,7 +343,6 @@ class BuildCallbackTest(TestCase):
                    return_value=Mock(children=())), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
-             patch.object(builder, '_verify_solid_bodies'), \
              patch.object(builder, '_write_viewer_snapshot',
                           side_effect=lambda: events.append('snapshot')), \
              patch.object(builder, '_notify_callback',
@@ -418,7 +373,6 @@ class BuildCallbackTest(TestCase):
                    recording_lock), \
              patch.object(builder, 'generate_stl',
                           return_value=BuildOutcome.CURRENT), \
-             patch.object(builder, '_verify_solid_bodies'), \
              patch.object(builder, '_write_viewer_snapshot'), \
              patch.object(builder, '_notify_callback',
                           side_effect=lambda: held.append('callback')):

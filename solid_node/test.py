@@ -12,7 +12,8 @@ from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
 from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
-                                  _compose_world_matrix, _enclosing_solid)
+                                  _compose_world_matrix, _enclosing_solid,
+                                  _topmost_rigid_nodes)
 from solid_node.node.operations import Rotation, Translation
 
 
@@ -424,6 +425,22 @@ class TestCase(BaseTestCase):
 
     ########################################
     # Connectivity
+
+    def assertNoDisconnectedSolids(self, node):
+        """Assert every printed solid in ``node`` is one connected body.
+
+        Each selected solid is read from its own STL with no placement
+        operations composed. Connectivity is invariant under rigid placement,
+        and rigid descendants are ingredients of the enclosing solid rather
+        than independent parts.
+        """
+        for solid in _topmost_rigid_nodes(node):
+            bodies = len(_cached_base_mesh(solid.stl_file).split(
+                only_watertight=False))
+            if bodies != 1:
+                raise AssertionError(
+                    f"{solid.name} should be one connected body, but its STL "
+                    f"contains {bodies} connected bodies")
 
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.

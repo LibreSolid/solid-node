@@ -340,6 +340,34 @@ epsilon.
         self.assertFreeWithin(self.pin, 0.1, self.bore, along=(1, 0, 0))
         self.assertBlockedBeyond(self.pin, 0.5, self.bore, along=(1, 0, 0))
 
+Connectivity contracts
+----------------------
+
+Connectivity asks whether geometry hangs together inside one printed solid;
+it is local and invariant under rigid placement. Collision asks whether
+separately placed parts clash in the world and can change at each animation
+instant. Solid Node keeps those frames distinct:
+
+* ``assertNoDisconnectedSolids(node)`` — starting at ``node``, descends
+  through assemblies and stops at the first rigid node on each branch. Each
+  selected solid's own STL must contain exactly one connected component.
+  Rigid ingredients inside a fusion are not checked independently.
+* ``assertJoined(node1, node2, min_weld_volume=0.0)`` — proves two named
+  features of the same printed solid meet directly, optionally with a minimum
+  weld volume.
+
+Neither assertion runs automatically. Declare the whole-solid contract as an
+ordinary counted test where it is wanted:
+
+.. code-block:: python
+
+    def test_solid_integrity(self):
+        self.assertNoDisconnectedSolids(self.node)
+
+Because the assertion reads local STLs and composes no placement matrix, it
+has the same verdict beneath an animated assembly at every instant. Passing a
+subassembly scopes the check to that subtree.
+
 Adjacency sweep
 ---------------
 
