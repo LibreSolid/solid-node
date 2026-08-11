@@ -56,6 +56,20 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 - **THEN** the assertion passes that candidate without requiring a public
   epsilon
 
+#### Scenario: Numerical uncertainty receives further verification
+
+- **WHEN** a candidate pair's exact intersection is non-empty with a volume
+  small enough to be indistinguishable from floating-point noise
+- **THEN** the assertion fails on that candidate, applying no tolerance of its
+  own that could turn numerical slack into permitted overlap
+
+#### Scenario: No whole-assembly measurement is computed
+
+- **WHEN** the assertion evaluates two or more topmost rigid solids
+- **THEN** it performs no Boolean union, aggregate volume, or other
+  whole-assembly measurement, and reaches its verdict from the spatial index's
+  candidate pairs alone
+
 #### Scenario: Overlap hidden from a global volume comparison still fails
 
 - **WHEN** three or more topmost rigid solids share material, or one solid lies

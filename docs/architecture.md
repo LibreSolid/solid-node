@@ -220,13 +220,15 @@ The root-level integrity boundary is the first rigid node on every branch
 in a selected subtree is one connected body; it reads each topmost rigid
 node's local STL. `assertNoSolidInterference(node)` is its world-space
 assembly complement: zero or one selected solid passes without geometry work;
-otherwise it compares a stable sum of cached-Manifold volumes with one
-same-kernel batch union, and independently searches conservative world-AABB
-candidates for the first positive-volume overlap. Exact zero-volume boundary
-contact passes. A private numerical bound can identify inconsistent aggregate
-arithmetic but can never waive candidate overlap, and no public volume epsilon
-is exposed. The old all-leaf `assertNoPairwiseIntersections` sweep remains
-deprecated and behavior-compatible.
+otherwise a sweep-and-prune index over conservative world AABBs emits the
+potentially interacting pairs, and each is settled by an exact same-kernel
+intersection — the sole verification path, with no whole-assembly measurement.
+Exact zero-volume boundary contact passes, every positive candidate volume
+fails, and no public volume epsilon or private numerical tolerance is exposed.
+Correctness rests on the broad phase being complete, which is proved by
+framework tests rather than re-checked at runtime (ADR-040). The old all-leaf
+`assertNoPairwiseIntersections` sweep remains deprecated and
+behavior-compatible.
 
 Both integrity assertions run only when ordinary project test source calls
 them. `solid new` declares them as two counted companion tests; non-test

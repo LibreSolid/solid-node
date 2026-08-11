@@ -14,9 +14,7 @@ integrity certificate).
 Code: `solid_node/test.py`, `solid_node/manager/test.py`. The framework's own
 regression net is `tests/test_meta.py` over fixtures in `tests/meta_project/`
 (paired green/red contracts run through `solid test` end-to-end).
-
 ## Requirements
-
 ### Requirement: Test declaration and binding
 
 The system SHALL support two test styles run by the same command: a companion
@@ -176,21 +174,18 @@ the runner. Rigid descendants inside a selected fusion SHALL NOT be evaluated
 as separate assembly parts.
 
 The assertion SHALL pass without geometric work when selection contains zero
-or one solid. With multiple solids, it SHALL compare the sum of their volumes
-with the volume of their batch Boolean union using the same cached Manifold
-representation and world transforms. It SHALL also use a spatial index over
-conservative world bounds to evaluate only potentially interacting solid pairs,
-without first materializing every pairwise combination.
+or one solid. With multiple solids, a spatial index over conservative world
+bounds SHALL be the sole verification path: it emits every potentially
+interacting solid pair without first materializing every pairwise combination,
+and each emitted pair is evaluated by exact Boolean intersection of the cached
+Manifolds placed by their composed world transforms. The assertion SHALL NOT
+compute an aggregate volume, Boolean union, or other whole-assembly measurement
+of the selected solids.
 
 Positive-volume overlap SHALL fail. Empty intersection and non-empty
 zero-volume boundary contact SHALL pass. The assertion SHALL expose no overlap
-epsilon. A private numerical uncertainty bound MAY decide whether the global
-volume result requires pair verification, but SHALL NOT by itself cause a
-small positive result to pass. Candidate verification SHALL treat every
-positive intersection volume reported by the kernel as interference. If a
-clearly positive global deficit cannot be reconciled to a candidate pair, the
-assertion SHALL fail with the aggregate deficit and identify the numerical
-inconsistency rather than silently pass.
+epsilon and SHALL apply no numerical tolerance of its own: every positive
+intersection volume reported by the kernel is interference.
 
 When an offending candidate is found, the assertion SHALL raise
 `AssertionError` naming both topmost rigid solids and their measured
@@ -201,8 +196,7 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 
 - **WHEN** `assertNoSolidInterference(self.node)` is called on a leaf root or a
   fusion root containing only one topmost rigid solid
-- **THEN** the assertion passes without performing a Boolean union or candidate
-  intersection
+- **THEN** the assertion passes without performing any candidate intersection
 
 #### Scenario: Nested fusion ingredients are not assembly parts
 
@@ -227,10 +221,24 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 
 #### Scenario: Numerical uncertainty receives further verification
 
-- **WHEN** floating-point accumulation leaves the global volume deficit within
-  its private numerical uncertainty bound
-- **THEN** the assertion verifies spatially indexed candidates rather than
-  treating the uncertainty as permission for overlap
+- **WHEN** a candidate pair's exact intersection is non-empty with a volume
+  small enough to be indistinguishable from floating-point noise
+- **THEN** the assertion fails on that candidate, applying no tolerance of its
+  own that could turn numerical slack into permitted overlap
+
+#### Scenario: No whole-assembly measurement is computed
+
+- **WHEN** the assertion evaluates two or more topmost rigid solids
+- **THEN** it performs no Boolean union, aggregate volume, or other
+  whole-assembly measurement, and reaches its verdict from the spatial index's
+  candidate pairs alone
+
+#### Scenario: Overlap hidden from a global volume comparison still fails
+
+- **WHEN** three or more topmost rigid solids share material, or one solid lies
+  wholly inside another
+- **THEN** the assertion fails naming an offending pair, established from that
+  pair's own exact intersection rather than from any assembly-wide measurement
 
 #### Scenario: Current keyframe controls assembled placement
 
@@ -244,6 +252,12 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 - **WHEN** most selected solids have disjoint world bounds
 - **THEN** the spatial index emits only bounds-overlapping candidates and the
   assertion does not construct all `N * (N - 1) / 2` pairs
+
+#### Scenario: Assembly cost tracks interacting pairs, not total geometry
+
+- **WHEN** the selected solids are numerous and detailed but pairwise separated
+- **THEN** the assertion performs no work proportional to the assembly's total
+  triangle count beyond building one conservative world bound per solid
 
 ### Requirement: Pairwise adjacency sweep
 
@@ -433,3 +447,33 @@ exactly `end`.
 
 - **WHEN** a method is decorated `@testing_steps(10)`
 - **THEN** it runs at 10 evenly spaced instants from 0 to 1 inclusive
+
+### Requirement: Broad-phase completeness
+
+The conservative world bounds and the spatial index that emits candidate pairs
+SHALL be complete: for any placement of any two solids whose exact Boolean
+intersection is non-empty, the spatial index SHALL emit that pair. A world
+bound SHALL enclose its solid's placed geometry under any composed world
+matrix, and bounds that touch without overlapping SHALL be treated as a
+candidate rather than culled.
+
+Completeness SHALL be established by framework tests rather than by a runtime
+cross-check inside an assertion, so that a project's assertion cost is not
+charged for re-verifying framework code.
+
+#### Scenario: Index agrees with exhaustive comparison
+
+- **WHEN** framework tests evaluate an enumerated set of placements covering
+  separation, face, edge and vertex contact, overlap, containment, coincident
+  bounds, single-axis separation, zero-extent bounds, and rotation, together
+  with an exhaustive lattice of placements at fixed offsets
+- **THEN** every pair whose exact intersection is non-empty appears in the
+  spatial index's emitted candidates, compared against exhaustive
+  `N * (N - 1) / 2` evaluation
+
+#### Scenario: Rotated placement stays enclosed
+
+- **WHEN** a solid is placed by a world matrix that rotates it
+- **THEN** its conservative world bound encloses the rotated geometry, being a
+  superset of the true placed footprint rather than the untransformed box
+

@@ -403,12 +403,13 @@ production allowance. Where parts must run free, encode physical clearance in
 the model and add a pair-specific distance or fit contract with a
 manufacturing margin expressed in length.
 
-Internally, the assertion compares the stable sum of individual Manifold
-volumes with one Manifold batch union, then uses a sweep-and-prune index over
-world AABBs to find an offending pair. Its private numerical uncertainty only
-detects inconsistent aggregate arithmetic; it never permits overlap. This is
-a CPU geometry-kernel path (Manifold may use its own CPU parallelism), not a
-GPU computation.
+Internally, the assertion places each selected solid's cached Manifold, builds
+one conservative world AABB per solid, and uses a sweep-and-prune index to emit
+only the pairs whose boxes overlap. Each emitted pair meets an exact Manifold
+intersection. Nothing is computed over the assembly as a whole, so the cost
+tracks the number of interacting pairs rather than the model's total triangle
+count. This is a CPU geometry-kernel path (Manifold may use its own CPU
+parallelism), not a GPU computation.
 
 Deprecated leaf-pair sweep
 --------------------------

@@ -401,7 +401,8 @@ class PairwiseAdjacencyMetaTest(TestCase):
 
 
 class AssemblyIntegrityMetaTest(TestCase):
-    """The default assembly certificate through the real CLI and kernel."""
+    """The default assembly interference check through the real CLI and
+    kernel."""
 
     def test_single_rigid_root_passes(self):
         run = solid_test('assembly_integrity_single')
@@ -420,6 +421,30 @@ class AssemblyIntegrityMetaTest(TestCase):
         self.assertEqual(run.results, {'test_assembly_integrity': 'passed'})
         self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
         self.assertEqual(run.returncode, 0)
+
+    def test_triple_overlap_reports_an_offending_pair(self):
+        """Three solids sharing one region -- the arrangement a
+        whole-assembly volume comparison is intuitively good at. The
+        pairwise path must be no weaker. Which pair is named depends on
+        sweep order and either is a correct answer, so assert the shape
+        of the diagnostic rather than one hardcoded pair."""
+        run = solid_test('assembly_integrity_triple')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'failed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 0, 1))
+        self.assertIn('should not interfere with', run.stdout)
+        self.assertIn('intersection volume', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_containment_without_surface_crossing_reports_interference(self):
+        """The case surface-crossing intuition misses entirely: the
+        inner solid never touches the outer one's surface. Reported
+        volume is the whole inner solid."""
+        run = solid_test('assembly_integrity_contained')
+        self.assertEqual(run.results, {'test_assembly_integrity': 'failed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 0, 1))
+        self.assertIn('outer should not interfere with inner', run.stdout)
+        self.assertIn('intersection volume 1.0', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
 
     def test_animated_world_placement_reports_positive_interference(self):
         run = solid_test('assembly_integrity_animated')

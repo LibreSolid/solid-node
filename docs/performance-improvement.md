@@ -311,3 +311,56 @@ the spatial index prevents unconditional pair construction and supplies an
 actionable diagnostic. Dense overlapping AABBs and expensive union geometry
 remain worst cases. The path executes in the CPU Manifold kernel; the framework
 does not upload meshes to a GPU.
+
+## Removing the whole-assembly union
+
+Measured 2026-08-11, same environment and same methodology as the section
+above. The certificate was removed and the sweep-and-prune candidate path
+became the sole verification path; broad-phase completeness moved to
+deterministic framework tests. `assertNoSolidInterference` columns are
+before/after that removal.
+
+| geometry | tri/part | parts | before | after |
+|----------|---------:|------:|-------:|------:|
+| box | 12 | 16 | 0.513 | 0.365 |
+| box | 12 | 32 | 1.316 | 0.763 |
+| box | 12 | 64 | 2.181 | 1.691 |
+| box | 12 | 128 | 4.082 | 2.859 |
+| icosphere | 320 | 16 | 1.973 | 0.439 |
+| icosphere | 320 | 32 | 3.048 | 0.748 |
+| icosphere | 320 | 64 | 5.504 | 1.482 |
+| icosphere | 320 | 128 | 10.467 | 2.987 |
+
+The `before` column reproduces the previous section's measurements closely
+(0.624/0.513 at 16 boxes, 10.875/10.467 at 128 icospheres), so the two tables
+are comparable.
+
+The adverse case improves in the same direction, because the removed union ran
+before the offending pair could be localized:
+
+| geometry | tri/part | parts | before | after | deprecated early fail |
+|----------|---------:|------:|-------:|------:|----------------------:|
+| box | 12 | 32 | 1.869 | 0.911 | 0.158 |
+| box | 12 | 128 | 5.166 | 3.145 | 0.162 |
+| icosphere | 320 | 32 | 8.087 | 1.287 | 0.555 |
+| icosphere | 320 | 128 | 21.135 | 3.589 | 0.561 |
+
+The structural point is clearer at scale than in the ratios above. Holding
+part count at 125 and raising only per-part detail isolates what each path
+depends on:
+
+| total triangles | surviving assertion | removed operation |
+|----------------:|--------------------:|------------------:|
+| 40 000 (320/part) | 6.0 | 14.0 |
+| 640 000 (5120/part) | 6.0 | 236.5 |
+
+Sixteen times the geometry leaves the surviving assertion unchanged while the
+removed operation grows about seventeenfold. The candidate path's cost tracks
+the number of interacting pairs; the union's tracked the assembly's total
+triangle count, and it was paid on every passing run. That is the cost the
+removal eliminates.
+
+These remain bounded observations, not a complexity guarantee. Dense
+assemblies whose world bounds all overlap still produce a quadratic candidate
+set, and an individual candidate boolean over intricate geometry is still
+paid in full.

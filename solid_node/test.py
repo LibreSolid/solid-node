@@ -9,7 +9,7 @@ import re
 import warnings
 import numpy as np
 import trimesh
-from manifold3d import Manifold, Mesh, OpType
+from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
 from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
@@ -130,9 +130,11 @@ def _bounds_candidates(bounds):
 
 
 def _placed_assembly_solids(node):
-    """Cached local and lazily world-placed Manifolds below ``node``.
+    """Lazily world-placed Manifolds below ``node``.
 
-    Each tuple is ``(solid, local_manifold, placed_manifold, world_bounds)``.
+    Each tuple is ``(solid, placed_manifold, world_bounds)``. The placement is
+    Manifold's lazy ``transform()``: no conversion, no watertight re-check, and
+    no evaluation until a candidate boolean actually reads the result.
     Selection is deliberately done before any geometry access so a rigid root
     can pass the public assertion without requiring its STL.
     """
@@ -142,46 +144,15 @@ def _placed_assembly_solids(node):
         matrix = _compose_world_matrix(solid)
         placed.append((
             solid,
-            manifold,
             manifold.transform(matrix[:3, :4]),
             _world_bounds(local_bounds, matrix),
         ))
     return placed
 
 
-def _assembly_volume_certificate(solids):
-    """Return ``(deficit, uncertainty)`` for placed topmost solids.
-
-    Both sides stay in Manifold: local volumes are invariant under the rigid
-    world transforms, and the placed inputs are batch-unioned without a
-    Trimesh round trip. The private uncertainty is deliberately conservative
-    and is only a control-flow signal; callers still verify spatial candidates
-    and never use it as permitted overlap.
-    """
-    total_volume = math.fsum(item[1].volume() for item in solids)
-    union = Manifold.batch_boolean(
-        [item[2] for item in solids], OpType.Add)
-    union_volume = union.volume()
-    deficit = total_volume - union_volume
-
-    # A surface displaced by the kernel's length tolerance changes volume on
-    # the order of area*tolerance. Add the analogous union term and an ulp
-    # allowance for the scalar accumulation. This bound does not decide a
-    # pass; it decides whether the aggregate result is self-consistent after
-    # candidate verification.
-    geometric = math.fsum(
-        abs(item[2].surface_area()) * max(item[2].get_tolerance(), 0.0)
-        for item in solids)
-    geometric += (
-        abs(union.surface_area()) * max(union.get_tolerance(), 0.0))
-    magnitude = max(abs(total_volume), abs(union_volume), 1.0)
-    arithmetic = math.ulp(magnitude) * max(8, 2 * len(solids))
-    return deficit, geometric + arithmetic
-
-
 def _candidate_intersection(solids, first, second):
     """Engine-native emptiness and volume for one placed solid pair."""
-    result = solids[first][2] ^ solids[second][2]
+    result = solids[first][1] ^ solids[second][1]
     is_empty = result.is_empty()
     return is_empty, 0.0 if is_empty else result.volume()
 
@@ -533,15 +504,26 @@ class TestCase(BaseTestCase):
         kernel fails. There is intentionally no public overlap epsilon:
         manufacturing clearances are length-based project contracts, not a
         globally permitted volume of interpenetration.
+
+        The spatial index is the sole verification path. Positive-volume
+        interference is by definition material shared by SOME two solids, and
+        any such pair has overlapping conservative world bounds -- so a
+        complete broad phase reduces the assembly question to the pairs it
+        emits. Triple overlap and full containment are covered by that same
+        argument, not special-cased. Completeness is proved in
+        tests/test_broad_phase_culling.py rather than re-checked here against
+        a whole-assembly volume comparison: that comparison cost time
+        proportional to the assembly's total triangle count on every passing
+        run, could not name an offending pair, and only ever re-tested
+        framework code that does not change between runs (ADR-040).
         """
         selected = list(_topmost_rigid_nodes(node))
         if len(selected) <= 1:
             return
 
         solids = _placed_assembly_solids(node)
-        deficit, uncertainty = _assembly_volume_certificate(solids)
         for first, second in _bounds_candidates(
-                [item[3] for item in solids]):
+                [item[2] for item in solids]):
             is_empty, volume = _candidate_intersection(
                 solids, first, second)
             if is_empty or volume == 0.0:
@@ -551,17 +533,6 @@ class TestCase(BaseTestCase):
             raise AssertionError(
                 f"{solid1.name} should not interfere with {solid2.name} "
                 f"(intersection volume {volume})")
-
-        if not math.isfinite(deficit):
-            raise AssertionError(
-                "Assembly interference volume certificate is non-finite "
-                f"({deficit}) after candidate verification")
-        if abs(deficit) > uncertainty:
-            raise AssertionError(
-                "Assembly interference volume certificate is inconsistent "
-                "with spatial candidate verification "
-                f"(volume deficit {deficit}, numerical uncertainty "
-                f"{uncertainty})")
 
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.

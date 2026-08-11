@@ -130,26 +130,40 @@ class AssemblyIntegrityTestCase(TestCase):
         self.assertIn('Second', message)
         self.assertIn('intersection volume', message)
 
-    def test_global_deficit_stays_positive_for_triple_overlap(self):
+    def test_triple_overlap_fails_naming_a_pair(self):
+        """Three solids sharing one region. This is the arrangement a
+        whole-assembly volume comparison is intuitively good at, so
+        prove the pairwise path handles it: shared material among three
+        solids necessarily means some two of them share it."""
         solids = [self.part(f'Part{index}') for index in range(3)]
-        assembly = Assembly('Root', solids)
 
-        placed = test_module._placed_assembly_solids(assembly)
-        deficit, _ = test_module._assembly_volume_certificate(placed)
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertNoSolidInterference(Assembly('Root', solids))
 
-        self.assertGreater(deficit, 0.0)
+        message = str(caught.exception)
+        self.assertIn('should not interfere with', message)
+        self.assertIn('intersection volume', message)
+        self.assertEqual(
+            sum(f'Part{index}' in message for index in range(3)), 2)
 
-    def test_containment_produces_a_positive_global_deficit(self):
+    def test_containment_fails_naming_the_pair(self):
+        """A solid wholly inside another, with no surface crossing --
+        the case where surface-intersection intuition fails. The
+        conservative bounds still make it a candidate, and the exact
+        boolean still returns the contained solid."""
         outer_path = os.path.join(self.directory.name, 'outer.stl')
         box((4.0, 4.0, 4.0)).export(outer_path)
         outer = RigidNode('Outer', outer_path)
         inner = self.part('Inner')
 
-        placed = test_module._placed_assembly_solids(
-            Assembly('Root', (outer, inner)))
-        deficit, _ = test_module._assembly_volume_certificate(placed)
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertNoSolidInterference(
+                Assembly('Root', (outer, inner)))
 
-        self.assertGreater(deficit, 0.0)
+        message = str(caught.exception)
+        self.assertIn('Outer', message)
+        self.assertIn('Inner', message)
+        self.assertIn('intersection volume', message)
 
     def test_exact_face_contact_passes_without_an_epsilon(self):
         first = self.part('First')
@@ -184,28 +198,29 @@ class AssemblyIntegrityTestCase(TestCase):
 
         self.assertEqual(list(test_module._bounds_candidates(bounds)), [(0, 2)])
 
-    def test_batch_union_stays_in_manifold(self):
+    def test_no_whole_assembly_union_is_computed(self):
+        """The point of the change: the assertion reaches its verdict
+        through the spatial index alone. No Manifold batch union, no
+        Trimesh union, no aggregate measurement of any kind -- those
+        cost time proportional to the assembly's total triangle count on
+        every passing run and named no offending pair."""
         first = self.part('First')
         second = self.part('Second', [10, 0, 0])
-        original = test_module.Manifold.batch_boolean
 
-        with patch.object(test_module.Manifold, 'batch_boolean',
-                          wraps=original) as batch, patch(
-                'solid_node.test.trimesh.boolean.union',
-                side_effect=AssertionError('no Trimesh round trip')):
+        with patch.object(
+                test_module.Manifold, 'batch_boolean',
+                side_effect=AssertionError('no whole-assembly union')), \
+             patch('solid_node.test.trimesh.boolean.union',
+                   side_effect=AssertionError('no whole-assembly union')):
             asserter.assertNoSolidInterference(Assembly(
                 'Root', (first, second)))
 
-        batch.assert_called_once()
-
-    def test_uncertain_deficit_still_checks_bounds_candidates(self):
+    def test_bounds_candidates_are_the_verification_path(self):
         first = self.part('First')
         second = self.part('Second', [0.5, 0, 0])
 
-        with patch('solid_node.test._assembly_volume_certificate',
-                   return_value=(1e-15, 1e-12)), patch(
-                'solid_node.test._candidate_intersection',
-                return_value=(True, 0.0)) as candidate:
+        with patch('solid_node.test._candidate_intersection',
+                   return_value=(True, 0.0)) as candidate:
             asserter.assertNoSolidInterference(
                 Assembly('Root', (first, second)))
 
@@ -215,10 +230,8 @@ class AssemblyIntegrityTestCase(TestCase):
         first = self.part('First')
         second = self.part('Second', [0.5, 0, 0])
 
-        with patch('solid_node.test._assembly_volume_certificate',
-                   return_value=(0.0, 1e-12)), patch(
-                'solid_node.test._candidate_intersection',
-                return_value=(False, 0.0)):
+        with patch('solid_node.test._candidate_intersection',
+                   return_value=(False, 0.0)):
             asserter.assertNoSolidInterference(
                 Assembly('Root', (first, second)))
 
@@ -227,23 +240,10 @@ class AssemblyIntegrityTestCase(TestCase):
         second = self.part('Second', [0.5, 0, 0])
         smallest_positive = np.nextafter(0.0, 1.0)
 
-        with patch('solid_node.test._assembly_volume_certificate',
-                   return_value=(0.0, 1.0)), patch(
-                'solid_node.test._candidate_intersection',
-                return_value=(False, smallest_positive)):
+        with patch('solid_node.test._candidate_intersection',
+                   return_value=(False, smallest_positive)):
             with self.assertRaisesRegex(AssertionError,
                                         'intersection volume'):
-                asserter.assertNoSolidInterference(
-                    Assembly('Root', (first, second)))
-
-    def test_unreconciled_positive_certificate_fails(self):
-        first = self.part('First')
-        second = self.part('Second', [10, 0, 0])
-
-        with patch('solid_node.test._assembly_volume_certificate',
-                   return_value=(1.0, 1e-12)):
-            with self.assertRaisesRegex(
-                    AssertionError, 'certificate is inconsistent'):
                 asserter.assertNoSolidInterference(
                     Assembly('Root', (first, second)))
 

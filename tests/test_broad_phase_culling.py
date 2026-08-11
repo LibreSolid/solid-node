@@ -18,12 +18,15 @@ Rotation/Translation operations, no full node tree or openscad build,
 in the same spirit as tests/test_node_mesh_cache.py's FakeNode.
 """
 
+import itertools
 import os
 import tempfile
 from unittest import TestCase
 from unittest.mock import patch
 
+import numpy as np
 import trimesh
+from manifold3d import Manifold
 from trimesh.creation import box
 
 import solid_node.test as test_module
@@ -248,3 +251,306 @@ class GenuineIntersectionStillDetectedTest(BroadPhaseTestCase):
         overlapping_a, overlapping_b = self.overlapping_pair()
 
         asserter.assertIntersecting(overlapping_a, overlapping_b)
+
+
+########################################
+# Broad-phase completeness
+#
+# assertNoSolidInterference reaches its verdict through the spatial
+# index alone: _world_bounds, _boxes_disjoint, and _bounds_candidates
+# decide which pairs ever meet an exact boolean. Everything the
+# assertion promises therefore rests on ONE obligation --
+#
+#   for any two placed solids whose exact intersection is non-empty,
+#   _bounds_candidates emits that pair.
+#
+# The obligation has two halves, and neither is an empirical question
+# needing search. _world_bounds is conservative by construction (the
+# local box contains the geometry, and an affine map carries the convex
+# hull of the 8 corners onto the convex hull of their images), so a test
+# can only catch the implementation drifting off that theorem. The
+# emit-every-overlapping-pair half is three axis comparisons, one strict
+# inequality and one interval prune, whose realistic defect space is
+# small and enumerable: a reversed comparison, a wrong axis index, an
+# inverted strict/non-strict, an off-by-one in the active-list prune.
+#
+# So the coverage below is deterministic and enumerated rather than
+# randomly generated -- a named boundary table, a finite exhaustive
+# lattice, and a differential check over the fixtures this module
+# already builds. A seeded generator was considered and rejected: it
+# would search stochastically for a defect list that can simply be
+# written down, and would need seed capture, replay override, shrinking
+# and bit-exact case dumping purely to turn a random failure back into
+# the hardcoded case the table already holds (see the ADR's rejected
+# alternatives). Every case here reproduces by construction.
+#
+# All three layers assert CONTAINMENT, never equality: the index is
+# free to emit extra pairs -- that is exactly what "conservative"
+# means -- and demanding equality would forbid it.
+
+
+class Placement:
+    """A cube placed by a world matrix, carrying the three things the
+    broad phase reads: local bounds, the world matrix, and (for the
+    brute-force side of the comparison) the placed Manifold."""
+
+    def __init__(self, size, matrix):
+        manifold = Manifold.cube(size, True)
+        low_high = manifold.bounding_box()
+        self.local_bounds = np.array([low_high[:3], low_high[3:]], float)
+        self.matrix = np.asarray(matrix, float)
+        self.placed = manifold.transform(self.matrix[:3, :4])
+        self.world_bounds = test_module._world_bounds(
+            self.local_bounds, self.matrix)
+
+
+def translation(offset):
+    matrix = np.eye(4)
+    matrix[:3, 3] = offset
+    return matrix
+
+
+def rotation_z(degrees):
+    radians = np.radians(degrees)
+    cos, sin = np.cos(radians), np.sin(radians)
+    matrix = np.eye(4)
+    matrix[:2, :2] = [[cos, -sin], [sin, cos]]
+    return matrix
+
+
+def intersecting_pairs(placements):
+    """Brute force: every index pair whose EXACT intersection is
+    non-empty. This is the ground truth the index must not miss."""
+    return {
+        (first, second)
+        for first, second in itertools.combinations(
+            range(len(placements)), 2)
+        if not (placements[first].placed ^ placements[second].placed
+                ).is_empty()
+    }
+
+
+def emitted_pairs(placements):
+    return set(test_module._bounds_candidates(
+        [placement.world_bounds for placement in placements]))
+
+
+def box_overlapping_pairs(placements):
+    """Every index pair whose world AABBs overlap, computed here rather
+    than through _boxes_disjoint so the comparison is independent of the
+    code under test. Boxes that merely touch count as overlapping: the
+    predicate is deliberately strict, because a touching pair can still
+    produce a non-empty zero-volume intersection (ADR-029)."""
+    def overlap(first, second):
+        low_a, high_a = first
+        low_b, high_b = second
+        return all(low_a[axis] <= high_b[axis] and low_b[axis] <= high_a[axis]
+                   for axis in range(3))
+
+    return {
+        (first, second)
+        for first, second in itertools.combinations(
+            range(len(placements)), 2)
+        if overlap(placements[first].world_bounds,
+                   placements[second].world_bounds)
+    }
+
+
+class BoundaryTableCompletenessTest(TestCase):
+    """The named boundary table: one case per condition that could
+    plausibly break the culling predicate, each asserting the
+    obligation directly. Cubes are size 2 centred on the origin, so an
+    unrotated part spans [-1, 1] and a 2.0 offset is exact contact."""
+
+    def cases(self):
+        unit = (2.0, 2.0, 2.0)
+        return {
+            'fully_separated': (
+                Placement(unit, translation([10, 0, 0])),
+                Placement(unit, np.eye(4))),
+            'face_contact': (
+                Placement(unit, translation([2, 0, 0])),
+                Placement(unit, np.eye(4))),
+            'edge_contact': (
+                Placement(unit, translation([2, 2, 0])),
+                Placement(unit, np.eye(4))),
+            'vertex_contact': (
+                Placement(unit, translation([2, 2, 2])),
+                Placement(unit, np.eye(4))),
+            'positive_overlap': (
+                Placement(unit, translation([0.5, 0, 0])),
+                Placement(unit, np.eye(4))),
+            'full_containment': (
+                Placement((6.0, 6.0, 6.0), np.eye(4)),
+                Placement(unit, np.eye(4))),
+            'coincident_bounds': (
+                Placement(unit, np.eye(4)),
+                Placement(unit, np.eye(4))),
+            'separated_on_x_only': (
+                Placement(unit, translation([3, 0.5, 0.5])),
+                Placement(unit, np.eye(4))),
+            'separated_on_y_only': (
+                Placement(unit, translation([0.5, 3, 0.5])),
+                Placement(unit, np.eye(4))),
+            'separated_on_z_only': (
+                Placement(unit, translation([0.5, 0.5, 3])),
+                Placement(unit, np.eye(4))),
+            'rotated_overlap': (
+                Placement(unit, rotation_z(45) @ translation([0.5, 0, 0])),
+                Placement(unit, np.eye(4))),
+            'rotated_clear_of_a_grown_box': (
+                Placement(unit, rotation_z(45)),
+                Placement(unit, translation([1.9, 1.9, 0]))),
+        }
+
+    def test_every_intersecting_case_is_emitted(self):
+        for name, placements in self.cases().items():
+            with self.subTest(case=name):
+                truth = intersecting_pairs(placements)
+                emitted = emitted_pairs(placements)
+
+                self.assertTrue(
+                    truth <= emitted,
+                    f'{name}: broad phase omitted intersecting pairs '
+                    f'{sorted(truth - emitted)}')
+
+    def test_the_table_covers_both_verdicts(self):
+        """A table that happened to contain only disjoint cases would
+        satisfy the obligation vacuously. Prove it does not."""
+        verdicts = {
+            bool(intersecting_pairs(placements))
+            for placements in self.cases().values()
+        }
+
+        self.assertEqual(verdicts, {True, False})
+
+    def test_zero_extent_bounds_are_not_culled(self):
+        """A degenerate (zero-thickness) world bound is checked at the
+        bounds layer: a zero-thickness solid is not a valid manifold, so
+        there is no geometry to compare against, but the predicate must
+        still not cull a box that touches."""
+        flat = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 1.0, 0.0]))
+        crossing = (np.array([0.5, 0.5, -1.0]), np.array([1.5, 1.5, 1.0]))
+
+        self.assertFalse(test_module._boxes_disjoint(flat, crossing))
+        self.assertEqual(
+            list(test_module._bounds_candidates([flat, crossing])), [(0, 1)])
+
+
+class LatticeCompletenessTest(TestCase):
+    """A finite exhaustive lattice. Unit cubes at half-integer offsets
+    over a bounded grid produce, by construction, every relative
+    arrangement the predicate distinguishes -- deep overlap, partial
+    overlap on one/two/three axes, exact face contact, and clean
+    separation -- and covers them completely rather than sampling them.
+
+    The 3.0 offset is what makes separation reachable: unit cubes span
+    half a unit either side of their centre, so 0.0/0.5/1.0 alone would
+    leave every pair overlapping or touching and the culling half of
+    the proof vacuous. 64 placements is 2016 pairs of 12-triangle
+    cubes."""
+
+    def placements(self):
+        offsets = (0.0, 0.5, 1.0, 3.0)
+        return [
+            Placement((1.0, 1.0, 1.0), translation([x, y, z]))
+            for x, y, z in itertools.product(offsets, repeat=3)
+        ]
+
+    def test_lattice_emits_every_intersecting_pair(self):
+        placements = self.placements()
+
+        truth = intersecting_pairs(placements)
+        emitted = emitted_pairs(placements)
+
+        self.assertTrue(truth, 'fixture bug: the lattice must intersect')
+        self.assertTrue(
+            truth <= emitted,
+            f'broad phase omitted intersecting pairs '
+            f'{sorted(truth - emitted)}')
+
+    def test_lattice_still_culls(self):
+        """The companion half: containment would also hold for an index
+        that emitted everything. Confirm real culling happens, so the
+        completeness result is not vacuous."""
+        placements = self.placements()
+        every_pair = set(itertools.combinations(range(len(placements)), 2))
+
+        self.assertLess(len(emitted_pairs(placements)), len(every_pair))
+
+    def test_lattice_emits_exactly_the_box_overlapping_pairs(self):
+        """Completeness alone cannot see a defect that makes the index
+        emit MORE than it should -- dropping an axis from the
+        disjointness test, say, which stays correct while quietly
+        costing exact booleans. The index's own contract is exact
+        (`_bounds_candidates` yields genuine AABB overlaps and nothing
+        else), so pin it against an independent box comparison."""
+        placements = self.placements()
+
+        self.assertEqual(emitted_pairs(placements),
+                         box_overlapping_pairs(placements))
+
+
+class WorldBoundsConservativeTest(TestCase):
+    """_world_bounds must enclose the placed geometry under any world
+    matrix, and must genuinely grow under rotation rather than passing
+    the untransformed local box through."""
+
+    def test_rotated_bound_encloses_the_placed_geometry(self):
+        placement = Placement((2.0, 2.0, 2.0), rotation_z(45))
+        low, high = placement.world_bounds
+        actual = placement.placed.bounding_box()
+
+        np.testing.assert_array_less(low - 1e-9, np.array(actual[:3]))
+        np.testing.assert_array_less(np.array(actual[3:]), high + 1e-9)
+
+    def test_rotated_bound_is_a_strict_superset_of_the_local_box(self):
+        placement = Placement((2.0, 2.0, 2.0), rotation_z(45))
+        low, high = placement.world_bounds
+        local_low, local_high = placement.local_bounds
+
+        self.assertLess(low[0], local_low[0])
+        self.assertGreater(high[0], local_high[0])
+        self.assertLess(low[1], local_low[1])
+        self.assertGreater(high[1], local_high[1])
+
+    def test_translated_bound_tracks_the_translation(self):
+        placement = Placement((2.0, 2.0, 2.0), translation([5, -3, 2]))
+        low, high = placement.world_bounds
+
+        np.testing.assert_allclose(low, [4, -4, 1])
+        np.testing.assert_allclose(high, [6, -2, 3])
+
+
+class ExistingFixtureDifferentialTest(BroadPhaseTestCase):
+    """The third layer: ride the fixtures this module already builds.
+    Costs no new geometry and widens automatically as the module grows."""
+
+    def all_fixture_parts(self):
+        origin, far_away = self.far_pair()
+        corner_a, corner_b = self.corner_gap_pair()
+        overlapping_a, overlapping_b = self.overlapping_pair()
+        return [origin, far_away, corner_a, corner_b,
+                overlapping_a, overlapping_b]
+
+    def test_index_emits_every_intersecting_fixture_pair(self):
+        parts = self.all_fixture_parts()
+        placed = []
+        for part in parts:
+            manifold, local_bounds, matrix = test_module._fast_geometry(part)
+            placement = Placement.__new__(Placement)
+            placement.local_bounds = local_bounds
+            placement.matrix = matrix
+            placement.placed = manifold.transform(matrix[:3, :4])
+            placement.world_bounds = test_module._world_bounds(
+                local_bounds, matrix)
+            placed.append(placement)
+
+        truth = intersecting_pairs(placed)
+        emitted = emitted_pairs(placed)
+
+        self.assertTrue(truth, 'fixture bug: some pair must intersect')
+        self.assertTrue(
+            truth <= emitted,
+            f'broad phase omitted intersecting pairs '
+            f'{sorted(truth - emitted)}')
