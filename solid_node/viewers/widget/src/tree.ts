@@ -18,6 +18,20 @@ import { evalExpr, isAnimated } from './evaluator';
 
 const stlLoader = new STLLoader();
 
+export type AssemblyPath = readonly string[];
+
+export interface AssemblyNode {
+  name: string;
+  path: string[];
+  color: string | null;
+  model: boolean;
+  children: AssemblyNode[];
+}
+
+export function assemblyPathKey(path: AssemblyPath): string {
+  return JSON.stringify(path);
+}
+
 export function materialForColor(color: string | null): THREE.Material {
   if (color === null) {
     return new THREE.MeshNormalMaterial();
@@ -193,6 +207,55 @@ export class WidgetTree {
     );
   }
 
+  assembly(path: AssemblyPath = []): AssemblyNode {
+    return {
+      name: this.name,
+      path: [...path],
+      color: this.color,
+      model: this.model !== undefined,
+      children: this.children.map((child) => child.assembly([...path, child.name])),
+    };
+  }
+
+  hasPath(path: AssemblyPath): boolean {
+    try {
+      this.requirePath(path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  requirePath(path: AssemblyPath): WidgetTree {
+    let current: WidgetTree = this;
+    for (const name of path) {
+      const matches = current.children.filter((child) => child.name === name);
+      if (matches.length !== 1) {
+        const reason = matches.length === 0 ? 'Unknown' : 'Ambiguous';
+        throw new Error(`${reason} assembly path: ${path.join('/') || '<root>'}`);
+      }
+      current = matches[0];
+    }
+    return current;
+  }
+
+  applyVisibility(focusedPath: AssemblyPath | null,
+                  hiddenPaths: ReadonlySet<string>): void {
+    const visit = (node: WidgetTree, path: string[]) => {
+      const inFocusedSubtree = focusedPath === null
+        || isPathPrefix(focusedPath, path);
+      const preservesFocusedTransform = focusedPath !== null
+        && isPathPrefix(path, focusedPath);
+      node.group.visible = (inFocusedSubtree || preservesFocusedTransform)
+        && !hiddenPaths.has(assemblyPathKey(path));
+      node.group.children
+        .filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+        .forEach((mesh) => { mesh.visible = inFocusedSubtree; });
+      node.children.forEach((child) => visit(child, [...path, child.name]));
+    };
+    visit(this, []);
+  }
+
   // Recompute every local matrix for animation time t (0..1)
   update(t: number): void {
     this.group.matrix.copy(operationsMatrix(this.operations, t));
@@ -212,6 +275,11 @@ export class WidgetTree {
       materials.forEach((material) => material.dispose());
     });
   }
+}
+
+function isPathPrefix(prefix: AssemblyPath, path: AssemblyPath): boolean {
+  return prefix.length <= path.length
+    && prefix.every((part, index) => part === path[index]);
 }
 
 async function loadMesh(url: string, color: string | null): Promise<THREE.Mesh> {

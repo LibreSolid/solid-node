@@ -20,7 +20,7 @@ class ViewerBundleTest(TestCase):
         imports = [node.names[0].name for node in ast.walk(tree)
                    if isinstance(node, ast.Import)]
         self.assertEqual(imports, ['json'])
-        self.assertEqual(bundle.api_version(), 3)
+        self.assertEqual(bundle.api_version(), 4)
 
     def test_bundle_paths_and_remedy_share_one_source(self):
         from solid_node.viewers import bundle

@@ -1,7 +1,7 @@
 {
   "name": "@solid-node/widget",
   "version": "0.1.0",
-  "solidNodeViewerApi": 3,
+  "solidNodeViewerApi": 4,
   "private": true,
   "license": "Apache-2.0",
   "description": "Embeddable static viewer for `solid export` output",

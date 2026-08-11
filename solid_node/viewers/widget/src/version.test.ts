@@ -30,6 +30,6 @@ describe('API_VERSION', () => {
   });
 
   it('declares the camera-orientation API as version 3', () => {
-    expect(API_VERSION).toBe(3);
+    expect(API_VERSION).toBe(4);
   });
 });

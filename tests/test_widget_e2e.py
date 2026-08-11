@@ -266,6 +266,39 @@ class ViewerMountApiTest(BaseNodeTest):
         self.assertIsInstance(result['bundle'], int)
         self.assertEqual(result['bundle'], result['handle'])
 
+    def test_the_mount_handle_exposes_and_controls_the_assembly(self):
+        result = self.in_page("""async () => {
+          const host = document.getElementById('host');
+          const viewer = await SolidNodeWidget.mount(
+            host, 'manifest.json', {});
+          const assembly = viewer.assembly();
+          const target = assembly.children[0] ?? assembly;
+          viewer.setRoot(target.path);
+          viewer.setVisible(target.path, false);
+          viewer.setVisible(target.path, true);
+          let invalid = null;
+          try { viewer.setRoot(['missing']); }
+          catch (error) { invalid = String(error); }
+          return {
+            apiVersion: viewer.apiVersion,
+            node: {
+              name: assembly.name,
+              path: assembly.path,
+              color: assembly.color,
+              model: assembly.model,
+              children: assembly.children.length,
+            },
+            invalid,
+          };
+        }""")
+
+        self.assertEqual(result['apiVersion'], 4)
+        self.assertIsInstance(result['node']['name'], str)
+        self.assertEqual(result['node']['path'], [])
+        self.assertIsInstance(result['node']['model'], bool)
+        self.assertIsInstance(result['node']['children'], int)
+        self.assertIn('Unknown assembly path: missing', result['invalid'])
+
     def test_a_captured_view_survives_a_remount(self):
         result = self.in_page("""async () => {
           const host = document.getElementById('host');

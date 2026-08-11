@@ -278,7 +278,7 @@ removed after either success or failure (ADR-041).
 
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
-`solid export` (ADR-020/034/035) emits a self-contained static artifact:
+`solid export` (ADR-020/034/035/042) emits a self-contained static artifact:
 `manifest.json` (`format: solid-node-export, version: 1` — a versioned
 tree-document schema shared with `viewer.json`, not a portability claim),
 deduplicated `models/*.stl`, and a
@@ -286,7 +286,11 @@ React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
 auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
 pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
-global exposes API version 3 so a host can check compatibility before mounting.
+global exposes API version 4 so a host can check compatibility before mounting.
+The handle exposes immutable assembly metadata and host-controlled subtree
+focus and visibility by root-relative name path. Those inspection controls are
+session state: they neither mutate nor unload the published tree, and valid
+paths survive targeted updates while removed paths are discarded.
 Hosts may supply camera position/target, an up direction, and field of view;
 the latter two retain Z-up/50° defaults when absent. OpenSCAD camera conversion
 is isolated as pure math and supplies the browser renderer with eye, target,

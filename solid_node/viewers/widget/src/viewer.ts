@@ -7,13 +7,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { frameBounds, ViewerView } from './camera';
+import { AssemblyNavigation } from './assembly';
 import { controlPlan, resolveBaseUrl, resolveOptions } from './options';
-import { WidgetTree } from './tree';
+import { AssemblyNode, AssemblyPath, WidgetTree } from './tree';
 import { Manifest } from './types';
 import { API_VERSION } from './version';
 
 export type AnimationMode = 'inline' | 'toggle' | 'none' | 'external';
 export type View = ViewerView;
+export type { AssemblyNode, AssemblyPath } from './tree';
 export type VectorInput = THREE.Vector3 | readonly [number, number, number];
 export interface ViewInput {
   camera: VectorInput;
@@ -39,6 +41,9 @@ export interface ViewerHandle {
   reload(): Promise<void>;
   artifactChanged(path: string): Promise<void>;
   manifestChanged(): Promise<void>;
+  assembly(): AssemblyNode;
+  setRoot(path: AssemblyPath | null): void;
+  setVisible(path: AssemblyPath, visible: boolean): void;
   setTime(time: number): void;
   apiVersion: number;
 }
@@ -84,6 +89,7 @@ export async function mount(
   let controlElements: HTMLElement[] = [];
   let cycleSeconds = 1;
   let disposed = false;
+  const assemblyNavigation = new AssemblyNavigation();
 
   const setTime = (next: number) => {
     time = Math.min(Math.max(next, 0), 1);
@@ -96,9 +102,7 @@ export async function mount(
 
   const applyFrame = (view: View | null) => {
     scene.updateMatrixWorld(true);
-    const framed = frameBounds(
-      new THREE.Box3().setFromObject(scene), camera.fov, view, resolved.up,
-    );
+    const framed = frameBounds(visibleBounds(scene), camera.fov, view, resolved.up);
     if (!framed) {
       return;
     }
@@ -131,6 +135,7 @@ export async function mount(
     }
     tree = next;
     scene.add(tree.group);
+    assemblyNavigation.reconcile(tree);
     applyFrame(view);
 
     refreshControls(document);
@@ -206,19 +211,68 @@ export async function mount(
     },
     async artifactChanged(path: string) {
       await tree?.artifactChanged(path, baseUrl);
+      if (tree) {
+        assemblyNavigation.reconcile(tree);
+      }
       renderer.render(scene, camera);
     },
     async manifestChanged() {
       const document = await loadDocument(sourceUrl);
       await tree?.reconcile(document.root, baseUrl);
       if (tree) {
+        const rootChanged = assemblyNavigation.reconcile(tree);
         tree.update(time);
         refreshControls(document);
+        if (rootChanged) {
+          applyFrame(null);
+        }
       }
+      renderer.render(scene, camera);
+    },
+    assembly() {
+      if (!tree) {
+        throw new Error('Viewer assembly is unavailable');
+      }
+      return tree.assembly();
+    },
+    setRoot(path: AssemblyPath | null) {
+      if (!tree) {
+        throw new Error('Viewer assembly is unavailable');
+      }
+      assemblyNavigation.setRoot(tree, path);
+      applyFrame(null);
+      renderer.render(scene, camera);
+    },
+    setVisible(path: AssemblyPath, visible: boolean) {
+      if (!tree) {
+        throw new Error('Viewer assembly is unavailable');
+      }
+      assemblyNavigation.setVisible(tree, path, visible);
       renderer.render(scene, camera);
     },
     setTime,
   };
+}
+
+function visibleBounds(root: THREE.Object3D): THREE.Box3 {
+  const bounds = new THREE.Box3();
+  root.updateWorldMatrix(true, true);
+  const visit = (object: THREE.Object3D) => {
+    if (!object.visible) {
+      return;
+    }
+    if (object instanceof THREE.Mesh) {
+      if (object.geometry.boundingBox === null) {
+        object.geometry.computeBoundingBox();
+      }
+      if (object.geometry.boundingBox !== null) {
+        bounds.union(object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
+      }
+    }
+    object.children.forEach(visit);
+  };
+  visit(root);
+  return bounds;
 }
 
 async function loadDocument(sourceUrl: string): Promise<Manifest> {

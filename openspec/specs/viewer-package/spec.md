@@ -13,9 +13,10 @@ The viewer SHALL mount into a caller-supplied container against a published tree
 document and resolve to a handle. The handle SHALL expose `dispose()` (stop
 rendering, release resources and empty the container), `view()` (camera position
 and orbit target), `reload()` (rebuild the document while preserving the view),
-`artifactChanged(path)` and `manifestChanged()` (update only what changed), and
-the declared API version. Loading the viewer core SHALL NOT modify the document;
-only an explicit mount may do so.
+`artifactChanged(path)` and `manifestChanged()` (update only what changed),
+assembly inspection and navigation operations, and the declared API version.
+Loading the viewer core SHALL NOT modify the document; only an explicit mount
+may do so.
 
 #### Scenario: A host unmounts a viewer
 
