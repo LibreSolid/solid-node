@@ -45,12 +45,13 @@ that way.
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**
 - [ADR-007](BUILD/ADR-007-watchdog-library-filesystem-monitoring.md) — Watchdog filesystem monitoring — **Accepted**
-- [ADR-021](BUILD/ADR-021-snapshot-cli-command-for-agent-autonomy.md) — Snapshot CLI command — **Accepted**
+- [ADR-021](BUILD/ADR-021-snapshot-cli-command-for-agent-autonomy.md) — Snapshot CLI command — **Accepted**, amended by 041
 - [ADR-024](BUILD/ADR-024-command-first-cli-grammar-and-duck-typed-command-registry.md) — Command-first CLI grammar — **Accepted**
 - [ADR-030](BUILD/ADR-030-complete-build-publication-boundary.md) — Complete-build publication boundary — **Reversed** by 037
 - [ADR-031](BUILD/ADR-031-published-viewer-snapshot.md) — Published viewer snapshot — **Accepted**, amended by 034
 - [ADR-032](BUILD/ADR-032-symlink-swap-build-publication.md) — Symlink-swap build publication — **Superseded** by 038
 - [ADR-038](BUILD/ADR-038-per-artifact-atomic-build-publication.md) — Per-artifact atomic build publication — **Accepted**
+- [ADR-041](BUILD/ADR-041-browser-rendered-transparent-snapshots.md) — Browser-rendered transparent snapshots — **Proposed**
 
 ### IPC — inter-process communication
 - [ADR-015](IPC/ADR-015-fastapi-unified-stack-for-http-services.md) — FastAPI + Uvicorn HTTP stack — **Accepted, amended** (broker consumer removed)
