@@ -24,6 +24,15 @@ Quickstart
     $ pip install solid-node
     $ solid new myproject
 
+Transparent browser-rendered snapshots are optional because they require a
+separate Chromium download:
+
+.. code-block:: bash
+
+    $ pip install "solid-node[web-snapshot]"
+    $ playwright install chromium
+    $ solid snapshot --renderer web -o transparent.png
+
 See `the docs <https://solid-node.readthedocs.io>`_.
 
 Working on solid-node itself
@@ -75,6 +84,9 @@ Notes:
 
 * Rendering tests invoke the real ``openscad`` binary. On a headless machine,
   snapshot-related tests may need ``xvfb-run -a pytest ...``.
+* Browser-snapshot tests are mandatory for changes to that renderer. Install
+  the ``web-snapshot`` extra and Chromium as shown above; a missing browser is
+  reported as a setup failure rather than skipped.
 * ``tests/meta_project/`` together with ``tests/test_meta.py`` is the
   end-to-end meta-project harness: it runs small real solid-node projects —
   both deliberately green and deliberately red fixtures — to prove the

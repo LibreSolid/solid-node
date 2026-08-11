@@ -57,6 +57,9 @@ docs = [
     "sphinx",
     "sphinx_rtd_theme",
 ]
+web-snapshot = [
+    "playwright",
+]
 
 [project.urls]
 Homepage = "https://github.com/lfagundes/solid_node"

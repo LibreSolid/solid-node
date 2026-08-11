@@ -107,14 +107,22 @@ solid snapshot
 
     solid snapshot [reference] [options]
 
-Renders the node to a PNG image using the OpenSCAD CLI, without opening
-any viewer. This gives a headless way to inspect a model — in CI, or
-for AI agents to visually check their work.
+Renders the node to a PNG image without opening a viewer. The default
+OpenSCAD renderer is the fast inspection path; the optional web renderer
+captures the packaged viewer in headless Chromium and preserves a real alpha
+channel for compositing.
 
 .. code-block:: bash
 
     $ solid snapshot -o front.png --viewall --autocenter
     $ solid snapshot windmill.windmill:Sail --time 0.25 --imgsize 800x600 --projection ortho
+    $ solid snapshot --renderer web -o transparent.png
+
+``--renderer``
+    ``openscad`` (default) or ``web``. Install the optional browser renderer
+    with ``pip install "solid-node[web-snapshot]"`` and download its browser
+    separately with ``playwright install chromium``. The web renderer never
+    falls back to OpenSCAD when its dependency or browser is unavailable.
 
 ``-o``, ``--output``
     Output file path. Default: derived from the resolved node.
@@ -137,22 +145,29 @@ for AI agents to visually check their work.
     Image dimensions as WxH. Default: ``1920x1080``.
 
 ``--projection``
-    ``perspective`` (default) or ``ortho``.
+    ``perspective`` (default) or ``ortho``. OpenSCAD renderer only.
 
 ``--colorscheme``
     One of OpenSCAD's color schemes (``Cornfield``, ``Metallic``,
     ``Sunset``, ``Starnight``, ``BeforeDawn``, ``Nature``,
     ``DeepOcean``, ``Solarized``, ``Tomorrow``, ``Tomorrow Night``,
-    ``Monotone``). Default: ``Cornfield``.
+    ``Monotone``). Default: ``Cornfield``. OpenSCAD renderer only.
 
 ``--render`` / ``--preview``
     Mutually exclusive. ``--render`` does a full render (OpenSCAD's
     default: slower, accurate); ``--preview`` uses the ThrownTogether
     preview mode (faster, may show artifacts).
+    OpenSCAD renderer only.
 
 ``--view``
     Comma-separated view helpers: ``axes``, ``crosshairs``, ``edges``,
     ``scales``, ``wireframe``.
+    OpenSCAD renderer only.
+
+With ``--renderer web``, explicitly supplying ``--projection``,
+``--colorscheme``, ``--view``, ``--render``, or ``--preview`` is an error;
+the command names every unsupported option rather than silently ignoring it.
+``--camera`` accepts both OpenSCAD camera forms under either renderer.
 
 solid export
 ============

@@ -14,6 +14,7 @@ export interface ViewerView {
 export interface FramedCamera {
   position: THREE.Vector3;
   target: THREE.Vector3;
+  up: THREE.Vector3;
   near: number;
   far: number;
 }
@@ -22,6 +23,7 @@ export function frameBounds(
   box: THREE.Box3,
   fov: number,
   view: ViewerView | null = null,
+  up: THREE.Vector3 = new THREE.Vector3(0, 0, 1),
 ): FramedCamera | null {
   if (box.isEmpty()) {
     return null;
@@ -41,6 +43,7 @@ export function frameBounds(
   return {
     position,
     target: view?.target.clone() ?? center,
+    up: up.clone(),
     near: distance / 100,
     far,
   };

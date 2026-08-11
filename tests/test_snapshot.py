@@ -2,6 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import os
 import sys
 import shutil
@@ -11,6 +12,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, MagicMock
 
 from solid_node.manager.snapshot import Snapshot, COLORSCHEMES, VIEW_OPTIONS
+from solid_node.viewers.openscad import OpenScadRenderer
 from tests.test_build_lock import lock_is_held
 
 
@@ -227,11 +229,11 @@ class SnapshotViewValidationTest(TestCase):
 
 
 class SnapshotCommandBuildingTest(TestCase):
-    """Test _build_openscad_command method"""
+    """Test the renderer's OpenSCAD command construction."""
 
     def setUp(self):
-        self.snapshot = Snapshot()
-        self.snapshot.output = 'test_output.png'
+        self.renderer = OpenScadRenderer()
+        self.output = 'test_output.png'
         self.mock_node = Mock()
         self.mock_node.scad_file = '/tmp/test_node.scad'
 
@@ -253,7 +255,7 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_default_command(self):
         """Test default command generation"""
         args = self._make_args()
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertEqual(cmd[0], 'openscad')
         self.assertIn('-o', cmd)
@@ -269,7 +271,7 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_projection_ortho(self):
         """Test ortho projection mapping"""
         args = self._make_args(projection='ortho')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         idx = cmd.index('--projection')
         self.assertEqual(cmd[idx + 1], 'o')
@@ -277,7 +279,7 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_projection_perspective(self):
         """Test perspective projection mapping"""
         args = self._make_args(projection='perspective')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         idx = cmd.index('--projection')
         self.assertEqual(cmd[idx + 1], 'p')
@@ -285,7 +287,7 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_camera_passthrough(self):
         """Test camera specification is passed through"""
         args = self._make_args(camera='0,0,100,0,0,0,500')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('--camera', cmd)
         self.assertIn('0,0,100,0,0,0,500', cmd)
@@ -293,28 +295,28 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_autocenter_flag(self):
         """Test autocenter flag is added"""
         args = self._make_args(autocenter=True)
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('--autocenter', cmd)
 
     def test_viewall_flag(self):
         """Test viewall flag is added"""
         args = self._make_args(viewall=True)
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('--viewall', cmd)
 
     def test_preview_flag(self):
         """Test preview flag is added"""
         args = self._make_args(preview=True)
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('--preview', cmd)
 
     def test_view_options(self):
         """Test view options are passed through"""
         args = self._make_args(view='axes,edges')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('--view', cmd)
         self.assertIn('axes,edges', cmd)
@@ -322,14 +324,14 @@ class SnapshotCommandBuildingTest(TestCase):
     def test_colorscheme_metallic(self):
         """Test different colorscheme"""
         args = self._make_args(colorscheme='Metallic')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('Metallic', cmd)
 
     def test_imgsize_conversion(self):
         """Test imgsize WxH is converted to W,H"""
         args = self._make_args(imgsize='800x600')
-        cmd = self.snapshot._build_openscad_command(self.mock_node, args)
+        cmd = self.renderer.build_command(self.mock_node, args, self.output)
 
         self.assertIn('800,600', cmd)
         self.assertNotIn('800x600', cmd)
@@ -516,9 +518,9 @@ class SnapshotArgumentParsingTest(TestCase):
         self.assertEqual(args.imgsize, '800x600')
 
     def test_default_projection(self):
-        """Test default projection mode"""
+        """A sentinel preserves whether the caller supplied the option."""
         args = self.parser.parse_args([])
-        self.assertEqual(args.projection, 'perspective')
+        self.assertIsNone(args.projection)
 
     def test_ortho_projection(self):
         """Test ortho projection"""
@@ -526,9 +528,59 @@ class SnapshotArgumentParsingTest(TestCase):
         self.assertEqual(args.projection, 'ortho')
 
     def test_default_colorscheme(self):
-        """Test default colorscheme"""
+        """A sentinel preserves whether the caller supplied the option."""
         args = self.parser.parse_args([])
-        self.assertEqual(args.colorscheme, 'Cornfield')
+        self.assertIsNone(args.colorscheme)
+
+    def test_renderer_defaults_to_openscad(self):
+        args = self.parser.parse_args([])
+        self.assertEqual(args.renderer, 'openscad')
+
+    def test_each_renderer_is_accepted(self):
+        for renderer in ('openscad', 'web'):
+            self.assertEqual(
+                self.parser.parse_args(['--renderer', renderer]).renderer,
+                renderer,
+            )
+
+
+class SnapshotWebOptionValidationTest(TestCase):
+    def setUp(self):
+        self.snapshot = Snapshot()
+        self.parser = argparse.ArgumentParser()
+        self.snapshot.add_arguments(self.parser)
+
+    def _args(self, **overrides):
+        values = dict(
+            path='model.py', output='shot.png', time=0.0, camera=None,
+            autocenter=False, viewall=False, imgsize='100x100',
+            projection=None, colorscheme=None, render=False, preview=False,
+            view=None, renderer='web',
+        )
+        values.update(overrides)
+        return argparse.Namespace(**values)
+
+    def test_openscad_only_options_are_rejected_by_name(self):
+        cases = (
+            ('--projection', {'projection': 'ortho'}),
+            ('--colorscheme', {'colorscheme': 'Metallic'}),
+            ('--view', {'view': 'axes'}),
+            ('--render', {'render': True}),
+            ('--preview', {'preview': True}),
+        )
+        for option, values in cases:
+            with self.subTest(option=option), patch('sys.stderr', new_callable=io.StringIO) as stderr:
+                with self.assertRaises(SystemExit):
+                    self.snapshot.handle(self._args(**values))
+                self.assertIn(option, stderr.getvalue())
+
+    def test_sentinel_defaults_are_not_rejected(self):
+        with patch.object(self.snapshot, '_load_and_prepare_node') as load:
+            node = Mock()
+            node.__class__.__name__ = 'Part'
+            load.return_value = node
+            with patch('solid_node.viewers.browser.BrowserRenderer.render'):
+                self.snapshot.handle(self._args())
 
     def test_custom_colorscheme(self):
         """Test custom colorscheme"""
@@ -647,7 +699,7 @@ class SnapshotIntegrationTest(TestCase):
             view='axes',
         )
 
-        cmd = self.snapshot._build_openscad_command(node, args)
+        cmd = OpenScadRenderer().build_command(node, args, 'test.png')
 
         self.assertEqual(cmd[0], 'openscad')
         self.assertIn('-o', cmd)
@@ -662,17 +714,17 @@ class SnapshotIntegrationTest(TestCase):
 
 
 class SnapshotXvfbWrappingTest(TestCase):
-    """Unit tests for _wrap_command: the decision of whether to prefix the
+    """Unit tests for the renderer's decision of whether to prefix the
     OpenSCAD invocation with `xvfb-run -a`."""
 
     def setUp(self):
-        self.snapshot = Snapshot()
+        self.renderer = OpenScadRenderer()
         self.base_cmd = ['openscad', '-o', 'out.png', '/tmp/test.scad']
 
     def test_no_wrapping_with_display_present(self):
         """A working DISPLAY: command is returned unchanged, no xvfb-run."""
         with patch.dict(os.environ, {'DISPLAY': ':0'}):
-            cmd = self.snapshot._wrap_command(self.base_cmd)
+            cmd = self.renderer.wrap_command(self.base_cmd)
 
         self.assertEqual(cmd, self.base_cmd)
         self.assertNotIn('xvfb-run', cmd)
@@ -680,25 +732,25 @@ class SnapshotXvfbWrappingTest(TestCase):
     def test_wraps_with_xvfb_run_when_headless_and_available(self):
         """No DISPLAY, xvfb-run on PATH: prefix cmd with `xvfb-run -a`."""
         with patch.dict(os.environ, _env_without_display(), clear=True):
-            with patch.object(self.snapshot, '_find_xvfb_run', return_value='/usr/bin/xvfb-run'):
-                cmd = self.snapshot._wrap_command(self.base_cmd)
+            with patch.object(self.renderer, 'find_xvfb_run', return_value='/usr/bin/xvfb-run'):
+                cmd = self.renderer.wrap_command(self.base_cmd)
 
         self.assertEqual(cmd, ['/usr/bin/xvfb-run', '-a'] + self.base_cmd)
 
     def test_errors_when_headless_and_xvfb_run_missing(self):
         """No DISPLAY, no xvfb-run: clear one-line error, exit 1, no wrapping attempted."""
         with patch.dict(os.environ, _env_without_display(), clear=True):
-            with patch.object(self.snapshot, '_find_xvfb_run', return_value=None):
+            with patch.object(self.renderer, 'find_xvfb_run', return_value=None):
                 with self.assertRaises(SystemExit) as cm:
-                    self.snapshot._wrap_command(self.base_cmd)
+                    self.renderer.wrap_command(self.base_cmd)
 
         self.assertEqual(cm.exception.code, 1)
 
     def test_empty_display_treated_as_headless(self):
         """An empty DISPLAY value (broken display) is treated the same as unset."""
         with patch.dict(os.environ, {'DISPLAY': ''}):
-            with patch.object(self.snapshot, '_find_xvfb_run', return_value='/usr/bin/xvfb-run'):
-                cmd = self.snapshot._wrap_command(self.base_cmd)
+            with patch.object(self.renderer, 'find_xvfb_run', return_value='/usr/bin/xvfb-run'):
+                cmd = self.renderer.wrap_command(self.base_cmd)
 
         self.assertEqual(cmd, ['/usr/bin/xvfb-run', '-a'] + self.base_cmd)
 
@@ -758,7 +810,10 @@ class SnapshotHeadlessRenderTest(TestCase):
         args = self._make_args()
 
         with patch.dict(os.environ, _env_without_display(), clear=True):
-            with patch.object(self.snapshot, '_find_xvfb_run', return_value=None):
+            with patch(
+                'solid_node.manager.snapshot.OPENSCAD_RENDERER.find_xvfb_run',
+                return_value=None,
+            ):
                 with self.assertRaises(SystemExit) as cm:
                     self.snapshot.handle(args)
 

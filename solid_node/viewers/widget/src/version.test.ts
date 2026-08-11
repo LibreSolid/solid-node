@@ -28,4 +28,8 @@ describe('API_VERSION', () => {
   it('is the number the package declares, not a second copy', () => {
     expect(API_VERSION).toBe(pkg.solidNodeViewerApi);
   });
+
+  it('declares the camera-orientation API as version 3', () => {
+    expect(API_VERSION).toBe(3);
+  });
 });

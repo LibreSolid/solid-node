@@ -47,6 +47,26 @@ Two URL query parameters control playback:
     Start paused. Combined with ``t`` this shows a static pose:
     ``index.html?t=0.25&autoplay=0``.
 
+Imperative viewer camera options
+================================
+
+Hosts that load ``solid-widget.js`` directly may call
+``SolidNodeWidget.mount(target, manifestUrl, options)``. Viewer API version 3
+adds ``up`` and ``fov`` beside ``view``; each vector may be a three-number
+tuple, and ``fov`` is in degrees:
+
+.. code-block:: javascript
+
+    const viewer = await SolidNodeWidget.mount('#model', 'manifest.json', {
+      view: { camera: [80, -60, 40], target: [0, 0, 0] },
+      up: [0, 0, 1],
+      fov: 22.5,
+    });
+
+When omitted, these options preserve the established Z-up direction and 50°
+field of view. The package's ``solidNodeViewerApi`` declaration, browser
+global, and each mount handle all report API version 3.
+
 Embedding in Sphinx documentation
 =================================
 

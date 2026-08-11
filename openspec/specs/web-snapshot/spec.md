@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Web Snapshot Specification
+
+## Purpose
+
+Transparent PNG rendering through the packaged browser viewer.
+
+## Requirements
 
 ### Requirement: A snapshot can be rendered with a transparent background
 
@@ -25,10 +31,14 @@ animation time.
 
 The web renderer SHALL obtain geometry from the project's published build,
 rendering only artifacts that are out of date, and SHALL NOT copy mesh data to
-present it to the viewer. It SHALL hold the project build lock only while
-bringing artifacts up to date and staging them, and SHALL release it before the
-browser starts. Staged artifacts SHALL remain readable for the whole capture
-even if the published build is republished meanwhile.
+present it to the viewer. Beyond rendering those artifacts it SHALL NOT alter
+the published build: it SHALL describe the photographed node in its own staging
+area rather than republishing the build's document, and SHALL leave artifacts
+and recorded build errors that document names untouched. It SHALL hold the
+project build lock only while bringing artifacts up to date and staging them,
+and SHALL release it before the browser starts. Staged artifacts SHALL remain
+readable for the whole capture even if the published build is republished
+meanwhile.
 
 #### Scenario: A snapshot of an already-built project
 
@@ -42,6 +52,14 @@ even if the published build is republished meanwhile.
   previous publication referenced, after the renderer has staged them
 - **THEN** the capture still reads the staged artifacts and produces a complete
   model
+
+#### Scenario: A snapshot of one part of a project being developed
+
+- **WHEN** a maker photographs a node other than the one the published build
+  describes
+- **THEN** the published document still describes the same model afterwards,
+  the artifacts it names are still present, and a recorded build error is still
+  recorded
 
 #### Scenario: Another producer waits for the build lock
 
@@ -86,9 +104,9 @@ NOT render with the other renderer instead.
 The web renderer SHALL accept a camera specification in either OpenSCAD form —
 eye and target, or translation, rotations, and distance — and SHALL present the
 model from that viewpoint with the same field of view OpenSCAD uses, so the
-same specification frames the model equivalently under either renderer. Options
-the browser viewer cannot honour SHALL be refused with an error naming them,
-rather than ignored.
+same specification frames the model equivalently under either renderer.
+Options the browser viewer cannot honour SHALL be refused with an error naming
+them, rather than ignored.
 
 #### Scenario: A maker asks for a specific viewpoint
 

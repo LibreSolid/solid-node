@@ -1,6 +1,6 @@
 # ADR-041: Browser-Rendered Transparent Snapshots
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-08-11
 
@@ -88,9 +88,18 @@ command is not entitled to make it on the operator's behalf.
 
 ### Geometry is borrowed from the published build, not copied
 
-The renderer brings artifacts up to date, reads `viewer.json`, and hardlinks
-each referenced mesh into a staging directory beside `_build`, all under
-`project_build_lock()`; it releases the lock before the browser starts.
+The renderer brings the photographed node's artifacts up to date, serializes
+that node's tree into a staging directory beside `_build`, and hardlinks its
+meshes there, all under `project_build_lock()`; it releases the lock before the
+browser starts.
+
+The document is serialized into staging rather than republished into the build.
+Reusing the builder's publication step was rejected once its consequences became
+visible: publication also sweeps every artifact the new document does not
+reference and clears recorded build errors, so photographing a subassembly would
+delete the meshes of the model `solid develop` is serving and swap the document
+the shop floor reads. A snapshot is a reader; the published build belongs to
+whatever produced it.
 
 Serving `_build/` directly was rejected: a capture spans seconds, and a
 concurrent `solid develop` rebuild can sweep an artifact the browser has not yet

@@ -77,6 +77,21 @@ describe('frameBounds', () => {
     expect(framed.far).toBeCloseTo(fitted.far);
   });
 
+  it('carries a host-supplied up direction without changing clipping', () => {
+    const box = unitBoxAt(new THREE.Vector3());
+    const view = {
+      camera: new THREE.Vector3(10, 10, 10),
+      target: new THREE.Vector3(),
+    };
+    const baseline = frameBounds(box, FOV, view)!;
+    const up = new THREE.Vector3(0, 1, 0);
+    const framed = frameBounds(box, FOV, view, up)!;
+
+    expect(framed.up.distanceTo(up)).toBeCloseTo(0);
+    expect(framed.near).toBeCloseTo(baseline.near);
+    expect(framed.far).toBeCloseTo(baseline.far);
+  });
+
   it('keeps a model inside the far plane from a distant restored view', () => {
     const center = new THREE.Vector3();
     const box = unitBoxAt(center);

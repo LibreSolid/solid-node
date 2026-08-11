@@ -20,6 +20,8 @@ describe('resolveOptions', () => {
     expect(resolved.time).toBe(0);
     expect(resolved.autoplay).toBe(true);
     expect(resolved.view).toBeNull();
+    expect(resolved.up.toArray()).toEqual([0, 0, 1]);
+    expect(resolved.fov).toBe(50);
     expect(resolved.className).toBeNull();
     expect(resolved.role).toBeNull();
     expect(resolved.ariaLabel).toBeNull();
@@ -33,6 +35,9 @@ describe('resolveOptions', () => {
       className: 'functional-model',
       role: 'img',
       ariaLabel: 'Functional model',
+      up: [0, 1, 0],
+      fov: 22.5,
+      view: { camera: [10, 20, 30], target: [1, 2, 3] },
     });
 
     expect(resolved.animation).toBe('toggle');
@@ -41,6 +46,10 @@ describe('resolveOptions', () => {
     expect(resolved.className).toBe('functional-model');
     expect(resolved.role).toBe('img');
     expect(resolved.ariaLabel).toBe('Functional model');
+    expect(resolved.up.toArray()).toEqual([0, 1, 0]);
+    expect(resolved.fov).toBe(22.5);
+    expect(resolved.view!.camera.toArray()).toEqual([10, 20, 30]);
+    expect(resolved.view!.target.toArray()).toEqual([1, 2, 3]);
   });
 
   it('clamps time into the animation cycle', () => {

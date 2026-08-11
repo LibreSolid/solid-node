@@ -35,7 +35,7 @@ place it. From that single tree, the framework derives everything else:
       (BUILD)         (TEST-FRAMEWORK)        ▼
            │                            web viewer / widget
            ▼                            evaluate $t per frame
-      dev loop, snapshot,               (VIEWER-WEB, EXPORT,
+      dev loop, OpenSCAD snapshot,      (VIEWER-WEB, EXPORT,
       export models                      MATH)
 ```
 
@@ -182,9 +182,12 @@ of any geometric test (ADR-039, amended 2026-08-10).
 
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
-duck-typed registry: `build`, `develop`, `test`, `snapshot` (headless PNG via
-OpenSCAD, xvfb fallback — the visual feedback channel for agents,
-ADR-021), `new` (offline scaffold), `export`. `./.env` is read with
+duck-typed registry: `build`, `develop`, `test`, `snapshot`, `new` (offline
+scaffold), `export`. Snapshot has an explicit renderer choice (ADR-021/041):
+OpenSCAD remains the dependency-free default with xvfb fallback, while the
+optional `web` renderer captures the packaged viewer in sandboxed headless
+Chromium to produce a true-alpha PNG. Unsupported renderer-specific options
+are rejected rather than ignored or substituted. `./.env` is read with
 `setdefault` semantics (real environment wins), carrying
 `SOLID_NODE_PORT` / `SOLID_NODE_FRONTEND_PORT` / `SOLID_BUILD_DIR`.
 
@@ -263,7 +266,15 @@ stale-load disposal, and targeted-update failure containment live once in the
 reusable viewer package (ADR-035/037), not in the development app.
 
 A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
-`snapshot` command cover the non-browser cases.
+snapshot renderers cover non-interactive cases. The browser snapshot renderer
+renders any stale artifact of the photographed node, serializes that node's
+tree into a temporary sibling and hardlinks its artifacts there, all while
+holding the project build lock, then releases the lock and serves that pinned
+staging tree on an ephemeral loopback port. It never republishes or sweeps the
+build itself: the published document belongs to the producer serving it, so a
+snapshot of one part leaves the rest of the project intact. Playwright
+captures only the transparent canvas under Chromium/SwiftShader; staging is
+removed after either success or failure (ADR-041).
 
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
@@ -275,7 +286,11 @@ React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
 auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
 pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
-global exposes API version 2 so a host can check compatibility before mounting.
+global exposes API version 3 so a host can check compatibility before mounting.
+Hosts may supply camera position/target, an up direction, and field of view;
+the latter two retain Z-up/50° defaults when absent. OpenSCAD camera conversion
+is isolated as pure math and supplies the browser renderer with eye, target,
+up, and OpenSCAD's 22.5° perspective field of view (ADR-041).
 The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core

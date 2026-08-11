@@ -14,13 +14,20 @@ import { API_VERSION } from './version';
 
 export type AnimationMode = 'inline' | 'toggle' | 'none' | 'external';
 export type View = ViewerView;
+export type VectorInput = THREE.Vector3 | readonly [number, number, number];
+export interface ViewInput {
+  camera: VectorInput;
+  target: VectorInput;
+}
 
 export interface ViewerOptions {
   baseUrl?: string;
   animation?: AnimationMode;
   time?: number;
   autoplay?: boolean;
-  view?: View;
+  view?: ViewInput;
+  up?: VectorInput;
+  fov?: number;
   className?: string;
   role?: string;
   ariaLabel?: string;
@@ -65,8 +72,8 @@ export async function mount(
   }
   container.appendChild(renderer.domElement);
 
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
-  camera.up.set(0, 0, 1);
+  const camera = new THREE.PerspectiveCamera(resolved.fov, 1, 0.1, 10000);
+  camera.up.copy(resolved.up);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.rotateSpeed = 0.5;
 
@@ -90,12 +97,13 @@ export async function mount(
   const applyFrame = (view: View | null) => {
     scene.updateMatrixWorld(true);
     const framed = frameBounds(
-      new THREE.Box3().setFromObject(scene), camera.fov, view,
+      new THREE.Box3().setFromObject(scene), camera.fov, view, resolved.up,
     );
     if (!framed) {
       return;
     }
     camera.position.copy(framed.position);
+    camera.up.copy(framed.up);
     camera.near = framed.near;
     camera.far = framed.far;
     camera.updateProjectionMatrix();

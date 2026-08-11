@@ -2,16 +2,16 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import sys
-import shutil
 import logging
 from subprocess import run, CalledProcessError
 from solid_node.core.loader import load_node
 from solid_node.core.builder import project_build_lock
+from solid_node.viewers.openscad import OpenScadRenderer
 
 
 logger = logging.getLogger('manager.snapshot')
+OPENSCAD_RENDERER = OpenScadRenderer()
 
 
 # OpenSCAD color schemes
@@ -25,12 +25,18 @@ VIEW_OPTIONS = ['axes', 'crosshairs', 'edges', 'scales', 'wireframe']
 
 
 class Snapshot:
-    """Renders a node to a PNG image using OpenSCAD CLI.
-    Enables AI agents to visually inspect their work without human intervention."""
+    """Renders a node to a PNG image, through the OpenSCAD CLI by default
+    or through the browser viewer with --renderer web for a transparent
+    background. Enables AI agents to visually inspect their work without
+    human intervention."""
 
     needs_node = True
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            '--renderer', choices=['openscad', 'web'], default='openscad',
+            help='Image renderer (default: openscad)',
+        )
         # Output options
         parser.add_argument(
             '-o', '--output',
@@ -77,14 +83,14 @@ class Snapshot:
             '--projection',
             type=str,
             choices=['ortho', 'perspective'],
-            default='perspective',
+            default=None,
             help='Projection mode (default: perspective)'
         )
         parser.add_argument(
             '--colorscheme',
             type=str,
             choices=COLORSCHEMES,
-            default='Cornfield',
+            default=None,
             help='Color scheme (default: Cornfield)'
         )
 
@@ -114,6 +120,24 @@ class Snapshot:
         self.path = args.path
         self.output = args.output
         self.time = args.time
+        renderer = getattr(args, 'renderer', 'openscad')
+
+        if renderer == 'web':
+            unsupported = [
+                option for option, supplied in (
+                    ('--projection', args.projection is not None),
+                    ('--colorscheme', args.colorscheme is not None),
+                    ('--view', args.view is not None),
+                    ('--render', args.render),
+                    ('--preview', args.preview),
+                ) if supplied
+            ]
+            if unsupported:
+                sys.stderr.write(
+                    'Error: the web renderer does not support: '
+                    f'{", ".join(unsupported)}\n'
+                )
+                raise SystemExit(1)
 
         # Validate time parameter
         if not 0.0 <= self.time <= 1.0:
@@ -144,21 +168,21 @@ class Snapshot:
             sys.stderr.write(f"Error loading node: {e}\n")
             sys.exit(1)
 
-        # Build OpenSCAD command
-        cmd = self._build_openscad_command(node, args)
-
-        # OpenSCAD needs a live X display to render (even for --imgsize-only
-        # output); wrap the invocation under xvfb-run when headless so
-        # agents don't have to know or care that they lack a display.
-        cmd = self._wrap_command(cmd)
+        if renderer == 'web':
+            from solid_node.viewers.browser import (
+                BrowserRenderer, BrowserSnapshotError,
+            )
+            try:
+                BrowserRenderer().render(node, args, self.output)
+            except (BrowserSnapshotError, ValueError) as error:
+                sys.stderr.write(f'Error: {error}\n')
+                raise SystemExit(1)
+            print(f"Snapshot saved to {self.output}")
+            return
 
         # Execute OpenSCAD
         try:
-            logger.info(f"Rendering {node.scad_file} to {self.output}")
-            logger.debug(f"OpenSCAD command: {' '.join(cmd)}")
-            result = run(cmd, check=True, capture_output=True, text=True)
-            if result.stdout:
-                logger.debug(result.stdout)
+            OPENSCAD_RENDERER.render(node, args, self.output, run)
             print(f"Snapshot saved to {self.output}")
         except CalledProcessError as e:
             sys.stderr.write(f"OpenSCAD rendering failed:\n{e.stderr}\n")
@@ -167,34 +191,6 @@ class Snapshot:
             sys.stderr.write("Error: OpenSCAD not found in PATH. "
                            "Please install OpenSCAD and ensure it is accessible.\n")
             sys.exit(1)
-
-    def _display_available(self):
-        """Whether a usable X display is present. DISPLAY unset (or empty)
-        is the primary headless signal."""
-        return bool(os.environ.get('DISPLAY'))
-
-    def _find_xvfb_run(self):
-        """Locate the xvfb-run binary on PATH, if any."""
-        return shutil.which('xvfb-run')
-
-    def _wrap_command(self, cmd):
-        """Wrap cmd under `xvfb-run -a` when no display is available.
-        With a working DISPLAY, cmd is returned unchanged. Headless with
-        no xvfb-run on PATH is a hard error: better a clear one-line
-        message than a confusing OpenGL failure or a silently empty PNG."""
-        if self._display_available():
-            return cmd
-
-        xvfb_run = self._find_xvfb_run()
-        if not xvfb_run:
-            sys.stderr.write(
-                "Error: no DISPLAY and 'xvfb-run' not found on PATH. "
-                "Install xvfb (e.g. `apt-get install -y xvfb`) or run this "
-                "command under `xvfb-run -a`.\n"
-            )
-            sys.exit(1)
-
-        return [xvfb_run, '-a'] + cmd
 
     def _validate_imgsize(self, imgsize):
         """Validate image size format (WxH)."""
@@ -216,45 +212,3 @@ class Snapshot:
             node.assemble()
 
         return node
-
-    def _build_openscad_command(self, node, args):
-        """Build the OpenSCAD CLI command."""
-        cmd = ['openscad']
-
-        # Output file
-        cmd.extend(['-o', self.output])
-
-        # Camera settings
-        if args.camera:
-            cmd.extend(['--camera', args.camera])
-        if args.autocenter:
-            cmd.append('--autocenter')
-        if args.viewall:
-            cmd.append('--viewall')
-
-        # Image settings - convert WxH to W,H format for OpenSCAD
-        imgsize = args.imgsize.lower().replace('x', ',')
-        cmd.extend(['--imgsize', imgsize])
-
-        # Projection
-        if args.projection == 'ortho':
-            cmd.extend(['--projection', 'o'])
-        else:
-            cmd.extend(['--projection', 'p'])
-
-        # Color scheme
-        cmd.extend(['--colorscheme', args.colorscheme])
-
-        # Render mode
-        if args.preview:
-            cmd.append('--preview')
-        # Note: --render is the default in OpenSCAD, no flag needed
-
-        # View helpers
-        if args.view:
-            cmd.extend(['--view', args.view])
-
-        # Input SCAD file
-        cmd.append(node.scad_file)
-
-        return cmd

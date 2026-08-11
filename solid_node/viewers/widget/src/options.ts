@@ -4,14 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ViewerOptions, AnimationMode } from './viewer';
+import * as THREE from 'three';
+import type { ViewerOptions, AnimationMode, VectorInput } from './viewer';
+import type { ViewerView } from './camera';
 
 export interface ResolvedViewerOptions {
   baseUrl: string | null;
   animation: AnimationMode;
   time: number;
   autoplay: boolean;
-  view: NonNullable<ViewerOptions['view']> | null;
+  view: ViewerView | null;
+  up: THREE.Vector3;
+  fov: number;
   className: string | null;
   role: string | null;
   ariaLabel: string | null;
@@ -34,11 +38,30 @@ export function resolveOptions(
     animation: options.animation ?? 'inline',
     time: Math.min(Math.max(time, 0), 1),
     autoplay: options.autoplay ?? true,
-    view: options.view ?? null,
+    view: options.view ? {
+      camera: resolveVector(options.view.camera),
+      target: resolveVector(options.view.target),
+    } : null,
+    up: resolveVector(options.up, [0, 0, 1]),
+    fov: Number.isFinite(options.fov) && options.fov! > 0 ? options.fov! : 50,
     className: options.className ?? null,
     role: options.role ?? null,
     ariaLabel: options.ariaLabel ?? null,
   };
+}
+
+function resolveVector(
+  value: VectorInput | undefined,
+  fallback?: readonly [number, number, number],
+): THREE.Vector3 {
+  const selected = value ?? fallback;
+  if (!selected) {
+    throw new Error('a viewer vector is required');
+  }
+  if (Array.isArray(selected)) {
+    return new THREE.Vector3(selected[0], selected[1], selected[2]);
+  }
+  return (selected as THREE.Vector3).clone();
 }
 
 export function resolveBaseUrl(sourceUrl: string, baseUrl?: string): string {
