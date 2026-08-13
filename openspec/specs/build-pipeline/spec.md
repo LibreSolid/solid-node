@@ -55,7 +55,9 @@ contribute to the node's tracked source set. Companion tests are discovered as
 The system SHALL write build artifacts under `$SOLID_BUILD_DIR` (default
 `_build`), mirroring the source file's directory, with basename
 `<script-name>-<uniq_id>`. Artifacts per node: `.scad` (base geometry,
-no transforms), `.stl` (rendered), and `.stl.lock` during rendering.
+no transforms), `.stl` (rendered), and `.stl.lock` during rendering. A node
+that is exact under the `exact-geometry` capability SHALL additionally write
+`.brep`, holding that node's unplaced exact geometry under the same basename.
 World-space spatial math does not use on-disk artifacts — the `mesh`
 property loads the plain `.stl` and applies operations in memory (the
 `.mesh.scad`/`.mesh.stl` path attributes exist but are vestigial; nothing
@@ -64,6 +66,10 @@ builder writes into directly; the system SHALL NOT publish through a symlink, a
 versioned sibling directory, or a private candidate copy. A build path left as
 a symlink by an earlier layout SHALL be converted to an ordinary directory
 holding the artifacts it referenced.
+
+The `.brep` artifact SHALL be private to the build. No viewer snapshot, export
+manifest, or other published document SHALL reference it, and its presence
+SHALL NOT alter any document's schema.
 
 #### Scenario: Custom build dir
 
@@ -84,6 +90,21 @@ holding the artifacts it referenced.
 - **THEN** the build path becomes an ordinary directory holding those
   artifacts, and the versioned siblings are removed
 
+#### Scenario: An exact node writes exact geometry beside its mesh
+
+- **WHEN** an exact rigid node is built
+- **THEN** a `.brep` artifact sits beside its `.stl` under the same basename
+
+#### Scenario: A faceted node writes no exact artifact
+
+- **WHEN** a rigid node that is not exact is built
+- **THEN** no `.brep` artifact is written for it
+
+#### Scenario: Published documents do not name exact geometry
+
+- **WHEN** a build publishes its viewer snapshot for a project of exact nodes
+- **THEN** the document references only `.stl` models and names no `.brep`
+
 ### Requirement: Mtime-equality caching
 
 The system SHALL treat an artifact as up to date iff it exists AND its mtime
@@ -92,6 +113,12 @@ mtime across all files tracked for the node (`node.files`, aggregated
 recursively from children). After generating an artifact the system SHALL
 back-date its mtime to the source mtime via `os.utime` so the equality holds.
 A change to any contributing source file invalidates all ancestor artifacts.
+
+For an exact node the `.brep` artifact SHALL participate in this rule exactly
+as the `.stl` does: the node's artifacts are current only when both are, so a
+node whose mesh is current but whose exact geometry is absent or stale SHALL
+be rendered rather than skipped. A build directory produced before the node
+became exact therefore reports not-current once and is rebuilt.
 
 A node's tracked files SHALL include its own source together with the
 project-local modules that source imports, transitively. Modules outside the
@@ -122,6 +149,12 @@ artifact.
 
 - **WHEN** `generate_stl` runs and the STL mtime equals `node.mtime`
 - **THEN** no OpenSCAD process is launched
+
+#### Scenario: Missing exact geometry is not current
+
+- **WHEN** an exact node's `.stl` and `.scad` are current but its `.brep` is
+  absent
+- **THEN** the node reports not-up-to-date and is rendered, producing both
 
 ### Requirement: Concurrent render locking
 
@@ -279,11 +312,35 @@ file. `build_stls()` SHALL loop, waiting on each started render
 (`job.wait()`), until no renders remain; finishing a render stamps the STL
 mtime and removes the lock. Non-rigid nodes SHALL be skipped.
 
+A `FusionNode` whose subtree is exact SHALL NOT use this protocol. It composes
+its own geometry under the `exact-geometry` capability and SHALL produce its
+`.stl` by tessellating that composition in process, stamping the mtime as any
+other artifact producer does, without launching a subprocess and without
+raising `StlRenderStart`. A fusion with any non-exact descendant keeps the
+subprocess protocol unchanged.
+
+Tessellation of an exact composition SHALL use the same deflection the
+`CadQueryNode` adapter already uses for leaf STL export, so a fused solid's
+mesh is of the same quality as the leaves around it.
+
 #### Scenario: Full build
 
 - **WHEN** `build_stls()` runs on a tree with several stale rigid nodes
 - **THEN** each stale STL is rendered exactly once and the call returns with
   all locks removed and mtimes stamped
+
+#### Scenario: An exact fusion renders in process
+
+- **WHEN** a `FusionNode` whose subtree is exact is built
+- **THEN** its `.stl` is produced by tessellating its own composition, no
+  OpenSCAD subprocess is launched for it, and `build_stls()` returns without
+  waiting on a render job for that node
+
+#### Scenario: A faceted fusion keeps the subprocess protocol
+
+- **WHEN** a `FusionNode` holding a non-exact descendant is built
+- **THEN** its STL is rendered by an OpenSCAD subprocess signalled by
+  `StlRenderStart`, as before
 
 ### Requirement: Watch-rebuild loop
 
@@ -383,9 +440,14 @@ snapshot is in place.
 
 After a successful publication the system SHALL remove files in the build
 directory that the current viewer snapshot does not reference, other than the
-snapshot, the error file, `.scad` inputs, live render lock files, and
-temporaries belonging to a build in progress. The sweep SHALL be confined to
-the build directory.
+snapshot, the error file, `.scad` inputs, `.brep` exact geometry, live render
+lock files, and temporaries belonging to a build in progress. The sweep SHALL
+be confined to the build directory.
+
+`.brep` artifacts are spared by kind rather than by reference, because no
+published document names them. As with `.scad` inputs, a superseded one is
+therefore not removed by the sweep; mtime-equality caching means a superseded
+artifact is never read.
 
 #### Scenario: A renamed node leaves nothing behind
 
@@ -397,6 +459,12 @@ the build directory.
 
 - **WHEN** a build fails
 - **THEN** no artifact is removed from the build directory
+
+#### Scenario: Exact geometry survives the sweep
+
+- **WHEN** a build of exact nodes publishes successfully and sweeps
+- **THEN** every `.brep` written for a current node is still present, though
+  the published snapshot names none of them
 
 ### Requirement: Error file lifecycle
 

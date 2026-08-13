@@ -45,6 +45,7 @@ class LeafNode(AbstractBaseNode):
             and self.rigid
             and self._up_to_date(self.stl_file)
             and self._up_to_date(self.scad_file)
+            and (not self.exact or self._up_to_date(self.brep_file))
         )
 
     def as_scad(self, rendered):

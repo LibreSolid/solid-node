@@ -7,6 +7,7 @@ import math
 import os
 import re
 import warnings
+from dataclasses import dataclass
 import numpy as np
 import trimesh
 from manifold3d import Manifold, Mesh
@@ -16,6 +17,21 @@ from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
 from solid_node.node.operations import Rotation, Translation
+from solid_node.exact import (fuse_shapes, intersect_shapes, placed_shape,
+                              solid_count, solid_volume)
+
+
+@dataclass(frozen=True)
+class IntersectionStats:
+    is_empty: bool
+    volume: float
+    exact: bool
+
+    def __iter__(self):
+        # Preserve the long-standing two-value private helper unpacking while
+        # exposing which representation supplied the verdict.
+        yield self.is_empty
+        yield self.volume
 
 
 # Module-level cache of one manifold3d.Manifold per (stl_file, mtime)
@@ -109,7 +125,8 @@ def _bounds_candidates(bounds):
     """Yield index pairs whose conservative world AABBs overlap.
 
     Sweep along X, retaining only intervals that can still reach the current
-    box, then filter that active set on all three axes. The yielded set contains
+    box, then filter that active set on all three axes. The yielded set
+    contains
     only genuine AABB overlaps and never materializes the N*(N-1)/2 pair set.
     As with every broad phase the dense worst case remains quadratic, but a
     sparse assembly keeps only its local neighborhood active.
@@ -142,19 +159,26 @@ def _placed_assembly_solids(node):
     for solid in _topmost_rigid_nodes(node):
         manifold, local_bounds = _cached_manifold(solid.stl_file)
         matrix = _compose_world_matrix(solid)
-        placed.append((
-            solid,
-            manifold.transform(matrix[:3, :4]),
-            _world_bounds(local_bounds, matrix),
-        ))
+        exact_shape = None
+        if getattr(solid, 'exact', False):
+            exact_shape = placed_shape(solid.shape(), matrix)
+        placed.append((solid, manifold.transform(matrix[:3, :4]),
+                       _world_bounds(local_bounds, matrix), exact_shape))
     return placed
 
 
 def _candidate_intersection(solids, first, second):
     """Engine-native emptiness and volume for one placed solid pair."""
+    if solids[first][3] is not None and solids[second][3] is not None:
+        result = intersect_shapes(
+            solids[first][3], solids[second][3],
+            solids[first][0].name, solids[second][0].name)
+        count = solid_count(result)
+        return IntersectionStats(count == 0, solid_volume(result), True)
     result = solids[first][1] ^ solids[second][1]
     is_empty = result.is_empty()
-    return is_empty, 0.0 if is_empty else result.volume()
+    return IntersectionStats(
+        is_empty, 0.0 if is_empty else result.volume(), False)
 
 
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
@@ -192,6 +216,27 @@ def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
     lacks the fast-path attributes at all (e.g. the FakeNode test
     doubles in tests/test_assertions.py).
     """
+    if getattr(node1, 'exact', False) and getattr(node2, 'exact', False):
+        shape1 = node1.shape()
+        shape2 = node2.shape()
+        matrix1 = compose_matrix(node1)
+        matrix2 = compose_matrix(node2)
+        bounds1 = shape1.BoundingBox()
+        bounds2 = shape2.BoundingBox()
+        box1 = _world_bounds(
+            (np.array([bounds1.xmin, bounds1.ymin, bounds1.zmin]),
+             np.array([bounds1.xmax, bounds1.ymax, bounds1.zmax])), matrix1)
+        box2 = _world_bounds(
+            (np.array([bounds2.xmin, bounds2.ymin, bounds2.zmin]),
+             np.array([bounds2.xmax, bounds2.ymax, bounds2.zmax])), matrix2)
+        if _boxes_disjoint(box1, box2):
+            return IntersectionStats(True, 0.0, True)
+        result = intersect_shapes(
+            placed_shape(shape1, matrix1), placed_shape(shape2, matrix2),
+            node1.name, node2.name)
+        count = solid_count(result)
+        return IntersectionStats(count == 0, solid_volume(result), True)
+
     fast1 = _fast_geometry(node1, compose_matrix)
     fast2 = _fast_geometry(node2, compose_matrix)
     if fast1 is not None and fast2 is not None:
@@ -200,16 +245,16 @@ def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
         box1 = _world_bounds(bounds1, matrix1)
         box2 = _world_bounds(bounds2, matrix2)
         if _boxes_disjoint(box1, box2):
-            return True, 0.0
+            return IntersectionStats(True, 0.0, False)
         placed1 = manifold1.transform(matrix1[:3, :4])
         placed2 = manifold2.transform(matrix2[:3, :4])
         result = placed1 ^ placed2
         is_empty = result.is_empty()
         volume = 0.0 if is_empty else result.volume()
-        return is_empty, volume
+        return IntersectionStats(is_empty, volume, False)
     intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
     volume = 0.0 if intersection.is_empty else intersection.volume
-    return intersection.is_empty, volume
+    return IntersectionStats(intersection.is_empty, volume, False)
 
 
 def _mesh_in_frame(node, compose_matrix):
@@ -270,7 +315,7 @@ class TestCase(BaseTestCase):
                 f"All vertices of {node2.name} should be inside {node1.name}")
 
     def assertClose(self, node1, node2, max_distance):
-        """Make sure the distance of node1 to node2 is lesser than max_distance"""
+        """Require node1-to-node2 distance to be below max_distance."""
         closest_points = trimesh.proximity.closest_point(
             node1.mesh, node2.mesh.vertices)
         distances = closest_points[1]
@@ -280,7 +325,7 @@ class TestCase(BaseTestCase):
                 f"{max_distance} units away from {node1.name}")
 
     def assertFar(self, node1, node2, min_distance):
-        """Make sure the distance of node1 to node2 is greater than min_distance"""
+        """Require node1-to-node2 distance to be above min_distance."""
         closest_points = trimesh.proximity.closest_point(
             node1.mesh, node2.mesh.vertices)
         distances = closest_points[1]
@@ -293,8 +338,8 @@ class TestCase(BaseTestCase):
         """Make sure the volume of the intersection between node1 and node2
         is greater than min_volume.
         """
-        intersection = node1.mesh.intersection(node2.mesh)
-        if intersection.volume < min_volume:
+        _, volume = _intersection_stats(node1, node2)
+        if volume < min_volume:
             raise AssertionError(
                 f"The intersection volume of {node1.name} and {node2.name} "
                 f"should be above {min_volume}")
@@ -303,8 +348,8 @@ class TestCase(BaseTestCase):
         """Make sure the volume of the intersection between node1 and node2
         is lesser than max_volume.
         """
-        intersection = node1.mesh.intersection(node2.mesh)
-        if intersection.volume > max_volume:
+        _, volume = _intersection_stats(node1, node2)
+        if volume > max_volume:
             raise AssertionError(
                 f"The intersection volume of {node1.name} and {node2.name} "
                 f"should be below {max_volume}")
@@ -361,10 +406,13 @@ class TestCase(BaseTestCase):
         lock in either direction.
         """
         axis, along, unit_along = self._resolve_perturbation_axis(axis, along)
+        paths = []
         for signed_value in self._signed_perturbations(angle, directions):
-            self._assert_perturbation(
+            paths.append(self._assert_perturbation(
                 node, signed_value, against, axis, along, unit_along,
-                expect_intersect=True, volume_epsilon=volume_epsilon)
+                expect_intersect=True, volume_epsilon=volume_epsilon))
+        self._warn_ignored_epsilon(
+            'assertBlockedBeyond', volume_epsilon, paths)
 
     def assertFreeWithin(self, node, angle, against, axis=None,
                          volume_epsilon=0.0, along=None, directions='both'):
@@ -393,12 +441,23 @@ class TestCase(BaseTestCase):
         """
         axis, along, unit_along = self._resolve_perturbation_axis(axis, along)
         angles = angle if isinstance(angle, (list, tuple)) else [angle]
+        paths = []
         for one_angle in angles:
             for signed_value in self._signed_perturbations(
                     one_angle, directions):
-                self._assert_perturbation(
+                paths.append(self._assert_perturbation(
                     node, signed_value, against, axis, along, unit_along,
-                    expect_intersect=False, volume_epsilon=volume_epsilon)
+                    expect_intersect=False, volume_epsilon=volume_epsilon))
+        self._warn_ignored_epsilon('assertFreeWithin', volume_epsilon, paths)
+
+    def _warn_ignored_epsilon(self, assertion, volume_epsilon, paths):
+        if volume_epsilon > 0 and paths and all(paths):
+            warnings.warn(
+                f'{assertion} ignored volume_epsilon={volume_epsilon} '
+                'because every comparison used exact geometry',
+                UserWarning,
+                stacklevel=3,
+            )
 
     def _resolve_perturbation_axis(self, axis, along):
         """Resolves the axis/along selector into one of the two
@@ -452,9 +511,10 @@ class TestCase(BaseTestCase):
         )
         node.operations.insert(index, operation)
         try:
-            is_empty, volume = _intersection_stats(node, against)
+            stats = _intersection_stats(node, against)
+            is_empty, volume = stats
             is_fouling = (
-                not is_empty if volume_epsilon <= 0
+                not is_empty if stats.exact or volume_epsilon <= 0
                 else abs(volume) > volume_epsilon)
             if expect_intersect and not is_fouling:
                 if is_empty:
@@ -473,6 +533,7 @@ class TestCase(BaseTestCase):
                 if volume_epsilon > 0:
                     message += f", exceeds epsilon {volume_epsilon}"
                 raise AssertionError(message)
+            return stats.exact
         finally:
             node.operations.remove(operation)
 
@@ -488,11 +549,17 @@ class TestCase(BaseTestCase):
         than independent parts.
         """
         for solid in _topmost_rigid_nodes(node):
-            bodies = len(cached_base_mesh(solid.stl_file).split(
-                only_watertight=False))
+            if getattr(solid, 'exact', False):
+                bodies = solid_count(solid.shape())
+                source = 'exact geometry'
+            else:
+                bodies = len(cached_base_mesh(solid.stl_file).split(
+                    only_watertight=False))
+                source = 'STL'
             if bodies != 1:
                 raise AssertionError(
-                    f"{solid.name} should be one connected body, but its STL "
+                    f"{solid.name} should be one connected body, but its "
+                    f"{source} "
                     f"contains {bodies} connected bodies")
 
     def assertNoSolidInterference(self, node):
@@ -565,11 +632,22 @@ class TestCase(BaseTestCase):
             )
         _, weld_volume = _intersection_stats(
             node1, node2, compose_matrix=_compose_solid_matrix)
-        union = trimesh.boolean.union([
-            _mesh_in_frame(node1, _compose_solid_matrix),
-            _mesh_in_frame(node2, _compose_solid_matrix),
-        ])
-        bodies = _body_count(union)
+        if (getattr(node1, 'exact', False)
+                and getattr(node2, 'exact', False)):
+            shape1 = placed_shape(
+                node1.shape(), _compose_solid_matrix(node1))
+            shape2 = placed_shape(
+                node2.shape(), _compose_solid_matrix(node2))
+            union = fuse_shapes(shape1, shape2, node1.name, node2.name)
+            bodies = solid_count(union)
+        else:
+            union = trimesh.boolean.union([
+                _mesh_in_frame(node1, _compose_solid_matrix),
+                _mesh_in_frame(node2, _compose_solid_matrix),
+            ])
+            bodies = _body_count(union)
+        if weld_volume == 0.0:
+            bodies = max(bodies, 2)
         if bodies != 1:
             raise AssertionError(
                 f"{node1.name} and {node2.name} should be joined into one "
@@ -613,11 +691,15 @@ class TestCase(BaseTestCase):
             stacklevel=2,
         )
         leaves = self._leaves(node)
+        paths = []
         for leaf1, leaf2 in itertools.combinations(leaves, 2):
-            is_empty, volume = _intersection_stats(leaf1, leaf2)
+            stats = _intersection_stats(leaf1, leaf2)
+            paths.append(stats.exact)
+            is_empty, volume = stats
             if is_empty:
                 continue
-            if volume_epsilon > 0 and abs(volume) <= volume_epsilon:
+            if (not stats.exact and volume_epsilon > 0
+                    and abs(volume) <= volume_epsilon):
                 continue
             message = (
                 f"{leaf1.name} should not intersect {leaf2.name} "
@@ -625,6 +707,8 @@ class TestCase(BaseTestCase):
             if volume_epsilon > 0:
                 message += f", exceeds epsilon {volume_epsilon}"
             raise AssertionError(message)
+        self._warn_ignored_epsilon(
+            'assertNoPairwiseIntersections', volume_epsilon, paths)
 
     def _leaves(self, node):
         """All leaf nodes of the assembled tree rooted at node."""
@@ -668,7 +752,7 @@ def testing_steps(steps, start=0, end=1):
 
     duration = end - start
     step = duration / (steps - 1)
-    instants = [ start + i * step for i in range(steps) ]
+    instants = [start + i * step for i in range(steps)]
     instants[-1] = end
 
     def decorator(method):

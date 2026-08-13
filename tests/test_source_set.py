@@ -155,7 +155,8 @@ class UpToDateLeafTest(BaseNodeTest):
         node.assemble()
 
         again = Block()
-        with mock.patch('cadquery.exporters.export') as export:
+        with mock.patch(
+                'solid_node.node.adapters.cadquery.write_stl') as export:
             scad = again.as_scad(again.render())
 
         export.assert_not_called()
@@ -166,12 +167,12 @@ class UpToDateLeafTest(BaseNodeTest):
         # back-dates the STL it just wrote, and a mock that writes
         # nothing would fail this test on the missing file rather than
         # on the export.
-        def export_stub(shape, path, kind):
+        def export_stub(shape, path, mtime):
             with open(path, 'w') as fh:
                 fh.write('solid empty\nendsolid empty\n')
 
         node = Block()
-        with mock.patch('cadquery.exporters.export',
+        with mock.patch('solid_node.node.adapters.cadquery.write_stl',
                         side_effect=export_stub) as export:
             node.as_scad(node.render())
         export.assert_called_once()

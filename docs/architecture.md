@@ -41,16 +41,17 @@ place it. From that single tree, the framework derives everything else:
 
 Three architectural commitments shape almost every subsystem:
 
-1. **OpenSCAD is the universal compilation target** (ADR-004). Every
-   backend — solid2, CadQuery, raw `.scad`, JSCAD — funnels into SCAD
-   text, and the `openscad` binary produces the STLs. This buys backend
-   plurality at the price of OpenSCAD's CSG model being the common
-   denominator.
+1. **OpenSCAD is the universal faceted composition target, with an exact
+   CadQuery path** (ADR-004/044/045). Every backend still produces SCAD and
+   an STL, and any subtree containing Solid2, raw `.scad`, or JSCAD geometry
+   composes through OpenSCAD. CadQuery additionally preserves BREP geometry;
+   an all-exact fusion composes and tessellates in OCCT rather than making a
+   mesh round trip through CGAL.
 2. **The build artifact is the currency, mtime is its clock**
    (ADR-006/026/033). STLs are cached per parameter-hashed identity and
    validated by mtime *equality* against the max source mtime. Caches
    at every layer — meshes, Manifolds, HTTP responses — key on the same
-   `(artifact, mtime)` signal, so "the STL is fresh" is the one
+   `(artifact, mtime)` signal, so artifact freshness is the one
    invalidation concept the whole system shares. The source set behind
    that clock is a node's own file plus the project-local modules it
    imports, transitively (ADR-033), so a contributing module edit
@@ -87,7 +88,12 @@ STL is the complete printed solid for that branch.
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` (exports to STL, re-imports), `OpenScadNode`
 (`scad_source` + module call), `JScadNode` (shells out to the `jscad`
-CLI).
+CLI). Every node exposes derived read-only exactness (ADR-044): CadQuery is
+exact, the other leaf adapters are faceted, and an internal node is exact only
+when every child is. Exact nodes expose unplaced BREP geometry through
+`shape()`; placement remains the caller's responsibility through the same
+composed matrices as the mesh path. An exact `FusionNode` fuses its placed
+children in OCCT and represents that fuse in both BREP and STL (ADR-045).
 
 Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
@@ -136,7 +142,7 @@ Artifacts land under `$SOLID_BUILD_DIR` (default `_build`, resolved
 against the discovered project root rather than the working directory),
 mirroring the source layout, basename `<script>-<uniq_id>`.
 
-STL generation is asynchronous: `StlRenderStart` carries a spawned
+STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 `openscad` process, PID lock files guard concurrency, and
 `build_stls()` loops until nothing is stale. Staleness is **mtime
 equality** — generated files are back-dated with `os.utime` to the max
@@ -177,6 +183,12 @@ build dir — file-based IPC, no broker
 (ADR-018). A broken initial build kills develop; a broken reload falls back to
 a broad recursive watch and keeps the loop alive.
 
+An exact rigid node has a private `.brep` beside its `.stl` (ADR-044). Both
+must match the node mtime for the build to be current; the BREP is spared by
+the artifact sweep but is never named in a viewer or export document. An
+all-exact fusion is the exception to the subprocess protocol: it writes its
+BREP and tessellates its fused shape synchronously in process (ADR-045).
+
 Publication enforces build mechanics and model validity, not project-selected
 geometry contracts. It therefore does not count STL components or invoke
 whole-solid connectivity assertions. The incomplete-render guard remains: a
@@ -205,8 +217,11 @@ builds first, then runs `test_` methods per declared animation instant
 (`@testing_instant` / `@testing_steps`, ADR-011) with operation
 checkpoints restored between instants.
 
-Collision assertions (ADR-009) are trimesh/manifold booleans over world-space
-meshes: intersection/containment/distance/volume checks, plus the
+Collision assertions (ADR-009/044) select the strongest shared representation:
+intersection-volume and connectivity questions use placed OCCT shapes when
+both operands are exact and retain trimesh/Manifold for mixed or faceted
+pairs. Distance and containment assertions remain mesh-sampled. This includes
+the
 **paired kinematic fit contract** (ADR-025): `assertBlockedBeyond` +
 `assertFreeWithin` perturb a part along its working degree of freedom
 (rotational `axis=` or translational `along=`, injected in the local
@@ -215,12 +230,14 @@ pair. `volume_epsilon` separates real interference from boolean noise,
 with a deliberately strict default: a flush contact that is non-empty
 at exactly 0.0 mm³ **is** a foul until the test opts into an epsilon.
 
-The shared intersection path (ADR-029) caches one Manifold per
+The shared intersection path (ADR-029/044) caches one Manifold per
 `(stl_file, mtime)` (watertightness checked once, at fill), culls
 provably disjoint pairs with a conservative world-AABB broad-phase,
-and reads `is_empty()`/`volume()` straight off lazy-transformed
-Manifolds — verdict-identical to the naive path, orders of magnitude
-faster on real assemblies.
+and reads `is_empty()`/`volume()` straight off lazy-transformed Manifolds —
+verdict-identical to the naive faceted path. Exact pairs share the same AABB
+broad phase, then use OCCT common and interpret “contains no solid” as empty;
+kernel failure raises and never falls back. `volume_epsilon` is ignored with a
+warning when every comparison in a call was exact.
 
 The root-level integrity boundary is the first rigid node on every branch
 (ADR-039/040). Connectivity is deliberately solid-local.
@@ -334,7 +351,8 @@ viewer, export widget.
 The short list that changes must not silently break:
 
 - An artifact is fresh **iff** its mtime equals the node's max source
-  mtime; every cache keys on that signal (ADR-006/028/029).
+  mtime; an exact node requires both STL and BREP current, and every cache keys
+  on that signal (ADR-006/028/029/044).
 - A node's source set is its own file plus the project-local modules it
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file
@@ -349,9 +367,9 @@ The short list that changes must not silently break:
   driver-tagged operations are swept (ADR-023).
 - All pose consumers compose own-ops-first, ancestors after, later
   operations outermost — Python and both browsers alike (ADR-027/028).
-- A non-empty, zero-volume flush contact fouls at
-  `volume_epsilon=0`; kinematic fit needs the Blocked **and** Free
-  pair (ADR-025/029).
+- A non-empty, zero-volume **faceted** flush contact fouls at
+  `volume_epsilon=0`; exact boundary contact contains no solid and is empty.
+  Kinematic fit still needs the Blocked **and** Free pair (ADR-025/029/044).
 - The `solid-node-export` format/version identifies a shared tree-document
   schema; breaking its tree shape or operation serialization means bumping the
   version and updating every producer and consumer together. Portability stays
@@ -384,7 +402,7 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/` | `node-model` | 001–004, 006, 026 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry` | 001–004, 006, 026, 044–045 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |

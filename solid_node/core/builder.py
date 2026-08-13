@@ -409,6 +409,9 @@ class Builder(FileSystemEventHandler):
             if node.rigid and not node._up_to_date(
                     node.stl_file):
                 return False
+            if (node.rigid and getattr(node, 'exact', False)
+                    and not node._up_to_date(node.brep_file)):
+                return False
             return all(current(child) for child in node.children)
 
         return current(self.node)
@@ -430,7 +433,8 @@ class Builder(FileSystemEventHandler):
                                                             self.build_dir))
                 if (relative in referenced or filename in ('viewer.json',
                                                             'errors.json') or
-                        filename.endswith(('.scad', '.stl.lock', '.tmp'))):
+                        filename.endswith(
+                            ('.scad', '.brep', '.stl.lock', '.tmp'))):
                     continue
                 os.remove(path)
 

@@ -422,6 +422,25 @@ class AssemblyIntegrityMetaTest(TestCase):
         self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
         self.assertEqual(run.returncode, 0)
 
+
+class ExactGeometryMetaTest(TestCase):
+
+    def test_rotated_zero_clearance_round_fit_passes(self):
+        run = solid_test('exact_tight_fit')
+        self.assertEqual(run.results, {
+            'test_zero_clearance_round_fit_has_no_solid_interference':
+                'passed',
+        })
+        self.assertEqual(run.returncode, 0)
+
+    def test_real_subfacet_interference_fails(self):
+        run = solid_test('exact_subfacet_interference')
+        self.assertEqual(run.results, {
+            'test_real_subfacet_interference_is_reported': 'failed',
+        })
+        self.assertIn('intersection volume', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
     def test_triple_overlap_reports_an_offending_pair(self):
         """Three solids sharing one region -- the arrangement a
         whole-assembly volume comparison is intuitively good at. The

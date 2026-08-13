@@ -95,6 +95,11 @@ artifact.
 - **WHEN** a node imports a module from outside the project tree
 - **THEN** that module is not part of the node's tracked files
 
+#### Scenario: Unchanged sources skip rendering
+
+- **WHEN** `generate_stl` runs and the STL mtime equals `node.mtime`
+- **THEN** no OpenSCAD process is launched
+
 #### Scenario: Missing exact geometry is not current
 
 - **WHEN** an exact node's `.stl` and `.scad` are current but its `.brep` is

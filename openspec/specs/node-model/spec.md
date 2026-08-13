@@ -10,9 +10,7 @@ backend adapters), and ADR-026 (parameter-hashed artifact keys vs tree names).
 
 Code: `solid_node/node/` (`base.py`, `internal.py`, `leaf.py`, `fusion.py`,
 `assembly.py`, `adapters/`).
-
 ## Requirements
-
 ### Requirement: Composite node tree
 
 The system SHALL model a project as a tree of nodes rooted in
@@ -149,6 +147,14 @@ An adapter that produces its artifact inside `as_scad()` SHALL produce it only
 when that artifact is not up to date, and SHALL return the same SCAD output in
 either case.
 
+An adapter whose backend is a boundary-representation kernel SHALL additionally
+expose its geometry exactly, under the `exact-geometry` capability.
+`CadQueryNode` is the only such adapter: it is exact and provides `shape()`.
+`Solid2Node`, `OpenScadNode` and `JScadNode` produce geometry only as meshes
+and are not exact. Exposing exact geometry SHALL NOT change an adapter's SCAD
+output or its mesh artifact, so a project that never asks an exact question is
+unaffected.
+
 #### Scenario: OpenSCAD source adapter
 
 - **WHEN** an `OpenScadNode` subclass declares `scad_source` and is
@@ -166,6 +172,19 @@ either case.
 
 - **WHEN** `as_scad()` runs on a `CadQueryNode` or `JScadNode` whose artifact is up to date
 - **THEN** no export or external renderer runs, and the returned SCAD output is unchanged
+
+#### Scenario: Only the B-rep backend is exact
+
+- **WHEN** `exact` is read across one instance of each adapter
+- **THEN** the `CadQueryNode` reports true and the `Solid2Node`,
+  `OpenScadNode` and `JScadNode` report false
+
+#### Scenario: Exactness does not disturb the SCAD path
+
+- **WHEN** a `CadQueryNode` is assembled in a project that asks no exact
+  question
+- **THEN** its SCAD output and STL artifact are what they were before the
+  adapter became exact
 
 ### Requirement: Parameter-hashed artifact identity
 

@@ -345,6 +345,7 @@ class AbstractBaseNode:
         # on parent node
         self.scad_file = f'{basepath}.scad'
         self.stl_file = f'{basepath}.stl'
+        self.brep_file = f'{basepath}.brep'
 
         # A scad file and mesh with transformations applied,
         # used for mesh generation for spatial calculations, specially tests
@@ -487,6 +488,14 @@ class AbstractBaseNode:
 
     def render(self):
         raise NotImplementedError
+
+    @property
+    def exact(self):
+        """Whether this node exposes exact boundary-representation geometry."""
+        return False
+
+    def shape(self):
+        raise RuntimeError(f'{self.name} does not expose exact geometry')
 
     def as_scad(self, rendered):
         """Converts the output of render() to solid2 object"""

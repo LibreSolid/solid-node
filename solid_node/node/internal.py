@@ -17,6 +17,14 @@ class InternalNode(AbstractBaseNode):
         raise NotImplementedError(f"InternalNode subclass {self.__class__} "
                                   "must deal with animation time")
 
+    @property
+    def exact(self):
+        if not self.children:
+            raise RuntimeError(
+                f'{self.name} exactness is unavailable before its children '
+                'are linked by assemble()')
+        return all(child.exact for child in self.children)
+
     def as_scad(self, children):
         """Renders a scad of the combined children"""
         scads = []
