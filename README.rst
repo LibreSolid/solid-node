@@ -45,9 +45,14 @@ project, see the documentation above.
 Development environment
 -----------------------
 
-Requirements: Python >= 3.10, `OpenSCAD <https://openscad.org/>`_ on the
-PATH, and Node.js >= 20 (only if you intend to rebuild the web viewer or the
-embeddable widget).
+Requirements: Python >= 3.10, and Node.js >= 20 only if you intend to rebuild
+the web viewer or the embeddable widget. `OpenSCAD
+<https://openscad.org/>`_ is conditional: put it on the PATH when working on
+SolidPython2/Solid2 or raw OpenSCAD nodes, faceted fusions, symbolic Solid2
+animation values, the ``solid develop --openscad`` viewer, or the default
+OpenSCAD snapshot renderer. All-exact CadQuery projects build, test, and export
+without it; use ``solid snapshot --renderer web`` for snapshots on a machine
+without OpenSCAD.
 
 Clone with submodules (the docs embed the example V8-engine project):
 

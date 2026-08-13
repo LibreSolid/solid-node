@@ -1,6 +1,7 @@
 # ADR-004: Multi-CAD Backend Adapter Pattern
 
-**Status:** Accepted
+**Status:** Accepted; universal-compilation-target clause superseded by
+[ADR-046](ADR-046-conditional-openscad-dependency.md)
 **Date:** 2023-07-25
 **Related to:** [ADR-002: Template Method Pattern for Node Lifecycle](./ADR-002-template-method-pattern-for-node-lifecycle.md)
 
@@ -32,6 +33,10 @@ The challenge is enabling multi-backend support without fragmenting the codebase
 Chosen option: **Multi-CAD adapter pattern with OpenSCAD compilation target**, because it maximizes user flexibility while ensuring geometric consistency. Implemented through LeafNode subclasses that wrap each CAD backend, requiring two critical methods: `as_scad()` for conversion to OpenSCAD representation, and `validate()` for namespace-based type checking.
 
 The pattern uses OpenSCAD as the universal compilation target - all backends must output OpenSCAD code, which is then compiled to STL. This architectural choice ensures all geometry is compatible for composition while leveraging OpenSCAD's mature STL generation capabilities.
+
+This universal-target clause was superseded in 2026 by ADR-046 after
+ADR-044/045 established exact BREP production and composition. The adapter
+pattern and common `as_scad()` document contract remain accepted.
 
 Evidence from git history shows the pattern was established in July 2023 and successfully accommodated new backends (JSCAD, CQ-editor integration) in February 2025 without requiring structural changes, validating the design's extensibility.
 

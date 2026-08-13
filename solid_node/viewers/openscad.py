@@ -12,6 +12,7 @@ import errno
 from subprocess import Popen
 
 from solid_node.core import load_node
+from solid_node.openscad import require_openscad
 
 
 logger = logging.getLogger('viewers.openscad')
@@ -60,7 +61,10 @@ class OpenScadViewer:
     def start(self):
         if self.running:
             return
-        self.proc = Popen(['openscad', self.node.scad_file])
+        openscad = require_openscad(
+            'the requested OpenSCAD viewer',
+            'opening that viewer launches OpenSCAD')
+        self.proc = Popen([openscad, self.node.scad_file])
         with open(self.pid_file, 'w') as pid_file:
             pid_file.write(f'{self.proc.pid}')
 
@@ -76,7 +80,13 @@ class OpenScadViewer:
 
 class OpenScadRenderer:
     def render(self, node, args, output, runner):
-        command = self.wrap_command(self.build_command(node, args, output))
+        openscad = require_openscad(
+            'the OpenSCAD snapshot renderer',
+            'rendering the requested image launches OpenSCAD',
+            'use --renderer web')
+        base_command = self.build_command(node, args, output)
+        base_command[0] = openscad
+        command = self.wrap_command(base_command)
         logger.info('Rendering %s to %s', node.scad_file, output)
         logger.debug('OpenSCAD command: %s', ' '.join(command))
         result = runner(command, check=True, capture_output=True, text=True)

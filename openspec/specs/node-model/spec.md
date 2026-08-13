@@ -138,10 +138,18 @@ rigid geometry is time-invariant (precondition for STL caching, ADR-003/008).
 The system SHALL provide leaf adapters for multiple CAD backends —
 `Solid2Node` (solid2/SolidPython2), `CadQueryNode`, `OpenScadNode` (with
 `scad_source` and optional `module_name`), and `JScadNode` (with
-`jscad_source`) — all compiled through OpenSCAD as the universal target.
-Each adapter SHALL implement `as_scad()`; adapters declaring a `namespace`
+`jscad_source`). Each adapter SHALL implement `as_scad()`; adapters declaring a `namespace`
 (`Solid2Node`, `CadQueryNode`, `OpenScadNode`) get namespace-based render
 validation, while `JScadNode` declares none and skips that check.
+
+OpenSCAD SHALL be the compilation target for the adapters that emit SCAD for
+it to render: `Solid2Node` and `OpenScadNode` have their STL rendered by
+OpenSCAD from the SCAD each emits. An adapter that produces its own artifact
+through another tool SHALL NOT additionally require OpenSCAD to do so —
+`CadQueryNode` through its own kernel, `JScadNode` through the `jscad` binary.
+Every adapter still emits SCAD, so the assembled document remains complete and
+the OpenSCAD GUI viewer can still open any project; emitting it does not imply
+that OpenSCAD renders it.
 
 An adapter that produces its artifact inside `as_scad()` SHALL produce it only
 when that artifact is not up to date, and SHALL return the same SCAD output in
@@ -185,6 +193,25 @@ unaffected.
   question
 - **THEN** its SCAD output and STL artifact are what they were before the
   adapter became exact
+
+#### Scenario: A B-rep adapter compiles without OpenSCAD
+
+- **WHEN** a project of `CadQueryNode` leaves is built with no `openscad` on
+  the PATH
+- **THEN** every leaf's STL is produced through its own kernel and the build
+  succeeds
+
+#### Scenario: An adapter with its own external tool does not need OpenSCAD
+
+- **WHEN** a project of `JScadNode` leaves is built with `jscad` available and
+  no `openscad` on the PATH
+- **THEN** every leaf's STL is produced by `jscad` and the build succeeds
+
+#### Scenario: SCAD is still emitted by every adapter
+
+- **WHEN** a `CadQueryNode` project is assembled
+- **THEN** its `.scad` artifacts are written as before, so the OpenSCAD GUI
+  viewer can open the project when the binary is available
 
 ### Requirement: Parameter-hashed artifact identity
 

@@ -146,9 +146,18 @@ schemes, default Cornfield), mutually exclusive `--render`/`--preview`,
 `--view` (comma-separated of axes, crosshairs, edges, scales, wireframe), and
 `--renderer` (`openscad`|`web`, default `openscad`).
 
+The default renderer SHALL remain `openscad` regardless of whether the
+project's model is exact and regardless of whether the binary is installed.
+Choosing a renderer by availability, or by the project's backends, would
+change the appearance of snapshots taken of existing projects; the renderer is
+selected explicitly and never substituted, as the web-snapshot capability
+requires.
+
 With `--renderer openscad` the image is produced by the OpenSCAD CLI; without a
 `DISPLAY` it SHALL wrap the render under `xvfb-run -a`, and error clearly if
-xvfb is also unavailable.
+xvfb is also unavailable. When the OpenSCAD binary itself is unavailable the
+command SHALL fail naming it and naming `--renderer web` as the alternative,
+and SHALL write no image.
 
 With `--renderer web` the image is produced by the packaged browser viewer with
 a transparent background, as specified in the web-snapshot capability, and no
@@ -177,6 +186,20 @@ them. Options with renderer-independent meaning — `-o/--output`, `--time`,
   Metallic`
 - **THEN** the command fails, reporting that `--colorscheme` is not supported
   by the web renderer, and writes no image
+
+#### Scenario: The OpenSCAD binary is missing
+
+- **WHEN** an agent runs `solid snapshot root` on an all-exact project on a
+  machine with no `openscad` on the PATH
+- **THEN** the command fails naming the missing binary and `--renderer web`,
+  and writes no image
+
+#### Scenario: The default does not follow the project's backends
+
+- **WHEN** a snapshot is taken of an all-exact project without choosing a
+  renderer, on a machine where OpenSCAD is installed
+- **THEN** the OpenSCAD renderer produces the image, as it does for any other
+  project
 
 ### Requirement: New command
 

@@ -8,6 +8,7 @@ from subprocess import run, CalledProcessError
 from solid_node.core.loader import load_node
 from solid_node.core.builder import project_build_lock
 from solid_node.viewers.openscad import OpenScadRenderer
+from solid_node.openscad import OpenScadUnavailable
 
 
 logger = logging.getLogger('manager.snapshot')
@@ -191,6 +192,9 @@ class Snapshot:
             sys.stderr.write("Error: OpenSCAD not found in PATH. "
                            "Please install OpenSCAD and ensure it is accessible.\n")
             sys.exit(1)
+        except OpenScadUnavailable as error:
+            sys.stderr.write(f'Error: {error}\n')
+            raise SystemExit(1)
 
     def _validate_imgsize(self, imgsize):
         """Validate image size format (WxH)."""

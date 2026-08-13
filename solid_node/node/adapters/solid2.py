@@ -7,6 +7,7 @@ import re
 import tempfile
 from subprocess import Popen
 from solid2 import scad_render
+from solid_node.openscad import require_openscad
 from solid_node.node.leaf import LeafNode
 
 
@@ -30,6 +31,9 @@ class Solid2Node(LeafNode):
             # requires knowing the final number in python memory.
             # If it's a scad function, then we need to get from OpenScad.
 
+            openscad = require_openscad(
+                f'node {self.name}',
+                'symbolic value evaluation uses OpenSCAD')
             lines = scad_render(n).split('\n')
             code = []
             while lines[0].startswith('include'):
@@ -49,13 +53,15 @@ class Solid2Node(LeafNode):
 
             try:
                 open(scad_file, 'w').write(code)
-                proc = Popen(['openscad', '-o', result_file, scad_file])
+                proc = Popen([openscad, '-o', result_file, scad_file])
                 proc.wait()
                 result = open(result_file).read()
                 result = result.replace('ECHO: ', '').strip()
                 n = int(result)
             finally:
-                os.remove(scad_file)
-                os.remove(result_file)
+                if os.path.exists(scad_file):
+                    os.remove(scad_file)
+                if os.path.exists(result_file):
+                    os.remove(result_file)
 
         return n

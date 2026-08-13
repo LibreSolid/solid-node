@@ -41,12 +41,13 @@ place it. From that single tree, the framework derives everything else:
 
 Three architectural commitments shape almost every subsystem:
 
-1. **OpenSCAD is the universal faceted composition target, with an exact
-   CadQuery path** (ADR-004/044/045). Every backend still produces SCAD and
-   an STL, and any subtree containing Solid2, raw `.scad`, or JSCAD geometry
-   composes through OpenSCAD. CadQuery additionally preserves BREP geometry;
-   an all-exact fusion composes and tessellates in OCCT rather than making a
-   mesh round trip through CGAL.
+1. **Geometry follows the strongest backend path available**
+   (ADR-004/044/045/046). Every backend still produces SCAD and an STL.
+   Solid2 and raw `.scad` leaves, and faceted fusions containing them, render
+   through OpenSCAD. CadQuery preserves BREP geometry and all-exact fusions
+   compose and tessellate in OCCT without OpenSCAD. JSCAD produces its STL
+   through its own `jscad` tool. OpenSCAD is therefore conditional on the
+   paths that invoke it, not a universal framework prerequisite.
 2. **The build artifact is the currency, mtime is its clock**
    (ADR-006/026/033). STLs are cached per parameter-hashed identity and
    validated by mtime *equality* against the max source mtime. Caches
@@ -94,6 +95,9 @@ when every child is. Exact nodes expose unplaced BREP geometry through
 `shape()`; placement remains the caller's responsibility through the same
 composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
+Each adapter still emits SCAD, but artifact production follows its backend:
+Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery uses OCCT, and JSCAD uses
+`jscad` (ADR-046). Emitting SCAD does not itself require the OpenSCAD binary.
 
 Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
@@ -150,6 +154,13 @@ source mtime (ADR-006), taken over `node.files`: the node's own source
 plus its project-local import closure, unioned upward from children
 (ADR-033).
 
+OpenSCAD availability is resolved once per process, at the first operation
+that actually requires it (ADR-046). Mesh-backend STL rendering, faceted
+fusion, Solid2 symbolic-value evaluation, the OpenSCAD GUI viewer, and the
+OpenSCAD snapshot renderer are the complete requiring set. A missing binary
+raises one actionable error naming the operation and remedy before subprocess
+launch; an all-exact build never performs the check.
+
 A rigid, optimizing **leaf** whose artifacts are current assembles by
 importing its STL — `render()` and `as_scad()` never run (ADR-033), so
 the check happens before the expensive work rather than after it.
@@ -200,11 +211,14 @@ of any geometric test (ADR-039, amended 2026-08-10).
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
 duck-typed registry: `build`, `develop`, `test`, `snapshot`, `new` (offline
-scaffold), `export`. Snapshot has an explicit renderer choice (ADR-021/041):
-OpenSCAD remains the dependency-free default with xvfb fallback, while the
+scaffold), `export`. Snapshot has an explicit renderer choice
+(ADR-021/041/046): OpenSCAD remains the external-tool default with xvfb
+fallback, while the
 optional `web` renderer captures the packaged viewer in sandboxed headless
 Chromium to produce a true-alpha PNG. Unsupported renderer-specific options
-are rejected rather than ignored or substituted. `./.env` is read with
+are rejected rather than ignored or substituted. If the default OpenSCAD
+renderer is unavailable, the command names `--renderer web` but does not
+select it silently. `./.env` is read with
 `setdefault` semantics (real environment wins), carrying
 `SOLID_NODE_PORT` / `SOLID_NODE_FRONTEND_PORT` / `SOLID_BUILD_DIR`.
 

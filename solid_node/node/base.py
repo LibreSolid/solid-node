@@ -14,6 +14,7 @@ import trimesh
 from decimal import Decimal
 from subprocess import Popen
 from solid2 import scad_render, import_stl, color
+from solid_node.openscad import require_openscad
 from .operations import Rotation, Translation
 from .sources import source_closure
 
@@ -554,6 +555,15 @@ class AbstractBaseNode:
         if self._stl_generation_locked:
             return logger.info('Cannot generate, locked')
 
+        backend = next(
+            (cls.__name__ for cls in type(self).__mro__
+             if cls.__name__ in ('Solid2Node', 'OpenScadNode', 'FusionNode')),
+            type(self).__name__)
+        node_name = getattr(self, 'name', type(self).__name__)
+        openscad = require_openscad(
+            f'node {node_name} ({backend} backend)',
+            'its backend renders this STL through OpenSCAD')
+
         fh = open(self.lock_file, 'w')
 
         os.makedirs(os.path.dirname(self.stl_file) or '.', exist_ok=True)
@@ -561,7 +571,9 @@ class AbstractBaseNode:
             prefix=f'.{os.path.basename(self.stl_file)}.', suffix='.tmp',
             dir=os.path.dirname(self.stl_file) or '.')
         os.close(descriptor)
-        proc = Popen(self.stl_builder_command_for(temporary))
+        command = self.stl_builder_command_for(temporary)
+        command[0] = openscad
+        proc = Popen(command)
 
         fh.write(f'{proc.pid}')
         fh.close()

@@ -8,6 +8,7 @@ from multiprocessing import Process
 from solid_node.core.builder import Builder, BuildOutcome
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer, WebDevServer
+from solid_node.openscad import OpenScadUnavailable, require_openscad
 
 
 logger = logging.getLogger('manager.develop')
@@ -69,6 +70,15 @@ class Develop:
         if callback and (args.openscad or args.web_dev):
             self.parser.error(
                 '--callback is not available with --openscad or --web-dev')
+
+        if args.openscad:
+            try:
+                require_openscad(
+                    'the requested OpenSCAD viewer',
+                    'opening that viewer launches OpenSCAD')
+            except OpenScadUnavailable as error:
+                sys.stderr.write(f'Error: {error}\n')
+                raise SystemExit(1)
 
         builder_proc = None
         web_proc = None
