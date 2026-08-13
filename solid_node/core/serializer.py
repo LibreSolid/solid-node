@@ -16,13 +16,18 @@ DOCUMENT_FORMAT = 'solid-node-export'
 DOCUMENT_VERSION = 1
 
 
-def serialize_node(node, model_path):
+def serialize_node(node, model_path, piece_id=None):
     """Serialize one node using ``model_path`` for rigid artifacts.
 
     The established parent-linking rule must run before recursion because a
     render may create and bind a fresh child on each invocation.  A rigid node
     is a terminal model reference; a non-list/tuple non-rigid render keeps the
     existing partial-node representation for lifecycle validation to handle.
+
+    ``piece_id``, when supplied, is called as ``piece_id(node, model)`` for
+    every rigid node -- ``model`` being the reference just resolved above --
+    and its return value is published as ``piece``. It defaults to ``None``
+    so every existing caller keeps its previous, piece-free document.
     """
     data = {
         'name': node.name,
@@ -32,7 +37,10 @@ def serialize_node(node, model_path):
         'operations': [operation.serialized for operation in node.operations],
     }
     if node.rigid:
-        data['model'] = model_path(node)
+        model = model_path(node)
+        data['model'] = model
+        if piece_id is not None:
+            data['piece'] = piece_id(node, model)
         return data
 
     children = node.render()
@@ -41,5 +49,7 @@ def serialize_node(node, model_path):
 
     for child in children:
         node._link_child(child)
-    data['children'] = [serialize_node(child, model_path) for child in children]
+    data['children'] = [
+        serialize_node(child, model_path, piece_id) for child in children
+    ]
     return data

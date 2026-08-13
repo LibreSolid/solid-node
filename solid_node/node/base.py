@@ -49,13 +49,15 @@ def _atomic_write_text(path, content, mtime):
 _base_mesh_cache = {}
 
 
-def _cached_base_mesh(stl_file):
+def cached_base_mesh(stl_file):
     """The node's immutable base mesh (STL geometry, no operations
     applied), loaded once per (stl_file, mtime) and shared across every
     caller. Returns the cached object itself -- callers that need a
     mutable copy (AbstractBaseNode.mesh) must .copy() it; callers that
-    only read it (e.g. the AABB broad-phase's local .bounds) can use it
-    directly."""
+    only read it (e.g. the AABB broad-phase's local .bounds, or
+    solid_node/core/pieces.py's per-artifact geometry facts) can use it
+    directly. Public: core/pieces.py reads the same cache a build or
+    test may already have populated, rather than loading independently."""
     mtime = os.path.getmtime(stl_file)
     key = (stl_file, mtime)
     cached = _base_mesh_cache.get(key)
@@ -642,7 +644,7 @@ class AbstractBaseNode:
         always returned as a fresh COPY with a single composed world
         matrix applied (see _compose_world_matrix) -- callers are free
         to mutate the result; the cached base mesh never is."""
-        mesh = _cached_base_mesh(self.stl_file).copy()
+        mesh = cached_base_mesh(self.stl_file).copy()
         mesh.apply_transform(_compose_world_matrix(self))
         return mesh
 

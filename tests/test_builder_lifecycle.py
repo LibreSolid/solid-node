@@ -418,7 +418,8 @@ class ViewerSnapshotContentTest(TestCase):
         self.assertEqual(data['root']['mtime'], 0)
         self.assertEqual(
             set(data['root']),
-            {'name', 'type', 'color', 'mtime', 'operations', 'model'},
+            {'name', 'type', 'color', 'mtime', 'operations', 'model',
+             'piece'},
         )
         self.assertEqual(data['animation'], {'fps': 30, 'frames': 360})
         self.assertEqual(sorted(os.listdir(root)), ['part.stl', 'viewer.json'])

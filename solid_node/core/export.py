@@ -16,6 +16,7 @@ import shutil
 
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
 from .builder import project_build_lock
+from .pieces import PieceInventory
 from solid_node.viewers import bundle as viewer_bundle
 
 
@@ -50,11 +51,13 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
 
     # Maps each rigid node's stl_file to its manifest-relative path
     models = {}
+    inventory = PieceInventory()
     root = serialize_node(
         node,
         lambda rigid_node: models.setdefault(
             rigid_node.stl_file, _model_path(rigid_node),
         ),
+        inventory.register,
     )
 
     manifest = {
@@ -62,6 +65,7 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
         'version': MANIFEST_VERSION,
         'animation': {'fps': fps, 'frames': frames},
         'root': root,
+        'pieces': inventory.pieces(),
     }
 
     os.makedirs(output_dir, exist_ok=True)

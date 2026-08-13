@@ -19,6 +19,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+from .pieces import PieceInventory
 from solid_node.node.base import StlRenderStart
 
 
@@ -361,6 +362,7 @@ class Builder(FileSystemEventHandler):
         found everything already published notifies nobody.
         """
         os.makedirs(self.build_dir, exist_ok=True)
+        inventory = PieceInventory()
         snapshot = {'format': DOCUMENT_FORMAT,
                     'version': DOCUMENT_VERSION,
                     'animation': {'fps': 30, 'frames': 360},
@@ -368,7 +370,9 @@ class Builder(FileSystemEventHandler):
                         self.node,
                         lambda rigid_node: os.path.relpath(
                             rigid_node.stl_file, self.build_dir),
+                        inventory.register,
                     )}
+        snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
         if self._published_document() == document:
             return False

@@ -12,7 +12,7 @@ import trimesh
 from manifold3d import Manifold, Mesh
 from unittest import TestCase as BaseTestCase
 
-from solid_node.node.base import (_cached_base_mesh, _compose_solid_matrix,
+from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
 from solid_node.node.operations import Rotation, Translation
@@ -24,7 +24,7 @@ from solid_node.node.operations import Rotation, Translation
 # meshes and re-converts both to Manifold, even when the caller only
 # needs is_empty()/volume(); this cache pays that conversion (and the
 # watertightness check) once per STL for the whole suite instead of
-# once per boolean. Keyed the same way as _cached_base_mesh (fix 1),
+# once per boolean. Keyed the same way as cached_base_mesh (fix 1),
 # with the same stale-entry eviction on rebuild.
 _manifold_cache = {}
 
@@ -32,7 +32,7 @@ _manifold_cache = {}
 def _cached_manifold(stl_file):
     """(Manifold, local_bounds) for `stl_file`, built once per
     (stl_file, mtime) from the same trimesh mesh fix 1's
-    _cached_base_mesh loads (no extra disk read). Watertightness is
+    cached_base_mesh loads (no extra disk read). Watertightness is
     validated ONCE here, at cache fill -- not on every boolean -- and
     raises a clear, STL-naming error if it fails, instead of letting
     an obscure failure surface deep inside the boolean engine."""
@@ -42,7 +42,7 @@ def _cached_manifold(stl_file):
     if cached is None:
         for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
             del _manifold_cache[stale_key]
-        mesh = _cached_base_mesh(stl_file)
+        mesh = cached_base_mesh(stl_file)
         if not mesh.is_volume:
             raise ValueError(
                 f"{stl_file} is not watertight -- cannot build a Manifold "
@@ -221,7 +221,7 @@ def _mesh_in_frame(node, compose_matrix):
     stl_file = getattr(node, 'stl_file', None)
     if stl_file is None:
         return node.mesh
-    mesh = _cached_base_mesh(stl_file).copy()
+    mesh = cached_base_mesh(stl_file).copy()
     mesh.apply_transform(compose_matrix(node))
     return mesh
 
@@ -488,7 +488,7 @@ class TestCase(BaseTestCase):
         than independent parts.
         """
         for solid in _topmost_rigid_nodes(node):
-            bodies = len(_cached_base_mesh(solid.stl_file).split(
+            bodies = len(cached_base_mesh(solid.stl_file).split(
                 only_watertight=False))
             if bodies != 1:
                 raise AssertionError(

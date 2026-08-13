@@ -89,11 +89,16 @@ Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 (`scad_source` + module call), `JScadNode` (shells out to the `jscad`
 CLI).
 
-Identity is split (ADR-026): `uniq_id` (class qualname + canonicalized
+Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
 parameters change, artifacts change; `name` (explicit or derived from
 the parent attribute holding the child) addresses the tree for tests
-and the viewer, and never touches geometry.
+and the viewer, and never touches geometry (ADR-026). A **piece** id
+(12-hex sha256 of the built STL's bytes) identifies one thing to print,
+so solids factored into different classes but building identical geometry
+are one piece, while handed variants are two (ADR-043). Each answers a
+different question — rebuild needed, addressed how, same thing to print —
+and conflating any two produces silently wrong answers.
 
 ### Kinematics (NODE · spec `kinematics`)
 
@@ -301,6 +306,15 @@ operations ship as raw expression strings. Both producers use the same core
 serializer, which links rendered children before recursion and includes
 `mtime`; export alone maps and copies rigid models beneath `models/`.
 
+Every producer — export, build snapshot, browser snapshot — also publishes a
+**printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
+one entry per distinct built artifact content, carrying `id`, `name`,
+contributing `sources` and `models`, `count`, bounding `size`, `volume`, and
+`watertight`, with every rigid node carrying the `piece` id that resolves into
+it. Facts are read from the artifact's own base mesh, so no pose or `$t` leaks
+into them. The section is additive at `version: 1`; a consumer reading only the
+tree is unaffected.
+
 The Sphinx extension (`.. solid-node:: <export-dir>`) embeds exports
 as iframes, copies them at `html-collect-pages`, and completes missing
 widget files from the installed package — docs build without the CAD
@@ -327,7 +341,10 @@ The short list that changes must not silently break:
   (ADR-033). The set over-approximates on purpose: a spurious rebuild is
   cheap, a stale model is not.
 - `name=` never influences geometry or `uniq_id`; any parameter change
-  changes the artifact key (ADR-026).
+  changes the artifact key (ADR-026). Piece identity is the converse: it
+  derives from built content only, never from a class, its parameters, or
+  its artifact path — an artifact that cannot be read gets no piece id
+  rather than borrowing one (ADR-043).
 - Re-rendering an instant is absolute, never cumulative; only
   driver-tagged operations are swept (ADR-023).
 - All pose consumers compose own-ops-first, ancestors after, later

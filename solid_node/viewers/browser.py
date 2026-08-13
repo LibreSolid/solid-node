@@ -15,6 +15,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
+from solid_node.core.pieces import PieceInventory
 from solid_node.core.serializer import (
     DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node,
 )
@@ -68,18 +69,21 @@ class BrowserRenderer:
             raise BrowserSnapshotError(viewer_bundle.missing_bundle_remedy())
 
         artifacts = {}
+        inventory = PieceInventory()
         root = serialize_node(
             node,
             lambda rigid_node: artifacts.setdefault(
                 rigid_node.stl_file,
                 self.artifact_path(rigid_node.stl_file, build_dir),
             ),
+            inventory.register,
         )
         document = {
             "format": DOCUMENT_FORMAT,
             "version": DOCUMENT_VERSION,
             "animation": {"fps": 30, "frames": 360},
             "root": root,
+            "pieces": inventory.pieces(),
         }
 
         staging = tempfile.mkdtemp(
