@@ -85,9 +85,15 @@
 
 ## 7. Whole-system checks
 
-- [~] 7.1 Migrate `docs/examples/v8-engine` and update `docs/cli.rst` and the
-      loader documentation. **Partly done; the example migration is deferred
-      past this cycle by the pilot's decision on 2026-08-17.** `docs/cli.rst`
+- [x] 7.1 Migrate `docs/examples/v8-engine` and update `docs/cli.rst` and the
+      loader documentation. **Closed on 2026-08-17, after this cycle was
+      archived, by pointing the submodule at `d02ef4f` and fixing the CI
+      invocation here. The migration had in fact been done all along in the
+      example's own repository — it went further than this task asked,
+      renaming `root` to `v8_engine` and splitting one node per file — but the
+      submodule still pinned `bffce31`, so nothing of it was visible to the
+      framework. The deferral below is kept as the record of what was true at
+      archival.** `docs/cli.rst`
       and the loader documentation are migrated. The example is not: it is a
       submodule of its own repository (`LibreSolid/example-v8-engine`), pinned
       at `bffce31`, still carrying `root/__init__.py`, three `NODE` markers and

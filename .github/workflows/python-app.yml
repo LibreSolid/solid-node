@@ -149,7 +149,7 @@ jobs:
         run: >-
           PYTHONPATH="$GITHUB_WORKSPACE" python -c
           "from solid_node.cli import manage; manage()"
-          export root -o docs/_exports/v8-engine --fps 30 --frames 360
+          export -o docs/_exports/v8-engine --fps 30 --frames 360
 
       - name: Build docs (fail on warnings)
         run: python -m sphinx -b html -W docs docs/_build
