@@ -8,7 +8,7 @@ Changelog
 v0.5.0
 ------
 
-Released on 15/Aug/2026
+Released on 17/Aug/2026
 
 **Breaking changes**
 

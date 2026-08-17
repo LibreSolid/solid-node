@@ -1,11 +1,7 @@
 # solid-node 0.5.0 — release announcement
 
-**Status: provisional draft.** Written against branch `release-0-5` before the
-version bump and tag. The "Open before tagging" section at the end is working
-material and should be removed once those items are settled.
-
-Full changelogs: [`HISTORY.rst`](../../HISTORY.rst) and
-[`docs/changelog.rst`](../changelog.rst).
+Released 17 August 2026. Full changelogs: [`HISTORY.rst`](../../HISTORY.rst)
+and [`docs/changelog.rst`](../changelog.rst).
 
 ---
 
@@ -156,31 +152,19 @@ a server root — the bug that 404'd every mesh in the published V8 engine examp
 
 ---
 
-## Open before tagging
+## Where this release came from
 
-*Working material — delete this section when the release is cut.*
+Almost nothing above started as a design idea. 0.5.0 was driven by the
+development of **LibreSolid Studio**, an agent-driven workshop for mechanical
+design in which projects are actually built with solid-node — and in which a
+framework change has to begin as evidence from one of those projects: the
+epsilons that leaked out of test files into design documents, the component
+that shipped as three disconnected shells, the 113 MB assembly that reloaded in
+full to show one changed leaf, the shared `kinematics.py` whose edits the
+watcher never saw, the published V8 engine that 404'd every mesh.
 
-Validation so far: the full framework suite passes on branch `release-0-5`
-(542 passed, 36 subtests, 153 s).
+That is why the breaking changes above are as blunt as they are. Each one was
+someone's afternoon first.
 
-1. **One OpenSpec change is still open, not archived.**
-   `widget-relative-base-url` is archived. `project-manifest-node-references`
-   has 2 unticked: migrating `docs/examples/v8-engine` plus loader docs (7.1),
-   and the end-to-end exercise on a real project (7.3). Its feature is
-   shipped, its delta specs are synced into the baselines, and `docs/cli.rst`
-   already documents the new grammar. Its CLI tests 5.1 and 5.2 were written
-   after the implementation rather than red first; they were checked against
-   reverted behaviour instead, which is weaker evidence.
-2. **Release date.** `HISTORY.rst` and `docs/changelog.rst` both date 0.5.0
-   `2026-08-15`, which has passed. Set the real date when the tag is cut.
-3. **`docs/cli.rst` contradicts the release.** Under `solid build` it still
-   promises "A failed later build leaves the last complete published artifacts in
-   place." ADR-038 withdrew exactly that guarantee.
-4. **`docs/status-and-roadmap.rst`** still presents 0.4 as current, and its
-   roadmap lists viewer work ("camera angles, animation scrubbing") that 0.5
-   partly delivers.
-5. **`docs/adrs/README.md`** says ADR-030 is "Reversed by 037"; the ADR itself
-   says 038.
-6. **Version metadata**: `pyproject.toml` is still `0.4.0` (bump2version drives
-   `pyproject.toml`, `solid_node/__init__.py`, `docs/conf.py`), and the PyPI
-   classifier still reads `Development Status :: 2 - Pre-Alpha`.
+The Studio is not public yet. It will be, soon, under the same LibreSolid
+umbrella as this framework.
