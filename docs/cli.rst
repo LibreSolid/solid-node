@@ -82,8 +82,10 @@ Builds the node once using the same ordinary pipeline as ``solid develop``,
 publishes the complete current model in the normal build directory, and exits.
 It starts neither a viewer nor a filesystem watcher. A missing resolved model
 prints a diagnostic and exits with status 66 (``MODEL_NOT_FOUND``); other
-build errors use a generic non-zero status. A failed later build leaves the
-last complete published artifacts in place.
+build errors use a generic non-zero status. Each artifact is published whole
+or not at all, but a failed build can leave a partially updated model rather
+than the last complete set; ``errors.json`` reports it. A reader may likewise
+observe a mixed model while a build is running.
 
 solid test
 ==========
