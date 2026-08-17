@@ -60,10 +60,10 @@
 
 ## 5. CLI surface
 
-- [ ] 5.1 Red: a test that every node-scoped command runs with no positional
+- [x] 5.1 Red: a test that every node-scoped command runs with no positional
       and resolves the manifest's model, and that a directory argument is an
       error naming the accepted spellings.
-- [ ] 5.2 Red: a test that `solid build` exits with `MODEL_NOT_FOUND` for an
+- [x] 5.2 Red: a test that `solid build` exits with `MODEL_NOT_FOUND` for an
       unresolvable reference, replacing today's `os.path.isfile` guard.
 - [x] 5.3 Implement the optional positional in `cli.py`, remove the
       directory-to-`__init__.py` coercion, and update `build.py`, `develop.py`,
@@ -85,14 +85,29 @@
 
 ## 7. Whole-system checks
 
-- [ ] 7.1 Migrate `docs/examples/v8-engine` and update `docs/cli.rst` and the
-      loader documentation.
+- [~] 7.1 Migrate `docs/examples/v8-engine` and update `docs/cli.rst` and the
+      loader documentation. **Partly done; the example migration is deferred
+      past this cycle by the pilot's decision on 2026-08-17.** `docs/cli.rst`
+      and the loader documentation are migrated. The example is not: it is a
+      submodule of its own repository (`LibreSolid/example-v8-engine`), pinned
+      at `bffce31`, still carrying `root/__init__.py`, three `NODE` markers and
+      no manifest. Under this cycle's loader it cannot be loaded by any
+      spelling — `discover_project()` raises `ProjectManifestError` before any
+      reference is resolved. Consequences, accepted knowingly at 0.5.0:
+      the `docs` job of `.github/workflows/python-app.yml` runs
+      `export root -o docs/_exports/v8-engine` on every push and now fails, so
+      the published documentation carries no embedded V8 export; and the
+      example a reader is pointed at by `docs/examples.rst` does not run on
+      the released version. Closing it needs a manifest declaring
+      `model = "root:Engine"` and the removal of the markers in the example's
+      own repository, then a submodule pointer bump here and the CI invocation
+      changed to `export -o docs/_exports/v8-engine`.
 - [x] 7.2 Run the full framework test suite and `openspec validate --all
       --strict`.
-- [ ] 7.3 Exercise a real project end to end: add a manifest to a copy of a
+- [x] 7.3 Exercise a real project end to end: add a manifest to a copy of a
       packed project, then `solid build`, `solid test` on a file reference,
       and `solid snapshot <qualifier>` on a sub-assembly, from a subdirectory
-      as well as from the root.
+      as well as from the root. Reported passing by the pilot on 2026-08-17.
 - [x] 7.4 Confirm the recorded gaps are untouched: staleness is still keyed on
       `node.mtime`, the keyframe is still absent from the artifact key, and
       `pyproject.toml` is still unwatched. This cycle must not quietly change
