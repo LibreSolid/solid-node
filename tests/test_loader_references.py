@@ -4,7 +4,7 @@ from contextlib import chdir
 from unittest import TestCase
 
 from solid_node.core.loader import (AmbiguousNodeError, ProjectManifestError,
-                                    discover_project, resolve_node)
+                                    discover_project, load_node, resolve_node)
 
 
 SOURCE = '''from solid_node.node import Solid2Node
@@ -37,6 +37,21 @@ class ProjectManifestReferenceTest(TestCase):
         self.assertEqual(root, self.root)
         self.assertEqual(model, 'boat.model:Sail')
         self.assertIs(by_qualifier, by_path)
+
+    def test_no_reference_resolves_the_manifest_model(self):
+        """The shared resolution every node-scoped command funnels into: with
+        no reference, the manifest's `model` names the node. Asserted from a
+        subdirectory as well as the root, because the manifest -- not the
+        working directory -- is what says which node is the project's."""
+        for cwd in (self.root, os.path.join(self.root, 'boat')):
+            with self.subTest(cwd=cwd), chdir(cwd):
+                klass, path, root = resolve_node()
+                self.assertEqual(klass.__name__, 'Sail')
+                self.assertEqual(root, self.root)
+                self.assertEqual(
+                    os.path.realpath(path),
+                    os.path.realpath(os.path.join(self.root, 'boat', 'model.py')))
+                self.assertEqual(load_node().__class__.__name__, 'Sail')
 
     def test_bare_multi_class_path_ignores_retired_marker(self):
         with chdir(self.root):

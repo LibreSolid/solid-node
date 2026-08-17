@@ -60,10 +60,10 @@
 
 ## 5. CLI surface
 
-- [ ] 5.1 Red: a test that every node-scoped command runs with no positional
+- [x] 5.1 Red: a test that every node-scoped command runs with no positional
       and resolves the manifest's model, and that a directory argument is an
       error naming the accepted spellings.
-- [ ] 5.2 Red: a test that `solid build` exits with `MODEL_NOT_FOUND` for an
+- [x] 5.2 Red: a test that `solid build` exits with `MODEL_NOT_FOUND` for an
       unresolvable reference, replacing today's `os.path.isfile` guard.
 - [x] 5.3 Implement the optional positional in `cli.py`, remove the
       directory-to-`__init__.py` coercion, and update `build.py`, `develop.py`,
