@@ -41,14 +41,32 @@ environment variables always win. Recognized variables: `SOLID_NODE_PORT`
 
 ### Requirement: Node path resolution
 
-The system SHALL require a `path` positional for every command that operates
-on a node (all except `new` and `viewer`), and SHALL rewrite a directory path to
-`<dir>/__init__.py` before loading.
+The system SHALL accept an optional `reference` positional for every command
+that operates on a node (all except `new` and `viewer`). When the positional is
+omitted, the command SHALL operate on the model named by the project manifest's
+`[tool.solid-node] model` key. When it is given, it SHALL be a node reference in
+any of the three spellings the loader accepts.
 
-#### Scenario: Package node
+The system SHALL NOT rewrite a directory argument to `<dir>/__init__.py`. A
+directory is not a node reference and SHALL be reported as an error naming the
+three accepted spellings.
 
-- **WHEN** a user runs `solid develop root` where `root/` is a package
-- **THEN** the node is loaded from `root/__init__.py`
+#### Scenario: No argument uses the project model
+
+- **WHEN** a user runs `solid build` anywhere inside a project whose manifest
+  declares `model = "windmill.windmill:Windmill"`
+- **THEN** the command builds that node
+
+#### Scenario: Any node by qualifier
+
+- **WHEN** a user runs a node-scoped command with `windmill.windmill:Sail`
+- **THEN** the command operates on `Sail`, not on the project model
+
+#### Scenario: A directory is not a reference
+
+- **WHEN** a user passes a directory to a node-scoped command
+- **THEN** the command exits nonzero with an error naming the accepted
+  reference spellings
 
 #### Scenario: A command that operates on the installation
 
@@ -57,7 +75,7 @@ on a node (all except `new` and `viewer`), and SHALL rewrite a directory path to
 
 ### Requirement: Develop command
 
-The system SHALL provide `solid develop <path>`, orchestrating builder and
+The system SHALL provide `solid develop [reference]`, orchestrating builder and
 viewer processes: the web viewer runs by default and is suppressed when
 `--openscad` is passed alone or when `--no-web` is passed; `--no-web` runs the
 builder watch loop alone and SHALL NOT bind `SOLID_NODE_PORT`; `--web-dev`
@@ -72,28 +90,30 @@ viewer process when one is running; Ctrl-C exits 0.
 
 #### Scenario: Default develop session
 
-- **WHEN** a user runs `solid develop root`
-- **THEN** the builder and the web viewer start, and the model is viewable at
-  `http://localhost:<SOLID_NODE_PORT>`
+- **WHEN** a user runs `solid develop`
+- **THEN** the builder and the web viewer start on the project model, and the
+  model is viewable at `http://localhost:<SOLID_NODE_PORT>`
 
 #### Scenario: Headless develop session
 
-- **WHEN** a user runs `solid develop root --no-web`
+- **WHEN** a user runs `solid develop --no-web`
 - **THEN** the builder watch loop runs and rebuilds on source changes, and no
   listener is bound on `SOLID_NODE_PORT`
 
 #### Scenario: Web viewer requested and suppressed at once
 
-- **WHEN** a user runs `solid develop root --no-web --web-dev`
+- **WHEN** a user runs `solid develop --no-web --web-dev`
 - **THEN** the command exits with a clear argument error before starting
   development processes
 
 ### Requirement: Build command
 
-The system SHALL provide `solid build <path>` as a node-scoped command using
-the command-first grammar and shared directory-to-`__init__.py` path
-resolution. On success it SHALL publish the complete normal build directory,
-including the viewer snapshot and its referenced model artifacts.
+The system SHALL provide `solid build [reference]` as a node-scoped command
+using the command-first grammar and shared node reference resolution. On success
+it SHALL publish the complete normal build directory, including the viewer
+snapshot and its referenced model artifacts. When the reference cannot be
+resolved to a node class, the command SHALL report it on standard error and exit
+with the model-not-found status.
 
 #### Scenario: Build command appears in CLI help
 
@@ -101,9 +121,16 @@ including the viewer snapshot and its referenced model artifacts.
 - **THEN** the command list includes `build`
 
 #### Scenario: Build output is available to a viewer host
-- **WHEN** a user runs `solid build root` successfully
+
+- **WHEN** a user runs `solid build` successfully
 - **THEN** a framework viewer host can read the completed `_build` directory
-  without importing `root`
+  without importing project code
+
+#### Scenario: Unresolvable reference
+
+- **WHEN** a user runs `solid build windmill.windmill:NoSuchClass`
+- **THEN** the command reports the reference on standard error and exits with
+  the model-not-found status
 
 ### Requirement: Callback mode validation
 
@@ -113,32 +140,40 @@ clear argument error. `solid build` SHALL NOT accept a callback option.
 
 #### Scenario: Callback requested for OpenSCAD mode
 
-- **WHEN** a user runs `solid develop root --openscad --callback URL`
+- **WHEN** a user runs `solid develop --openscad --callback URL`
 - **THEN** the command exits with a clear argument error before starting
   development processes
 
 #### Scenario: Callback for an external viewer host
 
-- **WHEN** a user runs `solid develop root --no-web --callback URL`
+- **WHEN** a user runs `solid develop --no-web --callback URL`
 - **THEN** the command starts the builder watch loop without a web viewer and
   POSTs the callback after each complete successful build
 
 ### Requirement: Test command
 
-The system SHALL provide `solid test <path>` with `--failfast`, accepting
-either the node file or its companion test file (each resolves to the other).
-Runner behavior is specified in the test-framework capability.
+The system SHALL provide `solid test [reference]` with `--failfast`, accepting
+a node reference in any accepted spelling, or the path of a companion test file,
+which resolves to the node module it exercises. Runner behavior is specified in
+the test-framework capability.
 
 #### Scenario: Test file as argument
 
-- **WHEN** a user runs `solid test root/test_gear.py`
-- **THEN** the runner resolves and builds the node from `root/gear.py` and
-  runs its tests
+- **WHEN** a user runs `solid test windmill/test_gear.py`
+- **THEN** the runner resolves and builds the nodes defined in
+  `windmill/gear.py` and runs their tests
+
+#### Scenario: One node by qualifier
+
+- **WHEN** a user runs `solid test windmill.gear:Gear`
+- **THEN** the runner builds `Gear` and runs its own test methods and the test
+  cases bound to it
 
 ### Requirement: Snapshot command
 
-The system SHALL provide `solid snapshot <path>` rendering a PNG, with options:
-`-o/--output` (default `snapshot.png`), `--time` (0.0–1.0, validated, default
+The system SHALL provide `solid snapshot [reference]` rendering a PNG, with
+options: `-o/--output` (defaulting to a file name derived from the resolved
+node), `--time` (0.0–1.0, validated, default
 0.0, applied via `set_keyframe`), `--camera` (gimbal or vector spec),
 `--autocenter`, `--viewall`, `--imgsize` (default `1920x1080`, validated),
 `--projection` (`ortho`|`perspective`), `--colorscheme` (the 11 OpenSCAD
@@ -168,28 +203,44 @@ them. Options with renderer-independent meaning — `-o/--output`, `--time`,
 `--imgsize`, `--camera` — SHALL behave equivalently under either renderer, and
 `--autocenter` and `--viewall` describe what the web renderer does by default.
 
+Node preparation SHALL hold the project build lock, and SHALL release it before
+the render begins, so a snapshot never blocks a rebuild while an image is being
+produced.
+
 #### Scenario: Headless snapshot
 
-- **WHEN** an agent runs `solid snapshot root --time 0.5 -o pose.png` on a
+- **WHEN** an agent runs `solid snapshot --time 0.5 -o pose.png` on a
   machine with no X display but xvfb installed
-- **THEN** a PNG of the assembly at `$t = 0.5` is written to `pose.png`
+- **THEN** a PNG of the project model at `$t = 0.5` is written to `pose.png`
+
+#### Scenario: Snapshotting a sub-assembly
+
+- **WHEN** an agent runs `solid snapshot windmill.windmill:Sail` with no `-o`
+- **THEN** the image is written to a file derived from the resolved node, not
+  to a fixed default name
+
+#### Scenario: A snapshot does not block a rebuild
+
+- **WHEN** a snapshot has finished preparing its node and is rendering the image
+- **THEN** another process can acquire the project build lock and rebuild the
+  same project
 
 #### Scenario: Transparent snapshot for a host
 
-- **WHEN** an agent runs `solid snapshot root --renderer web -o card.png`
+- **WHEN** an agent runs `solid snapshot --renderer web -o card.png`
 - **THEN** a PNG of the assembly with a transparent background is written to
   `card.png`
 
 #### Scenario: An OpenSCAD-only option with the web renderer
 
-- **WHEN** an agent runs `solid snapshot root --renderer web --colorscheme
+- **WHEN** an agent runs `solid snapshot --renderer web --colorscheme
   Metallic`
 - **THEN** the command fails, reporting that `--colorscheme` is not supported
   by the web renderer, and writes no image
 
 #### Scenario: The OpenSCAD binary is missing
 
-- **WHEN** an agent runs `solid snapshot root` on an all-exact project on a
+- **WHEN** an agent runs `solid snapshot` on an all-exact project on a
   machine with no `openscad` on the PATH
 - **THEN** the command fails naming the missing binary and `--renderer web`,
   and writes no image
@@ -260,14 +311,14 @@ project.
 
 ### Requirement: Export command
 
-The system SHALL provide `solid export <path>` with `-o/--output` (default
+The system SHALL provide `solid export [reference]` with `-o/--output` (default
 `export`), `--fps` (default 30), `--frames` (default 360), and `--no-widget`.
 A node that fails to load reports to stderr and exits 1. Artifact contents
 are specified in the export capability.
 
 #### Scenario: Default export
 
-- **WHEN** a user runs `solid export root -o docs/_exports/root`
+- **WHEN** a user runs `solid export -o docs/_exports/windmill`
 - **THEN** the output directory contains `manifest.json`, `models/`, and the
   embeddable widget files
 
