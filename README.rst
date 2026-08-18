@@ -45,7 +45,7 @@ project, see the documentation above.
 Development environment
 -----------------------
 
-Requirements: Python >= 3.10, and Node.js >= 20 only if you intend to rebuild
+Requirements: Python >= 3.11, and Node.js >= 20 only if you intend to rebuild
 the web viewer or the embeddable widget. `OpenSCAD
 <https://openscad.org/>`_ is conditional: put it on the PATH when working on
 SolidPython2/Solid2 or raw OpenSCAD nodes, faceted fusions, symbolic Solid2

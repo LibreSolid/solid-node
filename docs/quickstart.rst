@@ -9,7 +9,7 @@ Requirements
 ============
 
 * **Linux** — other platforms are currently untested and unsupported.
-* **Python 3.10 or newer**.
+* **Python 3.11 or newer**.
 * **OpenSCAD** — solid-node uses it to build the STL files of
   OpenSCAD-based nodes and to render snapshots, so it is required even
   if you only use the web viewer.
