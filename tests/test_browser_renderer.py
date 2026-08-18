@@ -7,6 +7,7 @@ import os
 import tempfile
 import urllib.request
 import argparse
+import unittest
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -15,6 +16,13 @@ from solid_node.manager.snapshot import Snapshot
 from tests.test_build_lock import lock_is_held
 from tests.test_export import Cube
 from PIL import Image
+
+try:
+    from playwright.sync_api import sync_playwright  # noqa: F401
+
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
 
 
 class BrowserStagingTest(TestCase):
@@ -262,6 +270,11 @@ class BrowserFailureTest(TestCase):
         openscad.assert_not_called()
 
 
+@unittest.skipUnless(
+    HAS_PLAYWRIGHT,
+    'playwright not installed (pip install "solid-node[web-snapshot]" '
+    "and playwright install chromium)",
+)
 class BrowserSnapshotEndToEndTest(TestCase):
     @classmethod
     def setUpClass(cls):
