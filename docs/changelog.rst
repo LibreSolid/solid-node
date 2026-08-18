@@ -5,6 +5,20 @@
 Changelog
 =========
 
+v0.5.1
+------
+
+Released on 18/Aug/2026
+
+**Fixes**
+
+* The project's ``Homepage`` metadata named a repository URL that returns
+  404. It now points at https://github.com/LibreSolid/solid-node.
+* The Read the Docs build passed the ``root`` argument that v0.5.0 removed,
+  failing every documentation build with
+  ``Error loading node: No module named 'root'``. The V8 example export now
+  resolves the model from its ``[tool.solid-node]`` manifest.
+
 v0.5.0
 ------
 

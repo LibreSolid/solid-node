@@ -5,6 +5,24 @@ History
 Unreleased
 ----------
 
+0.5.1 (2026-08-18)
+------------------
+
+Packaging, documentation, and maintenance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* The project's ``Homepage`` metadata pointed at
+  ``github.com/lfagundes/solid_node``, which returns 404. It now names the
+  repository, ``github.com/LibreSolid/solid-node``. The 0.5.0 page on PyPI
+  keeps the dead link, since release metadata is immutable once published.
+* The Read the Docs build ran the V8 example export with the ``root``
+  argument that 0.5.0 removed, so every documentation build since has failed
+  with ``Error loading node: No module named 'root'``. The export now
+  resolves the model from the example's ``[tool.solid-node]`` manifest, as
+  the GitHub Actions workflow already did.
+* Added ``context7.json`` so Context7 indexes the repository with the npm
+  viewer trees, OpenSpec records, tests, and generated exports excluded.
+
 0.5.0 (2026-08-17)
 ------------------
 
