@@ -62,7 +62,7 @@ web-snapshot = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/lfagundes/solid_node"
+Homepage = "https://github.com/LibreSolid/solid-node"
 
 [project.scripts]
 solid = "solid_node.cli:manage"

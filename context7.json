@@ -1,0 +1,31 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "solid-node",
+  "description": "A framework to develop and manage mechanical CAD projects in Python",
+  "folders": [],
+  "excludeFolders": [
+    "docs/_exports",
+    "docs/_static",
+    "openspec",
+    "tests",
+    "solid_node/viewers/web/app",
+    "solid_node/viewers/widget"
+  ],
+  "excludeFiles": [],
+  "rules": [
+    "A project declares its model in a [tool.solid-node] table of its pyproject.toml; root/__init__.py and the NODE marker were removed in 0.5.0",
+    "Node-scoped commands take an optional reference: a Python file path, a path plus class, or a package.module:Class qualifier, and fall back to the manifest's model when omitted",
+    "Place assertNoSolidInterference and assertNoDisconnectedSolids on the root assembly node only. Each one already descends the entire subtree below the node it is given, so repeating them on child nodes tests the same solids again and wastes resources. assertNoPairwiseIntersections is deprecated in favour of assertNoSolidInterference",
+    "Prefer CadQuery nodes over other leaf types. They are the only exact node type, so their geometry is answered from the CAD kernel's boundary representation rather than an approximating triangle mesh, which allows more precise production processes. An internal node is exact only when every node in its subtree is exact",
+    "OpenSCAD is optional: an all-exact project builds, tests, exports and snapshots without it on the PATH",
+    "Write one node per file. The framework permits several nodes in a single file, but that defeats the build cache, which tracks work per source file: editing one node then invalidates and rebuilds every node beside it",
+    "Do not create an internal node that wraps a single leaf node. Use the leaf directly; a one-child assembly adds a tree level without expressing any relationship",
+    "As an assembly grows complex, group its assembly nodes into folders. The directory structure is how a reader navigates the model",
+    "The user watches the model render from the root node while changes are made, so sequence work in an order that keeps each change visible as it lands rather than leaving the model unrenderable until the end"
+  ],
+  "previousVersions": [
+    {
+      "tag": "v0.4.0"
+    }
+  ]
+}
