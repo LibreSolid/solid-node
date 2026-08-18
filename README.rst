@@ -3,11 +3,12 @@ Solid Node
 ==========
 
 
-.. image:: https://img.shields.io/pypi/v/solid_node.svg
-        :target: https://pypi.python.org/pypi/solid_node
+.. image:: https://img.shields.io/pypi/v/solid-node.svg
+        :target: https://pypi.org/project/solid-node/
+        :alt: PyPI Version
 
-.. image:: https://readthedocs.org/projects/solid-framework/badge/?version=latest
-        :target: https://solid-framework.readthedocs.io/en/latest/?version=latest
+.. image:: https://readthedocs.org/projects/solid-node/badge/?version=latest
+        :target: https://solid-node.readthedocs.io/en/latest/
         :alt: Documentation Status
 
 
