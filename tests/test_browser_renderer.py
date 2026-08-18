@@ -12,6 +12,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from solid_node.viewers.browser import BrowserRenderer, BrowserSnapshotError
+from solid_node.viewers.bundle import bundle_path
 from solid_node.manager.snapshot import Snapshot
 from tests.test_build_lock import lock_is_held
 from tests.test_export import Cube
@@ -24,7 +25,13 @@ try:
 except ImportError:
     HAS_PLAYWRIGHT = False
 
+HAS_BUNDLE = os.path.exists(bundle_path())
+needs_bundle = unittest.skipUnless(
+    HAS_BUNDLE, "widget bundle not built (npm run build)"
+)
 
+
+@needs_bundle
 class BrowserStagingTest(TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -115,6 +122,7 @@ class BrowserStagingTest(TestCase):
                     self.assertEqual(response.status, 200)
 
 
+@needs_bundle
 class PublishedBuildIsNotDisturbedTest(TestCase):
     """A snapshot is a reader: it must not republish or sweep the build.
 
@@ -270,6 +278,7 @@ class BrowserFailureTest(TestCase):
         openscad.assert_not_called()
 
 
+@needs_bundle
 @unittest.skipUnless(
     HAS_PLAYWRIGHT,
     'playwright not installed (pip install "solid-node[web-snapshot]" '
