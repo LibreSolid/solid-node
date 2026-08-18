@@ -220,6 +220,8 @@ jobs:
       - name: Create release
         if: steps.package_version.outputs.version != null
         run: |
-          gh release create ${{ steps.package_version.outputs.version }} ./dist/* --repo="$GITHUB_REPOSITORY"
+          gh release create "$SOLID_NODE_VERSION" ./dist/* \
+            --title "${{ steps.package_version.outputs.version }}" \
+            --repo="$GITHUB_REPOSITORY"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
