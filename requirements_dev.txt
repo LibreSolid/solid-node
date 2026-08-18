@@ -7,6 +7,7 @@ twine>=5
 build>=1.2
 
 pytest>=8
+pillow>=10
 black>=25.1
 pytest-watch
 ipython

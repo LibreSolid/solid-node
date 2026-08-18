@@ -46,6 +46,7 @@ dev = [
     "Sphinx>=7",
     "twine>=5",
     "pytest>=8",
+    "pillow>=10",
     "black>=25.1",
     "build>=1.2",
     "pytest-watch",
