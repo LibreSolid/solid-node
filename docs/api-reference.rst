@@ -73,6 +73,23 @@ Leaf nodes
 
 .. autoclass:: solid_node.node.Build123dNode
 
+.. autoclass:: solid_node.node.SheetLeafNode
+   :members: profile, render, validated_profile
+
+   .. attribute:: thickness
+
+      Thickness of the stock the part is cut from. Required and positive,
+      declared as a class attribute or passed as a ``thickness=``
+      constructor argument.
+
+   .. attribute:: dxf_file
+
+      Path of the node's nominal cut file, written beside its ``.stl``
+      and ``.brep``.
+
+.. autoclass:: solid_node.node.Build123dSheetNode
+   :members: profile
+
 .. autoclass:: solid_node.node.OpenScadNode
    :members: __init__
 

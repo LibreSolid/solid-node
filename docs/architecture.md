@@ -93,28 +93,46 @@ Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` and `Build123dNode` (both export to STL and re-import),
 `OpenScadNode` (`scad_source` + module call), `JScadNode` (shells out to the
 `jscad` CLI). Every node exposes derived read-only exactness (ADR-044): the
-two OCCT adapters are exact, the other leaf adapters are faceted, and an
+OCCT adapters are exact, the other leaf adapters are faceted, and an
 internal node is exact only when every child is. Exactness does not require
 one backend — every exact adapter converts its render result to one shared
 OCCT shape at the adapter boundary, so the exact layer holds a single type and
 a fusion may mix CadQuery and build123d children (ADR-047). Because that
 conversion makes everything after it backend-neutral, the contract itself —
 `exact`, `shape()`, `as_scad()` — lives once on `ExactLeafNode`, the internal
-base both exact adapters extend; each supplies only its `namespace` and any
+base every exact adapter extends; each supplies only its `namespace` and any
 validation its own API needs. Adapters remain distinct types regardless of the
 bases they share. Because build123d
 groups solids, sketches and curves under one namespace, `Build123dNode`
 additionally rejects a render result that is not a solid, and accepts a
 `BuildPart` builder by taking its finished `.part`.
 
+One leaf kind names a *manufacturing method* rather than a backend.
+`SheetLeafNode` — internal base, `Build123dSheetNode` its v1 adapter — is a
+part cut from sheet stock, authored as a 2D `profile()` plus a declared
+`thickness`. The base owns `render()`, which validates the profile and
+extrudes it from the XY plane along +Z, so the solid in the tree and the file
+a cutter consumes derive from one authored thing and cannot drift apart;
+`profile()` is the only extension point (ADR-051). The profile contract is
+the base's: exactly one planar face, one outer boundary with holes strictly
+inside, on the XY plane, rejected naming the node and the offending type
+before anything is written. `thickness` is required and positive at
+construction, and as a constructor argument it keys artifacts like any other
+parameter. The extrusion is an ordinary backend solid, so a sheet part is an
+exact leaf in every respect above — `exact.py` needed no change, and a fusion
+may mix a sheet part with any other exact child.
+
 Exact nodes expose unplaced BREP geometry through
 `shape()`; placement remains the caller's responsibility through the same
 composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
 Each adapter still emits SCAD, but artifact production follows its backend:
-Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d use OCCT,
-and JSCAD uses `jscad` (ADR-046). Emitting SCAD does not itself require the
-OpenSCAD binary.
+Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d — sheet
+parts included — use OCCT, and JSCAD uses `jscad` (ADR-046). Emitting SCAD
+does not itself require the OpenSCAD binary. A sheet leaf writes one artifact
+the others do not: a nominal DXF of its profile, in millimeters with arcs
+preserved, beside its `.stl` and `.brep` and under the same freshness rules,
+which its skip guard also requires.
 
 Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
@@ -187,8 +205,8 @@ importing its STL — `render()` and `as_scad()` never run (ADR-033), so
 the check happens before the expensive work rather than after it.
 Internal nodes always render: their file set is the union of their
 children's and is only known by walking them. The adapters that write
-their artifact inside `as_scad()` — CadQuery, build123d, JSCAD — carry the same
-guard, for nodes that opt out of optimization.
+their artifact inside `as_scad()` — CadQuery, build123d, sheet, JSCAD — carry
+the same guard, for nodes that opt out of optimization.
 
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
