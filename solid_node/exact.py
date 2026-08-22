@@ -78,7 +78,7 @@ def shape_from_rendered(rendered):
     return cq.Compound.makeCompound(shapes)
 
 
-def _atomic_export(path, mtime, exporter):
+def _atomic_export(path, mtime_ns, exporter):
     directory = os.path.dirname(path) or '.'
     os.makedirs(directory, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
@@ -86,7 +86,7 @@ def _atomic_export(path, mtime, exporter):
     os.close(descriptor)
     try:
         exporter(temporary)
-        os.utime(temporary, (time.time(), mtime))
+        os.utime(temporary, ns=(time.time_ns(), mtime_ns))
         os.replace(temporary, path)
     except Exception:
         if os.path.exists(temporary):
@@ -94,11 +94,11 @@ def _atomic_export(path, mtime, exporter):
         raise
 
 
-def write_brep(shape, path, mtime):
-    _atomic_export(path, mtime, shape.exportBrep)
+def write_brep(shape, path, mtime_ns):
+    _atomic_export(path, mtime_ns, shape.exportBrep)
 
 
-def write_stl(shape, path, mtime, *, remove_degenerate=False):
+def write_stl(shape, path, mtime_ns, *, remove_degenerate=False):
     # Match CadQueryNode's historical cq.exporters.export defaults.
     def export(temporary):
         shape.exportStl(temporary, tolerance=0.1, angularTolerance=0.1)
@@ -108,7 +108,7 @@ def write_stl(shape, path, mtime, *, remove_degenerate=False):
             mesh.remove_unreferenced_vertices()
             mesh.export(temporary, file_type='stl')
 
-    _atomic_export(path, mtime, export)
+    _atomic_export(path, mtime_ns, export)
 
 
 def placed_shape(shape, matrix):

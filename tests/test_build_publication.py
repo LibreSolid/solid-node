@@ -101,6 +101,7 @@ class RenderVisibilityTest(TestCase):
         node.scad_file = os.path.join(self.root, 'part.scad')
         node.lock_file = os.path.join(self.root, 'part.stl.lock')
         node.mtime = 0
+        node.mtime_ns = 0
         node.rigid = True
         node._up_to_date = lambda path: False
         node._stl_generation_locked = False

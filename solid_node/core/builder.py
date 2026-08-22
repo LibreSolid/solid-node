@@ -227,7 +227,7 @@ class Builder(FileSystemEventHandler):
         except Exception as e:
             return await self._on_reload_exception(e, 'assemble')
 
-        loaded_source_mtime = self.node.mtime
+        loaded_source_mtime_ns = self.node.mtime_ns
 
         if self.watch:
             for path in self.node.files:
@@ -240,7 +240,7 @@ class Builder(FileSystemEventHandler):
             prepare_build_dir(self.build_dir)
             # A process may have waited while a newer edit was built. Never
             # let the model it loaded before waiting publish over that result.
-            if self.node.mtime != loaded_source_mtime:
+            if self.node.mtime_ns != loaded_source_mtime_ns:
                 return BuildOutcome.SOURCE_CHANGED
             if self._published_model_is_current():
                 # No artifact needs rendering -- but the document naming them

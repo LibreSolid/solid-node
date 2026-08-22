@@ -54,7 +54,7 @@ class JScadNode(LeafNode):
         proc = Popen(cmd)
         proc.communicate()
         try:
-            os.utime(self.stl_file, (time.time(), self.mtime))
+            os.utime(self.stl_file, ns=(time.time_ns(), self.mtime_ns))
         except FileNotFoundError:
             pass
         return import_stl(self.local_stl)

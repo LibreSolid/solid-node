@@ -197,9 +197,9 @@ class ExactArtifactTest(TestCase):
         path = os.path.join(self.directory.name, 'shape.brep')
         first_shape = cq.Workplane('XY').box(1, 1, 1).val()
         second_shape = cq.Workplane('XY').box(2, 2, 2).val()
-        write_brep(first_shape, path, 1)
+        write_brep(first_shape, path, 1 * 10 ** 9)
         first = cached_shape(path)
-        write_brep(second_shape, path, 2)
+        write_brep(second_shape, path, 2 * 10 ** 9)
         second = cached_shape(path)
 
         self.assertAlmostEqual(first.Volume(), 1.0)

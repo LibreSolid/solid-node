@@ -22,7 +22,21 @@ from .sources import source_closure
 logger = logging.getLogger('node.base')
 
 
-def _atomic_write_text(path, content, mtime):
+def _seconds(mtime_ns):
+    """Integer nanoseconds as the float `os.stat().st_mtime` would report.
+
+    Not `mtime_ns / 1e9`: at the current epoch that integer is past 2**53,
+    so converting it to a double before dividing rounds to a different
+    last bit than the OS does for 27% of timestamps. CPython builds
+    st_mtime as `sec + 1e-9 * nsec`, and the published viewer document
+    records this value -- so it is computed the same way here, and stays
+    bit-identical to what every existing reader has always seen.
+    """
+    seconds, nanoseconds = divmod(mtime_ns, 10 ** 9)
+    return seconds + nanoseconds * 1e-9
+
+
+def _atomic_write_text(path, content, mtime_ns):
     directory = os.path.dirname(path) or '.'
     os.makedirs(directory, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
@@ -30,7 +44,7 @@ def _atomic_write_text(path, content, mtime):
     try:
         with os.fdopen(descriptor, 'w') as output:
             output.write(content)
-        os.utime(temporary, (time.time(), mtime))
+        os.utime(temporary, ns=(time.time_ns(), mtime_ns))
         os.replace(temporary, path)
     except Exception:
         if os.path.exists(temporary):
@@ -480,12 +494,37 @@ class AbstractBaseNode:
         return self.stl_file
 
     @property
-    def mtime(self):
-        """Maximum mtime in source file of all nodes rendered inside this one"""
+    def mtime_ns(self):
+        """Maximum mtime in source file of all nodes rendered inside this
+        one, as integer nanoseconds.
+
+        This is the value the build stamps onto artifacts and compares
+        them against. It is an int, not a float, and that is the whole
+        point: a float timestamp cannot survive the round trip through
+        os.utime, which floors it to a timespec a nanosecond or two low.
+        A nanosecond filesystem stores those low bits harmlessly, but a
+        coarser one truncates them across a quantum boundary about half
+        the time and a whole quantum disappears -- so the artifact lands
+        below the stamp it was given and never reports current again
+        (ADR-006). An integer read from the filesystem and written back
+        unchanged is a fixed point at any resolution.
+        """
         return max([
-            os.path.getmtime(path)
+            os.stat(path).st_mtime_ns
             for path in self.files
         ])
+
+    @property
+    def mtime(self):
+        """Maximum mtime in source file of all nodes rendered inside this one.
+
+        Public and float, as it has always been: the published viewer
+        document records it per node. Derived from mtime_ns rather than
+        computed beside it, so the two can never disagree about which
+        source file won. Nothing in the build path decides currency from
+        this value.
+        """
+        return _seconds(self.mtime_ns)
 
     def render(self):
         raise NotImplementedError
@@ -515,7 +554,7 @@ class AbstractBaseNode:
         return code
 
     def generate_scad(self):
-        _atomic_write_text(self.scad_file, self.scad_code, self.mtime)
+        _atomic_write_text(self.scad_file, self.scad_code, self.mtime_ns)
         logger.info(f"{self.scad_file} generated with {self.mtime}!")
 
     def trigger_stl(self):
@@ -578,7 +617,7 @@ class AbstractBaseNode:
         fh.write(f'{proc.pid}')
         fh.close()
         logger.info(f'Job started with pid {proc.pid}')
-        raise StlRenderStart(proc, self.stl_file, temporary, self.mtime,
+        raise StlRenderStart(proc, self.stl_file, temporary, self.mtime_ns,
                              self.lock_file)
 
     @property
@@ -691,9 +730,16 @@ class AbstractBaseNode:
 
 
     def _up_to_date(self, path):
+        """Exact equality, in integer nanoseconds.
+
+        Equality and not tolerance: a window wide enough to absorb a
+        filesystem's quantum is exactly a window in which a real edit
+        becomes invisible, and ADR-033 ranks a stale model above a
+        spurious rebuild for good reason.
+        """
         return (
             os.path.exists(path) and
-            os.path.getmtime(path) == self.mtime
+            os.stat(path).st_mtime_ns == self.mtime_ns
         )
 
     def _make_build_dirs(self):
@@ -704,16 +750,20 @@ class AbstractBaseNode:
 
 class StlRenderStart(Exception):
 
-    def __init__(self, proc, stl_file, temporary_file, mtime, lock_file):
+    def __init__(self, proc, stl_file, temporary_file, mtime_ns, lock_file):
         super().__init__()
         self.proc = proc
         self.stl_file = stl_file
         self.temporary_file = temporary_file
-        self.mtime = mtime
+        self.mtime_ns = mtime_ns
         self.lock_file = lock_file
 
+    @property
+    def mtime(self):
+        return _seconds(self.mtime_ns)
+
     def finish(self):
-        os.utime(self.temporary_file, (time.time(), self.mtime))
+        os.utime(self.temporary_file, ns=(time.time_ns(), self.mtime_ns))
         os.replace(self.temporary_file, self.stl_file)
         logger.info(f"{self.stl_file} generated with {self.mtime}!")
         if os.path.exists(self.lock_file):

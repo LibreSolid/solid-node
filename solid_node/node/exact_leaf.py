@@ -55,7 +55,7 @@ class ExactLeafNode(LeafNode):
         """
         shape = shape_from_rendered(rendered)
         if not self._up_to_date(self.stl_file):
-            write_stl(shape, self.stl_file, self.mtime)
+            write_stl(shape, self.stl_file, self.mtime_ns)
         if not self._up_to_date(self.brep_file):
-            write_brep(shape, self.brep_file, self.mtime)
+            write_brep(shape, self.brep_file, self.mtime_ns)
         return import_stl(self.local_stl)

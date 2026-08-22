@@ -181,7 +181,7 @@ class UpToDateLeafTest(BaseNodeTest):
         node = JsBlock()
         with open(node.stl_file, 'w') as fh:
             fh.write('solid empty\nendsolid empty\n')
-        os.utime(node.stl_file, (time.time(), node.mtime))
+        os.utime(node.stl_file, ns=(time.time_ns(), node.mtime_ns))
 
         with mock.patch('solid_node.node.adapters.jscad.Popen') as popen:
             node.as_scad(None)

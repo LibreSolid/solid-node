@@ -50,8 +50,10 @@ Three architectural commitments shape almost every subsystem:
    its STL through its own `jscad` tool. OpenSCAD is therefore conditional on
    the paths that invoke it, not a universal framework prerequisite.
 2. **The build artifact is the currency, mtime is its clock**
-   (ADR-006/026/033). STLs are cached per parameter-hashed identity and
-   validated by mtime *equality* against the max source mtime. Caches
+   (ADR-006/026/033/050). STLs are cached per parameter-hashed identity and
+   validated by mtime *equality* against the max source mtime, in integer
+   nanoseconds — never as a float, which cannot survive the `os.utime`
+   round trip off a filesystem coarser than a nanosecond (ADR-050). Caches
    at every layer — meshes, Manifolds, HTTP responses — key on the same
    `(artifact, mtime)` signal, so artifact freshness is the one
    invalidation concept the whole system shares. The source set behind
@@ -167,7 +169,11 @@ STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 equality** — generated files are back-dated with `os.utime` to the max
 source mtime (ADR-006), taken over `node.files`: the node's own source
 plus its project-local import closure, unioned upward from children
-(ADR-033).
+(ADR-033). Both sides of that equality are integer nanoseconds
+(`st_mtime_ns`, `os.utime(ns=…)`), so the back-date is a fixed point at
+whatever resolution the filesystem stores — a float stamp is not, and on a
+millisecond-resolution filesystem it left every artifact permanently stale
+and this loop non-terminating (ADR-050).
 
 OpenSCAD availability is resolved once per process, at the first operation
 that actually requires it (ADR-046). Mesh-backend STL rendering, faceted
@@ -425,8 +431,11 @@ viewer, export widget.
 The short list that changes must not silently break:
 
 - An artifact is fresh **iff** its mtime equals the node's max source
-  mtime; an exact node requires both STL and BREP current, and every cache keys
-  on that signal (ADR-006/028/029/044).
+  mtime, compared as integer nanoseconds and never as a float
+  (ADR-050); an exact node requires both STL and BREP current, and every
+  cache keys on that signal (ADR-006/028/029/044). Equality, not
+  tolerance: a window wide enough to absorb a filesystem's timestamp
+  quantum is a window in which a real edit is invisible.
 - A node's source set is its own file plus the project-local modules it
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file

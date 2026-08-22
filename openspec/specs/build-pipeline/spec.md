@@ -186,6 +186,25 @@ recursively from children). After generating an artifact the system SHALL
 back-date its mtime to the source mtime via `os.utime` so the equality holds.
 A change to any contributing source file invalidates all ancestor artifacts.
 
+The comparison SHALL be exact equality of integer nanoseconds, and the system
+SHALL read source and artifact timestamps, and stamp artifacts, in integer
+nanoseconds. It SHALL NOT decide currency from a floating-point timestamp, and
+it SHALL NOT accept an artifact whose stamp merely approximates the node
+mtime. No tolerance window exists: an artifact carrying any value other than
+the one the system stamped is not current.
+
+The back-date SHALL therefore be a fixed point wherever the filesystem holding
+the artifacts stores timestamps at the same resolution as the filesystem
+holding the sources, whatever that resolution is. A project whose source files
+carry sub-second mtimes SHALL cache its artifacts normally on a
+coarse-resolution filesystem — including one that stores timestamps to the
+millisecond — rather than rebuilding every node on every build.
+
+Where the system cannot store the exact stamp — an artifact filesystem coarser
+than the source filesystem — the artifact SHALL report not current and be
+rebuilt. Currency SHALL fail only in this direction: a source that has changed
+SHALL NOT be reported current under any timestamp resolution.
+
 For an exact node the `.brep` artifact SHALL participate in this rule exactly
 as the `.stl` does: the node's artifacts are current only when both are, so a
 node whose mesh is current but whose exact geometry is absent or stale SHALL
@@ -227,6 +246,34 @@ artifact.
 - **WHEN** an exact node's `.stl` and `.scad` are current but its `.brep` is
   absent
 - **THEN** the node reports not-up-to-date and is rendered, producing both
+
+#### Scenario: Sub-second source mtimes cache on a coarse-resolution filesystem
+
+- **WHEN** a project whose source files carry arbitrary sub-second mtimes is
+  built twice with no edit between the builds, on a filesystem that stores
+  timestamps to the millisecond
+- **THEN** the second build reports every artifact current and renders nothing
+
+#### Scenario: Exact artifacts cache on a coarse-resolution filesystem
+
+- **WHEN** an exact rigid node is built twice with no edit between the builds,
+  on a filesystem that stores timestamps to the millisecond
+- **THEN** both its `.stl` and its `.brep` report current on the second build
+  and neither is rewritten
+
+#### Scenario: A coarse filesystem never makes a changed source look current
+
+- **WHEN** a source file is modified after a build, on a filesystem that
+  stores timestamps to the millisecond
+- **THEN** the node's artifacts report not-up-to-date and are regenerated,
+  whatever the sub-millisecond remainder of either timestamp
+
+#### Scenario: Artifacts stamped by an earlier version rebuild once
+
+- **WHEN** a build directory whose artifacts were stamped through the previous
+  floating-point back-date is built by the current version
+- **THEN** those artifacts report not-up-to-date and are regenerated once,
+  after which they report current
 
 ### Requirement: Concurrent render locking
 

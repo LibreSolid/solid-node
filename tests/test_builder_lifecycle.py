@@ -80,7 +80,7 @@ class FakeNode:
     def __init__(self, stl_file=None, mtime=0, children=(), name='part'):
         self.stl_file = stl_file
         self.rigid = stl_file is not None
-        self.mtime = mtime
+        self.mtime_ns = round(mtime * 10 ** 9)
         self.children = children
         self.files = []
         self.name = name
@@ -91,8 +91,16 @@ class FakeNode:
     def assemble(self):
         pass
 
+    @property
+    def mtime(self):
+        return self.mtime_ns / 1e9
+
     def _up_to_date(self, path):
-        return os.path.exists(path) and os.path.getmtime(path) == self.mtime
+        # Integer nanoseconds, like the real rule: a float comparison
+        # cannot survive the os.utime round trip off a filesystem coarser
+        # than a nanosecond.
+        return (os.path.exists(path)
+                and os.stat(path).st_mtime_ns == self.mtime_ns)
 
 
 class PublicationGeometryTest(TestCase):
@@ -290,7 +298,7 @@ class RedundantAndSupersededBuildTest(TestCase):
 
         @contextmanager
         def lock_taken_late(build_dir=None):
-            node.mtime += 1          # an edit landed while this build waited
+            node.mtime_ns += 10 ** 9   # an edit landed while this build waited
             yield
 
         with patch('solid_node.core.builder.load_node', return_value=node), \

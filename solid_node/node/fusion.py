@@ -64,6 +64,6 @@ class FusionNode(InternalNode):
                 and self._up_to_date(self.brep_file)):
             return
         shape = self.shape()
-        write_brep(shape, self.brep_file, self.mtime)
+        write_brep(shape, self.brep_file, self.mtime_ns)
         write_stl(
-            shape, self.stl_file, self.mtime, remove_degenerate=True)
+            shape, self.stl_file, self.mtime_ns, remove_degenerate=True)
