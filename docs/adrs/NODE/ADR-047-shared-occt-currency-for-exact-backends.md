@@ -1,10 +1,10 @@
 # ADR-047: One shared OCCT currency for every exact backend
 
-**Status:** Accepted
+**Status:** Accepted; amended 2026-08-22 by `exact-leaf-node-base`
 
 **Date:** 2026-08-22
 
-**Change:** `build123d-leaf-adapter`
+**Change:** `build123d-leaf-adapter`, amended by `exact-leaf-node-base`
 
 **Depends on:**
 - [ADR-004: Multi-CAD Backend Adapter Pattern](ADR-004-multi-cad-backend-adapter-pattern.md)
@@ -66,7 +66,7 @@ plainly: it is the type the exact layer already used, and cadquery remains a
 dependency regardless because `CadQueryNode` needs it. The decision is that
 there is exactly one such type, not that it belongs to a favoured backend.
 
-Two consequences follow directly:
+Three consequences follow directly:
 
 - **Mixed-backend exactness needs no rule of its own.** ADR-044's
   every-child-is-exact composition already covers it once all exact children
@@ -77,6 +77,19 @@ Two consequences follow directly:
   build123d, which costs about 1.6 seconds on a package that
   `solid_node.node` imports eagerly. A test asserts that importing
   `solid_node.node` leaves build123d out of `sys.modules`.
+- **The contract after the conversion has one implementation.** Because every
+  exact backend hands the same type to the same operations, what follows the
+  conversion is not per-backend code. `ExactLeafNode` (added by the amending
+  change) holds `exact`, `shape()` and `as_scad()`; an exact adapter supplies
+  only its `namespace` and whatever validation its own API needs. This was
+  not drawn when the ADR was first written, because there was then only one
+  copy of the contract to look at. `ExactLeafNode` is a framework-internal
+  base, not a declared extension point.
+
+  Sharing a base carries one obligation, now recorded in `node-model`: the
+  adapters must remain distinct types, so that an `isinstance` check or the
+  method-resolution-order walk in `generate_stl` cannot confuse two backends
+  through their common ancestor.
 
 The packaging problem is resolved by pinning `cadquery` 2.7 with `build123d`
 0.10, which share `cadquery-ocp` 7.8 — the newest pair that resolves to one
@@ -131,6 +144,9 @@ are not exchanging geometry, they are naming the same geometry.
 ## References
 
 - `solid_node/exact.py` — `build123d_shape()`, `shape_from_rendered()`
-- `solid_node/node/adapters/build123d.py`
-- `tests/test_build123d_adapter.py` — conversion, mixed fuse, import cost
+- `solid_node/node/exact_leaf.py` — `ExactLeafNode`
+- `solid_node/node/adapters/build123d.py`, `.../cadquery.py`
+- `tests/test_build123d_adapter.py` — conversion, mixed fuse, import cost,
+  adapter type distinctness
 - `openspec/changes/archive/*-build123d-leaf-adapter/`
+- `openspec/changes/archive/*-exact-leaf-node-base/`

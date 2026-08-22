@@ -18,6 +18,10 @@ Modelling backends
 * Exact composition does not require one backend: a fusion may mix
   ``CadQueryNode`` and ``Build123dNode`` children and still fuse exactly into
   a single solid.
+* Internal: the exact-adapter contract (``exact``, ``shape()``,
+  ``as_scad()``) moved to a shared ``ExactLeafNode`` base rather than being
+  duplicated in ``CadQueryNode`` and ``Build123dNode``. No project-visible
+  effect: both adapters keep their name, import path and behaviour.
 * **Reinstall required.** ``cadquery`` moves from 2.5 to 2.7 and
   ``build123d`` 0.10 joins it, so the shared ``cadquery-ocp`` binding moves
   from 7.7 to 7.8. Both libraries bind the same ``OCP`` module and the

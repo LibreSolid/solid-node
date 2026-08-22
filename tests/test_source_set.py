@@ -156,7 +156,7 @@ class UpToDateLeafTest(BaseNodeTest):
 
         again = Block()
         with mock.patch(
-                'solid_node.node.adapters.cadquery.write_stl') as export:
+                'solid_node.node.exact_leaf.write_stl') as export:
             scad = again.as_scad(again.render())
 
         export.assert_not_called()
@@ -172,7 +172,7 @@ class UpToDateLeafTest(BaseNodeTest):
                 fh.write('solid empty\nendsolid empty\n')
 
         node = Block()
-        with mock.patch('solid_node.node.adapters.cadquery.write_stl',
+        with mock.patch('solid_node.node.exact_leaf.write_stl',
                         side_effect=export_stub) as export:
             node.as_scad(node.render())
         export.assert_called_once()

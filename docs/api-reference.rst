@@ -63,6 +63,9 @@ Leaf nodes
 .. autoclass:: solid_node.node.leaf.LeafNode
    :members: time
 
+.. autoclass:: solid_node.node.exact_leaf.ExactLeafNode
+   :members: exact, shape
+
 .. autoclass:: solid_node.node.Solid2Node
    :members: as_number
 

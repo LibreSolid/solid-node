@@ -235,9 +235,9 @@ class Build123dArtifactTest(BuildDirTestCase):
         node.assemble()
 
         second = BuilderBox()
-        with patch('solid_node.node.adapters.build123d.write_stl',
+        with patch('solid_node.node.exact_leaf.write_stl',
                    side_effect=AssertionError('must not re-export')), \
-             patch('solid_node.node.adapters.build123d.write_brep',
+             patch('solid_node.node.exact_leaf.write_brep',
                    side_effect=AssertionError('must not re-export')):
             assembled = second.as_scad(second.render())
 
@@ -302,6 +302,48 @@ class Build123dExactnessTest(BuildDirTestCase):
         fusion.assemble()
 
         self.assertFalse(fusion.exact)
+
+
+class ExactAdapterIdentityTest(TestCase):
+    """The exact adapters share an implementation base. Sharing it must not
+    make them interchangeable to a type test, which is what a project's
+    `isinstance` check and the backend lookup in generate_stl both rely on."""
+
+    def test_the_exact_adapters_are_not_instances_of_each_other(self):
+        cadquery_node = CadQueryBox()
+        build123d_node = BuilderBox()
+
+        self.assertNotIsInstance(cadquery_node, Build123dNode)
+        self.assertNotIsInstance(build123d_node, CadQueryNode)
+        self.assertIsNot(type(cadquery_node).__mro__[1],
+                         type(build123d_node))
+
+    def test_neither_adapter_resolves_to_a_mesh_rendering_backend(self):
+        """generate_stl names the backend by walking the MRO for adapter
+        class names. A shared ancestor must not introduce one."""
+        mesh_backends = {'Solid2Node', 'OpenScadNode', 'FusionNode'}
+
+        for adapter in (CadQueryNode, Build123dNode):
+            with self.subTest(adapter=adapter.__name__):
+                names = {cls.__name__ for cls in adapter.__mro__}
+                self.assertEqual(names & mesh_backends, set())
+
+    def test_a_subclass_defines_with_the_cq_editor_metaclass_active(self):
+        """CheckCQEditor drops the declared bases under CQ-editor. It names
+        no base, so it is unaffected by the adapter now inheriting
+        ExactLeafNode -- but that is worth holding, since it rewrites the
+        hierarchy at definition time."""
+        import sys
+        from types import ModuleType
+
+        sys.modules['cq_editor.__main__'] = ModuleType('cq_editor.__main__')
+        self.addCleanup(sys.modules.pop, 'cq_editor.__main__', None)
+
+        class EditorPart(CadQueryNode):
+            def render(self):
+                return cq.Workplane('XY').box(2, 2, 2)
+
+        self.assertEqual(EditorPart.__bases__, (object,))
 
 
 class Build123dImportCostTest(TestCase):

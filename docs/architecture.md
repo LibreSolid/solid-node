@@ -95,7 +95,12 @@ two OCCT adapters are exact, the other leaf adapters are faceted, and an
 internal node is exact only when every child is. Exactness does not require
 one backend — every exact adapter converts its render result to one shared
 OCCT shape at the adapter boundary, so the exact layer holds a single type and
-a fusion may mix CadQuery and build123d children (ADR-047). Because build123d
+a fusion may mix CadQuery and build123d children (ADR-047). Because that
+conversion makes everything after it backend-neutral, the contract itself —
+`exact`, `shape()`, `as_scad()` — lives once on `ExactLeafNode`, the internal
+base both exact adapters extend; each supplies only its `namespace` and any
+validation its own API needs. Adapters remain distinct types regardless of the
+bases they share. Because build123d
 groups solids, sketches and curves under one namespace, `Build123dNode`
 additionally rejects a render result that is not a solid, and accepts a
 `BuildPart` builder by taking its finished `.part`.
