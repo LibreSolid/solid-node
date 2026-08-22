@@ -146,6 +146,25 @@ def _bounds_candidates(bounds):
         active.append(current)
 
 
+def _solid_geometry(solid):
+    """``(cached Manifold, local bounds, exact shape or None)`` for one
+    selected solid: everything a placement needs that does not depend on
+    WHERE the solid is being placed. Read once per solid so an assertion
+    placing the same solid twice (see ``_dropped_assembly_solids``) pays
+    for one ``shape()`` and one cache lookup, not two."""
+    manifold, local_bounds = _cached_manifold(solid.stl_file)
+    shape = solid.shape() if getattr(solid, 'exact', False) else None
+    return manifold, local_bounds, shape
+
+
+def _place_solid(solid, manifold, local_bounds, matrix, shape):
+    """One placed-solid record: ``(solid, placed_manifold, world_bounds,
+    placed_exact_shape_or_None)``."""
+    return (solid, manifold.transform(matrix[:3, :4]),
+            _world_bounds(local_bounds, matrix),
+            None if shape is None else placed_shape(shape, matrix))
+
+
 def _placed_assembly_solids(node):
     """Lazily world-placed Manifolds below ``node``.
 
@@ -157,28 +176,199 @@ def _placed_assembly_solids(node):
     """
     placed = []
     for solid in _topmost_rigid_nodes(node):
-        manifold, local_bounds = _cached_manifold(solid.stl_file)
-        matrix = _compose_world_matrix(solid)
-        exact_shape = None
-        if getattr(solid, 'exact', False):
-            exact_shape = placed_shape(solid.shape(), matrix)
-        placed.append((solid, manifold.transform(matrix[:3, :4]),
-                       _world_bounds(local_bounds, matrix), exact_shape))
+        manifold, local_bounds, shape = _solid_geometry(solid)
+        placed.append(_place_solid(solid, manifold, local_bounds,
+                                   _compose_world_matrix(solid), shape))
     return placed
+
+
+def _translation_matrix(offset):
+    """The 4x4 world-frame translation by ``offset``."""
+    matrix = np.eye(4)
+    matrix[:3, 3] = offset
+    return matrix
+
+
+def _dropped_assembly_solids(solids, offset):
+    """``(resting, dropped)`` placement records for ``solids``.
+
+    Each solid is placed twice from ONE cache read: once by its composed
+    world matrix, and once by that matrix with the drop translation applied
+    outermost (``T @ M``), which is what makes the displacement a world-frame
+    fall rather than a motion in the part's own frame. Both placements are the
+    same lazy ``transform()`` the interference assertion uses, so the drop
+    costs a matrix product, not a re-conversion.
+    """
+    translation = _translation_matrix(offset)
+    resting, dropped = [], []
+    for solid in solids:
+        manifold, local_bounds, shape = _solid_geometry(solid)
+        matrix = _compose_world_matrix(solid)
+        resting.append(
+            _place_solid(solid, manifold, local_bounds, matrix, shape))
+        dropped.append(
+            _place_solid(solid, manifold, local_bounds,
+                         translation @ matrix, shape))
+    return resting, dropped
+
+
+def _placed_intersection(first, second):
+    """Engine-native emptiness and volume for two placed solid records.
+
+    A pair of exact records is read by the boundary-representation kernel;
+    any other pair (faceted, or one of each) by the placed Manifolds.
+    """
+    if first[3] is not None and second[3] is not None:
+        result = intersect_shapes(
+            first[3], second[3], first[0].name, second[0].name)
+        count = solid_count(result)
+        return IntersectionStats(count == 0, solid_volume(result), True)
+    result = first[1] ^ second[1]
+    is_empty = result.is_empty()
+    return IntersectionStats(
+        is_empty, 0.0 if is_empty else result.volume(), False)
 
 
 def _candidate_intersection(solids, first, second):
     """Engine-native emptiness and volume for one placed solid pair."""
-    if solids[first][3] is not None and solids[second][3] is not None:
-        result = intersect_shapes(
-            solids[first][3], solids[second][3],
-            solids[first][0].name, solids[second][0].name)
-        count = solid_count(result)
-        return IntersectionStats(count == 0, solid_volume(result), True)
-    result = solids[first][1] ^ solids[second][1]
-    is_empty = result.is_empty()
-    return IntersectionStats(
-        is_empty, 0.0 if is_empty else result.volume(), False)
+    return _placed_intersection(solids[first], solids[second])
+
+
+########################################
+# Support graph
+#
+# `assertAssemblySupported` asks a DIRECTED question about the same
+# placed solids the interference assertion compares: does solid i,
+# dropped along gravity, land inside solid j? The helpers below build
+# that graph -- candidate pairs, seeds, declared edges, reachability --
+# and are deliberately free of any physics beyond it (ADR-048).
+
+
+def _unit_vector(vector, label):
+    """``vector`` normalized, or a loud error for the zero vector -- a
+    direction that cannot be normalized is a knob mistake, never a
+    silently ignored argument."""
+    values = np.asarray([float(component) for component in vector], float)
+    magnitude = float(np.sqrt(np.dot(values, values)))
+    if magnitude == 0:
+        raise ValueError(
+            f"assertAssemblySupported: {label} must be a nonzero vector")
+    return values / magnitude
+
+
+def _gravity_extent(bounds, unit_gravity):
+    """How far a placed solid's conservative world box reaches ALONG
+    gravity: the largest projection of the box on the gravity direction,
+    which for an axis-aligned box is one per-axis maximum summed."""
+    low, high = bounds
+    return float(np.sum(np.maximum(unit_gravity * low, unit_gravity * high)))
+
+
+def _support_candidates(dropped_bounds, placed_bounds):
+    """Yield ``(supported, supporter)`` index pairs worth a Boolean.
+
+    The broad phase is the same sweep-and-prune the interference assertion
+    uses, run over both bound sets at once: dropped boxes first, placed boxes
+    second, so an emitted pair spanning the two halves IS a directed
+    displaced-versus-placed overlap. Pairs inside one half (two drops, or two
+    resting solids) answer no question here and are dropped, as is a solid
+    paired with its own drop.
+    """
+    count = len(dropped_bounds)
+    boxes = list(dropped_bounds) + list(placed_bounds)
+    for first, second in _bounds_candidates(boxes):
+        if first < count <= second:
+            supporter = second - count
+            if supporter != first:
+                yield first, supporter
+
+
+def _selected_index(solids):
+    """Identity map from selected solid to its index. Keyed by ``id``:
+    a node is free to define ``__eq__``/``__hash__`` for its own
+    purposes, and the question here is which OBJECT was selected."""
+    return {id(solid): index for index, solid in enumerate(solids)}
+
+
+def _resolve_selected(node, index_of):
+    """The selected solids a caller's node stands for.
+
+    A node inside a printed solid resolves UP to that solid -- the walk
+    ``_enclosing_solid`` performs for ``assertJoined`` -- so naming a feature
+    names its part. An assembly above the selection resolves DOWN to every
+    selected solid beneath it, so naming a subassembly names its parts. A node
+    that is neither resolves to nothing, which the callers report loudly
+    rather than pass over.
+    """
+    current = node
+    while current is not None:
+        if id(current) in index_of:
+            return [index_of[id(current)]]
+        current = getattr(current, '_parent', None)
+    return [index_of[id(solid)] for solid in _topmost_rigid_nodes(node)
+            if id(solid) in index_of]
+
+
+def _require_selected(node, index_of, role):
+    resolved = _resolve_selected(node, index_of)
+    if not resolved:
+        raise ValueError(
+            f"assertAssemblySupported: {role} "
+            f"{getattr(node, 'name', node)!r} does not resolve to any "
+            "selected topmost rigid solid")
+    return resolved
+
+
+def _declared_support_edges(supports, index_of):
+    """``(supported, supporter)`` index edges for the declared holds."""
+    edges = []
+    for supported, supporter in supports:
+        for first in _require_selected(supported, index_of, 'supports entry'):
+            for second in _require_selected(
+                    supporter, index_of, 'supports entry'):
+                if first != second:
+                    edges.append((first, second))
+    return edges
+
+
+def _grounded_seeds(solids, unit_gravity, max_drop, ground, index_of):
+    """The indexes groundedness starts from.
+
+    By default the assembly holds itself together: the solids reaching within
+    ``max_drop`` of its furthest extent along gravity are the ones that would
+    meet an unmodelled floor, and the drop distance doubles as the seed
+    tolerance so seeding has the same resolution as the test. An explicit
+    ``ground`` replaces that default outright.
+    """
+    if ground is None:
+        extents = [_gravity_extent(item[2], unit_gravity) for item in solids]
+        furthest = max(extents)
+        return {index for index, extent in enumerate(extents)
+                if furthest - extent <= max_drop}
+    entries = ground if isinstance(ground, (list, tuple, set)) else [ground]
+    seeds = set()
+    for entry in entries:
+        seeds.update(_require_selected(entry, index_of, 'ground'))
+    return seeds
+
+
+def _grounded_solids(edges, seeds):
+    """Every index reachable from ``seeds`` against the support edges: if
+    ``j`` is grounded and ``i`` rests on ``j``, ``i`` is grounded. A cycle of
+    mutually leaning solids therefore grounds exactly when one of its members
+    reaches a seed, and never by leaning on itself."""
+    supporting = {}
+    for supported, supporter in edges:
+        supporting.setdefault(supporter, []).append(supported)
+    grounded = set(seeds)
+    queue = list(grounded)
+    while queue:
+        supporter = queue.pop()
+        for supported in supporting.get(supporter, ()):
+            if supported not in grounded:
+                grounded.add(supported)
+                queue.append(supported)
+    return grounded
 
 
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
@@ -600,6 +790,92 @@ class TestCase(BaseTestCase):
             raise AssertionError(
                 f"{solid1.name} should not interfere with {solid2.name} "
                 f"(intersection volume {volume})")
+
+    def assertAssemblySupported(self, node, gravity=(0, 0, -1), max_drop=1.0,
+                                ground=None, supports=None):
+        """Assert every printed solid below ``node`` is held against gravity.
+
+        The same topmost rigid solids ``assertNoSolidInterference`` compares
+        are placed in world coordinates at the testing instant already
+        selected by the runner. A solid is DIRECTLY supported by another when,
+        displaced by ``max_drop`` along the normalized ``gravity`` vector, it
+        intersects that solid with positive volume: a part resting on a face,
+        sitting in its clearance gap, or hanging by an engaged lip all land in
+        their support, while a part floating in space lands in nothing.
+        Zero-volume boundary contact after the drop is not a hold, exactly as
+        it is not interference. Those relations form a support graph, and
+        every selected solid must reach a grounded solid through it; the
+        failure names every solid that does not.
+
+        With ``ground=None`` the assembly must hold itself together: the
+        solids reaching within ``max_drop`` of the assembly's furthest extent
+        along gravity are grounded, which is also what an unmodelled floor
+        would touch. ``ground`` (a node or a sequence of nodes, each resolved
+        to its selected solid) replaces that default for an assembly anchored
+        somewhere else -- hung from a ceiling, bolted to an unmodelled frame.
+
+        ``supports=[(supported, supporter), ...]`` declares holds this
+        assertion deliberately cannot prove -- press fits, glue, friction --
+        keeping the exemption visible in the test. A declared supporter must
+        still be grounded itself; declaring an edge grounds nothing by itself.
+        A ``ground`` or ``supports`` entry resolving to no selected solid, a
+        zero ``gravity`` vector, and a non-positive ``max_drop`` are errors.
+
+        Choosing ``max_drop`` (mm, default 1.0): it must be LARGER than the
+        design's vertical clearance play, or a part sitting in its own
+        clearance gap reads as floating, and SMALLER than the thinnest
+        supporting feature's thickness plus the gap above it, or the dropped
+        solid tunnels straight through its support and the same part reads as
+        floating again. The default sits in the usual window between printed
+        clearances (0.5mm or less) and printed walls (1.2mm or more).
+
+        What this assertion does NOT claim: it proves support reachability
+        only. There is no force or torque balance, no toppling analysis
+        (centre of mass against support polygon), no friction or adhesion, and
+        no lateral-restraint analysis -- a part free to slide or tip over
+        still passes. Passing means nothing floats, not that the assembly is
+        statically stable.
+        """
+        unit_gravity = _unit_vector(gravity, 'gravity')
+        max_drop = float(max_drop)
+        if not max_drop > 0:
+            raise ValueError(
+                "assertAssemblySupported: max_drop must be positive, "
+                f"got {max_drop}")
+
+        selected = list(_topmost_rigid_nodes(node))
+        if len(selected) <= 1:
+            # Nothing can rest on anything: the selection is already a
+            # supported assembly, and no geometry is loaded to say so.
+            return
+
+        index_of = _selected_index(selected)
+        declared = _declared_support_edges(supports or (), index_of)
+
+        resting, dropped = _dropped_assembly_solids(
+            selected, unit_gravity * max_drop)
+        edges = []
+        for supported, supporter in _support_candidates(
+                [item[2] for item in dropped], [item[2] for item in resting]):
+            is_empty, volume = _placed_intersection(
+                dropped[supported], resting[supporter])
+            if is_empty or volume == 0.0:
+                continue
+            edges.append((supported, supporter))
+        edges.extend(declared)
+
+        seeds = _grounded_seeds(
+            resting, unit_gravity, max_drop, ground, index_of)
+        grounded = _grounded_solids(edges, seeds)
+        unsupported = [solid for index, solid in enumerate(selected)
+                       if index not in grounded]
+        if unsupported:
+            names = ', '.join(solid.name for solid in unsupported)
+            direction = ', '.join(f'{value:g}' for value in unit_gravity)
+            raise AssertionError(
+                f"{names} should be supported against gravity, but no "
+                f"support path reaches a grounded solid "
+                f"(dropped {max_drop:g}mm along gravity ({direction}))")
 
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.

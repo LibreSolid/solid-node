@@ -120,7 +120,11 @@ writing tests: mixing ``TestCaseMixin`` into a node class, or writing a
    in a subtree is one connected body. ``assertNoSolidInterference(node)``
    checks that those same printed solids have no positive-volume world-space
    overlap at the runner's current keyframe; exact boundary contact passes and
-   there is no public overlap epsilon. The older
+   there is no public overlap epsilon.
+   ``assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0,
+   ground=None, supports=None)`` checks the physical inverse over the same
+   selection: that every printed solid is transitively held against gravity,
+   proved by dropping it ``max_drop`` into whatever holds it. The older
    ``assertNoPairwiseIntersections`` leaf sweep is deprecated and retained
    only for compatibility.
 

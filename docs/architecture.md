@@ -284,9 +284,30 @@ framework tests rather than re-checked at runtime (ADR-040). The old all-leaf
 `assertNoPairwiseIntersections` sweep remains deprecated and
 behavior-compatible.
 
-Both integrity assertions run only when ordinary project test source calls
-them. `solid new` declares them as two counted companion tests; non-test
-commands do not load that companion. `assertJoined(a, b,
+`assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0, ground=None,
+supports=None)` asks the physical inverse over the same selection and the same
+placement (ADR-048): not whether two parts share material, but whether any part
+is floating. A solid is directly supported by another when, displaced by
+`max_drop` along the normalized gravity vector — one world-frame translation
+folded into the placement matrix — it intersects that solid with positive
+volume; zero-volume contact after the drop is not a hold. Those edges form a
+support graph, seeded by the solids within `max_drop` of the assembly's
+furthest extent along gravity (or by an explicit `ground`, resolved up from a
+feature or down through an assembly), and groundedness propagates from
+supporter to supported, so a mutual-lean cycle is grounded exactly when a
+member reaches ground. `supports=[(supported, supporter), ...]` declares holds
+the drop cannot prove — press fits, glue, friction — without grounding
+anything by itself. The broad phase is the same sweep-and-prune, run over the
+displaced and placed boxes at once so an emitted cross-half pair is exactly a
+directed overlap; exact pairs still route to the kernel. Zero or one selected
+solid passes without geometry work; a zero `gravity`, a non-positive
+`max_drop`, and an unresolvable `ground`/`supports` entry are loud errors. The
+assertion claims support reachability only: no force or torque balance, no
+toppling, no friction, no lateral restraint.
+
+All three integrity assertions run only when ordinary project test source
+calls them. `solid new` declares the connectivity and interference pair as two
+counted companion tests; non-test commands do not load that companion. `assertJoined(a, b,
 min_weld_volume=...)` checks the separate pairwise claim that two named
 features meet directly. It composes operations only below their enclosing
 topmost rigid node, excluding whole-solid placement and every animated
@@ -435,7 +456,7 @@ The short list that changes must not silently break:
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
-| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040 |
+| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048 |
 | Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
 | Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

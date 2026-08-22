@@ -423,6 +423,77 @@ class AssemblyIntegrityMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
+class AssemblySupportMetaTest(TestCase):
+    """assertAssemblySupported through the real CLI, builder and kernel.
+    The unit suite drives the support graph with doubles; only a real
+    project can show that a hook's lip, a press fit, a floating part and
+    a mutually leaning pair reach the right verdict once the whole
+    pipeline has built and placed them."""
+
+    def test_genuinely_held_assembly_passes_by_every_mechanism(self):
+        run = solid_test('assembly_supported')
+        self.assertEqual(run.results, {
+            'test_resting_stack_is_supported': 'passed',
+            'test_hanging_hook_is_supported': 'passed',
+            'test_press_fit_is_supported_when_declared': 'passed',
+            'test_mutually_leaning_pair_is_supported_through_the_ground':
+                'passed',
+            'test_whole_assembly_is_supported_from_its_anchors': 'passed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (5, 5, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_floating_chain_and_ungrounded_lean_are_reported(self):
+        run = solid_test('assembly_supported_floating')
+        self.assertEqual(run.results, {
+            'test_floating_chain_is_reported': 'failed',
+            'test_mutual_lean_without_ground_is_reported': 'failed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (2, 0, 2))
+        # Every unsupported solid is named, including the one that
+        # correctly rests on a floating part, with the drop and gravity
+        # that were used.
+        self.assertIn('floater, rider should be supported against gravity',
+                      run.stdout)
+        self.assertIn('dropped 1mm along gravity (0, 0, -1)', run.stdout)
+        self.assertIn('left, right should be supported against gravity',
+                      run.stdout)
+        self.assertIn('dropped 1.5mm along gravity (0, 0, -1)', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_the_runners_instant_places_the_assembly(self):
+        """The block rests on its base at the first instant and is
+        lifted clear of it by the second: one assertion, two verdicts,
+        with no keyframe argument of its own. --failfast makes the
+        transition visible -- the loop gets past the first instant and
+        stops on the second."""
+        run = solid_test('assembly_supported_lifted')
+        self.assertEqual(run.results,
+                         {'test_lifted_block_leaves_its_support': 'failed'})
+        self.assertIn('block should be supported against gravity', run.stdout)
+
+        proc = run_solid(
+            'test', '--failfast',
+            'tests/meta_project/assembly_supported_lifted.py')
+        stdout = ANSI.sub('', proc.stdout)
+        self.assertRegex(
+            stdout,
+            r'Running AssemblySupportedLiftedTest'
+            r'\.test_lifted_block_leaves_its_support\.\.FAIL!')
+        self.assertNotRegex(
+            stdout,
+            r'Running AssemblySupportedLiftedTest'
+            r'\.test_lifted_block_leaves_its_support\.\.\.FAIL!')
+        self.assertNotEqual(proc.returncode, 0)
+
+    def test_exact_assembly_support_passes(self):
+        run = solid_test('assembly_supported_exact')
+        self.assertEqual(run.results,
+                         {'test_exact_assembly_is_supported': 'passed'})
+        self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
+        self.assertEqual(run.returncode, 0)
+
+
 class ExactGeometryMetaTest(TestCase):
 
     def test_rotated_zero_clearance_round_fit_passes(self):

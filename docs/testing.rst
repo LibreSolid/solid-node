@@ -411,6 +411,78 @@ tracks the number of interacting pairs rather than the model's total triangle
 count. This is a CPU geometry-kernel path (Manifold may use its own CPU
 parallelism), not a GPU computation.
 
+Gravity support
+---------------
+
+``assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0, ground=None,
+supports=None)`` answers the opposite question to assembly integrity: not
+whether two parts share material, but whether any part is simply floating with
+nothing holding it. It selects the same topmost rigid solids, places them at
+the testing instant the runner has already chosen, and proves every one of
+them is transitively held against gravity.
+
+A solid is *directly supported* by another when, displaced by ``max_drop``
+along the normalized ``gravity`` vector, it intersects that solid with
+positive volume. A part resting on a face, sitting in its clearance gap, or
+hanging by an engaged lip all land in their support; a part placed in mid-air
+lands in nothing. Zero-volume boundary contact after the drop is not a hold,
+just as it is not interference. Those relations form a support graph, and a
+part is supported only if that graph leads it to a grounded solid: a block
+resting on a floating bracket is reported along with the bracket. Two parts
+leaning on each other are grounded exactly when one of them reaches the
+ground, never by leaning.
+
+.. code-block:: python
+
+    def test_assembly_supported(self):
+        self.assertAssemblySupported(self.node)
+
+With ``ground=None`` the assembly must hold itself together: the solids
+reaching within ``max_drop`` of the assembly's furthest extent along gravity
+are grounded, which is also what an unmodelled floor would touch. Pass
+``ground`` — a node, or a sequence of nodes, each resolved to its selected
+solid — for an assembly anchored somewhere else, hung from a ceiling or bolted
+to a frame that is not modelled:
+
+.. code-block:: python
+
+    def test_hangs_from_the_rail(self):
+        self.assertAssemblySupported(self.node, ground=self.node.rail)
+
+``supports=[(supported, supporter), ...]`` declares holds the assertion
+deliberately cannot prove — press fits, glue, friction — and keeps the
+exemption visible in the test rather than hidden in a tolerance. A declared
+supporter must still be grounded itself; declaring an edge grounds nothing on
+its own:
+
+.. code-block:: python
+
+    def test_supported(self):
+        self.assertAssemblySupported(
+            self.node, supports=[(self.node.bushing, self.node.housing)])
+
+Choosing ``max_drop`` (mm) is the one real judgement the assertion asks for.
+It must be **larger** than the design's vertical clearance play, or a part
+sitting in its own clearance gap reads as floating, and **smaller** than the
+thinnest supporting feature's thickness plus the gap above it, or the dropped
+solid tunnels straight through its support and reads as floating again. The
+1.0 default sits in the usual window between printed clearances (0.5 mm or
+less) and printed walls (1.2 mm or more).
+
+What passing does *not* mean: the assertion proves support reachability only.
+There is no force or torque balance, no toppling analysis, no friction or
+adhesion, and no lateral-restraint analysis — a part free to slide sideways or
+tip over still passes. It catches the defect it is named for, a part with
+nothing under it, and leaves stability to the maker.
+
+Internally it reuses the assembly-integrity machinery: the same cached
+Manifolds, the same conservative world AABBs, and the same sweep-and-prune
+index, asked a directed question — solid *i* displaced against solid *j*
+placed — so only pairs whose displaced and placed boxes overlap ever meet a
+Boolean. A pair of exact solids is intersected by the boundary-representation
+kernel, as in assembly integrity. Zero or one selected solid passes without
+loading geometry.
+
 Deprecated leaf-pair sweep
 --------------------------
 
