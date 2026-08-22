@@ -7,7 +7,15 @@ describing the tree (with raw, unevaluated operation expressions, so a
 viewer can animate $t client-side) plus the STL meshes of every rigid
 node, deduplicated. This is the data layer of the export widget; the
 serialization mirrors what the published build snapshot serves to
-the live web app, but frozen on disk with no server."""
+the live web app, but frozen on disk with no server.
+
+Those unevaluated expressions are guaranteed here rather than assumed
+of the caller: export clears any keyframe on the node first. The
+serializer cannot do it -- an operation records whatever value render()
+already computed, so a keyframed tree has no symbolic form left to
+recover -- and the serializer must not do it, because the web-snapshot
+producer keyframes deliberately and bakes its one instant through
+solid_node.math, the ADR-022 source of truth."""
 
 import json
 import logging
@@ -45,7 +53,24 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     - unless widget=False: index.html plus the solid-widget.js bundle,
       making the directory a self-contained, embeddable viewer
 
+    The manifest always carries symbolic $t operations. Preserving them
+    is this producer's guarantee, not the caller's obligation: `node` is
+    returned to symbolic animation time before it is serialized, so a
+    host that keyframed it -- to read a mesh, run a test, or render one
+    instant -- still publishes the animated document rather than the
+    constants that keyframe computed.
+
+    `node` is left in symbolic time afterwards; a previously set
+    keyframe is NOT restored, because an assembly's children can be
+    recreated objects on each render, so the only safe restore would
+    flatten a non-uniform nested keyframe. A caller wanting a numeric
+    pose back applies set_keyframe again. A static PRESENTATION of an
+    export needs no frozen document: the widget's ?t= and ?autoplay=0
+    options render any instant of an animated one.
+
     Returns the manifest dict."""
+    node.clear_keyframe()
+
     with project_build_lock():
         node.build_stls()
 

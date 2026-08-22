@@ -47,6 +47,22 @@ def _idempotent_render(render):
     return wrapped
 
 
+def _rendered_children(assembly):
+    """The children to propagate a keyframe change into: the result of
+    a fresh render, which is where they are created and bound.
+
+    A non-list/tuple render result carries no children to recurse into.
+    serialize_node tolerates exactly that shape -- it keeps the partial
+    node's representation for lifecycle validation to handle -- so the
+    keyframe methods tolerate it too instead of raising TypeError while
+    iterating a single node.
+    """
+    rendered = assembly.render()
+    if type(rendered) not in (list, tuple):
+        return ()
+    return rendered
+
+
 class AssemblyNode(InternalNode):
     """
     Represents a collection of components that can be moved relative to each other.
@@ -68,9 +84,27 @@ class AssemblyNode(InternalNode):
         """Set a fixed time for keyframes and tests, propagating it
         down the tree so nested assemblies render numerically too."""
         self._time = time
-        rendered = self.render()
-        for child in rendered or ():
+        for child in _rendered_children(self):
             child.set_keyframe(time)
+
+    def clear_keyframe(self):
+        """The inverse of set_keyframe: drop the fixed time so this
+        assembly renders against solid2's symbolic $t again, and
+        propagate down the tree the same way.
+
+        Re-rendering is what actually restores the symbolic form. An
+        operation records whatever value render() computed, so once
+        `time` was a float the expression `self.time * 360` had already
+        collapsed to a number and no symbolic form survived anywhere.
+        The _idempotent_render sweep above drops exactly the operations
+        this assembly drove before re-rendering, so the numeric ones
+        from the keyframed render are replaced by $t expressions while
+        static placement applied outside any assembly render is left
+        alone.
+        """
+        self.__dict__.pop('_time', None)
+        for child in _rendered_children(self):
+            child.clear_keyframe()
 
     @property
     def time(self):

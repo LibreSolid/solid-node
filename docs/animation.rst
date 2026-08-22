@@ -89,3 +89,34 @@ client-side as you scrub the timeline, and in tests, where time is a
 plain number (see :ref:`testing_steps <testing-steps>`). Python's
 `math.sin` would crash on symbolic time — and it works in radians,
 while all angles in Solid Node are degrees.
+
+Freezing and releasing time
+===========================
+
+`set_keyframe(t)` pins an assembly and everything below it to one
+instant, so `self.time` becomes the plain number `t` and meshes resolve
+numerically. That is what tests and single-instant renders do.
+
+Freezing is reversible: `clear_keyframe()` releases the assembly back
+to symbolic time and re-renders, so its operations hold `$t`
+expressions again — including expressions built with `solid_node.math`.
+Static placement you applied outside an assembly's `render()` is left
+alone, and nothing accumulates however often you freeze and release.
+
+.. code-block:: python
+
+    clock.set_keyframe(0.25)     # self.time == 0.25, meshes are numeric
+    pose = clock.pointer.mesh    # inspect one instant
+
+    clock.clear_keyframe()       # self.time is $t again
+
+This matters when one program both inspects and publishes a model. An
+operation records whatever value `render()` computed, so a frozen node
+has no expression left to publish — exporting it would write the frozen
+numbers and produce a document that is valid, silent, and completely
+static. `solid export` never freezes, and `export_node` releases the
+node for you before serializing, so an export always carries the
+animation. It leaves the node released afterwards; call `set_keyframe`
+again if you still want a pose. To *show* one instant of an exported
+model, use the widget's ``?t=`` and ``?autoplay=0`` options rather than
+publishing a frozen document.

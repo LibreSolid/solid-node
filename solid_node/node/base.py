@@ -404,6 +404,11 @@ class AbstractBaseNode:
         No-op for non-animated nodes; overridden by AssemblyNode."""
         pass
 
+    def clear_keyframe(self):
+        """Drop a fixed time, returning to symbolic animation time.
+        No-op for non-animated nodes; overridden by AssemblyNode."""
+        pass
+
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""

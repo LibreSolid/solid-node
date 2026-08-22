@@ -387,6 +387,39 @@ class ExportAnimationTest(ExportBaseTest):
         self.assertEqual(op[2], [0, 0, 1])
         self.assertModelExported(child)
 
+    def test_time_expression_is_exported_raw_after_keyframe(self):
+        """Preserving $t is the export producer's guarantee, not the
+        caller's obligation. A host that keyframes the node -- to read a
+        mesh, run a test, or render one instant -- and then publishes
+        from that same node used to get a schema-valid, completely
+        static document carrying '90.0' instead of '($t * 360)', with
+        nothing reporting a problem."""
+        node = Spinner()
+        node.set_keyframe(0.25)
+
+        manifest = self.export(node)
+        child = manifest['root']['children'][0]
+
+        (op,) = child['operations']
+        self.assertEqual(op[0], 'r')
+        self.assertIn('$t', op[1])
+        self.assertEqual(op[2], [0, 0, 1])
+
+    def test_export_leaves_the_node_in_symbolic_time(self):
+        """Export does not restore the caller's keyframe: it leaves the
+        node the way a freshly loaded one looks, and a caller wanting a
+        numeric pose back applies set_keyframe itself."""
+        node = Spinner()
+        node.set_keyframe(0.25)
+
+        self.export(node)
+
+        self.assertNotIsInstance(node.time, float)
+        self.assertEqual(str(node.time), '$t')
+
+        node.set_keyframe(0.25)
+        self.assertEqual(node.time, 0.25)
+
 
 class ExportWidgetTest(ExportBaseTest):
     """The export embeds the standalone viewer: the prebuilt JS bundle

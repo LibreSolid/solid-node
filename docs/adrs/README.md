@@ -87,10 +87,11 @@ that way.
 
 ### EXPORT — static distribution
 - [ADR-020](EXPORT/ADR-020-static-export-and-embeddable-viewer-widget.md) — Static export and embeddable widget — **Accepted**
-- [ADR-034](EXPORT/ADR-034-shared-node-tree-document-schema.md) — Shared node-tree document schema across export and build snapshots — **Accepted**
+- [ADR-034](EXPORT/ADR-034-shared-node-tree-document-schema.md) — Shared node-tree document schema across export and build snapshots — **Accepted**, amended by 051
 - [ADR-035](EXPORT/ADR-035-reusable-viewer-core-and-declared-api.md) — Reusable viewer core and declared API version — **Accepted**
 - [ADR-042](EXPORT/ADR-042-host-controlled-viewer-assembly-navigation.md) — Host-controlled viewer assembly navigation — **Accepted**
 - [ADR-043](EXPORT/ADR-043-content-derived-printed-piece-identity.md) — Content-derived printed-piece identity — **Accepted**
+- [ADR-051](EXPORT/ADR-051-producer-owned-animation-time-in-node-documents.md) — Producer-owned animation time in node-tree documents — **Accepted**
 
 ADR-019 (the solid-builder agent system) predates the shop and lives
 with the agent tooling's own history, not in this framework log.

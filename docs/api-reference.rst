@@ -53,6 +53,8 @@ Common node API
 
    .. automethod:: set_keyframe
 
+   .. automethod:: clear_keyframe
+
    .. automethod:: assemble
 
    .. autoproperty:: mtime
@@ -100,7 +102,7 @@ Internal nodes
 .. autoclass:: solid_node.node.internal.InternalNode
 
 .. autoclass:: solid_node.node.AssemblyNode
-   :members: set_keyframe, time
+   :members: set_keyframe, clear_keyframe, time
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time

@@ -134,6 +134,11 @@ Transforms are first-class operation objects (ADR-023):
 `.mesh()`, `.serialized`, `.matrix()` (ADR-028) — plus `.reversed`.
 `AssemblyNode` is the only animatable node: its `time` is OpenSCAD's
 `$t` (0..1) symbolically, or a float under `set_keyframe()` (ADR-008).
+Keyframing is reversible: `clear_keyframe()` drops the fixed time and
+re-renders down the same subtree, so operations hold `$t` expressions
+again (ADR-051). Re-rendering is what restores them — an operation
+records whatever value `render()` computed, so a keyframed tree has no
+symbolic form left to recover.
 
 Assembly `render()`s are wrapped for **driver-tagged idempotency**
 (ADR-023): operations applied during a render are tagged with the
@@ -403,6 +408,14 @@ operations ship as raw expression strings. Both producers use the same core
 serializer, which links rendered children before recursion and includes
 `mtime`; export alone maps and copies rigid models beneath `models/`.
 
+The serializer is a pure walk: **which time a document is written in is a
+producer decision** (ADR-051). `export_node` clears any keyframe before
+serializing, so `manifest.json` carries `$t` whatever the caller did to the
+node, and leaves it in symbolic time; the builder never keyframes; the browser
+snapshot keyframes deliberately and bakes one instant through `math.py`, whose
+degree semantics are the ADR-022 source of truth. A new producer states its own
+time contract.
+
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
 one entry per distinct built artifact content, carrying `id`, `name`,
@@ -491,5 +504,5 @@ The short list that changes must not silently break:
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048 |
 | Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
-| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034 |
+| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034, 051 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

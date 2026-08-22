@@ -40,11 +40,34 @@ so the export remains portable and self-contained. Changes to the shared tree
 shape or operation serialization are breaking and MUST bump `version` and
 update every producer and consumer of the shared schema together.
 
+Preserving `$t` verbatim SHALL be a guarantee of the export producer, not an
+obligation on its caller. Export SHALL return the node to symbolic animation
+time before serializing it, so a node that was keyframed at any time before
+export still yields a manifest whose operations are `$t` expressions rather
+than the constants that keyframe computed. Export SHALL leave the node in
+symbolic time afterwards and SHALL NOT restore a previously set keyframe; a
+caller needing a numeric pose again applies `set_keyframe` itself. A static
+presentation of an exported document is obtained from the widget's `?t=` and
+`?autoplay=0` options, not by publishing a frozen document.
+
 #### Scenario: Animated operations survive export
 
 - **WHEN** an assembly's rotation is `$t * 360`
 - **THEN** the manifest stores that expression as a string, not a baked
   numeric pose
+
+#### Scenario: Animated operations survive export from a keyframed node
+
+- **WHEN** a caller applies `set_keyframe(0.25)` to an assembly whose rotation
+  is `$t * 360` and then exports that same node
+- **THEN** the manifest still stores the `$t` expression, not the constant the
+  keyframe computed
+
+#### Scenario: Export leaves the node in symbolic time
+
+- **WHEN** a keyframed node is exported
+- **THEN** the node's animation time afterwards is symbolic `$t`, and applying
+  `set_keyframe` again resolves its mesh numerically as before
 
 #### Scenario: Linked names and additive metadata survive export
 
