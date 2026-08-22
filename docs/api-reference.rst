@@ -122,9 +122,14 @@ writing tests: mixing ``TestCaseMixin`` into a node class, or writing a
    overlap at the runner's current keyframe; exact boundary contact passes and
    there is no public overlap epsilon.
    ``assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0,
-   ground=None, supports=None)`` checks the physical inverse over the same
-   selection: that every printed solid is transitively held against gravity,
-   proved by dropping it ``max_drop`` into whatever holds it. The older
+   ground=None, supports=None, stability_margin=0.0)`` checks the physical
+   inverse over the same selection: that every printed solid is transitively
+   held against gravity, proved by dropping it ``max_drop`` into whatever
+   holds it, and that the assembly can then stand — that push-only normal
+   forces over the contacts detected by that drop and by a symmetric lift
+   balance every solid's weight and torque. ``stability_margin`` (mm) shrinks
+   each contact patch toward its centroid first, so a balance that lives on a
+   patch boundary can be rejected. The older
    ``assertNoPairwiseIntersections`` leaf sweep is deprecated and retained
    only for compatibility.
 

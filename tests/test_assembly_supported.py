@@ -82,6 +82,15 @@ class SupportFixture(TestCase):
         self._mesh(boxes).export(path)
         return RigidNode(name, path)
 
+    def hollowed(self, name, boxes, cavities):
+        """One printed solid: the union of `boxes` less the union of
+        `cavities` -- the shape a bored block needs, and the only way to
+        give a snug hole an upper and a lower wall."""
+        path = os.path.join(self.directory.name, f'{name}.stl')
+        trimesh.boolean.difference(
+            [self._mesh(boxes), self._mesh(cavities)]).export(path)
+        return RigidNode(name, path)
+
     def block(self, name, x_span, z_span, y_span=(-1.0, 1.0)):
         """One printed solid: a box spanning the given world ranges."""
         return self.welded(name, [(x_span, z_span, y_span)])
@@ -114,29 +123,104 @@ class SupportFixture(TestCase):
 
     def hook(self):
         """A post and a hook hanging beside it, held only by a lip that
-        reaches over the post's top face."""
+        reaches over the post's top face. The lip is thicker than the
+        drop, so the drop straddles that face instead of tunnelling past
+        it, and reaches left far enough to put the hook's centre of mass
+        over the patch it lands on."""
         post = self.block('post', (-1, 1), (-5, 1))
         hook = self.welded('hook', [
-            ((-1, 1.5), (1.2, 1.7)),    # lip, over the post's top face
-            ((1.2, 2.2), (-3, 1.7)),    # body, hanging clear beside it
+            ((-4, 1.5), (1.2, 2.2)),    # lip, over the post's top face
+            ((1.2, 2.2), (-3, 2.2)),    # body, hanging clear beside it
         ])
         return post, hook, Assembly('root', (post, hook))
 
     def leaning_pair(self):
-        """Two interlocking pieces that hold each other: `a`'s lip lies
-        over `b`'s lip, and `b`'s arm reaches back over `a`'s body, so
-        each one's drop lands in the other."""
+        """Two interlocking pieces that hold each other: `a`'s tongue
+        lies on `b`'s shelf, and `b`'s tongue lies on `a`'s shelf, so
+        each one's drop lands in the other. `b` overhangs the patch that
+        carries it and stands only because `a`'s tongue restrains it
+        from above."""
         first = self.welded('left_hook', [
-            ((0, 2), (2, 4)),           # body
-            ((2, 2.9), (3.5, 4)),       # lip, over the right hook's lip
+            ((0, 4), (2, 16)),          # body
+            ((3.5, 6.5), (2, 4)),       # shelf, under the right tongue
+            ((3.5, 5.5), (7.5, 9.5)),   # tongue, over the right shelf
         ])
         second = self.welded('right_hook', [
-            ((3, 5), (2, 4)),           # body
-            ((2.1, 3.2), (2, 2.5)),     # lip, under a's lip
-            ((4, 4.5), (3, 5)),         # column
-            ((0, 4.5), (4.5, 5)),       # arm, over the left hook's body
+            ((4.5, 7.5), (5.5, 7.5)),   # shelf, under the left tongue
+            ((5.5, 7.5), (4, 6)),       # tongue, over the left shelf
+            ((7, 9), (4, 10)),          # body
         ])
         return first, second
+
+    ####################
+    # Equilibrium fixtures: every one of these reaches ground, so the
+    # verdict they exercise is the statics phase and nothing else.
+
+    def one_end_bar(self):
+        """A horizontal bar whose only landing patch lies under one end,
+        with its centre of mass three bar-thicknesses out past it."""
+        support = self.block('support', (0, 2), (0, 2))
+        bar = self.block('bar', (0, 10), (2, 4))
+        return support, bar, Assembly('root', (support, bar))
+
+    def two_end_bar(self):
+        """The same bar with a second landing patch under its far end."""
+        support = self.block('support', (0, 2), (0, 2))
+        far_support = self.block('far_support', (8, 10), (0, 2))
+        bar = self.block('bar', (0, 10), (2, 4))
+        return bar, Assembly('root', (support, far_support, bar))
+
+    def offset_stack(self):
+        """Three solids each resting well inside its own interface,
+        whose upper pair's combined centre of mass passes beyond the
+        lowest interface's patch."""
+        base = self.block('base', (0, 4), (0, 2))
+        mid = self.block('mid', (1.5, 5.5), (2, 4))
+        top = self.block('top', (4.5, 5.5), (4, 9))
+        return mid, Assembly('root', (base, mid, top))
+
+    def counterweighted(self, weight=True):
+        """A beam whose own centre of mass overhangs its support patch,
+        optionally carrying the counterweight that pulls the combined
+        resultant back over the patch."""
+        support = self.block('support', (0, 2), (0, 2))
+        beam = self.block('beam', (0, 6), (2, 4))
+        parts = [support, beam]
+        if weight:
+            parts.append(self.block('counterweight', (0, 2), (4, 12)))
+        return beam, Assembly('root', tuple(parts))
+
+    def pinned_block(self):
+        """A pin cantilevering out of a grounded block's snug hole: the
+        drop reaches the hole's lower wall, the lift its upper wall, and
+        only the couple of the two balances the pin."""
+        block = self.hollowed(
+            'block',
+            [((-4, 0), (0, 6), (-3, 3))],
+            [((-4.5, 0.5), (2.9, 4.1), (-1.1, 1.1))])
+        pin = self.block('pin', (-4, 10), (3, 4))
+        return pin, Assembly('root', (block, pin))
+
+    def tippy_pair(self):
+        """A top-heavy solid standing on its own small foot beside a
+        squat neighbour: both are default seeds, only one can stand."""
+        tippy = self.welded('tippy', [((0, 2), (0, 2)), ((0, 8), (2, 4))])
+        neighbour = self.block('neighbour', (20, 24), (0, 2))
+        return tippy, neighbour, Assembly('root', (tippy, neighbour))
+
+    def boundary_balance(self):
+        """A block whose centre of mass sits exactly over the far edge of
+        its landing patch: an equilibrium, but only just."""
+        base = self.block('base', (0, 4), (0, 2))
+        top = self.block('top', (2, 6), (2, 4))
+        return top, Assembly('root', (base, top))
+
+    def overhead_only(self):
+        """A solid with nothing under it and a roof above it: the lift
+        sweep sees the roof, the support graph must not."""
+        frame = self.welded('frame', [((0, 2), (0, 10)), ((0, 8), (10, 12))])
+        hung = self.block('hung', (4, 6), (7, 9.5))
+        return hung, Assembly('root', (frame, hung))
 
 
 class TrivialSelectionTest(SupportFixture):
@@ -159,12 +243,15 @@ class TrivialSelectionTest(SupportFixture):
     def test_assertion_exposes_exactly_the_ratified_knobs(self):
         signature = inspect.signature(asserter.assertAssemblySupported)
 
-        self.assertEqual(tuple(signature.parameters),
-                         ('node', 'gravity', 'max_drop', 'ground', 'supports'))
+        self.assertEqual(
+            tuple(signature.parameters),
+            ('node', 'gravity', 'max_drop', 'ground', 'supports',
+             'stability_margin'))
         self.assertEqual(signature.parameters['gravity'].default, (0, 0, -1))
         self.assertEqual(signature.parameters['max_drop'].default, 1.0)
         self.assertIsNone(signature.parameters['ground'].default)
         self.assertIsNone(signature.parameters['supports'].default)
+        self.assertEqual(signature.parameters['stability_margin'].default, 0.0)
 
 
 class DropSupportTest(SupportFixture):
@@ -266,14 +353,14 @@ class MutualLeanTest(SupportFixture):
         first, second = self.leaning_pair()
         # The slab reaches under the LEFT hook only, so the right one is
         # grounded solely through the cycle edge onto its neighbour.
-        slab = self.block('slab', (-1, 2), (0, 1.5))
+        slab = self.block('slab', (0, 4), (0, 2))
 
         asserter.assertAssemblySupported(
             Assembly('root', (slab, first, second)), max_drop=1.5)
 
     def test_mutual_cycle_with_no_path_to_ground_fails_naming_both(self):
         first, second = self.leaning_pair()
-        elsewhere = self.block('elsewhere', (10, 12), (0, 1.5))
+        elsewhere = self.block('elsewhere', (10, 14), (0, 2))
 
         with self.assertRaises(AssertionError) as caught:
             asserter.assertAssemblySupported(
@@ -440,9 +527,18 @@ class ExactRoutingTest(SupportFixture):
 
         with patch('solid_node.test.intersect_shapes',
                    wraps=test_module.intersect_shapes) as kernel:
-            asserter.assertAssemblySupported(Assembly('root', (base, top)))
+            with patch('solid_node.test._interface_contacts',
+                       wraps=test_module._interface_contacts) as extract:
+                asserter.assertAssemblySupported(Assembly('root', (base, top)))
 
+        # One kernel Boolean: the drop of the top onto the base. The
+        # base's landing on the faceted floor, and every contact patch
+        # including the exact pair's, are read off the Manifolds --
+        # statics needs a patch's extent, not Boolean validity.
         self.assertEqual(kernel.call_count, 1)
+        self.assertIn(('top', 'base'),
+                      {(call.args[1].name, call.args[2].name)
+                       for call in extract.call_args_list})
 
     def test_a_mixed_pair_routes_through_the_manifolds(self):
         base = self.exact_block('base', (-1, 1), (-1, 1))
@@ -480,9 +576,15 @@ class BroadPhaseTest(SupportFixture):
                    wraps=test_module._placed_intersection) as boolean:
             asserter.assertAssemblySupported(root)
 
-        # One drop each for the two resting blocks; nothing across the
-        # two clusters, and no solid dropped onto itself.
-        self.assertEqual(boolean.call_count, 2)
+        # One drop of each upper block onto its own base, and one of
+        # each base onto the floor it stands on; nothing across the two
+        # clusters, and no solid dropped onto itself.
+        self.assertEqual(boolean.call_count, 4)
+        self.assertEqual(
+            {(call.args[0][0].name, call.args[1][0].name)
+             for call in boolean.call_args_list},
+            {('near_top', 'near_base'), ('far_top', 'far_base'),
+             ('near_base', 'the floor'), ('far_base', 'the floor')})
 
     def test_a_distant_floating_solid_costs_no_boolean(self):
         base = self.block('base', (-1, 1), (-1, 1))
@@ -495,7 +597,9 @@ class BroadPhaseTest(SupportFixture):
             with self.assertRaises(AssertionError) as caught:
                 asserter.assertAssemblySupported(root)
 
-        self.assertEqual(boolean.call_count, 1)
+        # The top onto the base, and the base onto the floor: the
+        # distant floater's boxes reach neither.
+        self.assertEqual(boolean.call_count, 2)
         self.assertIn('far', str(caught.exception))
 
     def test_support_candidates_are_directed_and_never_self_paired(self):
@@ -513,6 +617,206 @@ class BroadPhaseTest(SupportFixture):
         candidates = set(test_module._support_candidates(dropped, placed))
 
         self.assertEqual(candidates, {(1, 0)})
+
+
+class StaticEquilibriumTest(SupportFixture):
+    """Reaching ground is not standing up. Every assembly below is
+    transitively supported; the verdict comes from whether push-only
+    contact forces over the detected interfaces can balance each solid's
+    weight and the torque it makes about its own centre of mass."""
+
+    def test_bar_supported_at_one_end_fails_naming_it_and_the_torque(self):
+        _, _, root = self.one_end_bar()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root)
+
+        message = str(caught.exception)
+        self.assertIn('bar', message)
+        self.assertIn('torque', message)
+        self.assertIn('supports', message)
+        # Not a reachability verdict: the bar does reach ground.
+        self.assertNotIn('no support path', message)
+
+    def test_bar_supported_at_both_ends_passes(self):
+        _, root = self.two_end_bar()
+
+        asserter.assertAssemblySupported(root)
+
+    def test_offset_stack_beyond_the_lowest_patch_fails(self):
+        mid, root = self.offset_stack()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root)
+
+        message = str(caught.exception)
+        self.assertIn(mid.name, message)
+        self.assertIn('torque', message)
+
+    def test_overhanging_beam_fails_without_its_counterweight(self):
+        _, root = self.counterweighted(weight=False)
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root)
+
+        self.assertIn('beam', str(caught.exception))
+
+    def test_counterweight_restores_a_feasible_distribution(self):
+        _, root = self.counterweighted()
+
+        asserter.assertAssemblySupported(root)
+
+    def test_cantilevered_pin_in_a_snug_hole_passes(self):
+        _, root = self.pinned_block()
+
+        asserter.assertAssemblySupported(root, max_drop=0.5)
+
+    def test_the_pin_couple_needs_the_lift_detected_contact(self):
+        """Without the overhead wall the same pin has only the hole's
+        lower wall to push on, and no push-only distribution there can
+        cancel the cantilever's torque."""
+        block = self.hollowed(
+            'block',
+            [((-4, 0), (0, 4.1), (-3, 3))],
+            [((-4.5, 0.5), (2.9, 4.2), (-1.1, 1.1))])
+        pin = self.block('pin', (-4, 10), (3, 4))
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(
+                Assembly('root', (block, pin)), max_drop=0.5)
+
+        self.assertIn('pin', str(caught.exception))
+
+    def test_a_solid_whose_edges_yield_no_contact_fails_loudly(self):
+        """A reachability edge is not an interface: with contact
+        extraction returning nothing, the solid that needs balancing
+        fails instead of passing silently."""
+        _, _, root = self.stack()
+
+        with patch('solid_node.test._interface_contacts', return_value=[]):
+            with self.assertRaises(AssertionError) as caught:
+                asserter.assertAssemblySupported(root)
+
+        message = str(caught.exception)
+        self.assertIn('equilibrium', message)
+        self.assertIn('top', message)
+
+    def test_the_verdict_is_deterministic_across_repeated_runs(self):
+        _, _, passing = self.stack()
+        _, _, failing = self.one_end_bar()
+
+        for _ in range(3):
+            asserter.assertAssemblySupported(passing)
+            with self.assertRaises(AssertionError) as caught:
+                asserter.assertAssemblySupported(failing)
+            self.assertIn('torque', str(caught.exception))
+
+
+class AnchoringTest(SupportFixture):
+    """With `ground=None` the only anchored body is the virtual floor,
+    so a default seed must stand on its own footprint. An explicit
+    `ground` anchors the named solids instead, and no floor exists."""
+
+    def test_tippy_default_seeded_solid_fails_on_the_virtual_floor(self):
+        tippy, neighbour, root = self.tippy_pair()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root)
+
+        message = str(caught.exception)
+        self.assertIn(tippy.name, message)
+        self.assertNotIn(neighbour.name, message)
+
+    def test_explicit_ground_anchors_the_named_solids_without_a_floor(self):
+        tippy, neighbour, root = self.tippy_pair()
+
+        asserter.assertAssemblySupported(root, ground=[tippy, neighbour])
+
+    def test_an_anchored_ground_still_requires_the_rest_to_balance(self):
+        support, bar, root = self.one_end_bar()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root, ground=support)
+
+        self.assertIn(bar.name, str(caught.exception))
+
+    def test_declared_support_transmits_an_unrestricted_wrench(self):
+        """A press fit holds against force AND torque; the declared edge
+        exempts exactly that hold while the supporter still balances."""
+        post = self.block('post', (-1, 1), (-5, 1))
+        fitted = self.block('fitted', (1, 3), (-1, 1))
+        root = Assembly('root', (post, fitted))
+
+        asserter.assertAssemblySupported(root, supports=[(fitted, post)])
+
+
+class StabilityMarginTest(SupportFixture):
+    """`stability_margin` shrinks every contact patch toward its own
+    centroid, so a balance that lives on a patch boundary can be
+    rejected on request."""
+
+    def test_boundary_exact_balance_passes_at_the_default_margin(self):
+        _, root = self.boundary_balance()
+
+        asserter.assertAssemblySupported(root)
+
+    def test_a_positive_margin_rejects_the_boundary_exact_balance(self):
+        top, root = self.boundary_balance()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root, stability_margin=0.5)
+
+        self.assertIn(top.name, str(caught.exception))
+
+    def test_a_negative_margin_raises(self):
+        _, root = self.boundary_balance()
+
+        with self.assertRaises(ValueError) as caught:
+            asserter.assertAssemblySupported(root, stability_margin=-0.1)
+
+        self.assertIn('stability_margin', str(caught.exception))
+
+    def test_a_negative_margin_is_loud_for_a_trivial_selection(self):
+        leaf = RigidNode('leaf')
+
+        with self.assertRaises(ValueError):
+            asserter.assertAssemblySupported(leaf, stability_margin=-1.0)
+
+
+class LiftSweepTest(SupportFixture):
+    """The lift sweep contributes contacts only. Its verdicts never
+    enter the support graph, and it is culled by the same broad phase
+    the drop sweep uses."""
+
+    def test_an_overhead_restraint_is_not_a_support_edge(self):
+        hung, root = self.overhead_only()
+
+        with self.assertRaises(AssertionError) as caught:
+            asserter.assertAssemblySupported(root)
+
+        message = str(caught.exception)
+        self.assertIn(hung.name, message)
+        self.assertIn('no support path', message)
+
+    def test_both_sweeps_only_extract_bounds_overlapping_pairs(self):
+        support = self.block('support', (0, 2), (0, 2))
+        far_support = self.block('far_support', (8, 10), (0, 2))
+        bar = self.block('bar', (0, 10), (2, 4))
+        far = self.block('far', (1000, 1002), (0, 2))
+        root = Assembly('root', (support, far_support, bar, far))
+
+        with patch('solid_node.test._interface_contacts',
+                   wraps=test_module._interface_contacts) as extract:
+            asserter.assertAssemblySupported(root)
+
+        pairs = {(call.args[1].name, call.args[2].name)
+                 for call in extract.call_args_list}
+        near = {'support', 'far_support', 'bar'}
+        self.assertIn(('bar', 'support'), pairs)
+        # The distant block meets the floor and nothing else, in either
+        # sweep: no boolean is ever paid across the two clusters.
+        self.assertFalse({pair for pair in pairs
+                          if 'far' in pair and set(pair) & near})
 
 
 class KeyframePlacementTest(SupportFixture):

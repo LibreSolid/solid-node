@@ -51,7 +51,7 @@ class Leaning(AssemblyNode):
     ground."""
 
     def __init__(self):
-        self.anchor = Block([2, 2, 1.5])
+        self.anchor = Block([4, 2, 2])
         self.left = LeftHook()
         self.right = RightHook()
         super().__init__()

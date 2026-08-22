@@ -83,10 +83,11 @@ class Fitted(AssemblyNode):
 class Leaning(AssemblyNode):
     """Two interlocking pieces holding each other, with a slab reaching
     under the LEFT one only: the right piece is grounded solely through
-    the cycle edge onto its neighbour."""
+    the cycle edge onto its neighbour, and stands only because the left
+    tongue restrains it from above."""
 
     def __init__(self):
-        self.slab = Block([2, 2, 1.5])
+        self.slab = Block([4, 2, 2])
         self.left = LeftHook()
         self.right = RightHook()
         super().__init__()

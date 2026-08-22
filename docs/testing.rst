@@ -415,11 +415,12 @@ Gravity support
 ---------------
 
 ``assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0, ground=None,
-supports=None)`` answers the opposite question to assembly integrity: not
-whether two parts share material, but whether any part is simply floating with
-nothing holding it. It selects the same topmost rigid solids, places them at
-the testing instant the runner has already chosen, and proves every one of
-them is transitively held against gravity.
+supports=None, stability_margin=0.0)`` answers the opposite question to
+assembly integrity: not whether two parts share material, but whether the
+assembly can exist. It selects the same topmost rigid solids, places them at
+the testing instant the runner has already chosen, and proves two things about
+them: that every one is transitively held against gravity, and that the whole
+set can then stand.
 
 A solid is *directly supported* by another when, displaced by ``max_drop``
 along the normalized ``gravity`` vector, it intersects that solid with
@@ -437,12 +438,47 @@ ground, never by leaning.
     def test_assembly_supported(self):
         self.assertAssemblySupported(self.node)
 
+Reaching ground is not standing up
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A bar resting on a single support at one end reaches ground through a perfectly
+good support edge, and falls over. So once reachability holds, the assertion
+proves **frictionless static equilibrium**: that some distribution of push-only
+normal contact forces over the detected interfaces balances every non-anchored
+solid's weight *and* the torque it makes about its own centre of mass — all of
+them simultaneously. That is a linear feasibility question, decided by one
+deterministic linear program, and its failure names the solid that cannot be
+balanced and whether force or torque is what does not close::
+
+    bar cannot rest in frictionless static equilibrium on its detected
+    contacts (unbalanced torque)
+
+The interfaces come from the same displaced intersections the support edges do,
+meshed and classified so the contact points and normals lie on the *supporter's*
+real, undisplaced surface. Detection runs in both directions: the drop finds
+what a solid lands on, and a symmetric **lift** — the same displacement against
+gravity — finds the overhead restraints. That second sweep is what lets an
+engaged couple balance legitimately: a pin cantilevering out of a snug hole is
+pushed up by the hole's lower wall near the mouth and down by its upper wall at
+its inner end, and it passes without an exemption. Lift-detected contacts
+contribute interfaces only; they never add support-graph edges.
+
+Because the drop is what finds a contact, ``max_drop`` bounds the interfaces
+too: a drop that carries a feature past the face it rests on cannot extract the
+patch resting on it, which is the same window the paragraph on ``max_drop``
+below describes.
+
 With ``ground=None`` the assembly must hold itself together: the solids
 reaching within ``max_drop`` of the assembly's furthest extent along gravity
-are grounded, which is also what an unmodelled floor would touch. Pass
-``ground`` — a node, or a sequence of nodes, each resolved to its selected
-solid — for an assembly anchored somewhere else, hung from a ceiling or bolted
-to a frame that is not modelled:
+are grounded, which is also what an unmodelled floor would touch. For the
+equilibrium phase that floor is a real body — a slab whose top plane lies at
+that furthest extent — and it is the *only* anchored one, so a default-grounded
+solid must balance on the footprint it actually lands on. A top-heavy part
+standing on too small a foot now fails instead of being exempt for being
+lowest. Pass ``ground`` — a node, or a sequence of nodes, each resolved to its
+selected solid — for an assembly anchored somewhere else, hung from a ceiling
+or bolted to a frame that is not modelled; those solids then become the only
+seeds and the only anchored bodies, and no floor exists:
 
 .. code-block:: python
 
@@ -452,14 +488,32 @@ to a frame that is not modelled:
 ``supports=[(supported, supporter), ...]`` declares holds the assertion
 deliberately cannot prove — press fits, glue, friction — and keeps the
 exemption visible in the test rather than hidden in a tolerance. A declared
-supporter must still be grounded itself; declaring an edge grounds nothing on
-its own:
+edge grounds the supported solid and transmits an unrestricted wrench between
+the pair, force and torque in both signs, which is what a glue joint or a press
+fit really does. A declared supporter must still be grounded itself; declaring
+an edge grounds nothing on its own:
 
 .. code-block:: python
 
     def test_supported(self):
         self.assertAssemblySupported(
             self.node, supports=[(self.node.bushing, self.node.housing)])
+
+``stability_margin`` (mm, default ``0.0``) shrinks every contact patch toward
+its own centroid before the equilibrium decision. At the default the check is
+pure feasibility, so a knife-edge balance — the centre of mass exactly over a
+patch boundary — is an equilibrium and passes. A positive margin demands that
+much interior reserve in every patch and rejects it, which makes robustness an
+explicit statement in the test rather than an assumption:
+
+.. code-block:: python
+
+    def test_stands_with_a_millimetre_to_spare(self):
+        self.assertAssemblySupported(self.node, stability_margin=1.0)
+
+A negative ``stability_margin`` is a loud error, as are a zero ``gravity``
+vector, a non-positive ``max_drop``, and a ``ground`` or ``supports`` entry
+that resolves to no selected solid.
 
 Choosing ``max_drop`` (mm) is the one real judgement the assertion asks for.
 It must be **larger** than the design's vertical clearance play, or a part
@@ -469,19 +523,24 @@ solid tunnels straight through its support and reads as floating again. The
 1.0 default sits in the usual window between printed clearances (0.5 mm or
 less) and printed walls (1.2 mm or more).
 
-What passing does *not* mean: the assertion proves support reachability only.
-There is no force or torque balance, no toppling analysis, no friction or
-adhesion, and no lateral-restraint analysis — a part free to slide sideways or
-tip over still passes. It catches the defect it is named for, a part with
-nothing under it, and leaves stability to the maker.
+What passing means: support reachability, force balance, torque balance, and
+toppling over the contacts the assertion detects. What it does *not* mean:
+friction, adhesion, purely lateral (gravity-parallel) wall reactions, the
+toppling of a *single* solid on the floor — a lone selected solid still passes
+without any geometric work — and every dynamic effect. The frictionless model
+is deliberately conservative: a hold that exists only through friction fails
+and must be declared in ``supports``, the same trade the reachability phase
+already makes.
 
 Internally it reuses the assembly-integrity machinery: the same cached
 Manifolds, the same conservative world AABBs, and the same sweep-and-prune
 index, asked a directed question — solid *i* displaced against solid *j*
 placed — so only pairs whose displaced and placed boxes overlap ever meet a
-Boolean. A pair of exact solids is intersected by the boundary-representation
-kernel, as in assembly integrity. Zero or one selected solid passes without
-loading geometry.
+Boolean, in the drop and lift sweeps alike. A pair of exact solids has its
+support edge decided by the boundary-representation kernel, as in assembly
+integrity, while contact patches and mass properties are read off the placed
+faceted geometry: statics needs a patch's extent and direction, not Boolean
+validity. Zero or one selected solid passes without loading geometry.
 
 Deprecated leaf-pair sweep
 --------------------------

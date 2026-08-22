@@ -285,7 +285,8 @@ framework tests rather than re-checked at runtime (ADR-040). The old all-leaf
 behavior-compatible.
 
 `assertAssemblySupported(node, gravity=(0, 0, -1), max_drop=1.0, ground=None,
-supports=None)` asks the physical inverse over the same selection and the same
+supports=None, stability_margin=0.0)` asks the physical inverse over the same
+selection and the same
 placement (ADR-048): not whether two parts share material, but whether any part
 is floating. A solid is directly supported by another when, displaced by
 `max_drop` along the normalized gravity vector — one world-frame translation
@@ -301,9 +302,32 @@ anything by itself. The broad phase is the same sweep-and-prune, run over the
 displaced and placed boxes at once so an emitted cross-half pair is exactly a
 directed overlap; exact pairs still route to the kernel. Zero or one selected
 solid passes without geometry work; a zero `gravity`, a non-positive
-`max_drop`, and an unresolvable `ground`/`supports` entry are loud errors. The
-assertion claims support reachability only: no force or torque balance, no
-toppling, no friction, no lateral restraint.
+`max_drop`, a negative `stability_margin`, and an unresolvable
+`ground`/`supports` entry are loud errors.
+
+When reachability holds, a second phase proves frictionless static equilibrium
+(ADR-049): that push-only normal forces over the detected interfaces balance
+every non-anchored solid's weight and its torque about its own centre of mass,
+decided by one deterministic `scipy.optimize.linprog` HiGHS solve of the
+L1-relaxed feasibility program. Interfaces are extracted by meshing each
+displaced intersection and classifying its faces to the supporter's boundary by
+nearest surface, so contact points and normals sit on the supporter's real,
+undisplaced surface; gravity-perpendicular faces are discarded as walls the
+displacement drove into. Detection runs the drop sweep and a symmetric lift
+sweep through the same broad phase, the lift contributing contacts only so a
+snug hole's upper wall can complete a couple, never support-graph edges.
+Contact extraction and mass properties (placed facets, uniform unit density, so
+weight is volume) are faceted even for exact pairs, whose edge existence still
+routes to the kernel. With `ground=None` a virtual floor slab in the gravity
+frame is the sole anchored body, so a default seed must balance on its real
+footprint; an explicit `ground` anchors exactly the resolved solids and no
+floor exists. A declared `supports` edge carries a free six-component wrench.
+`stability_margin` shrinks each patch toward its centroid first. The failure
+names each unbalanced solid and whether force or torque does not close, and
+points at `supports=`. The assertion now claims support reachability, force
+balance, torque balance and toppling over the detected contacts; friction,
+adhesion, purely lateral wall reactions, single-solid floor toppling and
+dynamics remain outside it.
 
 All three integrity assertions run only when ordinary project test source
 calls them. `solid new` declares the connectivity and interference pair as two

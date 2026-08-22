@@ -2,7 +2,7 @@
 
 ## 1. Red-first fixtures and tests
 
-- [ ] 1.1 Extend `tests/meta_project/` in the existing pattern with
+- [x] 1.1 Extend `tests/meta_project/` in the existing pattern with
       equilibrium fixtures: one-end-supported horizontal bar (reaches ground,
       must fail on torque), the same bar with a second end support (must
       pass), offset stack whose cumulative centre of mass leaves the lowest
@@ -11,7 +11,7 @@
       tall solid on the virtual floor with a squat neighbour (fail naming the
       tippy solid), boundary-exact balance for the `stability_margin`
       scenario, and a friction-dependent hold exempted through `supports`.
-- [ ] 1.2 Write the new tests (extend `tests/test_assembly_supported.py` or a
+- [x] 1.2 Write the new tests (extend `tests/test_assembly_supported.py` or a
       sibling module) covering every delta-spec scenario that changes or adds
       behavior: both bar verdicts with the failure naming the bar and torque;
       offset stack and counterweight; pin couple; virtual-floor tippy seed;
@@ -24,21 +24,21 @@
 
 ## 2. Implementation
 
-- [ ] 2.1 Contact extraction in `solid_node/test.py`: mesh each detected
+- [x] 2.1 Contact extraction in `solid_node/test.py`: mesh each detected
       drop/lift displaced intersection from the placed Manifolds, classify
       intersection faces to the supporter's boundary by nearest surface, and
       emit deduplicated contact points with outward normals on the
       supporter's undisplaced surface; apply `stability_margin` shrink toward
       each patch centroid.
-- [ ] 2.2 The lift sweep: reuse `_dropped_assembly_solids`/`_support_candidates`
+- [x] 2.2 The lift sweep: reuse `_dropped_assembly_solids`/`_support_candidates`
       with the negated offset to detect overhead-restraint contacts, feeding
       contact extraction only, never `edges`.
-- [ ] 2.3 Anchoring: with `ground=None`, build the virtual floor slab in the
+- [x] 2.3 Anchoring: with `ground=None`, build the virtual floor slab in the
       gravity frame (top plane at the assembly's furthest gravity extent,
       lateral bounds plus margin) as an extra resting record for contact
       detection and the sole anchored body; with explicit `ground`, anchor
       exactly the resolved solids and skip the floor.
-- [ ] 2.4 The equilibrium program: per non-anchored solid, force and torque
+- [x] 2.4 The equilibrium program: per non-anchored solid, force and torque
       balance about its centre of mass (placed faceted mesh, uniform unit
       density, unit gravity); variables `f_k ≥ 0` per contact point with
       reactions on non-anchored supporters, plus a six-component free wrench
@@ -46,12 +46,12 @@
       `scipy.optimize.linprog(method='highs')`; per-body tolerances scaled by
       weight (force rows) and weight times bounding-box diagonal (torque
       rows).
-- [ ] 2.5 Wire the phase into `assertAssemblySupported` after reachability,
+- [x] 2.5 Wire the phase into `assertAssemblySupported` after reachability,
       with the diagnostic failure naming each unbalanced solid and the
       failing balance kind, pointing at `supports=`; fail loudly when a
       needed body's edges yield no extractable contact interface; validate
       `stability_margin >= 0`; update the docstring's claims and exclusions.
-- [ ] 2.6 Turn the whole new suite green; re-run the existing support suite
+- [x] 2.6 Turn the whole new suite green; re-run the existing support suite
       (`tests/test_assembly_supported.py`, `tests/test_meta.py`) and rebalance
       any fixture that previously passed only through the reachability blind
       spot, recording each such change as evidence; then run the wider
@@ -61,7 +61,7 @@
 
 ## 3. Documentation
 
-- [ ] 3.1 Update `docs/testing.rst`'s gravity-support section and
+- [x] 3.1 Update `docs/testing.rst`'s gravity-support section and
       `docs/api-reference.rst`: the equilibrium claim, the lift sweep, virtual
       floor vs bolted `ground`, the `supports` wrench semantics,
       `stability_margin`, and the revised exclusions (friction, adhesion,
@@ -69,7 +69,7 @@
 
 ## 4. ADR and records
 
-- [ ] 4.1 After implementation is green, extract one ADR under
+- [x] 4.1 After implementation is green, extract one ADR under
       `docs/adrs/TEST-FRAMEWORK/` for equilibrium-as-LP-feasibility (rejected
       dynamics engine and COM heuristic, frictionless conservatism, drop+lift
       contact extraction, virtual-floor anchoring, relaxed-LP diagnostics),

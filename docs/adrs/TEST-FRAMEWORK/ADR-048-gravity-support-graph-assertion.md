@@ -113,7 +113,11 @@ window between typical clearances (≤ 0.5 mm) and typical printed walls
   torque balance, no toppling analysis, no friction or adhesion, no
   lateral-restraint analysis — a part free to slide or tip over passes. The
   docstring and `docs/testing.rst` state those exclusions, because a passing
-  support test must not read as a stability certificate.
+  support test must not read as a stability certificate. That blind spot was
+  the next failure the pilot met in practice; the force and torque balance it
+  excludes was added as a second phase of the same method by
+  [ADR-049](./ADR-049-static-equilibrium-as-lp-feasibility.md), which leaves
+  the reachability decision recorded here unchanged.
 - `max_drop` is a real judgement the maker must make. Too small and a part
   sitting in its clearance gap reads as floating; too large and the dropped
   solid tunnels through a thin support and reads as floating again. The

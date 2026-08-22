@@ -493,6 +493,39 @@ class AssemblySupportMetaTest(TestCase):
         self.assertEqual((run.total, run.passed, run.failed), (1, 1, 0))
         self.assertEqual(run.returncode, 0)
 
+    def test_balanced_assemblies_stand(self):
+        """Reaching ground is not standing up, and these three stand:
+        a bar carried at both ends, a beam whose counterweight pulls its
+        resultant back over its support, and a pin balanced by the
+        couple between its hole's lower and upper walls."""
+        run = solid_test('assembly_supported_balanced')
+        self.assertEqual(run.results, {
+            'test_bar_carried_at_both_ends_stands': 'passed',
+            'test_counterweighted_beam_stands': 'passed',
+            'test_cantilevered_pin_stands_on_its_couple': 'passed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (3, 3, 0))
+        self.assertEqual(run.returncode, 0)
+
+    def test_unbalanced_assemblies_are_reported(self):
+        """The pilot's probe: a bar supported at one end reaches ground
+        and cannot stand. So does a top-heavy default seed, which no
+        longer escapes by being the lowest solid."""
+        run = solid_test('assembly_supported_unbalanced')
+        self.assertEqual(run.results, {
+            'test_one_end_supported_bar_is_reported': 'failed',
+            'test_tippy_seed_is_reported': 'failed',
+        })
+        self.assertEqual((run.total, run.passed, run.failed), (2, 0, 2))
+        self.assertIn('bar cannot rest in frictionless static equilibrium',
+                      run.stdout)
+        self.assertIn('(unbalanced torque)', run.stdout)
+        self.assertIn('tippy cannot rest in frictionless static equilibrium',
+                      run.stdout)
+        self.assertIn('supports=[(supported, supporter)]', run.stdout)
+        self.assertNotIn('neighbour cannot rest', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
 
 class ExactGeometryMetaTest(TestCase):
 

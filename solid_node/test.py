@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 import trimesh
 from manifold3d import Manifold, Mesh
+from scipy.optimize import linprog
 from unittest import TestCase as BaseTestCase
 
 from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
@@ -369,6 +370,297 @@ def _grounded_solids(edges, seeds):
                 grounded.add(supported)
                 queue.append(supported)
     return grounded
+
+
+########################################
+# Static equilibrium
+#
+# Reachability asks whether a solid has a path to ground. The helpers
+# below ask the question that follows it: can push-only normal forces,
+# over the interfaces those paths actually touch, balance every solid's
+# weight AND the torque it makes about its own centre of mass. That is
+# the classical rigid-body limit analysis, and it is decided for the
+# whole assembly by one linear feasibility program (ADR-049).
+
+# A face whose normal is this close to perpendicular to gravity is a
+# wall the displacement drove into, not a surface anything rests on.
+_CONTACT_NORMAL_EPSILON = 1e-6
+
+# Relative slack for classifying an intersection face to the boundary it
+# came from. A face can lie on BOTH boundaries -- a solid dropped flush
+# onto its seat produces exactly that -- and such a tie belongs to the
+# supporter, so the comparison must not be decided by facet noise.
+_CONTACT_SURFACE_EPSILON = 1e-6
+
+# Relative slack a balance row may keep and still count as satisfied,
+# scaled per body by its weight (force) and by weight times bounding-box
+# diagonal (torque), so one tolerance reads the same at every size.
+_BALANCE_TOLERANCE = 1e-5
+
+
+class _VirtualFloor:
+    """Stand-in for the unmodelled floor a default-grounded assembly
+    stands on. It is never a selected solid and never answers a
+    reachability question; it exists so the seeds have something real to
+    push against."""
+
+    name = 'the floor'
+
+
+_FLOOR = _VirtualFloor()
+
+
+@dataclass(frozen=True)
+class _Body:
+    """One rigid body as statics sees it: its placed faceted geometry,
+    the weight and centre of mass of a uniform unit density under unit
+    gravity, and whether the assembly's anchors already answer for its
+    balance."""
+
+    name: str
+    manifold: object
+    mesh: trimesh.Trimesh
+    weight: float
+    center: np.ndarray
+    diagonal: float
+    anchored: bool
+
+
+@dataclass(frozen=True)
+class _Contact:
+    """One unilateral contact point. ``normal`` points out of
+    ``supporter`` and toward ``supported``, so the only thing the
+    interface can carry there is a push."""
+
+    point: np.ndarray
+    normal: np.ndarray
+    supported: int
+    supporter: int
+
+
+def _placed_mesh(manifold):
+    """The trimesh view of a placed Manifold: the facets the Boolean
+    engine produced, already in world coordinates, ready for mass
+    properties and nearest-surface queries."""
+    mesh = manifold.to_mesh()
+    return trimesh.Trimesh(
+        vertices=np.asarray(mesh.vert_properties[:, :3], float),
+        faces=np.asarray(mesh.tri_verts, np.int64),
+        process=False)
+
+
+def _statics_body(name, manifold, anchored):
+    """One ``_Body`` from a placed Manifold.
+
+    Mass properties are read off the placed facets at uniform unit
+    density with unit gravity, so weight IS volume. Feasibility of the
+    equilibrium program is invariant to positive scaling, which is why
+    neither a density nor a gravitational constant ever has to be named.
+    """
+    mesh = _placed_mesh(manifold)
+    low, high = mesh.bounds
+    return _Body(name=name, manifold=manifold, mesh=mesh,
+                 weight=float(abs(mesh.volume)),
+                 center=np.asarray(mesh.center_mass, float),
+                 diagonal=float(np.linalg.norm(high - low)),
+                 anchored=anchored)
+
+
+def _shrunk_patch(points, margin):
+    """``points`` moved toward their own centroid by up to ``margin``.
+
+    This is the whole of ``stability_margin``: the interior reserve a
+    patch must keep for a balance resting on it to count. A point closer
+    to the centroid than the margin collapses onto it.
+    """
+    if margin <= 0 or not len(points):
+        return points
+    centroid = points.mean(axis=0)
+    offsets = points - centroid
+    lengths = np.linalg.norm(offsets, axis=1, keepdims=True)
+    scale = np.clip(1.0 - margin / np.maximum(lengths, 1e-12), 0.0, 1.0)
+    return centroid + offsets * scale
+
+
+def _interface_contacts(displaced, supported, supporter, offset,
+                        unit_gravity, sense, margin):
+    """Contact points and outward normals where ``supported``, displaced
+    by ``offset``, enters ``supporter``.
+
+    The displaced intersection is meshed and each of its faces is
+    classified to the boundary it came from by nearest-surface distance.
+    The supporter's faces are the interface: the supporter never moved,
+    so those positions and normals lie on its real resting surface
+    rather than on a displaced one. Contact extraction is always faceted,
+    including for a pair of exact solids -- statics needs a patch's
+    extent and direction, not Boolean validity, and support-edge
+    existence keeps its own exact-kernel routing.
+
+    ``sense`` is +1 for the drop sweep, which keeps the surfaces facing
+    against gravity, and -1 for the lift sweep, which keeps the overhead
+    restraints that complete a couple. A face whose normal is
+    perpendicular to gravity is a wall the displacement merely drove
+    into; it is dropped with the same conservatism that leaves friction
+    out, and ``supports`` remains the visible escape for a hold that
+    needs one.
+    """
+    intersection = displaced ^ supporter.manifold
+    if intersection.is_empty():
+        return []
+    mesh = _placed_mesh(intersection)
+    if not len(mesh.faces):
+        return []
+    normals = mesh.face_normals
+    facing = sense * (normals @ unit_gravity) < -_CONTACT_NORMAL_EPSILON
+    if not facing.any():
+        return []
+    centers = mesh.triangles_center[facing]
+    to_supporter = supporter.mesh.nearest.on_surface(centers)[1]
+    to_supported = supported.mesh.nearest.on_surface(centers - offset)[1]
+    slack = _CONTACT_SURFACE_EPSILON * max(
+        1.0, float(np.linalg.norm(mesh.extents)))
+    landing = np.flatnonzero(facing)[to_supporter <= to_supported + slack]
+    if not len(landing):
+        return []
+    found = {}
+    for face, normal in zip(mesh.faces[landing], normals[landing]):
+        for vertex in mesh.vertices[face]:
+            found.setdefault(
+                (tuple(np.round(vertex, 6)), tuple(np.round(normal, 6))),
+                (vertex, normal))
+    points = _shrunk_patch(
+        np.array([point for point, _ in found.values()]), margin)
+    return list(zip(points, [normal for _, normal in found.values()]))
+
+
+def _gravity_frame(unit_gravity):
+    """An orthonormal ``(lateral, lateral, up)`` basis whose third axis
+    points straight out of gravity."""
+    up = -unit_gravity
+    helper = np.array([1.0, 0.0, 0.0])
+    if abs(float(np.dot(helper, up))) > 0.9:
+        helper = np.array([0.0, 1.0, 0.0])
+    first = np.cross(helper, up)
+    first = first / np.linalg.norm(first)
+    return first, np.cross(up, first), up
+
+
+def _virtual_floor(solids, unit_gravity, max_drop):
+    """The placement record of the floor a default-grounded assembly
+    stands on: a slab built in the gravity frame, its top plane at the
+    assembly's furthest extent along gravity and its footprint spanning
+    the assembly laterally with room to spare.
+
+    It joins the resting set for contact detection ONLY. Seeding keeps
+    its ratified extent-based definition, and the floor never appears in
+    the support graph -- what it changes is that a default-seeded solid
+    must now balance on the patch it really lands on instead of being
+    exempt for being lowest.
+    """
+    low = np.min([item[2][0] for item in solids], axis=0)
+    high = np.max([item[2][1] for item in solids], axis=0)
+    furthest = max(_gravity_extent(item[2], unit_gravity) for item in solids)
+    first, second, up = _gravity_frame(unit_gravity)
+    corners = np.array([[x, y, z]
+                        for x in (low[0], high[0])
+                        for y in (low[1], high[1])
+                        for z in (low[2], high[2])])
+    reach = float(np.linalg.norm(high - low)) + max_drop
+    lateral = [corners @ first, corners @ second]
+    size = np.array([float(axis.max() - axis.min()) + 2 * reach
+                     for axis in lateral] + [reach])
+    matrix = np.eye(4)
+    matrix[:3, 0] = first
+    matrix[:3, 1] = second
+    matrix[:3, 2] = up
+    matrix[:3, 3] = (first * float(lateral[0].mean())
+                     + second * float(lateral[1].mean())
+                     + up * (-furthest - size[2] / 2))
+    manifold = Manifold.cube(list(size), True).transform(matrix[:3, :4])
+    return (_FLOOR, manifold,
+            _world_bounds((-size / 2, size / 2), matrix), None)
+
+
+def _unbalanced_bodies(bodies, contacts, declared, unit_gravity):
+    """Every body the equilibrium program cannot balance, each with the
+    kind of balance that fails.
+
+    One ``f_k >= 0`` per contact point carries ``f_k * n_k`` onto the
+    supported body and its reaction onto a supporter that is not
+    anchored. One free six-component wrench per declared ``supports``
+    edge carries force and torque in both signs, which is what glue and
+    a press fit really do. Six rows per non-anchored body state that the
+    forces on it plus its weight vanish, and that their torque about its
+    centre of mass vanishes.
+
+    Elastic slack on every row makes the program always solvable, so ONE
+    deterministic HiGHS solve yields both the verdict -- every row's
+    slack inside its own tolerance -- and, when it fails, the bodies to
+    name and whether force or torque is what they cannot close.
+    """
+    free = [index for index, body in enumerate(bodies) if not body.anchored]
+    if not free:
+        return []
+    row_of = {index: 6 * position for position, index in enumerate(free)}
+    rows = 6 * len(free)
+    variables = len(contacts) + 6 * len(declared)
+    matrix = np.zeros((rows, variables))
+    target = np.zeros(rows)
+    tolerance = np.zeros(rows)
+    for position, index in enumerate(free):
+        body = bodies[index]
+        row = 6 * position
+        target[row:row + 3] = -body.weight * unit_gravity
+        scale = _BALANCE_TOLERANCE * max(body.weight, _BALANCE_TOLERANCE)
+        tolerance[row:row + 3] = scale
+        tolerance[row + 3:row + 6] = scale * max(body.diagonal, 1.0)
+    for column, contact in enumerate(contacts):
+        for index, sign in ((contact.supported, 1.0),
+                            (contact.supporter, -1.0)):
+            row = row_of.get(index)
+            if row is None:
+                continue
+            force = sign * contact.normal
+            matrix[row:row + 3, column] += force
+            matrix[row + 3:row + 6, column] += np.cross(
+                contact.point - bodies[index].center, force)
+    for edge, (supported, supporter) in enumerate(declared):
+        first = len(contacts) + 6 * edge
+        for index, sign in ((supported, 1.0), (supporter, -1.0)):
+            row = row_of.get(index)
+            if row is None:
+                continue
+            center = bodies[index].center
+            for axis in range(3):
+                unit = np.zeros(3)
+                unit[axis] = 1.0
+                matrix[row:row + 3, first + axis] += sign * unit
+                matrix[row + 3:row + 6, first + axis] += sign * np.cross(
+                    -center, unit)
+                matrix[row + 3:row + 6, first + 3 + axis] += sign * unit
+    identity = np.eye(rows)
+    solution = linprog(
+        np.concatenate([np.zeros(variables), 1 / tolerance, 1 / tolerance]),
+        A_eq=np.hstack([matrix, identity, -identity]), b_eq=target,
+        bounds=([(0.0, None)] * len(contacts)
+                + [(None, None)] * (6 * len(declared))
+                + [(0.0, None)] * (2 * rows)),
+        method='highs')
+    if not solution.success:
+        raise AssertionError(
+            "assertAssemblySupported: the static equilibrium program did "
+            f"not solve ({solution.message})")
+    slack = np.abs(solution.x[variables:variables + rows]
+                   - solution.x[variables + rows:])
+    failures = []
+    for position, index in enumerate(free):
+        row = 6 * position
+        kinds = [kind for kind, block in (('force', slice(row, row + 3)),
+                                          ('torque', slice(row + 3, row + 6)))
+                 if np.any(slack[block] > tolerance[block])]
+        if kinds:
+            failures.append((index, ' and '.join(kinds)))
+    return failures
 
 
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
@@ -792,7 +1084,8 @@ class TestCase(BaseTestCase):
                 f"(intersection volume {volume})")
 
     def assertAssemblySupported(self, node, gravity=(0, 0, -1), max_drop=1.0,
-                                ground=None, supports=None):
+                                ground=None, supports=None,
+                                stability_margin=0.0):
         """Assert every printed solid below ``node`` is held against gravity.
 
         The same topmost rigid solids ``assertNoSolidInterference`` compares
@@ -807,19 +1100,45 @@ class TestCase(BaseTestCase):
         every selected solid must reach a grounded solid through it; the
         failure names every solid that does not.
 
+        Reaching ground is not standing up, so a second phase then proves
+        FRICTIONLESS STATIC EQUILIBRIUM: that some distribution of push-only
+        normal forces over the detected contact interfaces balances every
+        non-anchored solid's weight and the torque it makes about its own
+        centre of mass, all of them at once. Interfaces come from the same
+        displaced intersections, on the supporter's real undisplaced surface,
+        in both directions -- the drop, and a lift against gravity that finds
+        the overhead restraints completing a couple (a cantilevered pin in a
+        snug hole balances on its hole's lower and upper walls). Lift
+        contacts never add support-graph edges. The failure names every solid
+        that cannot be balanced and whether its force or its torque is what
+        does not close.
+
         With ``ground=None`` the assembly must hold itself together: the
         solids reaching within ``max_drop`` of the assembly's furthest extent
         along gravity are grounded, which is also what an unmodelled floor
-        would touch. ``ground`` (a node or a sequence of nodes, each resolved
-        to its selected solid) replaces that default for an assembly anchored
-        somewhere else -- hung from a ceiling, bolted to an unmodelled frame.
+        would touch, and for the equilibrium phase that floor is the only
+        anchored body -- a top-heavy solid standing on too small a foot fails
+        instead of being exempt for being lowest. ``ground`` (a node or a
+        sequence of nodes, each resolved to its selected solid) replaces that
+        default for an assembly anchored somewhere else -- hung from a
+        ceiling, bolted to an unmodelled frame: those solids are then the only
+        seeds and the only anchored bodies, and no floor exists.
 
         ``supports=[(supported, supporter), ...]`` declares holds this
         assertion deliberately cannot prove -- press fits, glue, friction --
-        keeping the exemption visible in the test. A declared supporter must
-        still be grounded itself; declaring an edge grounds nothing by itself.
-        A ``ground`` or ``supports`` entry resolving to no selected solid, a
-        zero ``gravity`` vector, and a non-positive ``max_drop`` are errors.
+        keeping the exemption visible in the test. A declared edge grounds the
+        supported solid and transmits an unrestricted wrench between the pair,
+        force and torque in both signs. A declared supporter must still be
+        grounded itself; declaring an edge grounds nothing by itself. A
+        ``ground`` or ``supports`` entry resolving to no selected solid, a
+        zero ``gravity`` vector, a non-positive ``max_drop`` and a negative
+        ``stability_margin`` are errors.
+
+        ``stability_margin`` (mm, default 0.0) shrinks every contact patch
+        toward its own centroid before the equilibrium decision. At the
+        default the check is pure feasibility, so a knife-edge balance with
+        the centre of mass exactly over a patch boundary passes; a positive
+        margin demands that much interior reserve and rejects it.
 
         Choosing ``max_drop`` (mm, default 1.0): it must be LARGER than the
         design's vertical clearance play, or a part sitting in its own
@@ -827,14 +1146,16 @@ class TestCase(BaseTestCase):
         supporting feature's thickness plus the gap above it, or the dropped
         solid tunnels straight through its support and the same part reads as
         floating again. The default sits in the usual window between printed
-        clearances (0.5mm or less) and printed walls (1.2mm or more).
+        clearances (0.5mm or less) and printed walls (1.2mm or more). The same
+        window bounds the contact patches: a drop that tunnels past a
+        supporting face cannot extract the interface resting on it.
 
-        What this assertion does NOT claim: it proves support reachability
-        only. There is no force or torque balance, no toppling analysis
-        (centre of mass against support polygon), no friction or adhesion, and
-        no lateral-restraint analysis -- a part free to slide or tip over
-        still passes. Passing means nothing floats, not that the assembly is
-        statically stable.
+        What this assertion claims: support reachability, force balance,
+        torque balance and toppling over the contacts it detects. What it does
+        NOT claim: friction, adhesion, purely lateral (gravity-parallel) wall
+        reactions, the toppling of a single solid on the floor (a lone solid
+        still passes without geometric work), and every dynamic effect. A hold
+        that is real but outside frictionless statics belongs in ``supports``.
         """
         unit_gravity = _unit_vector(gravity, 'gravity')
         max_drop = float(max_drop)
@@ -842,6 +1163,11 @@ class TestCase(BaseTestCase):
             raise ValueError(
                 "assertAssemblySupported: max_drop must be positive, "
                 f"got {max_drop}")
+        stability_margin = float(stability_margin)
+        if stability_margin < 0:
+            raise ValueError(
+                "assertAssemblySupported: stability_margin must not be "
+                f"negative, got {stability_margin}")
 
         selected = list(_topmost_rigid_nodes(node))
         if len(selected) <= 1:
@@ -852,20 +1178,30 @@ class TestCase(BaseTestCase):
         index_of = _selected_index(selected)
         declared = _declared_support_edges(supports or (), index_of)
 
-        resting, dropped = _dropped_assembly_solids(
-            selected, unit_gravity * max_drop)
-        edges = []
-        for supported, supporter in _support_candidates(
-                [item[2] for item in dropped], [item[2] for item in resting]):
-            is_empty, volume = _placed_intersection(
-                dropped[supported], resting[supporter])
-            if is_empty or volume == 0.0:
-                continue
-            edges.append((supported, supporter))
-        edges.extend(declared)
-
+        offset = unit_gravity * max_drop
+        resting, dropped = _dropped_assembly_solids(selected, offset)
         seeds = _grounded_seeds(
             resting, unit_gravity, max_drop, ground, index_of)
+        # The floor is a landing target, never a support edge: it holds
+        # the seeds up in the equilibrium phase and answers no
+        # reachability question at all.
+        targets = list(resting)
+        if ground is None:
+            targets.append(_virtual_floor(resting, unit_gravity, max_drop))
+
+        edges = []
+        landings = []
+        for supported, supporter in _support_candidates(
+                [item[2] for item in dropped], [item[2] for item in targets]):
+            is_empty, volume = _placed_intersection(
+                dropped[supported], targets[supporter])
+            if is_empty or volume == 0.0:
+                continue
+            landings.append((supported, supporter))
+            if supporter < len(selected):
+                edges.append((supported, supporter))
+        edges.extend(declared)
+
         grounded = _grounded_solids(edges, seeds)
         unsupported = [solid for index, solid in enumerate(selected)
                        if index not in grounded]
@@ -876,6 +1212,56 @@ class TestCase(BaseTestCase):
                 f"{names} should be supported against gravity, but no "
                 f"support path reaches a grounded solid "
                 f"(dropped {max_drop:g}mm along gravity ({direction}))")
+
+        self._assert_static_equilibrium(
+            selected, targets, dropped, landings, declared,
+            set() if ground is None else seeds,
+            unit_gravity, offset, stability_margin)
+
+    def _assert_static_equilibrium(self, selected, targets, dropped, landings,
+                                   declared, anchors, unit_gravity, offset,
+                                   margin):
+        """The second phase of ``assertAssemblySupported``: prove the
+        reachable assembly can also stand.
+
+        Contacts are extracted from every landing the drop found and from
+        every candidate of a symmetric lift sweep, which is what makes an
+        engaged couple balance legitimately instead of demanding an
+        exemption. A body whose support edges yield no extractable
+        interface keeps its six unsatisfiable rows and fails here, rather
+        than passing for having had a path.
+        """
+        bodies = [_statics_body(record[0].name, record[1], index in anchors)
+                  for index, record in enumerate(targets[:len(selected)])]
+        bodies.extend(_statics_body(record[0].name, record[1], True)
+                      for record in targets[len(selected):])
+
+        contacts = []
+        for supported, supporter in landings:
+            contacts.extend(
+                _Contact(point, normal, supported, supporter)
+                for point, normal in _interface_contacts(
+                    dropped[supported][1], bodies[supported],
+                    bodies[supporter], offset, unit_gravity, 1.0, margin))
+        lifted = _dropped_assembly_solids(selected, -offset)[1]
+        for supported, supporter in _support_candidates(
+                [item[2] for item in lifted],
+                [item[2] for item in targets]):
+            contacts.extend(
+                _Contact(point, normal, supported, supporter)
+                for point, normal in _interface_contacts(
+                    lifted[supported][1], bodies[supported],
+                    bodies[supporter], -offset, unit_gravity, -1.0, margin))
+
+        failures = _unbalanced_bodies(bodies, contacts, declared, unit_gravity)
+        if failures:
+            reasons = '; '.join(
+                f"{bodies[index].name} cannot rest in frictionless static "
+                f"equilibrium on its detected contacts (unbalanced {kind})"
+                for index, kind in failures)
+            raise AssertionError(
+                f"{reasons}. Declare a hold that is real but outside "
+                f"frictionless statics in supports=[(supported, supporter)]")
 
     def assertJoined(self, node1, node2, min_weld_volume=0.0):
         """Assert node1 and node2 fuse into ONE connected body, i.e.
