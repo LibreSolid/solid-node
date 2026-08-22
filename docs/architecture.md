@@ -42,12 +42,13 @@ place it. From that single tree, the framework derives everything else:
 Three architectural commitments shape almost every subsystem:
 
 1. **Geometry follows the strongest backend path available**
-   (ADR-004/044/045/046). Every backend still produces SCAD and an STL.
+   (ADR-004/044/045/046/047). Every backend still produces SCAD and an STL.
    Solid2 and raw `.scad` leaves, and faceted fusions containing them, render
-   through OpenSCAD. CadQuery preserves BREP geometry and all-exact fusions
-   compose and tessellate in OCCT without OpenSCAD. JSCAD produces its STL
-   through its own `jscad` tool. OpenSCAD is therefore conditional on the
-   paths that invoke it, not a universal framework prerequisite.
+   through OpenSCAD. The OCCT backends — CadQuery and build123d — preserve
+   BREP geometry, and all-exact fusions compose and tessellate in OCCT
+   without OpenSCAD, whichever of the two produced each child. JSCAD produces
+   its STL through its own `jscad` tool. OpenSCAD is therefore conditional on
+   the paths that invoke it, not a universal framework prerequisite.
 2. **The build artifact is the currency, mtime is its clock**
    (ADR-006/026/033). STLs are cached per parameter-hashed identity and
    validated by mtime *equality* against the max source mtime. Caches
@@ -87,17 +88,26 @@ first rigid node on a branch below an assembly, or a rigid root itself; its
 STL is the complete printed solid for that branch.
 
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
-`CadQueryNode` (exports to STL, re-imports), `OpenScadNode`
-(`scad_source` + module call), `JScadNode` (shells out to the `jscad`
-CLI). Every node exposes derived read-only exactness (ADR-044): CadQuery is
-exact, the other leaf adapters are faceted, and an internal node is exact only
-when every child is. Exact nodes expose unplaced BREP geometry through
+`CadQueryNode` and `Build123dNode` (both export to STL and re-import),
+`OpenScadNode` (`scad_source` + module call), `JScadNode` (shells out to the
+`jscad` CLI). Every node exposes derived read-only exactness (ADR-044): the
+two OCCT adapters are exact, the other leaf adapters are faceted, and an
+internal node is exact only when every child is. Exactness does not require
+one backend — every exact adapter converts its render result to one shared
+OCCT shape at the adapter boundary, so the exact layer holds a single type and
+a fusion may mix CadQuery and build123d children (ADR-047). Because build123d
+groups solids, sketches and curves under one namespace, `Build123dNode`
+additionally rejects a render result that is not a solid, and accepts a
+`BuildPart` builder by taking its finished `.part`.
+
+Exact nodes expose unplaced BREP geometry through
 `shape()`; placement remains the caller's responsibility through the same
 composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
 Each adapter still emits SCAD, but artifact production follows its backend:
-Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery uses OCCT, and JSCAD uses
-`jscad` (ADR-046). Emitting SCAD does not itself require the OpenSCAD binary.
+Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d use OCCT,
+and JSCAD uses `jscad` (ADR-046). Emitting SCAD does not itself require the
+OpenSCAD binary.
 
 Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
@@ -166,7 +176,7 @@ importing its STL — `render()` and `as_scad()` never run (ADR-033), so
 the check happens before the expensive work rather than after it.
 Internal nodes always render: their file set is the union of their
 children's and is only known by walking them. The adapters that write
-their artifact inside `as_scad()` — CadQuery, JSCAD — carry the same
+their artifact inside `as_scad()` — CadQuery, build123d, JSCAD — carry the same
 guard, for nodes that opt out of optimization.
 
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
@@ -416,7 +426,7 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry` | 001–004, 006, 026, 044–045 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry` | 001–004, 006, 026, 044–045, 047 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |

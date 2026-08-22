@@ -33,8 +33,43 @@ def cached_shape(brep_file):
     return cached
 
 
+def build123d_shape(rendered):
+    """The OCCT shape of a build123d render result, or None if ``rendered``
+    did not come from build123d.
+
+    build123d and CadQuery are two front ends over one OCCT: every object of
+    either wraps a single TopoDS_Shape, exposed as ``.wrapped``. Rewrapping
+    that shape is therefore the whole conversion, and it is why a build123d
+    node's exact geometry is carried as the CadQuery ``Shape`` the rest of
+    this module trades in -- every consumer below (placement, fuse, common,
+    BREP persistence, volume) then needs no backend special case, and a
+    fusion may freely mix the two backends.
+
+    build123d is recognised by module name rather than imported.
+    ``solid_node.node`` imports every adapter eagerly and importing build123d
+    costs about 1.6 seconds, which a project modelling in another backend
+    should not pay.
+
+    A builder is not itself geometry: ``with BuildPart() as part:`` is
+    build123d's headline idiom, and returning the builder rather than its
+    ``.part`` is the first mistake a user makes, so the finished part is
+    taken. Returning None rather than raising leaves the diagnosis to
+    Build123dNode.validate(), which can name the node.
+    """
+    if not type(rendered).__module__.startswith('build123d'):
+        return None
+    if not hasattr(rendered, 'wrapped'):
+        rendered = getattr(rendered, 'part', None)
+    if getattr(rendered, 'wrapped', None) is None:
+        return None
+    return cq.Shape.cast(rendered.wrapped)
+
+
 def shape_from_rendered(rendered):
-    """Return all shapes produced by a CadQuery render as one shape."""
+    """Return all shapes produced by a render as one shape."""
+    from_build123d = build123d_shape(rendered)
+    if from_build123d is not None:
+        return from_build123d
     shapes = list(rendered.vals()) if hasattr(rendered, 'vals') else [rendered]
     if not shapes:
         raise ValueError('CadQuery render produced no shape')

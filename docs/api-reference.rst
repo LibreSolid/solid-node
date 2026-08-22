@@ -68,6 +68,8 @@ Leaf nodes
 
 .. autoclass:: solid_node.node.CadQueryNode
 
+.. autoclass:: solid_node.node.Build123dNode
+
 .. autoclass:: solid_node.node.OpenScadNode
    :members: __init__
 

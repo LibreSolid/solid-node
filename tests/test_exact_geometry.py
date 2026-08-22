@@ -15,6 +15,7 @@ import trimesh
 from solid2 import cube
 
 from solid_node.node import (
+    Build123dNode,
     CadQueryNode,
     FusionNode,
     JScadNode,
@@ -122,9 +123,19 @@ class NodeExactnessTest(TestCase):
 
     def test_leaf_exactness_is_derived_from_adapter_type(self):
         self.assertTrue(self.uninitialized(CadQueryNode).exact)
+        self.assertTrue(self.uninitialized(Build123dNode).exact)
         self.assertFalse(self.uninitialized(Solid2Node).exact)
         self.assertFalse(self.uninitialized(OpenScadNode).exact)
         self.assertFalse(self.uninitialized(JScadNode).exact)
+
+    def test_exactness_does_not_require_one_backend(self):
+        """Every exact adapter yields the same boundary representation, so a
+        mixture of them composes exactly with no backend-agreement rule."""
+        fusion = self.uninitialized(FusionNode)
+        fusion.children = [self.uninitialized(CadQueryNode),
+                           self.uninitialized(Build123dNode)]
+
+        self.assertTrue(fusion.exact)
 
     def test_fusion_exactness_composes_from_children(self):
         exact = self.uninitialized(CadQueryNode)

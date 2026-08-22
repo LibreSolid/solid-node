@@ -79,7 +79,7 @@ unaffected.
 - **WHEN** `as_scad()` runs on a `CadQueryNode`, `Build123dNode` or `JScadNode` whose artifact is up to date
 - **THEN** no export or external renderer runs, and the returned SCAD output is unchanged
 
-#### Scenario: Only the B-rep backends are exact
+#### Scenario: Only the B-rep backend is exact
 
 - **WHEN** `exact` is read across one instance of each adapter
 - **THEN** the `CadQueryNode` and `Build123dNode` report true and the

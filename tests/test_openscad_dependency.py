@@ -15,7 +15,8 @@ from solid2.core.object_base import OpenSCADConstant
 
 from solid_node.manager.snapshot import Snapshot
 from solid_node.manager.develop import Develop
-from solid_node.node import CadQueryNode, FusionNode, JScadNode, Solid2Node
+from solid_node.node import (Build123dNode, CadQueryNode, FusionNode,
+                             JScadNode, Solid2Node)
 from solid_node.openscad import OpenScadUnavailable, openscad_binary
 from solid_node.viewers.openscad import OpenScadRenderer, OpenScadViewer
 
@@ -23,6 +24,12 @@ from solid_node.viewers.openscad import OpenScadRenderer, OpenScadViewer
 class ExactBox(CadQueryNode):
     def render(self):
         return cq.Workplane('XY').box(2, 2, 2)
+
+
+class Build123dBox(Build123dNode):
+    def render(self):
+        import build123d as b3d
+        return b3d.Box(2, 2, 2)
 
 
 class FacetedBox(Solid2Node):
@@ -38,6 +45,20 @@ class ExactPair(FusionNode):
 
     def render(self):
         return [self.left, self.right]
+
+
+class MixedExactPair(FusionNode):
+    """One solid modelled half in CadQuery and half in build123d. Both
+    backends render through the same kernel, so the pair carries no
+    OpenSCAD dependency either."""
+
+    def __init__(self):
+        self.cadquery_half = ExactBox()
+        self.build123d_half = Build123dBox().translate([3, 0, 0])
+        super().__init__()
+
+    def render(self):
+        return [self.cadquery_half, self.build123d_half]
 
 
 class FacetedPair(FusionNode):
@@ -89,6 +110,34 @@ class OpenScadDependencyTest(TestCase):
 
     def test_exact_fusion_never_consults_openscad(self):
         node = ExactPair()
+        node.assemble()
+
+        with patch('solid_node.node.base.require_openscad',
+                   side_effect=AssertionError(
+                       'exact geometry must not check OpenSCAD')), \
+             patch('solid_node.node.base.Popen', side_effect=AssertionError(
+                 'exact geometry must not launch OpenSCAD')):
+            node.generate_stl()
+
+        self.assertTrue(os.path.exists(node.stl_file))
+        self.assertTrue(os.path.exists(node.brep_file))
+
+    def test_build123d_leaf_never_consults_openscad(self):
+        node = Build123dBox()
+        node.assemble()
+
+        with patch('solid_node.node.base.require_openscad',
+                   side_effect=AssertionError(
+                       'exact geometry must not check OpenSCAD')), \
+             patch('solid_node.node.base.Popen', side_effect=AssertionError(
+                 'exact geometry must not launch OpenSCAD')):
+            node.generate_stl()
+
+        self.assertTrue(os.path.exists(node.stl_file))
+        self.assertTrue(os.path.exists(node.brep_file))
+
+    def test_fusion_mixing_exact_backends_never_consults_openscad(self):
+        node = MixedExactPair()
         node.assemble()
 
         with patch('solid_node.node.base.require_openscad',

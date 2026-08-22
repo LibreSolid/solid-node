@@ -5,6 +5,27 @@ History
 Unreleased
 ----------
 
+Modelling backends
+~~~~~~~~~~~~~~~~~~
+
+* Added ``Build123dNode``, a fifth leaf adapter backed by `build123d
+  <https://build123d.readthedocs.io/>`_. Like ``CadQueryNode`` it is a front
+  end over OCCT, so it produces exact geometry, persists a ``.brep`` beside
+  its STL, and needs no OpenSCAD binary. ``render()`` may return a ``Part``,
+  ``Solid`` or ``Compound``, or a ``BuildPart`` builder whose finished
+  ``.part`` is taken; a sketch or curve is rejected naming the node, since a
+  leaf is one part.
+* Exact composition does not require one backend: a fusion may mix
+  ``CadQueryNode`` and ``Build123dNode`` children and still fuse exactly into
+  a single solid.
+* **Reinstall required.** ``cadquery`` moves from 2.5 to 2.7 and
+  ``build123d`` 0.10 joins it, so the shared ``cadquery-ocp`` binding moves
+  from 7.7 to 7.8. Both libraries bind the same ``OCP`` module and the
+  previous pin admitted no current build123d. Because ``cadquery-ocp`` is a
+  large binary wheel and the two versions cannot coexist, upgrade by
+  reinstalling the environment rather than in place. No project source
+  changes.
+
 0.5.1 (2026-08-18)
 ------------------
 

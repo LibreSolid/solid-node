@@ -11,19 +11,21 @@ At this point, you should be able to view your project in the viewer
 
 In Solid Node, a project is organized in a tree structure, with leaf
 nodes and internal nodes. **Leaf nodes** use underlying modelling
-libraries, namely **SolidPython**, **CadQuery**, **OpenScad** and
-**JScad**, to generate solid models — each leaf node is one part.
+libraries, namely **SolidPython**, **CadQuery**, **build123d**,
+**OpenScad** and **JScad**, to generate solid models — each leaf node is
+one part.
 **Internal nodes** combine children nodes into assemblies and fusions,
 covered in :doc:`Combining parts <assemblies>`.
 
 Each node implements the `render()` method. Leaf nodes return an object
 of the underlying library.
 
-There are four types of LeafNodes, each supporting one underlying
+There are five types of LeafNodes, each supporting one underlying
 technology to create solids:
 
 * **Solid2Node** Uses Solid Python 2, which is a python wrapper around OpenScad
 * **CadQueryNode** Uses CadQuery, a pure python modeler based on OCCT
+* **Build123dNode** Uses build123d, a pure python modeler based on OCCT
 * **OpenScadNode** A wrapper around one OpenScad module
 * **JScadNode** A wrapper around one JScad module
 
@@ -89,6 +91,63 @@ conflicting with Solid Node:
 
     if __name__ == '__cq_main__':
         show_object(DemoProject().render())
+
+Build123dNode
+=============
+
+The same model in **build123d**, which like CadQuery is a pure python
+modeler over OCCT, with a different API:
+
+.. code-block:: python
+
+    from build123d import BuildPart, Box, Cylinder, Mode
+    from solid_node.node import Build123dNode
+
+    class DemoProject(Build123dNode):
+
+        def render(self):
+            with BuildPart() as part:
+                Box(50, 50, 50)
+                Cylinder(radius=10, height=100, mode=Mode.SUBTRACT)
+            return part.part
+
+And the same box with a hole, rendered by build123d:
+
+.. solid-node:: _exports/demo_build123d
+   :height: 360px
+
+build123d offers two ways to write a model, and a node may `render()`
+either. The *builder* mode above collects objects inside a context
+manager; the *algebra* mode composes shapes with operators, and needs no
+builder:
+
+.. code-block:: python
+
+    from build123d import Box, Cylinder
+    from solid_node.node import Build123dNode
+
+    class DemoProject(Build123dNode):
+
+        def render(self):
+            return Box(50, 50, 50) - Cylinder(radius=10, height=100)
+
+Returning the builder itself rather than its `.part` also works — the
+node takes the finished part — so both of these are equivalent:
+
+.. code-block:: python
+
+    return part.part
+    return part
+
+A leaf node is one part, so `render()` must produce a solid: a
+`Part`, a `Solid`, a `Compound`, or a builder holding one. Returning a
+build123d sketch or curve raises an error naming the node, rather than
+failing later in the STL export.
+
+**NOTE**: `Build123dNode` and `CadQueryNode` are both OCCT front ends
+and both produce exact geometry, so they mix freely — a fusion may take
+children from either, and the parts fuse exactly. Neither needs OpenScad
+installed. See :doc:`Combining parts <assemblies>`.
 
 OpenScadNode
 ============

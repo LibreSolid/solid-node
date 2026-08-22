@@ -10,8 +10,8 @@ geometry is available as an exact boundary representation rather than only as
 a triangle mesh.
 
 For a leaf, `exact` SHALL be determined by its adapter type and SHALL NOT be
-recomputed from rendered content: `CadQueryNode` is exact; `Solid2Node`,
-`OpenScadNode` and `JScadNode` are not.
+recomputed from rendered content: `CadQueryNode` and `Build123dNode` are
+exact; `Solid2Node`, `OpenScadNode` and `JScadNode` are not.
 
 For an internal node, `exact` SHALL be true when every child is exact. This
 composition rule is deliberately the opposite of `rigid`, which is fixed by
@@ -20,6 +20,11 @@ question: rigidity is a promise the node makes about what it produces — a
 fusion is one solid whatever lies beneath it — whereas exactness is a
 capability that genuinely depends on what lies beneath, because one faceted
 child makes an exact composition impossible.
+
+Exactness SHALL NOT require the children to share one backend. Every exact
+adapter yields geometry in the same boundary representation, so a subtree
+mixing exact backends is exact by the same rule, with no backend-agreement
+condition beyond it.
 
 Because an internal node's children are linked during `assemble()` and the
 default is an empty collection, reading `exact` on an internal node that has
@@ -30,7 +35,7 @@ exact.
 
 #### Scenario: An exact leaf
 
-- **WHEN** `exact` is read on a `CadQueryNode`
+- **WHEN** `exact` is read on a `CadQueryNode` or a `Build123dNode`
 - **THEN** it is true, without rendering the node
 
 #### Scenario: A faceted leaf
@@ -42,6 +47,12 @@ exact.
 
 - **WHEN** `exact` is read on an assembled `FusionNode` whose every descendant
   is a `CadQueryNode`
+- **THEN** it is true
+
+#### Scenario: A fusion mixing exact backends
+
+- **WHEN** `exact` is read on an assembled `FusionNode` holding one
+  `CadQueryNode` and one `Build123dNode`
 - **THEN** it is true
 
 #### Scenario: One faceted child makes the composition faceted
@@ -98,6 +109,11 @@ The fuse SHALL succeed for children that meet on exactly coincident faces — a
 zero-clearance fit is a normal modelling result and is the case a mesh union
 handles least reliably.
 
+The fuse SHALL be performed identically whichever exact adapters produced the
+children, and its result SHALL be one solid when the children overlap, so a
+part modelled partly in CadQuery and partly in build123d composes as one
+printed solid.
+
 #### Scenario: Children are fused into one solid
 
 - **WHEN** an exact `FusionNode` fuses two overlapping children
@@ -108,6 +124,13 @@ handles least reliably.
 - **WHEN** an exact `FusionNode` fuses a shaft into a bore of exactly equal
   diameter, so their cylindrical faces coincide
 - **THEN** the fuse yields one solid rather than failing or leaving two
+
+#### Scenario: Children from different exact backends fuse
+
+- **WHEN** an exact `FusionNode` fuses an overlapping `CadQueryNode` child and
+  `Build123dNode` child
+- **THEN** its shape is a single solid, as it is for two children of one
+  backend
 
 ### Requirement: Exact geometry is persisted and reloaded
 
@@ -148,3 +171,4 @@ geometry the kernel found hardest — the case most likely to be a real defect.
   reports failure
 - **THEN** the framework raises naming both nodes, and no mesh Boolean is run
   to produce a verdict in its place
+

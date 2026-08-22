@@ -12,6 +12,7 @@ from .base import StlRenderStart
 from .assembly import AssemblyNode
 from .fusion import FusionNode
 from .adapters.cadquery import CadQueryNode
+from .adapters.build123d import Build123dNode
 from .adapters.solid2 import Solid2Node
 from .adapters.openscad import OpenScadNode
 from .adapters.jscad import JScadNode

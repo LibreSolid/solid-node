@@ -5,9 +5,7 @@
 Defines OpenSCAD as a conditional external dependency: the exact operations
 that require it, the guarantee for operations that do not, and the actionable
 failure contract when the binary is unavailable.
-
 ## Requirements
-
 ### Requirement: OpenSCAD is required only by the paths that invoke it
 
 The system SHALL treat the OpenSCAD binary as a conditional dependency of the
@@ -24,7 +22,11 @@ The paths that require it are exactly:
 
 No other operation SHALL require it. In particular, a project whose model is
 entirely exact under the `exact-geometry` capability SHALL build, test, and
-publish with no OpenSCAD binary on the PATH.
+publish with no OpenSCAD binary on the PATH. Adding an exact backend SHALL NOT
+extend this list: `Build123dNode` writes its own STL and BREP through the same
+OCCT kernel `CadQueryNode` uses, so a project of `Build123dNode` leaves — or
+of `CadQueryNode` and `Build123dNode` leaves mixed — carries no OpenSCAD
+dependency.
 
 `JScadNode` is deliberately NOT among the requiring paths. It writes its own
 STL through the separate `jscad` binary inside `as_scad()` and stamps the
@@ -43,6 +45,14 @@ does when the binary is present.
 - **WHEN** a project whose every node is exact is built, tested and published
   on a machine with no `openscad` on the PATH
 - **THEN** the build, the test run and the publication all succeed
+
+#### Scenario: A build123d project needs no OpenSCAD
+
+- **WHEN** a project of `Build123dNode` leaves, or of `Build123dNode` and
+  `CadQueryNode` leaves mixed under a fusion, is built with no `openscad` on
+  the PATH
+- **THEN** every leaf's STL is produced through the OCCT kernel and the build
+  succeeds
 
 #### Scenario: A mesh-backend project still requires it
 
@@ -116,3 +126,4 @@ never reaches a requiring path is never asked for the binary.
 
 - **WHEN** an all-exact project is built on a machine with no `openscad`
 - **THEN** no availability check fails, because no requiring path is reached
+

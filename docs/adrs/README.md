@@ -44,6 +44,7 @@ that way.
 - [ADR-044](NODE/ADR-044-derived-exact-geometry-capability.md) — Derived exact-geometry capability — **Accepted**
 - [ADR-045](NODE/ADR-045-exact-fusion-composition.md) — Exact fusion composition — **Accepted**
 - [ADR-046](NODE/ADR-046-conditional-openscad-dependency.md) — Conditional OpenSCAD dependency — **Accepted**
+- [ADR-047](NODE/ADR-047-shared-occt-currency-for-exact-backends.md) — One shared OCCT currency for every exact backend — **Accepted**
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**
