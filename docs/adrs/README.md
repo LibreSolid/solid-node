@@ -77,6 +77,7 @@ that way.
 - [ADR-040](TEST-FRAMEWORK/ADR-040-topmost-rigid-assembly-integrity.md) — Topmost-rigid assembly integrity — **Accepted**, revised 2026-08-11 (volume certificate removed)
 - [ADR-048](TEST-FRAMEWORK/ADR-048-gravity-support-graph-assertion.md) — Gravity support graph assertion — **Accepted**, extended by 049
 - [ADR-049](TEST-FRAMEWORK/ADR-049-static-equilibrium-as-lp-feasibility.md) — Static equilibrium as LP feasibility — **Accepted**
+- [ADR-052](TEST-FRAMEWORK/ADR-052-conditional-mesh-engine-dependency.md) — Conditional mesh-engine dependency — **Accepted**
 
 ### VIEWER-WEB — web viewer
 - [ADR-012](VIEWER-WEB/ADR-012-threejs-for-3d-rendering.md) — Three.js rendering — **Accepted**

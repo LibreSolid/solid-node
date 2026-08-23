@@ -223,16 +223,25 @@ reported as exactly empty without running any boolean. This is an
 exact-negative shortcut that never changes a verdict, and it is what keeps the
 exact path's cost proportional to interacting pairs.
 
-The faceted fast path:
+The per-STL cache SHALL be split by what each part of it needs:
 
-- caches one `manifold3d.Manifold` per `(stl_file, mtime)` (module-level,
-  stale entries evicted on rebuild), built from the same cached base mesh
-  the `mesh` property uses, with watertightness validated once at cache
-  fill — a non-watertight STL raises a `ValueError` naming the file rather
-  than failing inside the boolean engine;
-- places the cached Manifolds with a lazy `transform()` and intersects them
-  directly, reading `is_empty()` and `volume()` off the result with no
-  conversion back to trimesh, reading `volume` only when non-empty.
+- a solid's local bounding box and its watertightness validation are read from
+  the same cached base mesh the `mesh` property uses, keyed by
+  `(stl_file, mtime)` with stale entries evicted on rebuild, and SHALL be
+  performed whenever a solid is selected — a non-watertight STL raises a
+  `ValueError` naming the file rather than failing inside the boolean engine.
+  This half SHALL NOT require the mesh engine;
+- one `manifold3d.Manifold` per `(stl_file, mtime)` (module-level, stale
+  entries evicted on rebuild) is built from that same cached base mesh at the
+  FIRST comparison that actually reads it, and never for a solid whose every
+  comparison is decided by the boundary-representation kernel. Repeated reads
+  SHALL reuse the one cached Manifold, so deferring construction SHALL NOT
+  increase the number of Manifolds built for any assembly.
+
+The faceted fast path SHALL then place the cached Manifolds with a lazy
+`transform()` and intersect them directly, reading `is_empty()` and `volume()`
+off the result with no conversion back to trimesh, reading `volume` only when
+non-empty.
 
 Verdict semantics on the FACETED path SHALL be preserved exactly: `is_empty`
 is the boolean engine's own emptiness — a non-empty result with exactly
@@ -243,6 +252,10 @@ folding zero volume into emptiness is explicitly rejected — ADR-029). On the
 EXACT path that construction does not arise: flush contact produces no solid
 and is genuinely empty, so there is no float-noise sliver for an epsilon to
 absorb.
+
+The bounding boxes the broad phase transforms SHALL come from the cached base
+mesh for every solid, exact or faceted. The candidate pairs a given assembly
+emits SHALL NOT depend on whether its solids carry exact geometry.
 
 #### Scenario: Distant parts skip the boolean
 
@@ -277,6 +290,20 @@ absorb.
 - **THEN** the helper uses the faceted path and its verdict semantics are
   those of that path
 
+#### Scenario: An exact assembly builds no Manifold
+
+- **WHEN** `assertNoSolidInterference` verifies an assembly whose every selected
+  solid is exact
+- **THEN** no `manifold3d.Manifold` is constructed for any of those solids, and
+  the verdict is the one the kernel reaches
+
+#### Scenario: A mixed assembly builds a Manifold only for the solids it compares faceted
+
+- **WHEN** an assembly's selected solids include exact and faceted parts and only
+  some candidate pairs route faceted
+- **THEN** a Manifold is built for each solid a faceted comparison reads, once
+  each, and for no other solid
+
 ### Requirement: Whole-assembly solid interference assertion
 
 The system SHALL provide `TestCase.assertNoSolidInterference(node)` as an
@@ -297,6 +324,12 @@ be evaluated by the boundary-representation kernel; any other pair SHALL be
 evaluated by the cached Manifolds as before. The assertion SHALL NOT compute an
 aggregate volume, Boolean union, or other whole-assembly measurement of the
 selected solids.
+
+Placing a solid for the spatial index SHALL NOT of itself construct that solid's
+faceted representation. A solid's Manifold SHALL be built only when a candidate
+pair it belongs to is actually evaluated by the mesh engine, so an assembly whose
+every selected solid is exact SHALL require no mesh engine at all — see the
+`mesh-engine-dependency` capability.
 
 Positive-volume overlap SHALL fail. Empty intersection and non-empty
 zero-volume boundary contact SHALL pass. The assertion SHALL expose no overlap
@@ -381,6 +414,13 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 - **THEN** each candidate pair is evaluated by the boundary-representation
   kernel, and a nominally exact fit between two of them does not register as
   interference
+
+#### Scenario: An exact assembly is verified without the mesh engine
+
+- **WHEN** every selected solid in the assembly is exact and `manifold3d` cannot
+  be imported
+- **THEN** the assertion reaches the same verdict it reaches with the mesh
+  engine installed
 
 #### Scenario: A mixed assembly verifies each pair by what it has
 

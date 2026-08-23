@@ -48,7 +48,12 @@ Three architectural commitments shape almost every subsystem:
    BREP geometry, and all-exact fusions compose and tessellate in OCCT
    without OpenSCAD, whichever of the two produced each child. JSCAD produces
    its STL through its own `jscad` tool. OpenSCAD is therefore conditional on
-   the paths that invoke it, not a universal framework prerequisite.
+   the paths that invoke it, not a universal framework prerequisite. The same
+   rule governs the `manifold3d` mesh engine (ADR-052): it decides faceted
+   geometry, so it is required by comparisons involving a part without exact
+   geometry and by `assertAssemblySupported`, whose statics phase is faceted
+   for every body — and by nothing else. Both are resolved once per process at
+   the point of use and report by name when absent.
 2. **The build artifact is the currency, mtime is its clock**
    (ADR-006/026/033/050). STLs are cached per parameter-hashed identity and
    validated by mtime *equality* against the max source mtime, in integer
@@ -278,8 +283,11 @@ checkpoints restored between instants.
 Collision assertions (ADR-009/044) select the strongest shared representation:
 intersection-volume and connectivity questions use placed OCCT shapes when
 both operands are exact and retain trimesh/Manifold for mixed or faceted
-pairs. Distance and containment assertions remain mesh-sampled. This includes
-the
+pairs. That selection reaches the placement step too (ADR-052): a solid is
+placed into the spatial index from its cached bounds alone, and its Manifold
+is built only when a comparison really reads it, so an all-exact assembly
+builds none and needs no mesh engine. Distance and containment assertions
+remain mesh-sampled. This includes the
 **paired kinematic fit contract** (ADR-025): `assertBlockedBeyond` +
 `assertFreeWithin` perturb a part along its working degree of freedom
 (rotational `axis=` or translational `along=`, injected in the local

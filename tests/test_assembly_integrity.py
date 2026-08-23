@@ -14,6 +14,7 @@ import numpy as np
 from trimesh.creation import box
 
 import solid_node.test as test_module
+from solid_node.mesh_engine import mesh_engine
 from solid_node.node.operations import Rotation, Translation
 from solid_node.test import TestCase as AssertingTestCase
 
@@ -86,12 +87,18 @@ class AssemblyIntegrityTestCase(TestCase):
         other.operations.append(Translation([10, 0, 0], other))
         assembly = Assembly('Root', (fusion, other))
 
-        original = test_module._cached_manifold
-        with patch('solid_node.test._cached_manifold',
-                   wraps=original) as cached:
+        # Geometry loading is now the bounds read every SELECTED solid
+        # pays for; the Manifold is built later and only for a pair
+        # compared faceted, so the bounds cache is the seam that
+        # answers which solids were selected. The contract under test
+        # is unchanged: an ingredient inside a fusion is not an
+        # assembly part and its geometry is never read.
+        original = test_module._cached_local_bounds
+        with patch('solid_node.test._cached_local_bounds',
+                   wraps=original) as loaded_bounds:
             asserter.assertNoSolidInterference(assembly)
 
-        loaded = [call.args[0] for call in cached.call_args_list]
+        loaded = [call.args[0] for call in loaded_bounds.call_args_list]
         self.assertNotIn(ingredient.stl_file, loaded)
         self.assertEqual(set(loaded), {fusion.stl_file, other.stl_file})
 
@@ -208,7 +215,7 @@ class AssemblyIntegrityTestCase(TestCase):
         second = self.part('Second', [10, 0, 0])
 
         with patch.object(
-                test_module.Manifold, 'batch_boolean',
+                mesh_engine()[0], 'batch_boolean',
                 side_effect=AssertionError('no whole-assembly union')), \
              patch('solid_node.test.trimesh.boolean.union',
                    side_effect=AssertionError('no whole-assembly union')):

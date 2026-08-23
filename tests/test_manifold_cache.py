@@ -29,6 +29,7 @@ import trimesh
 from trimesh.creation import box
 
 import solid_node.test as test_module
+from solid_node.mesh_engine import mesh_engine
 from solid_node.node.base import AbstractBaseNode
 from solid_node.node.operations import Translation
 from solid_node.test import TestCase as AssertingTestCase
@@ -89,13 +90,19 @@ class ManifoldCacheBuiltOnceTest(ManifoldCacheTestCase):
         far = self._part('Far', [1000, 0, 0])
 
         calls = []
-        original = test_module.Manifold
+        original_manifold, original_mesh = mesh_engine()
 
         def counting(*args, **kwargs):
             calls.append(1)
-            return original(*args, **kwargs)
+            return original_manifold(*args, **kwargs)
 
-        with patch('solid_node.test.Manifold', side_effect=counting):
+        # The engine is now resolved at the point of use rather than
+        # bound as a module attribute, so the seam that counts real
+        # constructions is the resolver. The contract under test is
+        # unchanged: ONE build per (stl_file, mtime), however many
+        # assertions touch it.
+        with patch('solid_node.test.require_mesh_engine',
+                   return_value=(counting, original_mesh)):
             asserter.assertNotIntersecting(origin, far)
             asserter.assertIntersecting(origin, near)
             asserter.assertNotIntersecting(near, far)
@@ -270,3 +277,156 @@ class RealGeometryEndToEndTest(ManifoldCacheTestCase):
 
         self.assertTrue(is_empty)
         self.assertEqual(volume, 0.0)
+
+
+class ExactPart:
+    """A topmost rigid solid carrying BOTH exact geometry and a built
+    STL, exactly as a real `CadQueryNode` does. The STL is what makes
+    the point: it exists and is readable, so nothing about this part
+    forces the assertion to reach for the mesh engine except the
+    framework choosing to."""
+
+    rigid = True
+    exact = True
+    children = ()
+
+    def __init__(self, name, shape, stl_file):
+        self.name = name
+        self._shape = shape
+        self.stl_file = stl_file
+        self.operations = []
+        self._parent = None
+
+    def shape(self):
+        return self._shape
+
+    def as_number(self, value):
+        return float(value)
+
+
+class FacetedPart(FakeNode):
+    """A topmost rigid solid with no exact geometry."""
+
+    rigid = True
+    exact = False
+    children = ()
+
+
+class Root:
+
+    rigid = False
+
+    def __init__(self, name, children):
+        self.name = name
+        self.children = tuple(children)
+        self.operations = []
+        self._parent = None
+        for child in self.children:
+            child._parent = self
+
+    def as_number(self, value):
+        return float(value)
+
+
+class ExactAssemblyBuildsNoManifoldTest(ManifoldCacheTestCase):
+    """The mesh engine belongs to the faceted path. Placing a solid for
+    the spatial index must not of itself build that solid's Manifold, so
+    an assembly whose every candidate pair is decided by the
+    boundary-representation kernel builds none at all.
+
+    Originating evidence: the browser-engine spike's all-exact fixture
+    keeps 17 contracts green against a fail-by-name manifold3d
+    stand-in and loses only its deliberate faceted marker -- the
+    assertion logic is already exact-only; the plumbing was not.
+    """
+
+    def setUp(self):
+        super().setUp()
+        import cadquery as cq
+        self.cq = cq
+
+    def _exact(self, name, size, translation=None):
+        shape = self.cq.Workplane('XY').box(*size).val()
+        path = os.path.join(self.tmpdir.name, f'{name}.stl')
+        box(size).export(path)
+        part = ExactPart(name, shape, path)
+        if translation is not None:
+            part.operations.append(Translation(translation, part))
+        return part
+
+    def test_no_manifold_is_built_for_an_exact_assembly(self):
+        first = self._exact('First', (2.0, 2.0, 2.0))
+        second = self._exact('Second', (2.0, 2.0, 2.0), [10.0, 0, 0])
+
+        with patch('solid_node.test._cached_manifold',
+                   side_effect=AssertionError(
+                       'the mesh engine must not be reached for an assembly '
+                       'whose every candidate pair is exact')):
+            asserter.assertNoSolidInterference(Root('Root', (first, second)))
+
+    def test_no_manifold_is_built_for_an_overlapping_exact_pair(self):
+        """The culled case would pass trivially; this pair really is
+        compared, and still by the kernel alone."""
+        first = self._exact('First', (2.0, 2.0, 2.0))
+        second = self._exact('Second', (2.0, 2.0, 2.0), [1.0, 0, 0])
+
+        with patch('solid_node.test._cached_manifold',
+                   side_effect=AssertionError(
+                       'an exact candidate pair must be decided by the '
+                       'kernel, not the mesh engine')):
+            with self.assertRaises(AssertionError) as ctx:
+                asserter.assertNoSolidInterference(
+                    Root('Root', (first, second)))
+
+        self.assertIn('should not interfere', str(ctx.exception))
+
+    def test_a_mixed_assembly_builds_one_manifold_per_faceted_comparison(self):
+        """A mixed pair routes faceted, so BOTH its solids need a
+        Manifold -- including the exact one. A solid no faceted pair
+        reads needs none. Laziness, not exactness, is what selects."""
+        exact_near = self._exact('ExactNear', (2.0, 2.0, 2.0))
+        faceted_near = FacetedPart('FacetedNear', self.box_path)
+        faceted_near.operations.append(
+            Translation([1.0, 0, 0], faceted_near))
+        exact_far = self._exact('ExactFar', (2.0, 2.0, 2.0), [1000.0, 0, 0])
+
+        original = test_module._cached_manifold
+        with patch('solid_node.test._cached_manifold',
+                   wraps=original) as cached:
+            with self.assertRaises(AssertionError):
+                asserter.assertNoSolidInterference(Root(
+                    'Root', (exact_near, faceted_near, exact_far)))
+
+        built = [call.args[0] for call in cached.call_args_list]
+        self.assertIn(exact_near.stl_file, built)
+        self.assertIn(faceted_near.stl_file, built)
+        self.assertNotIn(exact_far.stl_file, built)
+
+
+class WatertightnessStaysEagerTest(ManifoldCacheTestCase):
+    """Deferring the Manifold must not defer the diagnostic that comes
+    with it. Watertightness is a property of the STL, readable from the
+    cached base mesh with no mesh engine at all, and it is reported for
+    every SELECTED solid -- including one the broad phase culls out of
+    every pair, which is exactly the solid a deferred check would stop
+    reporting."""
+
+    def _holey(self, name):
+        holey = trimesh.creation.box((2, 2, 2))
+        holey.faces = holey.faces[:-1]
+        path = os.path.join(self.tmpdir.name, f'{name}.stl')
+        holey.export(path)
+        return path
+
+    def test_a_culled_solid_is_still_reported_non_watertight(self):
+        holey_path = self._holey('holey')
+        holey = FacetedPart('Holey', holey_path)
+        holey.operations.append(Translation([1000, 0, 0], holey))
+        first = FacetedPart('First', self.box_path)
+        second = FacetedPart('Second', self.box_path)
+
+        with self.assertRaises(ValueError) as ctx:
+            asserter.assertNoSolidInterference(
+                Root('Root', (first, second, holey)))
+
+        self.assertIn(holey_path, str(ctx.exception))

@@ -55,6 +55,15 @@ OpenSCAD snapshot renderer. All-exact projects — CadQuery, build123d, or the
 two mixed — build, test, and export without it; use
 ``solid snapshot --renderer web`` for snapshots on a machine without OpenSCAD.
 
+`manifold3d <https://pypi.org/project/manifold3d/>`_ is installed by default
+and is conditional in the same sense: it decides faceted geometry, so it is
+needed whenever an assertion compares a part that has no exact geometry, and
+by ``assertAssemblySupported``, whose statics phase reads contact patches off
+meshed intersections for every body. An all-exact project's other geometric
+assertions are decided by the OCCT kernel and run without it — useful on a
+platform with no compiled wheel, such as WebAssembly. A path that needs it
+and cannot import it says so by name.
+
 Clone with submodules (the docs embed the example V8-engine project):
 
 .. code-block:: bash

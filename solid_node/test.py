@@ -10,10 +10,10 @@ import warnings
 from dataclasses import dataclass
 import numpy as np
 import trimesh
-from manifold3d import Manifold, Mesh
 from scipy.optimize import linprog
 from unittest import TestCase as BaseTestCase
 
+from solid_node.mesh_engine import require_mesh_engine
 from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
@@ -45,30 +45,73 @@ class IntersectionStats:
 # with the same stale-entry eviction on rebuild.
 _manifold_cache = {}
 
+# Companion cache holding only what the mesh engine is NOT needed for:
+# a solid's local bounding box, and the watertightness verdict that
+# comes with reading it. Both are properties of the STL, read from the
+# same cached base mesh, so they stay available -- and eager -- for
+# every selected solid whether or not manifold3d is installed.
+_bounds_cache = {}
 
-def _cached_manifold(stl_file):
-    """(Manifold, local_bounds) for `stl_file`, built once per
-    (stl_file, mtime) from the same trimesh mesh fix 1's
-    cached_base_mesh loads (no extra disk read). Watertightness is
-    validated ONCE here, at cache fill -- not on every boolean -- and
-    raises a clear, STL-naming error if it fails, instead of letting
-    an obscure failure surface deep inside the boolean engine."""
+
+def _cached_local_bounds(stl_file):
+    """Local bounds for `stl_file`, read once per (stl_file, mtime) from
+    the same trimesh mesh fix 1's cached_base_mesh loads (no extra disk
+    read). Watertightness is validated ONCE here and raises a clear,
+    STL-naming error if it fails, instead of letting an obscure failure
+    surface deep inside the boolean engine.
+
+    This half of the old combined cache deliberately needs no mesh
+    engine: it is what lets the spatial index place an exact solid, and
+    what keeps a non-watertight STL reported by name even for a solid
+    the broad phase culls out of every pair.
+    """
     mtime = os.path.getmtime(stl_file)
     key = (stl_file, mtime)
-    cached = _manifold_cache.get(key)
+    cached = _bounds_cache.get(key)
     if cached is None:
-        for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
-            del _manifold_cache[stale_key]
+        for stale_key in [k for k in _bounds_cache if k[0] == stl_file]:
+            del _bounds_cache[stale_key]
         mesh = cached_base_mesh(stl_file)
         if not mesh.is_volume:
             raise ValueError(
                 f"{stl_file} is not watertight -- cannot build a Manifold "
                 "cache for spatial assertions")
+        cached = mesh.bounds.copy()
+        _bounds_cache[key] = cached
+    return cached
+
+
+_FACETED_NEEDED_BY = 'Comparing faceted geometry'
+_FACETED_REASON = ('a part without exact geometry is compared through its '
+                   'mesh')
+
+
+def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
+                     reason=_FACETED_REASON):
+    """(Manifold, local_bounds) for `stl_file`, built once per
+    (stl_file, mtime) from the same trimesh mesh fix 1's
+    cached_base_mesh loads (no extra disk read).
+
+    This is the ONE place a Manifold is constructed, and therefore the
+    one place the mesh engine is required. It is reached only when a
+    comparison actually reads faceted geometry -- never merely because
+    a solid was selected -- so an assembly decided entirely by the
+    boundary-representation kernel never calls it.
+    """
+    mtime = os.path.getmtime(stl_file)
+    key = (stl_file, mtime)
+    cached = _manifold_cache.get(key)
+    if cached is None:
+        Manifold, Mesh = require_mesh_engine(needed_by, reason)
+        for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
+            del _manifold_cache[stale_key]
+        bounds = _cached_local_bounds(stl_file)
+        mesh = cached_base_mesh(stl_file)
         manifold = Manifold(mesh=Mesh(
             vert_properties=np.asarray(mesh.vertices, np.float32),
             tri_verts=np.asarray(mesh.faces, np.uint32),
         ))
-        cached = (manifold, mesh.bounds.copy())
+        cached = (manifold, bounds)
         _manifold_cache[key] = cached
     return cached
 
@@ -147,21 +190,66 @@ def _bounds_candidates(bounds):
         active.append(current)
 
 
+class _DeferredManifold:
+    """A solid's placed Manifold, built the first time something reads
+    it and not before.
+
+    Placement is what the spatial index needs; the Manifold is what a
+    FACETED comparison needs. Separating them is the whole of the
+    conditional mesh-engine contract: a pair the boundary-representation
+    kernel decides never calls ``placed()``, so it never constructs a
+    Manifold and never requires manifold3d. Construction still routes
+    through ``_cached_manifold``, so the one-build-per-(stl_file, mtime)
+    guarantee is unchanged however many placements share a file.
+    """
+
+    __slots__ = ('stl_file', 'matrix')
+
+    def __init__(self, stl_file, matrix):
+        self.stl_file = stl_file
+        self.matrix = matrix
+
+    def placed(self, needed_by, reason):
+        """The lazily transformed Manifold, requiring the mesh engine."""
+        manifold, _ = _cached_manifold(self.stl_file, needed_by, reason)
+        return manifold.transform(self.matrix[:3, :4])
+
+
+def _placed_manifold(record, needed_by, reason):
+    """Read a placement record's Manifold, forcing a deferred one.
+
+    The single funnel every faceted consumer goes through, so the
+    virtual floor -- which is built as a real Manifold rather than
+    deferred, having no STL behind it -- can share the same records.
+    """
+    manifold = record[1]
+    if isinstance(manifold, _DeferredManifold):
+        return manifold.placed(needed_by, reason)
+    return manifold
+
+
 def _solid_geometry(solid):
-    """``(cached Manifold, local bounds, exact shape or None)`` for one
+    """``(stl_file, local bounds, exact shape or None)`` for one
     selected solid: everything a placement needs that does not depend on
     WHERE the solid is being placed. Read once per solid so an assertion
     placing the same solid twice (see ``_dropped_assembly_solids``) pays
-    for one ``shape()`` and one cache lookup, not two."""
-    manifold, local_bounds = _cached_manifold(solid.stl_file)
+    for one ``shape()`` and one cache lookup, not two.
+
+    Bounds come from the cached base mesh for EVERY solid, exact or
+    faceted, so the conservative world boxes the broad phase, the
+    grounded seeds and the virtual floor are all computed from -- and
+    the candidate pairs they emit -- do not depend on whether a solid
+    carries exact geometry.
+    """
+    local_bounds = _cached_local_bounds(solid.stl_file)
     shape = solid.shape() if getattr(solid, 'exact', False) else None
-    return manifold, local_bounds, shape
+    return solid.stl_file, local_bounds, shape
 
 
-def _place_solid(solid, manifold, local_bounds, matrix, shape):
-    """One placed-solid record: ``(solid, placed_manifold, world_bounds,
-    placed_exact_shape_or_None)``."""
-    return (solid, manifold.transform(matrix[:3, :4]),
+def _place_solid(solid, stl_file, local_bounds, matrix, shape):
+    """One placed-solid record: ``(solid, deferred_placed_manifold,
+    world_bounds, placed_exact_shape_or_None)``."""
+    return (solid, _DeferredManifold(stl_file, matrix),
             _world_bounds(local_bounds, matrix),
             None if shape is None else placed_shape(shape, matrix))
 
@@ -177,8 +265,8 @@ def _placed_assembly_solids(node):
     """
     placed = []
     for solid in _topmost_rigid_nodes(node):
-        manifold, local_bounds, shape = _solid_geometry(solid)
-        placed.append(_place_solid(solid, manifold, local_bounds,
+        stl_file, local_bounds, shape = _solid_geometry(solid)
+        placed.append(_place_solid(solid, stl_file, local_bounds,
                                    _compose_world_matrix(solid), shape))
     return placed
 
@@ -203,36 +291,47 @@ def _dropped_assembly_solids(solids, offset):
     translation = _translation_matrix(offset)
     resting, dropped = [], []
     for solid in solids:
-        manifold, local_bounds, shape = _solid_geometry(solid)
+        stl_file, local_bounds, shape = _solid_geometry(solid)
         matrix = _compose_world_matrix(solid)
         resting.append(
-            _place_solid(solid, manifold, local_bounds, matrix, shape))
+            _place_solid(solid, stl_file, local_bounds, matrix, shape))
         dropped.append(
-            _place_solid(solid, manifold, local_bounds,
+            _place_solid(solid, stl_file, local_bounds,
                          translation @ matrix, shape))
     return resting, dropped
 
 
-def _placed_intersection(first, second):
+def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
+                         reason=_FACETED_REASON):
     """Engine-native emptiness and volume for two placed solid records.
 
     A pair of exact records is read by the boundary-representation kernel;
     any other pair (faceted, or one of each) by the placed Manifolds.
+
+    The exact branch returns before either record's Manifold is read, so
+    it is also the branch that requires no mesh engine. Only the faceted
+    branch below forces the deferred placements -- for BOTH records,
+    including an exact one paired with a faceted partner, because that
+    pair really is decided by the mesh boolean.
     """
     if first[3] is not None and second[3] is not None:
         result = intersect_shapes(
             first[3], second[3], first[0].name, second[0].name)
         count = solid_count(result)
         return IntersectionStats(count == 0, solid_volume(result), True)
-    result = first[1] ^ second[1]
+    result = (_placed_manifold(first, needed_by, reason)
+              ^ _placed_manifold(second, needed_by, reason))
     is_empty = result.is_empty()
     return IntersectionStats(
         is_empty, 0.0 if is_empty else result.volume(), False)
 
 
-def _candidate_intersection(solids, first, second):
+def _candidate_intersection(solids, first, second,
+                            needed_by=_FACETED_NEEDED_BY,
+                            reason=_FACETED_REASON):
     """Engine-native emptiness and volume for one placed solid pair."""
-    return _placed_intersection(solids[first], solids[second])
+    return _placed_intersection(
+        solids[first], solids[second], needed_by, reason)
 
 
 ########################################
@@ -381,6 +480,18 @@ def _grounded_solids(edges, seeds):
 # weight AND the torque it makes about its own centre of mass. That is
 # the classical rigid-body limit analysis, and it is decided for the
 # whole assembly by one linear feasibility program (ADR-049).
+
+# `assertAssemblySupported` is a REQUIRING path for any multi-solid
+# assembly, exact solids included: contact extraction is always faceted
+# (ADR-049 -- statics needs a patch's extent and direction, not Boolean
+# validity) and the virtual floor is a meshed slab. There is no
+# exact-only route to offer, so the assertion says so plainly rather
+# than failing obscurely somewhere inside the equilibrium program.
+_STATICS_NEEDED_BY = 'assertAssemblySupported'
+_STATICS_REASON = (
+    'proving frictionless static equilibrium extracts contact patches from '
+    'meshed intersections for every body, exact solids included, and stands '
+    'the assembly on a meshed virtual floor')
 
 # A face whose normal is this close to perpendicular to gravity is a
 # wall the displacement drove into, not a surface anything rests on.
@@ -576,6 +687,7 @@ def _virtual_floor(solids, unit_gravity, max_drop):
     matrix[:3, 3] = (first * float(lateral[0].mean())
                      + second * float(lateral[1].mean())
                      + up * (-furthest - size[2] / 2))
+    Manifold, _ = require_mesh_engine(_STATICS_NEEDED_BY, _STATICS_REASON)
     manifold = Manifold.cube(list(size), True).transform(matrix[:3, :4])
     return (_FLOOR, manifold,
             _world_bounds((-size / 2, size / 2), matrix), None)
@@ -1074,7 +1186,9 @@ class TestCase(BaseTestCase):
         for first, second in _bounds_candidates(
                 [item[2] for item in solids]):
             is_empty, volume = _candidate_intersection(
-                solids, first, second)
+                solids, first, second, 'assertNoSolidInterference',
+                'one of the two solids in a candidate pair has no exact '
+                'geometry, so the pair is compared through their meshes')
             if is_empty or volume == 0.0:
                 continue
             solid1 = solids[first][0]
@@ -1175,6 +1289,10 @@ class TestCase(BaseTestCase):
             # supported assembly, and no geometry is loaded to say so.
             return
 
+        # A requiring path in full: fail here, naming the assertion and
+        # the reason, rather than partway through the support graph.
+        require_mesh_engine(_STATICS_NEEDED_BY, _STATICS_REASON)
+
         index_of = _selected_index(selected)
         declared = _declared_support_edges(supports or (), index_of)
 
@@ -1194,7 +1312,8 @@ class TestCase(BaseTestCase):
         for supported, supporter in _support_candidates(
                 [item[2] for item in dropped], [item[2] for item in targets]):
             is_empty, volume = _placed_intersection(
-                dropped[supported], targets[supporter])
+                dropped[supported], targets[supporter],
+                _STATICS_NEEDED_BY, _STATICS_REASON)
             if is_empty or volume == 0.0:
                 continue
             landings.append((supported, supporter))
@@ -1231,9 +1350,15 @@ class TestCase(BaseTestCase):
         interface keeps its six unsatisfiable rows and fails here, rather
         than passing for having had a path.
         """
-        bodies = [_statics_body(record[0].name, record[1], index in anchors)
+        def body_manifold(record):
+            return _placed_manifold(
+                record, _STATICS_NEEDED_BY, _STATICS_REASON)
+
+        bodies = [_statics_body(record[0].name, body_manifold(record),
+                                index in anchors)
                   for index, record in enumerate(targets[:len(selected)])]
-        bodies.extend(_statics_body(record[0].name, record[1], True)
+        bodies.extend(_statics_body(record[0].name, body_manifold(record),
+                                    True)
                       for record in targets[len(selected):])
 
         contacts = []
@@ -1241,7 +1366,7 @@ class TestCase(BaseTestCase):
             contacts.extend(
                 _Contact(point, normal, supported, supporter)
                 for point, normal in _interface_contacts(
-                    dropped[supported][1], bodies[supported],
+                    body_manifold(dropped[supported]), bodies[supported],
                     bodies[supporter], offset, unit_gravity, 1.0, margin))
         lifted = _dropped_assembly_solids(selected, -offset)[1]
         for supported, supporter in _support_candidates(
@@ -1250,7 +1375,7 @@ class TestCase(BaseTestCase):
             contacts.extend(
                 _Contact(point, normal, supported, supporter)
                 for point, normal in _interface_contacts(
-                    lifted[supported][1], bodies[supported],
+                    body_manifold(lifted[supported]), bodies[supported],
                     bodies[supporter], -offset, unit_gravity, -1.0, margin))
 
         failures = _unbalanced_bodies(bodies, contacts, declared, unit_gravity)
