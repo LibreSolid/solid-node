@@ -10,8 +10,9 @@ geometry is available as an exact boundary representation rather than only as
 a triangle mesh.
 
 For a leaf, `exact` SHALL be determined by its adapter type and SHALL NOT be
-recomputed from rendered content: `CadQueryNode` and `Build123dNode` are
-exact; `Solid2Node`, `OpenScadNode` and `JScadNode` are not.
+recomputed from rendered content: `CadQueryNode`, `Build123dNode` and
+`Build123dSheetNode` are exact; `Solid2Node`, `OpenScadNode` and `JScadNode`
+are not.
 
 For an internal node, `exact` SHALL be true when every child is exact. This
 composition rule is deliberately the opposite of `rigid`, which is fixed by
@@ -35,7 +36,8 @@ exact.
 
 #### Scenario: An exact leaf
 
-- **WHEN** `exact` is read on a `CadQueryNode` or a `Build123dNode`
+- **WHEN** `exact` is read on a `CadQueryNode`, a `Build123dNode` or a
+  `Build123dSheetNode`
 - **THEN** it is true, without rendering the node
 
 #### Scenario: A faceted leaf
@@ -54,6 +56,13 @@ exact.
 - **WHEN** `exact` is read on an assembled `FusionNode` holding one
   `CadQueryNode` and one `Build123dNode`
 - **THEN** it is true
+
+#### Scenario: A sheet leaf composes exactly
+
+- **WHEN** `exact` is read on an assembled `FusionNode` holding one
+  `Build123dSheetNode` and one `CadQueryNode`
+- **THEN** it is true, and the fusion's `shape()` fuses the sheet's extruded
+  solid with the other child
 
 #### Scenario: One faceted child makes the composition faceted
 

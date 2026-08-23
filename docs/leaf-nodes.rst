@@ -29,6 +29,12 @@ technology to create solids:
 * **OpenScadNode** A wrapper around one OpenScad module
 * **JScadNode** A wrapper around one JScad module
 
+There is also one leaf kind that is not a modelling technology but a way
+of making:
+
+* **Build123dSheetNode** A part cut from sheet stock, authored as a 2D
+  profile plus a thickness
+
 The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
 technology.
@@ -148,6 +154,125 @@ failing later in the STL export.
 and both produce exact geometry, so they mix freely — a fusion may take
 children from either, and the parts fuse exactly. Neither needs OpenScad
 installed. See :doc:`Combining parts <assemblies>`.
+
+Build123dSheetNode
+==================
+
+Some parts are not modelled, they are cut. A panel of plywood, MDF or
+acrylic is a flat profile in stock of a known thickness, and what a laser
+cutter needs is that profile — not a mesh of the finished part.
+
+A **Build123dSheetNode** authors exactly that. Instead of `render()`, it
+implements `profile()`, returning a build123d sketch, and declares the
+`thickness` of the stock:
+
+.. code-block:: python
+
+    from build123d import Circle, Rectangle
+    from solid_node.node import Build123dSheetNode
+
+    class DemoProject(Build123dSheetNode):
+
+        thickness = 6
+
+        def profile(self):
+            return Rectangle(50, 50) - Circle(10)
+
+The same square-with-a-hole, this time as a part cut from 6 mm sheet:
+
+.. solid-node:: _exports/demo_sheet
+   :height: 360px
+
+The node's solid is that profile extruded from the XY plane along +Z by
+`thickness`, and the node derives it for you — `render()` is not an
+extension point here. That is the whole point of the type: the part you
+see in the viewer, the STL you test against, and the file you cut all
+come from one authored profile, so they cannot drift apart. A part whose
+solid and cut file were written down separately would eventually
+disagree, and the cutter would faithfully cut the disagreement.
+
+The profile contract
+--------------------
+
+A sheet part is one piece, so `profile()` must produce exactly one planar
+face: a single outer boundary with any holes strictly inside it, lying on
+the XY plane. Anything else raises an error naming the node and what it
+produced, before any file is written — two disjoint faces (author each
+piece as its own node), a solid, a curve, or a profile authored on
+another plane.
+
+`profile()` may return a `Sketch`, a bare `Face`, or the `BuildSketch`
+builder itself, just as `Build123dNode` accepts a `BuildPart` or its
+`.part`:
+
+.. code-block:: python
+
+    def profile(self):
+        with BuildSketch() as sketch:
+            Rectangle(50, 50)
+            Circle(10, mode=Mode.SUBTRACT)
+        return sketch
+
+The thickness
+-------------
+
+`thickness` is required and must be positive; a node without one fails as
+soon as it is constructed, naming itself. It can be a class attribute, as
+above, or a constructor argument, in which case one class covers a panel
+in two stocks:
+
+.. code-block:: python
+
+    class Panel(Build123dSheetNode):
+
+        def __init__(self, thickness, **kwargs):
+            super().__init__(thickness=thickness, **kwargs)
+
+        def profile(self):
+            return Rectangle(120, 80)
+
+    thin = Panel(3)
+    thick = Panel(6)
+
+Passed as a constructor argument the thickness reaches the node's
+artifact key like any other parameter, so those two are two parts with
+two sets of artifacts, and neither serves the other's.
+
+Because the thickness is a declared number rather than something buried
+in the geometry, the profile can be derived from it — a t-slot that
+receives a tab of the same stock is `thickness` wide plus a fit
+clearance, written once.
+
+The cut file
+------------
+
+Every sheet part writes a **DXF** of its profile beside its `.stl` and
+`.brep`, under the same name, whenever a build produces them. It is an
+artifact like the others: regenerated when it is stale, left alone when
+it is current, and its absence alone is enough to make the build rebuild
+the part.
+
+The DXF is *nominal*: the authored profile at model scale, in
+millimeters. Circles and arcs are written as arc entities at their
+modelled radius rather than tessellated into polylines, so a hole reaches
+the cutter as a hole and not as a polygon that would cut tight.
+
+Deliberately not covered yet:
+
+* **Kerf compensation.** The DXF is the nominal profile; the width a
+  particular machine burns away on a particular material is not applied.
+  The persisted `.brep` keeps the exact profile, so an offsetting
+  exporter remains possible.
+* **Importing a profile** from SVG or DXF. Profiles are authored in
+  build123d.
+* **Engraving and marking**, material and process metadata, and nesting
+  several parts onto one sheet.
+
+**NOTE**: a `Build123dSheetNode` is not a `Build123dNode` — its
+extension point is `profile()`, not `render()` — but it is exact in the
+same way, drives the same kernel, and needs no OpenScad. A fusion may
+take a sheet part and a CadQuery or build123d part as children and fuse
+them exactly.
 
 OpenScadNode
 ============

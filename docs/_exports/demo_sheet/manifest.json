@@ -1,0 +1,37 @@
+{
+  "format": "solid-node-export",
+  "version": 1,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "root": {
+    "name": "DemoProject",
+    "type": "LeafNode",
+    "color": null,
+    "mtime": 1787432717.10749,
+    "operations": [],
+    "model": "models/demo_sheet/__init__-DemoProject-d4ae5192ae93.stl",
+    "piece": "53abf02c2c62"
+  },
+  "pieces": [
+    {
+      "id": "53abf02c2c62",
+      "name": "DemoProject",
+      "sources": [
+        "demo_sheet/__init__.py"
+      ],
+      "models": [
+        "models/demo_sheet/__init__-DemoProject-d4ae5192ae93.stl"
+      ],
+      "count": 1,
+      "size": [
+        50.0,
+        50.0,
+        6.0
+      ],
+      "volume": 13115.825527336407,
+      "watertight": true
+    }
+  ]
+}
