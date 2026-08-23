@@ -138,12 +138,14 @@ rigid geometry is time-invariant (precondition for STL caching, ADR-003/008).
 The system SHALL provide leaf adapters for multiple CAD backends —
 `Solid2Node` (solid2/SolidPython2), `CadQueryNode`, `Build123dNode`,
 `OpenScadNode` (with `scad_source` and optional `module_name`), and `JScadNode`
-(with `jscad_source`) — and one sheet leaf kind, `Build123dSheetNode`, whose
+(with `jscad_source`) — one sheet leaf kind, `Build123dSheetNode`, whose
 part is authored as a profile plus thickness under the `sheet-parts`
-capability. Each adapter SHALL implement `as_scad()`; adapters
+capability, and one mesh-import leaf, `StlNode` (with `stl_source`), whose
+part is a committed STL mesh under the `stl-import` capability. Each adapter
+SHALL implement `as_scad()`; adapters
 declaring a `namespace` (`Solid2Node`, `CadQueryNode`, `Build123dNode`,
 `OpenScadNode`, `Build123dSheetNode`) get namespace-based render
-validation, while `JScadNode` declares none and skips that check.
+validation, while `JScadNode` and `StlNode` declare none and skip that check.
 
 `Build123dNode` SHALL accept as a render result a build123d solid — a `Part`,
 `Solid` or `Compound` — or a `BuildPart` builder, from which the finished
@@ -162,7 +164,8 @@ it to render: `Solid2Node` and `OpenScadNode` have their STL rendered by
 OpenSCAD from the SCAD each emits. An adapter that produces its own artifact
 through another tool SHALL NOT additionally require OpenSCAD to do so —
 `CadQueryNode`, `Build123dNode` and `Build123dSheetNode` through their own
-kernel, `JScadNode` through the `jscad` binary.
+kernel, `JScadNode` through the `jscad` binary, and `StlNode` through no
+external tool at all: its artifact is materialized from the committed mesh.
 Every adapter still emits SCAD, so the assembled document remains complete and
 the OpenSCAD GUI viewer can still open any project; emitting it does not imply
 that OpenSCAD renders it.
@@ -176,10 +179,10 @@ An adapter whose backend is a boundary-representation kernel SHALL additionally
 expose its geometry exactly, under the `exact-geometry` capability.
 `CadQueryNode`, `Build123dNode` and `Build123dSheetNode` are such adapters:
 each is exact and provides `shape()`.
-`Solid2Node`, `OpenScadNode` and `JScadNode` produce geometry only as meshes
-and are not exact. Exposing exact geometry SHALL NOT change an adapter's SCAD
-output or its mesh artifact, so a project that never asks an exact question is
-unaffected.
+`Solid2Node`, `OpenScadNode`, `JScadNode` and `StlNode` produce geometry only
+as meshes and are not exact. Exposing exact geometry SHALL NOT change an
+adapter's SCAD output or its mesh artifact, so a project that never asks an
+exact question is unaffected.
 
 #### Scenario: OpenSCAD source adapter
 
@@ -206,6 +209,12 @@ unaffected.
 - **THEN** its extruded solid is exported to STL and re-imported via
   `import_stl` in the SCAD output, as for the other kernel-owned adapters
 
+#### Scenario: STL adapter routes through its materialized artifact
+
+- **WHEN** an `StlNode` is assembled
+- **THEN** its materialized artifact is imported via `import_stl` in the
+  SCAD output, as for the other artifact-owning adapters
+
 #### Scenario: A builder result is accepted
 
 - **WHEN** a `Build123dNode.render()` returns a `BuildPart` builder rather
@@ -223,7 +232,8 @@ unaffected.
 #### Scenario: An adapter does not rewrite a current artifact
 
 - **WHEN** `as_scad()` runs on a `CadQueryNode`, `Build123dNode`,
-  `Build123dSheetNode` or `JScadNode` whose artifacts are up to date
+  `Build123dSheetNode`, `JScadNode` or `StlNode` whose artifacts are up to
+  date
 - **THEN** no export or external renderer runs, and the returned SCAD output
   is unchanged
 
@@ -231,8 +241,8 @@ unaffected.
 
 - **WHEN** `exact` is read across one instance of each adapter
 - **THEN** the `CadQueryNode`, `Build123dNode` and `Build123dSheetNode`
-  report true and the `Solid2Node`, `OpenScadNode` and `JScadNode` report
-  false
+  report true and the `Solid2Node`, `OpenScadNode`, `JScadNode` and
+  `StlNode` report false
 
 #### Scenario: Exactness does not disturb the SCAD path
 
@@ -253,6 +263,13 @@ unaffected.
 - **WHEN** a project of `JScadNode` leaves is built with `jscad` available and
   no `openscad` on the PATH
 - **THEN** every leaf's STL is produced by `jscad` and the build succeeds
+
+#### Scenario: The mesh-import adapter needs no renderer at all
+
+- **WHEN** a project of `StlNode` leaves with no fusion is built with neither
+  `openscad` nor any other CAD tool on the PATH
+- **THEN** every leaf's STL artifact is materialized from its committed mesh
+  and the build succeeds
 
 #### Scenario: SCAD is still emitted by every adapter
 

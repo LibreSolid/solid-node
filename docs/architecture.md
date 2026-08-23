@@ -97,7 +97,8 @@ STL is the complete printed solid for that branch.
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` and `Build123dNode` (both export to STL and re-import),
 `OpenScadNode` (`scad_source` + module call), `JScadNode` (shells out to the
-`jscad` CLI). Every node exposes derived read-only exactness (ADR-044): the
+`jscad` CLI), and `StlNode` (`stl_source`, a committed mesh materialized with
+no backend at all). Every node exposes derived read-only exactness (ADR-044): the
 OCCT adapters are exact, the other leaf adapters are faceted, and an
 internal node is exact only when every child is. Exactness does not require
 one backend — every exact adapter converts its render result to one shared
@@ -111,6 +112,26 @@ bases they share. Because build123d
 groups solids, sketches and curves under one namespace, `Build123dNode`
 additionally rejects a render result that is not a solid, and accepts a
 `BuildPart` builder by taking its finished `.part`.
+
+One leaf kind has no modelling backend at all. `StlNode` is a part that
+arrives as a committed STL mesh: it declares `stl_source` beside its wrapper
+module, resolves and tracks it like `JScadNode` does its `.js`, and
+materializes its own artifact from it inside `as_scad()` — selected body,
+`adjust` correction, binary export, stamped with the source mtime, so no
+external tool runs for the leaf at all (ADR-054). Three rules make the import
+honest rather than credulous. A mesh that is not watertight is refused at
+materialization, naming the file and the defect and writing nothing, unless
+the node declares `require_watertight = False`; nothing is ever auto-repaired.
+A multi-body file is a pack of parts, one of which the node selects by `body`,
+a 0-based index into the components ordered by centroid (x, then y, then z),
+with the failure of an unselected pack carrying the full inventory. And
+normalization is code — an `adjust(self, mesh)` hook over the trimesh — not
+constructor knobs. Because the wrapper module carries `body` and `adjust`, it
+joins the node's tracked source set, the only leaf for which that is true
+(ADR-055).
+`StlNode` is faceted: `exact` is false, mesh-only is settled doctrine for
+imported meshes, and a fusion containing one is faceted and unions through the
+OpenSCAD/CGAL path (ADR-045).
 
 One leaf kind names a *manufacturing method* rather than a backend.
 `SheetLeafNode` — internal base, `Build123dSheetNode` its v1 adapter — is a
@@ -133,7 +154,8 @@ composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
 Each adapter still emits SCAD, but artifact production follows its backend:
 Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d — sheet
-parts included — use OCCT, and JSCAD uses `jscad` (ADR-046). Emitting SCAD
+parts included — use OCCT, JSCAD uses `jscad`, and an imported mesh uses no
+tool whatsoever (ADR-046). Emitting SCAD
 does not itself require the OpenSCAD binary. A sheet leaf writes one artifact
 the others do not: a nominal DXF of its profile, in millimeters with arcs
 preserved, beside its `.stl` and `.brep` and under the same freshness rules,
@@ -197,7 +219,10 @@ STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 equality** — generated files are back-dated with `os.utime` to the max
 source mtime (ADR-006), taken over `node.files`: the node's own source
 plus its project-local import closure, unioned upward from children
-(ADR-033). Both sides of that equality are integer nanoseconds
+(ADR-033) — and, for an imported mesh, the closure of the wrapper module
+that declares it as well, since the mesh file has no imports of its own to
+walk and the wrapper is where its geometry-affecting code lives (ADR-055).
+Both sides of that equality are integer nanoseconds
 (`st_mtime_ns`, `os.utime(ns=…)`), so the back-date is a fixed point at
 whatever resolution the filesystem stores — a float stamp is not, and on a
 millisecond-resolution filesystem it left every artifact permanently stale
@@ -479,7 +504,9 @@ The short list that changes must not silently break:
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file
   (ADR-033). The set over-approximates on purpose: a spurious rebuild is
-  cheap, a stale model is not.
+  cheap, a stale model is not — which is why a leaf whose source is a
+  foreign file adds the closure of the python module wrapping it when that
+  module carries geometry-affecting code (ADR-055).
 - `name=` never influences geometry or `uniq_id`; any parameter change
   changes the artifact key (ADR-026). Piece identity is the converse: it
   derives from built content only, never from a class, its parameters, or

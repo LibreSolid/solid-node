@@ -18,4 +18,5 @@ from .adapters.build123d_sheet import Build123dSheetNode
 from .adapters.solid2 import Solid2Node
 from .adapters.openscad import OpenScadNode
 from .adapters.jscad import JScadNode
+from .adapters.stl import StlNode
 from .decorators import property_as_number

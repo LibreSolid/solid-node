@@ -35,6 +35,11 @@ of making:
 * **Build123dSheetNode** A part cut from sheet stock, authored as a 2D
   profile plus a thickness
 
+And one whose part is not modelled here at all, but imported:
+
+* **StlNode** A part that comes from a committed STL mesh — a model
+  published as a mesh rather than as CAD source
+
 The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
 technology.
@@ -361,6 +366,167 @@ And the same model once more, rendered by JScad:
 
 .. solid-node:: _exports/demo_jscad
    :height: 360px
+
+StlNode
+=======
+
+Plenty of worthwhile mechanical designs are published only as **STL
+meshes** — a printable part, with no CAD source behind it. An
+**StlNode** brings such a file into a project as an ordinary part, so it
+can be assembled with parts you model, fused with them, exported and
+tested like any other.
+
+Commit the `.stl` inside your project, beside the python module that
+declares it, and name it:
+
+.. code-block:: python
+
+    from solid_node.node import StlNode
+
+    class Bracket(StlNode):
+
+        stl_source = 'bracket.stl'
+
+That is the whole declaration for a well-behaved file. `render()` is not
+an extension point here — the part is the mesh.
+
+The node does not import the committed file in place: it materializes
+**its own artifact** from it, exactly as every other leaf produces its
+own STL, and that artifact is what the assembly, the fusion, the viewer,
+the export and the printed-piece inventory all see. Producing it needs
+no external tool at all — not OpenScad, not a CAD kernel.
+
+Freshness
+---------
+
+Two things make an imported part stale, and both are tracked. The
+obvious one is the `.stl`: replace the file and the part rebuilds. The
+less obvious one is **the python module declaring the node**, because
+that is where `body` and `adjust` live — code that decides the geometry
+just as much as the mesh does. Editing the wrapper (or a module it
+imports a constant from) rebuilds the part too. No other external-file
+leaf tracks its wrapper this way; this one has to.
+
+Watertight, or knowingly not
+----------------------------
+
+A mesh with holes in its surface encloses nothing. It has no volume, it
+cannot be fused reliably, and a slicer has to guess its way across the
+gaps. So a mesh that is not watertight fails at build time, naming the
+file, the selected body and the defect, and **no artifact is written**:
+
+.. code-block:: text
+
+    Bracket: /home/me/rc-car/parts/bracket.stl is not watertight --
+    3 open edges leave the surface unclosed, so the mesh encloses no
+    solid. Repair the mesh, or declare `require_watertight = False` on
+    Bracket to admit it knowingly.
+
+Nothing is repaired for you: silently filling holes would machine
+geometry you did not author, and you would not know it happened. If the
+mesh is known to be open and you want it anyway, say so:
+
+.. code-block:: python
+
+    class Bracket(StlNode):
+
+        stl_source = 'bracket.stl'
+        require_watertight = False
+
+The flag governs *admission only*. It never changes geometry, and it
+does not key artifacts.
+
+Part packs: selecting a body
+----------------------------
+
+A single STL often holds a whole plate of parts — a print pack. Those
+are separate parts, not one part, so a node says which body it is:
+
+.. code-block:: python
+
+    class Wheel(StlNode):
+
+        stl_source = 'pack.stl'
+        body = 0
+
+    class Hub(StlNode):
+
+        stl_source = 'pack.stl'
+        body = 2
+
+`body` is a 0-based index into the file's connected components, ordered
+by centroid — x first, then y, then z, which reads roughly as plate
+order. You do not have to guess it: a node that omits `body` on a
+multi-body file fails with the pack's inventory, and the failure is the
+discovery tool:
+
+.. code-block:: text
+
+    Wheel: /home/me/rc-car/parts/pack.stl holds more than one body, so
+    it is a pack of parts and this node must say which one it is. It
+    holds 3 bodies; declare `body = <index>` to select one, indexing
+    this inventory:
+      body 0: centroid (-10.000, 0.000, 0.000)  bounds (-11.000, -1.000, -1.000)..(-9.000, 1.000, 1.000)  volume 8.000
+      body 1: centroid (5.000, 0.000, 0.000)  bounds (3.500, -1.500, -1.500)..(6.500, 1.500, 1.500)  volume 27.000
+      body 2: centroid (30.000, 0.000, 0.000)  bounds (28.000, -2.000, -2.000)..(32.000, 2.000, 2.000)  volume 64.000
+
+An out-of-range `body` fails with the same inventory. A single-body file
+needs no `body` at all.
+
+Extraction keeps the file's coordinates: a part stays where it sat on
+the plate. Bringing it somewhere useful is a placement operation, or the
+hook below. Watertightness is judged on the selected body, so one torn
+part in a pack does not condemn the sound ones.
+
+Correcting a mesh: the adjust hook
+----------------------------------
+
+Downloaded meshes arrive in inches, upside down, or a long way from the
+origin. Corrections are **code**, not a vocabulary of constructor knobs:
+implement `adjust()`, which receives the selected body as a
+`trimesh <https://trimesh.org/>`_ mesh and returns the corrected one.
+
+.. code-block:: python
+
+    class Bracket(StlNode):
+
+        stl_source = 'bracket.stl'
+
+        def adjust(self, mesh):
+            mesh.apply_scale(25.4)        # authored in inches
+            mesh.apply_translation(-mesh.centroid)
+            return mesh
+
+The full trimesh API is available. Whatever the hook returns is what is
+written into the artifact, so the viewer, the tests, a fusion and the
+export all see one geometry — and it is what the watertight gate judges,
+so a hook cannot slip a defect past it.
+
+What importing a mesh costs
+---------------------------
+
+Be clear-eyed about this: **an StlNode is faceted, and it makes any
+fusion containing it faceted.** A fusion of exact parts is computed by
+the OCCT kernel; add an imported mesh and the fusion falls back to the
+OpenScad/CGAL mesh path (see :doc:`Combining parts <assemblies>`), which
+on a dense downloaded mesh can be slow — minutes, not seconds, and it
+needs the `openscad` binary. That is the price of designing a piece that
+fits a part someone else published, and it is usually worth paying.
+Assembling imported parts without fusing them costs nothing extra.
+
+`exact` is false for an StlNode and it has no `shape()`. This is
+deliberate and settled: **mesh-only is the doctrine for imported STLs.**
+A mesh is not a boundary representation, and reconstructing one from
+triangles guesses at intent — where a fillet was meant, which faces were
+one cylinder. The framework will not pretend otherwise. Model the part
+in a CAD backend if you need it exact.
+
+Two more things the leaf deliberately does not do. It records no
+provenance — the source URL and the licence of a downloaded model are
+real obligations, but they belong in your project's documentation, not
+in a class attribute. And it does not take an STL set apart into an
+assembly: import each part you need and assemble them with the nodes and
+operations you already have.
 
 .. _fn-property:
 
