@@ -118,7 +118,7 @@ part cut from sheet stock, authored as a 2D `profile()` plus a declared
 `thickness`. The base owns `render()`, which validates the profile and
 extrudes it from the XY plane along +Z, so the solid in the tree and the file
 a cutter consumes derive from one authored thing and cannot drift apart;
-`profile()` is the only extension point (ADR-051). The profile contract is
+`profile()` is the only extension point (ADR-053). The profile contract is
 the base's: exactly one planar face, one outer boundary with holes strictly
 inside, on the XY plane, rejected naming the node and the offending type
 before anything is written. `thickness` is required and positive at

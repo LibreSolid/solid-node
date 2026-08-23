@@ -1,4 +1,4 @@
-# ADR-051: The authored profile is a sheet part's single source of truth
+# ADR-053: The authored profile is a sheet part's single source of truth
 
 **Status:** Accepted
 
