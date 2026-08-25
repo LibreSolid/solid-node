@@ -11,7 +11,7 @@ class SteeringTest(TestCase):
     node = Steering
 
     @testing_steps(2, start=0.5, end=1.0)
-    def test_wheel_tracks_both_drivers(self):
+    def test_wheel_tracks_both_animators(self):
         t = self.steering.time
         center = self.steering.axle.wheel.mesh.center_mass
         self.assertAlmostEqual(center[0], 5 * t, delta=0.01)

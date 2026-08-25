@@ -177,19 +177,34 @@ and conflating any two produces silently wrong answers.
 Transforms are first-class operation objects (ADR-023):
 `Rotation`/`Translation` render for four consumers — `.scad()`,
 `.mesh()`, `.serialized`, `.matrix()` (ADR-028) — plus `.reversed`.
-`AssemblyNode` is the only animatable node: its `time` is OpenSCAD's
-`$t` (0..1) symbolically, or a float under `set_keyframe()` (ADR-008).
-Keyframing is reversible: `clear_keyframe()` drops the fixed time and
-re-renders down the same subtree, so operations hold `$t` expressions
-again (ADR-051). Re-rendering is what restores them — an operation
-records whatever value `render()` computed, so a keyframed tree has no
-symbolic form left to recover.
+`AssemblyNode` is the only animatable node, and it binds a
+**multi-driver state snapshot** (ADR-056 stage 1): `set_state(**states)`
+merges named plain-number driver values and propagates down the
+rendered tree; `render()` reads them through the `state` mapping, and
+an unbound name fails loudly naming `set_state`. `time` is one snapshot
+entry with the ADR-008 fallback: symbolic OpenSCAD `$t` (0..1) when
+unbound. `set_keyframe(t)`/`clear_keyframe()` are the preserved
+time-only surface — exactly `set_state(time=t)`/`clear_state('time')`.
+Clearing is reversible by re-render: an operation records whatever
+value `render()` computed, so a bound tree has no symbolic form left
+to recover until it re-renders (ADR-051).
 
-Assembly `render()`s are wrapped for **driver-tagged idempotency**
-(ADR-023): operations applied during a render are tagged with the
-driving assembly, and each re-render sweeps only its own tags before
+Assembly `render()`s are wrapped for **animator-tagged idempotency**
+(ADR-023; tag renamed from "driver" so that word can mean a simulation
+input): operations applied during a render are tagged with the
+animating assembly, and each re-render sweeps only its own tags before
 re-expressing pose absolutely. Static placements (untagged) survive;
-independent drivers of one node don't disturb each other.
+independent animators of one node don't disturb each other.
+
+**Ports** (spec `ports`) are domain-typed connection points declared
+as class attributes (`RotationalPort`, `TranslationalPort`,
+`SignalPort`): stateless declarations carrying domain, unit, direction,
+and an optional design-units-per-native-unit scale, discoverable off
+the class via `declared_ports()`, with per-instance value slots
+materialized by descriptor. `connect(source, sink)` on internal nodes
+is causal, immediate, per-render rebinding — value flows one way,
+scaled by the sink; no flow variable exists yet (the bond-graph
+extension ADR-056 reserves).
 
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because

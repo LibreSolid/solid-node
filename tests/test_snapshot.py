@@ -674,8 +674,11 @@ class SnapshotIntegrationTest(TestCase):
 
         node = self.snapshot._load_and_prepare_node()
 
-        # AssemblyNode should have _time set
-        self.assertEqual(node._time, 0.5)
+        # The assembly should report the keyframed time. Asserted
+        # through the public `time` property rather than the storage
+        # behind it: time is one entry of the driver-state snapshot now,
+        # not a private attribute of its own.
+        self.assertEqual(node.time, 0.5)
 
     def test_command_building_with_real_node(self):
         """Test command building with a real node"""

@@ -10,6 +10,8 @@ __version__ = '0.4.0'
 
 from .base import StlRenderStart
 from .assembly import AssemblyNode
+from .ports import (Port, RotationalPort, TranslationalPort, SignalPort,
+                    declared_ports)
 from .fusion import FusionNode
 from .adapters.cadquery import CadQueryNode
 from .adapters.build123d import Build123dNode

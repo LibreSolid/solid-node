@@ -110,6 +110,20 @@ assertion cost, ticks are free" is the durable finding.
    needs the port-level unit conversion (mm target → µstep target)
    so instructions are written in design units.
 
+## Addendum (2026-08-25, after stage 1 landed)
+
+The `multi-driver-state-seam` change absorbed the shim this spike
+prototyped: `AssemblyNode` now provides `set_state`/`clear_state`/
+`state` natively. The spike's `DrivenAssembly.set_state` override had
+to be **deleted** (not adapted): once the framework's `set_keyframe`
+delegates to `set_state`, the override intercepted the framework's own
+`time` entry and rejected it — the compatibility contract holds for
+every *caller* of `set_keyframe`, but not for a subclass that overrides
+`set_state`. `Sim` now binds the initial snapshot explicitly, since the
+framework by design invents no driver defaults (stage 2's job). With
+the shim dissolved, `scenario.py` revalidates all five verdicts against
+the real API (exit 0, 2026-08-25).
+
 ## Separability confirmed
 
 Every tick binds all drivers to plain numbers; nothing symbolic was

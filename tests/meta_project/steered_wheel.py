@@ -7,7 +7,7 @@ from .parts import Cube
 
 
 class Steering(AssemblyNode):
-    """Green fixture for multi-driver kinematics: the SAME wheel
+    """Green fixture for multi-animator kinematics: the SAME wheel
     instance is driven by two independent assemblies — this one
     (Steering) translates it along X, and its child (Axle) translates
     it along Z. At every instant t the wheel must sit at exactly

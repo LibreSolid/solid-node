@@ -234,8 +234,8 @@ class RunnerIsolationMetaTest(TestCase):
         self.assertEqual(run.returncode, 0)
 
 
-class MultiDriverMetaTest(TestCase):
-    """Bug: two independent assemblies driving the SAME node instance
+class MultiAnimatorMetaTest(TestCase):
+    """Bug: two independent assemblies animating the SAME node instance
     (a wheel steered by one assembly, spun by its child axle assembly —
     legitimate, e.g. a car's front wheel) corrupted each other's
     kinematics under the snapshot-baseline restore: the SECOND
@@ -243,13 +243,13 @@ class MultiDriverMetaTest(TestCase):
     freshly appended operation as its own restore baseline, and froze
     it there forever (skill-repo improvements.md #18)."""
 
-    def test_wheel_tracks_both_drivers(self):
+    def test_wheel_tracks_both_animators(self):
         run = solid_test('steered_wheel')
         self.assertEqual(run.results,
-                         {'test_wheel_tracks_both_drivers': 'passed'})
+                         {'test_wheel_tracks_both_animators': 'passed'})
         self.assertEqual(run.returncode, 0)
 
-    def test_stale_driver_cannot_mask_a_real_collision(self):
+    def test_stale_animator_cannot_mask_a_real_collision(self):
         run = solid_test('steered_collision')
         self.assertEqual(run.results,
                          {'test_wheel_never_hits_obstacle': 'failed'})

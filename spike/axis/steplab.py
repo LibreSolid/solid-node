@@ -71,32 +71,20 @@ class StepperDriver:
 
 
 class DrivenAssembly(AssemblyNode):
-    """Multi-driver state binding shimmed over the keyframe seam.
+    """Declaration carrier for the spike's drivers and instructions.
 
-    set_state stores the full numeric driver-state snapshot, then calls
-    set_keyframe(0) purely for its side effects: the framework's only
-    public re-render path, which runs the _idempotent_render sweep and
-    propagates into children. render() reads self.state and applies
-    driven operations — geometry stays a pure function of the snapshot.
+    Originally this class shimmed multi-driver state binding over the
+    framework's time-only set_keyframe seam. The multi-driver-state-seam
+    change (ADR-056 stage 1) absorbed exactly that shim into the
+    framework: AssemblyNode now provides set_state/clear_state/state
+    natively, so the override is gone and only the spike-local
+    declarations remain. Sim binds the initial snapshot explicitly
+    (the framework, by design, invents no defaults — that is stage 2's
+    Driver declaration job).
     """
 
     drivers = {}
     instructions = {}
-
-    def set_state(self, **states):
-        unknown = set(states) - set(self.drivers)
-        if unknown:
-            raise KeyError(f'unknown drivers: {sorted(unknown)}')
-        full = {name: driver.state for name, driver in self.drivers.items()}
-        full.update(states)
-        self._states = full
-        # The seam: signature is time-only, so time rides along as 0.
-        # A real implementation folds time into the state dict.
-        self.set_keyframe(0)
-
-    @property
-    def state(self):
-        return self._states
 
 
 class _At:
@@ -132,7 +120,8 @@ class Sim:
         self.trajectory = []
         for driver in node.drivers.values():
             driver.reset()
-        node.set_state()
+        node.set_state(**{name: driver.state
+                          for name, driver in node.drivers.items()})
         node.assemble()
         node.build_stls()
 

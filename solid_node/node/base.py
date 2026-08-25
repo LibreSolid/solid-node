@@ -175,30 +175,34 @@ def _compose_solid_matrix(node):
 
 # While an AssemblyNode render() runs it sits on this stack; every
 # operation applied through rotate()/translate() in that window is
-# kinematic, and gets tagged with the assembly driving it (operation
-# ._driver) plus registered on that assembly's persistent
-# _driven_nodes set. Before its next render, the assembly sweeps each
-# driven node's operations, dropping only the ones IT tagged, so
+# kinematic, and gets tagged with the assembly animating it (operation
+# ._animator) plus registered on that assembly's persistent
+# _animated_nodes set. Before its next render, the assembly sweeps each
+# animated node's operations, dropping only the ones IT tagged, so
 # re-renders (one per test instant, assemble, the viewer) express
 # absolute kinematics instead of accumulating -- even when a SECOND,
-# independent assembly also drives the same node instance (e.g. a
+# independent assembly also animates the same node instance (e.g. a
 # wheel spun by its axle and steered by the steering assembly): each
-# driver only ever touches its own tagged operations, never the
+# animator only ever touches its own tagged operations, never the
 # other's.
+#
+# The tag is named for ANIMATION, not for driving: ADR-056 reserves
+# "driver" for a simulation input bound through set_state, and one word
+# cannot mean both without misleading every later reader.
 _render_stack = []
 
 
-def _tag_driver(node, operation):
+def _tag_animator(node, operation):
     if not _render_stack:
         # Not applied during a render (static placement in __init__,
         # a test perturbation poked directly into node.operations):
         # leave it untagged, so it is never swept.
         return
     assembly = _render_stack[-1]
-    operation._driver = assembly
-    if not hasattr(assembly, '_driven_nodes'):
-        assembly._driven_nodes = set()
-    assembly._driven_nodes.add(node)
+    operation._animator = assembly
+    if not hasattr(assembly, '_animated_nodes'):
+        assembly._animated_nodes = set()
+    assembly._animated_nodes.add(node)
 
 
 # Filesystem-safe charset for the readable prefix: anything outside this
@@ -406,6 +410,20 @@ class AbstractBaseNode:
 
     def clear_keyframe(self):
         """Drop a fixed time, returning to symbolic animation time.
+        No-op for non-animated nodes; overridden by AssemblyNode."""
+        pass
+
+    def set_state(self, **states):
+        """Bind named driver values for this instant.
+        No-op for non-animated nodes; overridden by AssemblyNode.
+
+        The no-op is what lets an assembly propagate a snapshot into
+        whatever its render() returned without asking what each child
+        is -- the same tolerance set_keyframe has always had."""
+        pass
+
+    def clear_state(self, *names):
+        """Drop bound driver values, all of them when given no names.
         No-op for non-animated nodes; overridden by AssemblyNode."""
         pass
 
@@ -691,13 +709,13 @@ class AbstractBaseNode:
     def rotate(self, angle, axis):
         operation = Rotation(angle, axis, self)
         self.operations.append(operation)
-        _tag_driver(self, operation)
+        _tag_animator(self, operation)
         return self
 
     def translate(self, translation):
         operation = Translation(translation, self)
         self.operations.append(operation)
-        _tag_driver(self, operation)
+        _tag_animator(self, operation)
         return self
 
     @property
