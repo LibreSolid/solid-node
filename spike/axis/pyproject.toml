@@ -1,0 +1,2 @@
+[tool.solid-node]
+model = "axis_model:XAxis"
