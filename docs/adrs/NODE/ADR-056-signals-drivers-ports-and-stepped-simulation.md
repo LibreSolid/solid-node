@@ -1,6 +1,6 @@
 # ADR-056: Signals, drivers, ports, and stepped simulation
 
-**Status:** Proposed (design draft)
+**Status:** Proposed (design draft; core spike-validated 2026-08-25)
 
 **Date:** 2026-08-25
 
@@ -188,9 +188,13 @@ class TestHomeX(ScenarioTest):
     def scenario(self, sim):
         sim.at(0.0).trigger('Home X')
         sim.every(0.1, self.assertNoSolidInterference, self.printer)
-        sim.at(2.5).assertEqual(sim.state.x, 0)
+        sim.at(2.5).run(lambda sim: self.assertEqual(sim.state['x'], 0))
         sim.run(3.0)
 ```
+
+(Scheduled actions are DEFERRED callables. An earlier draft sketched
+`sim.at(2.5).assertEqual(sim.state.x, 0)`, which cannot work — the
+arguments would evaluate at registration time. Spike finding 3.)
 
 Determinism: fixed `dt` per scenario, instants derived as step counts
 (the same integer-arithmetic reasoning as ADR-050). Cost: geometric
@@ -253,21 +257,71 @@ this decision.
    the periodic symbolic subset, and is the substrate later layers
    need.
 
+## Spike evidence (2026-08-25)
+
+The stepped-simulation core was spiked end-to-end in this worktree —
+[`spike/SCOPE.md`](../../../spike/SCOPE.md),
+[`spike/FINDINGS.md`](../../../spike/FINDINGS.md), runner
+`spike/axis/scenario.py` — on a 5-leaf stand-in Metamaquina2 X axis
+(integer-microstep driver, instruction ramp, per-tick port binding,
+fixed-dt scenario loop), shimmed entirely over `set_keyframe` with
+zero framework edits. **All five scoped sub-questions validated:**
+
+- **Purity holds.** After 151 re-renders the driven node held exactly
+  one operation (ADR-023's sweep replaced, never accumulated) and an
+  arbitrary snapshot placed it absolutely. The feared invalidating
+  outcome did not occur: per-tick re-renders never touch the artifact
+  path — STL/scad generation stays `assemble()`-only, so stepping
+  composes with the ADR-006/050 build machinery untouched.
+- **Determinism is exact.** Integer driver state
+  (`start + delta*k//n`, exact landing), instants as integer tick
+  counts: two fresh runs compared exactly equal, no tolerance.
+- **Instruction ramp v1 works** and lands exactly on target.
+- **Per-tick connect in `render()`** coexists with the idempotent
+  sweep.
+- **Cost:** stepping is free (~267k bare ticks/s, ~4 µs/tick at spike
+  model size) while one interference assertion costs ~1.0 ms (~250×
+  a tick). Durable rule: **cadence budgets assertion cost; ticks are
+  free.** Absolute numbers do not extrapolate to v8-scale meshes.
+- **Separability confirmed:** every tick binds drivers to plain
+  numbers; nothing symbolic was needed anywhere in the loop, so the
+  expression-representation risk is fully decoupled (see open
+  questions).
+
+The spike names four seams the implementation must open — now design
+requirements rather than open questions:
+
+1. **`set_keyframe(time)` generalizes to a state-dict binding**
+   (`set_state(**states)`, `time` one entry, same recursive
+   propagation); `set_keyframe` survives as a compatibility wrapper.
+2. **Driver declaration separates from driver state.** Declarations
+   are class-level (default, range, unit, dtype); mutable state lives
+   per simulation, never shared across node instances. Where the
+   physical device is discrete (steppers), state is integer-typed.
+3. **Scheduled scenario actions are deferred callables**
+   (`sim.at(t).run(fn)`), never eagerly evaluated expressions.
+4. **Instructions carry design units.** Makers write targets in mm;
+   the port-level conversion (mm → µsteps) maps them onto driver
+   state.
+
 ## Open questions (pre-proposal spikes)
 
 - **Expression representation.** Client-side multi-driver evaluation
   needs expressions with named variables beyond solid2's `$t`: extend
   the solid2 constant mechanism or introduce a small solid-node
   expression type rendering to both the serialized viewer form and a
-  numeric value. This is the main implementation risk; spike before
-  ratifying. ADR-022's evaluator-parity concerns apply to whatever is
-  chosen.
+  numeric value. This is the main remaining implementation risk; spike
+  before the viewer-facing change. ADR-022's evaluator-parity concerns
+  apply to whatever is chosen. The stepping spike confirmed this risk
+  is fully decoupled from the simulation core.
 - **Instruction semantics v1.** Held to target + duration + linear
   ramp. Sequencing ("home X, then home Y") is the beginning of a
   program — that is the G-code layer's job; faking it in the UI schema
-  would fight the real thing later.
-- **Scenario assertion cadence defaults**, given ADR-029 assertion
-  cost at v8-scale meshes.
+  would fight the real thing later. (Ramp mechanics themselves are
+  spike-validated.)
+- **Scenario assertion cadence defaults** — resolved structurally by
+  the spike (cadence budgets assertion cost; ticks are free); the
+  numeric default per model size remains a project-level choice.
 - **Naming collision:** ADR-023's internal `operation._driver` (the
   assembly that tagged an operation) vs the new `Driver`. Semantically
   adjacent (assemblies drive operations; drivers drive signals) but
@@ -280,7 +334,9 @@ this decision.
 
 - **Metamaquina2**: one axis end-to-end — instruction button → driver
   increments → carriage motion → scenario test. The originating
-  empirical project for the non-periodic requirement.
+  empirical project for the non-periodic requirement. (The spike's
+  stand-in axis proves the mechanics; the real project validates the
+  ratified API.)
 - **v8-engine**: unchanged behavior through the derived-phase path;
   proves the periodic subset and the closed-form escape hatch survive.
 
