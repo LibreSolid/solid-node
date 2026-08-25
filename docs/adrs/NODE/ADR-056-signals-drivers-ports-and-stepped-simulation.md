@@ -304,7 +304,27 @@ requirements rather than open questions:
    the port-level conversion (mm → µsteps) maps them onto driver
    state.
 
-## Open questions (pre-proposal spikes)
+## Implementation status (2026-08-25)
+
+- **Stage 1 implemented and archived** as change
+  `2026-08-25-multi-driver-state-seam`: `set_state`/`clear_state`
+  multi-driver binding with `set_keyframe` as the exact time-only
+  wrapper, domain-typed ports with causal `connect()`, and the
+  `_driver`→`_animator` tag rename. 775 framework tests green,
+  v8-engine 33/33 unchanged.
+- **Stage 2 implemented** as change `stepped-simulation-layer`:
+  `solid_node/simulation/` (frozen `Driver` declarations, per-sim
+  state, integer-exact `RampProgram`, design-unit `Instruction`
+  targets, fixed-dt `Sim` with deferred actions and cadence cost
+  accounting, `ScenarioTest`). The spike migrated onto the shipped
+  package (its harness deleted) and revalidates all five verdicts.
+- One compatibility caveat surfaced by the spike migration, recorded
+  in `spike/FINDINGS.md`: `set_keyframe`'s unchanged-behavior contract
+  holds for every *caller*, but a subclass that overrides `set_state`
+  now intercepts keyframing too, since `set_keyframe` routes through
+  it.
+
+## Open questions (stage 3+, updated after stages 1–2)
 
 - **Expression representation.** Client-side multi-driver evaluation
   needs expressions with named variables beyond solid2's `$t`: extend
@@ -329,6 +349,22 @@ requirements rather than open questions:
 - **Document schema versioning** for the driver table and richer
   expressions (ADR-034/ADR-035 declared-API rules, ADR-051's
   producer-owned time).
+- **Build-path defaults.** The CLI build/test path renders before any
+  simulation exists, so a driver-declaring assembly must bind its own
+  declared defaults in `__init__` to be buildable today. Stage 3 needs
+  the real answer, and since `node/` cannot import `simulation/`, it
+  must live in the loader/manager or a hook the simulation package
+  offers.
+- **Time-driver unification.** `Sim` does not auto-bind `time`; a node
+  reading `self.time` under a simulation still gets symbolic `$t`.
+  Unifying the built-in time driver with the snapshot belongs to the
+  stage that also serializes the driver table.
+- **Unit-story unification.** `Driver.scale` (instruction targets) and
+  `Port.scale` (geometry binding) state the same physical ratio in two
+  places; unify when the viewer needs one authoritative unit story.
+- **`range` is metadata, not a clamp.** Nothing enforces declared
+  driver ranges (a crash scenario deliberately drives past travel); a
+  later UI story must not assume clamping.
 
 ## First validation targets
 

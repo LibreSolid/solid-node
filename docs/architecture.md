@@ -212,6 +212,40 @@ operation values can be animated expressions and the operations list
 is mutated by design. The base mesh under it is cached per
 `(stl_file, mtime)`.
 
+### Simulation (NODE · spec `simulation`)
+
+`solid_node/simulation/` is the layer that *produces* driver
+snapshots (ADR-056 stage 2); `solid_node/node/` never imports it, so
+a node without drivers pulls none of it in. `Driver` is a frozen
+class-attribute declaration on an assembly (default, range, unit,
+optional `dtype=int` for discrete devices, optional scale in design
+units per native unit), discovered off the class MRO exactly like
+`declared_ports`; all mutable state — current value, active program —
+lives in the per-simulation bank a `Sim` builds, so two simulations
+share nothing and there is nothing to reset. `RampProgram` advances
+state as a pure function of the tick (`start + delta*k//n` for
+integer drivers — integer-exact, exact landing), which is what makes
+two runs of one scenario comparable with `==`. `Instruction` records
+design-unit targets plus a duration; conversion to native state
+happens once, at trigger time, through the driver's declared scale.
+
+`Sim` is the fixed-`dt` loop: instants become integer tick counts the
+moment they are stated (rejected if not whole — the ADR-050 reasoning
+applied to simulated time); construction binds every declared default
+through `set_state` before the first render; each tick advances
+programs, binds the full snapshot, records the trajectory, then runs
+deferred `at(t)` actions (`.trigger(name)`, `.run(fn)`) and cadence
+`every()` slots, each accounting its own cost — ticks are free,
+cadence budgets assertion cost. `ScenarioTest` composes over the CAD
+`TestCase`: one class runs unchanged under pytest and the `solid
+test` runner, building STLs only when `meshes = True`.
+
+Known stage boundaries (ADR-056 stage 3+ territory): the build path
+binds no defaults, so a driver-declaring assembly must bind its own
+in `__init__` to be CLI-buildable today; `time` is not auto-bound by
+`Sim` (symbolic `$t` fallback still governs it); `range` is
+declarative metadata, not a clamp.
+
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
 Nodes are addressed by **reference** — a qualifier

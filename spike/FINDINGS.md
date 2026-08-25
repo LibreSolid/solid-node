@@ -124,6 +124,18 @@ framework by design invents no driver defaults (stage 2's job). With
 the shim dissolved, `scenario.py` revalidates all five verdicts against
 the real API (exit 0, 2026-08-25).
 
+## Addendum 2 (2026-08-25, after stage 2 landed)
+
+The `stepped-simulation-layer` change shipped the productionized
+harness as `solid_node/simulation/`, and this spike became its caller
+validation: `steplab.py` is deleted, `axis_model.py` declares a frozen
+`Driver` (dtype=int, scale=MM_PER_USTEP) and design-unit instruction
+targets (mm, not µsteps — seam 4 closed), and `scenario.py` runs the
+shipped `Sim`. All five verdicts revalidate through the shipped
+package, including the exact 2700 mm³ teeth overlap. Seams 2 and 3 are
+closed structurally (frozen declarations + per-sim state; deferred
+`at().run(fn)` actions); seam 1 was closed by stage 1.
+
 ## Separability confirmed
 
 Every tick binds all drivers to plain numbers; nothing symbolic was

@@ -6,15 +6,18 @@ PYTHONPATH, e.g.:
     PYTHONPATH=<worktree> <venv>/bin/python spike/axis/scenario.py
 
 Prints one section per SCOPE sub-question and a machine-readable
-summary line per verdict.
+summary line per verdict. Since the stepped-simulation-layer change,
+the harness under test is the shipped solid_node.simulation package
+rather than the spike's own steplab.py: this runner is now caller
+validation, revalidating every recorded verdict against the real API.
 """
 
 import time
 
+from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
 from axis_model import HOME_USTEPS, MM_PER_USTEP, XAxis
-from steplab import Sim
 
 DT = 0.02
 
@@ -29,7 +32,7 @@ def verdict(key, ok, detail):
 def fresh_sim():
     axis = XAxis()
     build_start = time.perf_counter()
-    sim = Sim(axis, DT)
+    sim = Sim(axis, DT, meshes=True)
     return axis, sim, time.perf_counter() - build_start
 
 
@@ -45,7 +48,7 @@ def home_scenario(register_assertions=True):
         sim.every(0.1, tc.assertNoSolidInterference, axis)
 
     def final_check(s):
-        outcome['motor'] = s.node.drivers['motor'].state
+        outcome['motor'] = s.state['motor']
         outcome['x'] = axis.x_out.value
 
     sim.at(2.5).run(final_check)
