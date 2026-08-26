@@ -46,6 +46,14 @@ class Driver(DriverDeclaration):
     microstep, say -- and is what lets an instruction state a target in
     the units a maker thinks in while the state stays native.
 
+    `range` is expressed in DESIGN units, like an instruction target
+    and unlike `default`, whatever `scale` says: it is the travel a
+    maker means, and a presenter converts it through `scale` exactly
+    once, the way `native` converts a target. It is presentation
+    metadata and nothing anywhere clamps to it -- a machine driven past
+    its declared travel is a crash, which is a thing a simulation must
+    be able to show rather than silently prevent.
+
     It subclasses the node layer's `DriverDeclaration` marker, and the
     dependency still runs one way: the node layer has to RECOGNIZE a
     declaration to qualify it and deliver a state entry to it, while

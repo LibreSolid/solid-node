@@ -70,8 +70,12 @@ class Cover(Solid2Node):
 class Axis(AssemblyNode):
     """One driven linear axis. Declares the class-local driver `motor`."""
 
-    motor = Driver(default=HOME_USTEPS, unit='ustep', dtype=int,
-                   scale=MM_PER_USTEP)
+    # `range` is DESIGN units (ADR-056 stage 3c): 100mm of travel, the
+    # far end of which is the native home position beside it. Declared
+    # so the live browser drive has slider bounds to exercise -- a
+    # rangeless driver could only prove the numeric-input fallback.
+    motor = Driver(default=HOME_USTEPS, range=(0, 100), unit='ustep',
+                   dtype=int, scale=MM_PER_USTEP)
     position = TranslationalPort(unit='mm', scale=MM_PER_USTEP)
 
     instructions = {

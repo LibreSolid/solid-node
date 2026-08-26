@@ -40,7 +40,9 @@ class QualifiedEnumerationTest(BaseNodeTest):
         self.assertEqual(sorted(found), ['x_axis.motor', 'y_axis.motor'])
         declaration = found['x_axis.motor']
         self.assertEqual(declaration.default, 8000)
-        self.assertEqual(declaration.range, (0, 8000))
+        # Design units: 100mm of travel, the far end of which is the
+        # native default of 8000 microsteps beside it.
+        self.assertEqual(declaration.range, (0, 100))
         self.assertEqual(declaration.unit, 'ustep')
         self.assertIs(declaration.dtype, int)
         self.assertAlmostEqual(declaration.scale, 40.0 / 3200)

@@ -40,7 +40,9 @@ class Carriage(AssemblyNode):
     """A microstep-counting axis with a home instruction stated, as a
     maker would state it, in millimetres."""
 
-    motor = Driver(default=8000, range=(0, 19200), unit='ustep', dtype=int,
+    # DESIGN-unit travel (240mm) beside native state, as ADR-056 stage
+    # 3c pins it; the instruction targets below read the same way.
+    motor = Driver(default=8000, range=(0, 240.0), unit='ustep', dtype=int,
                    scale=MM_PER_USTEP)
 
     instructions = {

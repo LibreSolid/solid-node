@@ -32,7 +32,9 @@ MM_PER_USTEP = 40.0 / (200 * 16)
 class Axis(AssemblyNode):
     """A microstep-counting carriage, home at 10mm of travel."""
 
-    x = Driver(default=800, range=(0, 8000), unit='ustep', dtype=int,
+    # 100mm of declared travel, in DESIGN units like the instruction
+    # targets below; the default of 800 microsteps is 10mm along it.
+    x = Driver(default=800, range=(0, 100), unit='ustep', dtype=int,
                scale=MM_PER_USTEP)
 
     instructions = {

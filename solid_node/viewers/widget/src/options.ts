@@ -5,12 +5,15 @@
  */
 
 import * as THREE from 'three';
-import type { ViewerOptions, AnimationMode, VectorInput } from './viewer';
+import type {
+  ViewerOptions, AnimationMode, DriverControlsMode, VectorInput,
+} from './viewer';
 import type { ViewerView } from './camera';
 
 export interface ResolvedViewerOptions {
   baseUrl: string | null;
   animation: AnimationMode;
+  driverControls: DriverControlsMode;
   time: number;
   autoplay: boolean;
   view: ViewerView | null;
@@ -36,6 +39,9 @@ export function resolveOptions(
   return {
     baseUrl: options.baseUrl ?? null,
     animation: options.animation ?? 'inline',
+    // Presented by default, like the animation bar: a self-contained
+    // export is opened by a maker with no host code behind it.
+    driverControls: options.driverControls ?? 'inline',
     time: Math.min(Math.max(time, 0), 1),
     autoplay: options.autoplay ?? true,
     view: options.view ? {
@@ -70,6 +76,22 @@ export function resolveBaseUrl(sourceUrl: string, baseUrl?: string): string {
   // root -- './' keeps the base joinable without rooting it at the host.
   if (!root) return './';
   return root.endsWith('/') ? root : `${root}/`;
+}
+
+/** Whether this mount presents the driver chrome (ADR-056 stage 3c,
+ * design D9).
+ *
+ * Two independent conditions, and neither is the animation bar's: the
+ * host must want the chrome, and the document must declare a driver for
+ * there to be any. A driverless document is therefore untouched by this
+ * option, and a host suppressing the chrome still holds the whole
+ * driving API -- what is gated is the pixels, not the interface.
+ */
+export function showsDriverChrome(
+  mode: DriverControlsMode,
+  declaresDrivers: boolean,
+): boolean {
+  return mode === 'inline' && declaresDrivers;
 }
 
 export function controlPlan(

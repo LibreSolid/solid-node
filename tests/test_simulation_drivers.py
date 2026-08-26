@@ -34,7 +34,9 @@ class Axis(AssemblyNode):
     whole microsteps and declares what a microstep is worth in design
     units, while the lift is millimetres all the way down."""
 
-    motor = Driver(default=8000, range=(0, 19200), unit='ustep', dtype=int,
+    # 240mm of travel, stated in DESIGN units beside a native default:
+    # the two readings the `scale` relates.
+    motor = Driver(default=8000, range=(0, 240.0), unit='ustep', dtype=int,
                    scale=MM_PER_USTEP)
     lift = Driver(default=2.5, unit='mm')
 
@@ -52,7 +54,7 @@ class LongAxis(Axis):
     """A subclass redeclaring an inherited driver: the base-first walk
     must let this one win without disturbing the base class."""
 
-    motor = Driver(default=0, range=(0, 38400), unit='ustep', dtype=int,
+    motor = Driver(default=0, range=(0, 480.0), unit='ustep', dtype=int,
                    scale=MM_PER_USTEP)
 
 
@@ -63,7 +65,7 @@ class DriverDeclarationTest(BaseNodeTest):
 
         self.assertEqual(sorted(drivers), ['lift', 'motor'])
         self.assertEqual(drivers['motor'].default, 8000)
-        self.assertEqual(drivers['motor'].range, (0, 19200))
+        self.assertEqual(drivers['motor'].range, (0, 240.0))
         self.assertEqual(drivers['motor'].unit, 'ustep')
         self.assertIs(drivers['motor'].dtype, int)
         self.assertEqual(drivers['motor'].scale, MM_PER_USTEP)
@@ -74,7 +76,7 @@ class DriverDeclarationTest(BaseNodeTest):
 
     def test_a_subclass_redeclaration_wins_and_leaves_the_base_alone(self):
         self.assertEqual(declared_drivers(LongAxis)['motor'].default, 0)
-        self.assertEqual(declared_drivers(LongAxis)['motor'].range, (0, 38400))
+        self.assertEqual(declared_drivers(LongAxis)['motor'].range, (0, 480.0))
         self.assertEqual(declared_drivers(Axis)['motor'].default, 8000)
 
     def test_a_declaration_holds_no_mutable_state(self):
@@ -101,6 +103,43 @@ class DriverDeclarationTest(BaseNodeTest):
 
     def test_a_driver_without_a_scale_takes_the_target_verbatim(self):
         self.assertEqual(declared_drivers(Axis)['lift'].native(1.25), 1.25)
+
+    def test_a_scaled_drivers_range_reads_in_design_units(self):
+        """ADR-056 stage 3c pins what `range` is expressed in: DESIGN
+        units, the units a maker thinks in and an instruction target is
+        stated in, whatever the state underneath is counted in. The
+        motor below counts microsteps and travels 240mm; a presenter
+        relates the two through `scale`, exactly as a target is
+        converted, and the declaration states neither twice."""
+        motor = declared_drivers(Axis)['motor']
+
+        self.assertEqual(motor.range, (0, 240.0))
+        # The same two ends as native state, through the declared scale
+        # -- the conversion a slider performs, and the only one there is.
+        self.assertEqual(motor.native(motor.range[0]), 0)
+        self.assertEqual(motor.native(motor.range[1]), 19200)
+
+    def test_an_unscaled_drivers_range_is_already_native(self):
+        """`scale` is what makes design and native units differ; with
+        none declared the two readings are the same numbers, which is
+        why the rule costs an unscaled declaration nothing."""
+        lift = Driver(default=2.5, range=(0, 40.0), unit='mm')
+
+        self.assertEqual(lift.native(lift.range[1]), 40.0)
+
+    def test_nothing_clamps_driver_state_to_the_declared_range(self):
+        """A machine can be driven past its travel -- that is what a
+        crash is. `range` is presentation metadata, so a state outside
+        it survives every step of the ramp that put it there."""
+        state = driver_states(Axis)['motor']
+        target = declared_drivers(Axis)['motor'].native(-5.0)
+
+        state.ramp_to(target, 10, 0)
+        values = [state.advance(tick) for tick in range(1, 11)]
+
+        self.assertEqual(target, -400)
+        self.assertEqual(state.value, -400)
+        self.assertTrue(min(values) < 0)
 
 
 class DriverStateTest(BaseNodeTest):

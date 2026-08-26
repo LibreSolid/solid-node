@@ -10,7 +10,9 @@
 // they are testable in node, where there is no document and no WebGL.
 
 import { describe, expect, it } from 'vitest';
-import { controlPlan, resolveBaseUrl, resolveOptions } from './options';
+import {
+  controlPlan, resolveBaseUrl, resolveOptions, showsDriverChrome,
+} from './options';
 
 describe('resolveOptions', () => {
   it('reproduces the published export behavior when given nothing', () => {
@@ -25,6 +27,15 @@ describe('resolveOptions', () => {
     expect(resolved.className).toBeNull();
     expect(resolved.role).toBeNull();
     expect(resolved.ariaLabel).toBeNull();
+    // A published export shows the driver chrome (ADR-056 stage 3c).
+    expect(resolved.driverControls).toBe('inline');
+  });
+
+  it('lets a host building its own panel suppress the chrome', () => {
+    expect(resolveOptions({ driverControls: 'none' }).driverControls)
+      .toBe('none');
+    expect(resolveOptions({ driverControls: 'inline' }).driverControls)
+      .toBe('inline');
   });
 
   it('keeps what the host asked for', () => {
@@ -132,5 +143,29 @@ describe('controlPlan', () => {
       expect(plan.bar, mode).toBe(false);
       expect(plan.toggle, mode).toBe(false);
     }
+  });
+});
+
+describe('showsDriverChrome', () => {
+  it('shows the chrome for a driver-declaring document by default', () => {
+    expect(showsDriverChrome('inline', true)).toBe(true);
+  });
+
+  it('shows nothing when the host suppresses it', () => {
+    expect(showsDriverChrome('none', true)).toBe(false);
+  });
+
+  it('shows nothing for a document that declares no driver', () => {
+    // A version 1 document is pixel-identical to before this change,
+    // whatever the host asked for.
+    expect(showsDriverChrome('inline', false)).toBe(false);
+    expect(showsDriverChrome('none', false)).toBe(false);
+  });
+
+  it('is independent of the animation bar', () => {
+    // A static machine posed only by its drivers has no timeline to
+    // scrub and still has controls to drive.
+    expect(controlPlan('inline', false).bar).toBe(false);
+    expect(showsDriverChrome('inline', true)).toBe(true);
   });
 });

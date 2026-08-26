@@ -128,11 +128,43 @@ class DriverTableTest(BaseNodeTest):
         self.assertEqual(sorted(table), ['x_axis.motor', 'y_axis.motor'])
         self.assertEqual(table['x_axis.motor'], {
             'default': 8000,
-            'range': [0, 8000],
+            'range': [0, 100],
             'unit': 'ustep',
             'dtype': 'int',
             'scale': 40.0 / 3200,
         })
+
+    def test_the_range_travels_in_design_units_unconverted(self):
+        """ADR-056 stage 3c: `range` is stated in DESIGN units and the
+        producer publishes it as declared, beside the `scale` and
+        `default` that are native. A presenter converts once, the way
+        `Driver.native` does; a producer converting first would leave
+        the client unable to tell which reading it received."""
+        machine = Machine()
+        with symbolic_drivers(machine) as declarations:
+            table = drivers_table(declarations)
+            declaration = declarations['x_axis.motor']
+
+        published = table['x_axis.motor']
+        self.assertEqual(published['range'], [0, 100])
+        # 100 design millimetres of travel IS the native default: the
+        # two readings of one end, related by the published scale.
+        self.assertEqual(declaration.native(published['range'][1]),
+                         published['default'])
+
+    def test_the_table_never_clamps_a_bound_value_to_the_range(self):
+        """A document serialized from a crashed machine still publishes
+        the state it had: the range bounds a slider's travel, never the
+        value the expressions read."""
+        machine = Machine()
+        machine.set_state(**{'x_axis.motor': -400, 'y_axis.motor': 20000})
+
+        with symbolic_drivers(machine) as declarations:
+            table = drivers_table(declarations)
+
+        self.assertEqual(table['x_axis.motor']['range'], [0, 100])
+        self.assertEqual(machine.x_axis.state['motor'], -400)
+        self.assertEqual(machine.y_axis.state['motor'], 20000)
 
     def test_the_table_is_json_serializable(self):
         machine = Machine()

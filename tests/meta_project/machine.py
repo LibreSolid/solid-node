@@ -33,7 +33,11 @@ DEG_PER_USTEP = 360.0 / (200 * 16)
 class Axis(AssemblyNode):
     """One driven linear axis, declaring the class-local `motor`."""
 
-    motor = Driver(default=8000, range=(0, 8000), unit='ustep', dtype=int,
+    # `range` is DESIGN units (ADR-056 stage 3c): 100mm of travel, which
+    # is the same end of the axis the native default of 8000 microsteps
+    # sits at. `default` and the state are native; the range is what a
+    # maker reads and what a slider travels over.
+    motor = Driver(default=8000, range=(0, 100), unit='ustep', dtype=int,
                    scale=MM_PER_USTEP)
     position = TranslationalPort(unit='mm', scale=MM_PER_USTEP)
 

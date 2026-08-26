@@ -8,14 +8,26 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { frameBounds, ViewerView } from './camera';
 import { AssemblyNavigation } from './assembly';
-import { controlPlan, resolveBaseUrl, resolveOptions } from './options';
-import { DriverListener, DriverStore, TriggerHandle } from './drivers';
+import {
+  controlPlan, resolveBaseUrl, resolveOptions, showsDriverChrome,
+} from './options';
+import {
+  BreadcrumbSegment, ControlLayer, controlLayer, DriverControl,
+  driverControl, formatDisplay,
+} from './controls';
+import {
+  DriverListener, DriverStore, TriggerHandle, toNative,
+} from './drivers';
 import { EvalScope, freeVariables, TIME_ID } from './evaluator';
 import { AssemblyNode, AssemblyPath, WidgetTree } from './tree';
 import { Manifest, ManifestDriver, ManifestInstruction, ManifestNode } from './types';
 import { API_VERSION } from './version';
 
 export type AnimationMode = 'inline' | 'toggle' | 'none' | 'external';
+// Whether the widget presents the driver chrome itself. A host building
+// its own instrument panel on the driving API asks for 'none' and keeps
+// every method below (ADR-056 stage 3c, design D9).
+export type DriverControlsMode = 'inline' | 'none';
 export type View = ViewerView;
 export type { AssemblyNode, AssemblyPath } from './tree';
 export type VectorInput = THREE.Vector3 | readonly [number, number, number];
@@ -27,6 +39,7 @@ export interface ViewInput {
 export interface ViewerOptions {
   baseUrl?: string;
   animation?: AnimationMode;
+  driverControls?: DriverControlsMode;
   time?: number;
   autoplay?: boolean;
   view?: ViewInput;
@@ -99,6 +112,12 @@ export async function mount(
   let controlElements: HTMLElement[] = [];
   let cycleSeconds = 1;
   let disposed = false;
+  // The driver chrome, rebuilt whenever the focused layer or the
+  // document changes and updated in place while values move.
+  let driverChrome: DriverChrome | undefined;
+  // True while a control of ours is writing a value, so the change we
+  // hear back does not fight the input the maker is dragging.
+  let drivingFromChrome = false;
   const assemblyNavigation = new AssemblyNavigation();
   // One driver state for this mount, reconciled (not replaced) when the
   // document is republished, so a host's listeners and its current pose
@@ -106,6 +125,18 @@ export async function mount(
   const drivers = new DriverStore();
 
   const scope = (): EvalScope => ({ time, drivers: drivers.scope() });
+
+  // One door for a driver value, whether the maker moved a slider or
+  // the host called setDriver: identical store semantics, identical
+  // re-evaluation, and a listener cannot tell the two apart.
+  const driveTo = (id: string, value: number) => {
+    drivers.setDriver(id, value);
+    // The set is answered this frame: only the operations naming this
+    // driver are re-evaluated, and the rest keep the matrices they
+    // have.
+    tree?.update(scope(), { time: false, drivers: drivers.tick() });
+    renderer.render(scene, camera);
+  };
 
   const setTime = (next: number) => {
     time = Math.min(Math.max(next, 0), 1);
@@ -178,9 +209,72 @@ export async function mount(
       controlElements = built.elements;
       slider.value = String(time);
     }
+    // After the store and the navigation have reconciled, so the chrome
+    // reflects the values that survived the republish and a focus the
+    // update may have reset (design D10).
+    rebuildDriverChrome();
   };
 
+  // The ONE place focus moves, whether the host called `setRoot` or the
+  // maker clicked the breadcrumb (design D8). Navigation, camera and
+  // chrome move together, so the widget and the host can never disagree
+  // about what is focused.
+  const focusOn = (path: AssemblyPath | null) => {
+    if (!tree) {
+      throw new Error('Viewer assembly is unavailable');
+    }
+    assemblyNavigation.setRoot(tree, path);
+    applyFrame(null);
+    rebuildDriverChrome();
+    renderer.render(scene, camera);
+  };
+
+  const nativeValues = (): Record<string, number> => {
+    const values: Record<string, number> = {};
+    for (const id of Object.keys(drivers.drivers())) {
+      values[id] = drivers.driver(id);
+    }
+    return values;
+  };
+
+  function rebuildDriverChrome(): void {
+    driverChrome?.remove();
+    driverChrome = undefined;
+    const table = drivers.drivers();
+    if (!showsDriverChrome(resolved.driverControls,
+                           Object.keys(table).length > 0)) {
+      return;
+    }
+    driverChrome = buildDriverChrome(container, controlLayer({
+      drivers: table,
+      instructions: drivers.instructions(),
+      values: nativeValues(),
+      focus: assemblyNavigation.root(),
+      rootLabel: tree?.name ?? 'root',
+    }), {
+      setDriver(id: string, value: number) {
+        // Marked so the change we hear back does not write over the
+        // input the maker is still dragging.
+        drivingFromChrome = true;
+        try {
+          driveTo(id, value);
+        } finally {
+          drivingFromChrome = false;
+        }
+      },
+      trigger: (name: string) => drivers.trigger(name),
+      focus: focusOn,
+    });
+  }
+
   await replaceTree(resolved.view);
+
+  // The public channel, subscribed once per mount: a ramp moving a
+  // driver reaches its slider exactly the way it reaches a host's
+  // listener, with no private path into the store (design D7).
+  const unsubscribeDrivers = drivers.onDriverChange((id, value) => {
+    driverChrome?.apply(id, value, drivingFromChrome);
+  });
 
   const resize = () => {
     if (disposed) {
@@ -223,6 +317,9 @@ export async function mount(
       renderer.setAnimationLoop(null);
       observer.disconnect();
       controls.dispose();
+      unsubscribeDrivers();
+      driverChrome?.remove();
+      driverChrome = undefined;
       // Nothing will advance the ramps again, so their promises settle
       // here rather than never.
       drivers.dispose();
@@ -262,12 +359,7 @@ export async function mount(
       return tree.assembly();
     },
     setRoot(path: AssemblyPath | null) {
-      if (!tree) {
-        throw new Error('Viewer assembly is unavailable');
-      }
-      assemblyNavigation.setRoot(tree, path);
-      applyFrame(null);
-      renderer.render(scene, camera);
+      focusOn(path);
     },
     setVisible(path: AssemblyPath, visible: boolean) {
       if (!tree) {
@@ -280,12 +372,7 @@ export async function mount(
     drivers: () => drivers.drivers(),
     driver: (id: string) => drivers.driver(id),
     setDriver(id: string, value: number) {
-      drivers.setDriver(id, value);
-      // The set is answered this frame: only the operations naming this
-      // driver are re-evaluated, and the rest keep the matrices they
-      // have.
-      tree?.update(scope(), { time: false, drivers: drivers.tick() });
-      renderer.render(scene, camera);
+      driveTo(id, value);
     },
     onDriverChange: (listener: DriverListener) =>
       drivers.onDriverChange(listener),
@@ -388,6 +475,250 @@ function resolveContainer(target: HTMLElement | string): HTMLElement {
     throw new Error(`solid-widget: no element matches "${target}"`);
   }
   return element;
+}
+
+// ---------------------------------------------------------------------
+// The driver chrome's DOM (ADR-056 stage 3c). Everything below RENDERS a
+// `ControlLayer` and calls back through the same driving API a host
+// uses; it decides nothing itself, because there is no DOM test
+// framework in this bench and an untestable decision is a decision
+// nobody checks (design D1). Its proof is the live browser drive.
+
+interface DriverChromeActions {
+  setDriver(id: string, value: number): void;
+  trigger(name: string): TriggerHandle;
+  focus(path: AssemblyPath | null): void;
+}
+
+interface DriverChrome {
+  /** A driver moved: update its readout, and its input unless the
+   * maker's own hand is what moved it. */
+  apply(id: string, value: number, fromChrome: boolean): void;
+  remove(): void;
+}
+
+type ControlUpdate = (value: number, fromChrome: boolean) => void;
+
+const PANEL_STYLE =
+  'position:absolute;left:0;top:0;display:flex;flex-direction:column;' +
+  'gap:6px;padding:8px 10px;max-width:75%;' +
+  'background:rgba(30,33,38,0.65);color:#fff;' +
+  'font:13px system-ui,sans-serif;';
+
+const BUTTON_STYLE =
+  'background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);' +
+  'color:inherit;cursor:pointer;border-radius:4px;padding:2px 8px;' +
+  'font:inherit;';
+
+function buildDriverChrome(
+  container: HTMLElement,
+  layer: ControlLayer,
+  actions: DriverChromeActions,
+): DriverChrome {
+  const panel = document.createElement('div');
+  panel.className = 'driver-controls';
+  panel.style.cssText = PANEL_STYLE;
+
+  panel.append(buildBreadcrumb(layer, actions));
+
+  if (layer.instructions.length > 0) {
+    const row = document.createElement('div');
+    row.className = 'driver-instructions';
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+    layer.instructions.forEach((entry) => {
+      row.append(buildInstructionButton(entry.name, entry.label, actions));
+    });
+    panel.append(row);
+  }
+
+  const updates = new Map<string, ControlUpdate>();
+  layer.drivers.forEach((control) => {
+    panel.append(buildDriverRow(control, actions, updates));
+  });
+
+  container.append(panel);
+
+  return {
+    apply(id: string, value: number, fromChrome: boolean) {
+      updates.get(id)?.(value, fromChrome);
+    },
+    remove() {
+      panel.remove();
+    },
+  };
+}
+
+function buildBreadcrumb(
+  layer: ControlLayer,
+  actions: DriverChromeActions,
+): HTMLElement {
+  const nav = document.createElement('nav');
+  nav.className = 'driver-breadcrumb';
+  nav.setAttribute('aria-label', 'Assembly focus');
+  nav.style.cssText =
+    'display:flex;flex-wrap:wrap;align-items:center;gap:4px;';
+
+  layer.breadcrumb.forEach((segment, index) => {
+    if (index > 0) {
+      nav.append(separator('/'));
+    }
+    nav.append(buildBreadcrumbStep(segment, actions));
+  });
+
+  const focused = layer.breadcrumb[layer.breadcrumb.length - 1].path;
+  layer.children.forEach((name) => {
+    nav.append(separator('|'));
+    const button = document.createElement('button');
+    button.className = 'driver-descend';
+    button.textContent = `${name} ▸`;
+    button.setAttribute('aria-label', `Focus ${name}`);
+    button.style.cssText = BUTTON_STYLE;
+    button.addEventListener('click', () => {
+      actions.focus([...focused, name]);
+    });
+    nav.append(button);
+  });
+
+  return nav;
+}
+
+function buildBreadcrumbStep(
+  segment: BreadcrumbSegment,
+  actions: DriverChromeActions,
+): HTMLElement {
+  const button = document.createElement('button');
+  button.className = 'driver-breadcrumb-step';
+  button.textContent = segment.label;
+  button.setAttribute('aria-label', `Focus ${segment.label}`);
+  button.style.cssText = BUTTON_STYLE;
+  if (segment.current) {
+    button.setAttribute('aria-current', 'true');
+    button.disabled = true;
+    button.style.cssText += 'opacity:0.75;cursor:default;';
+    return button;
+  }
+  button.addEventListener('click', () => {
+    // The document root is `null` to the focus API, not an empty path.
+    actions.focus(segment.path.length === 0 ? null : segment.path);
+  });
+  return button;
+}
+
+function separator(mark: string): HTMLElement {
+  const span = document.createElement('span');
+  span.textContent = mark;
+  span.setAttribute('aria-hidden', 'true');
+  span.style.cssText = 'opacity:0.5;';
+  return span;
+}
+
+function buildInstructionButton(
+  name: string,
+  label: string,
+  actions: DriverChromeActions,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.className = 'driver-instruction';
+  button.textContent = label;
+  button.setAttribute('aria-label', `Run ${label}`);
+  button.style.cssText = BUTTON_STYLE;
+  // Which run this button is showing. A re-press is the ratified
+  // last-wins replacement, so the older run's `done` -- which settles
+  // when the new one takes its drivers over -- must not clear the busy
+  // state the newer press owns. Nothing is debounced: the maker asked
+  // twice and the machine obeys twice.
+  let latest = 0;
+  button.addEventListener('click', () => {
+    const run = ++latest;
+    button.setAttribute('aria-busy', 'true');
+    button.style.cssText = BUTTON_STYLE + 'background:rgba(127,209,255,0.35);';
+    actions.trigger(name).done.then(() => {
+      if (run !== latest) {
+        return;
+      }
+      button.removeAttribute('aria-busy');
+      button.style.cssText = BUTTON_STYLE;
+    });
+  });
+  return button;
+}
+
+function buildDriverRow(
+  control: DriverControl,
+  actions: DriverChromeActions,
+  updates: Map<string, ControlUpdate>,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'driver-control';
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
+  const name = document.createElement('span');
+  name.textContent = control.label;
+  name.style.cssText = 'min-width:5em;';
+
+  const input = document.createElement('input');
+  input.setAttribute('aria-label', control.unit === null
+    ? control.label : `${control.label} (${control.unit})`);
+  if (control.slider !== null) {
+    input.type = 'range';
+    input.min = String(control.slider.min);
+    input.max = String(control.slider.max);
+    // An integer driver stops on whole native units; a float one is
+    // continuous, and 'any' is how that is spelled.
+    input.step = control.slider.step === null
+      ? 'any' : String(control.slider.step);
+    input.value = String(control.slider.position);
+    input.style.cssText = 'flex:1;margin:0;min-width:120px;';
+  } else {
+    // No declared range, so no bounds to travel between: a number field
+    // is the honest control, rather than a slider spanning a guess.
+    input.type = 'number';
+    input.value = formatDisplay(control.display);
+    input.style.cssText = 'width:8em;font:inherit;';
+  }
+
+  const readout = document.createElement('output');
+  readout.style.cssText = 'min-width:6em;text-align:right;';
+
+  const show = (state: DriverControl) => {
+    readout.textContent = state.unit === null
+      ? formatDisplay(state.display)
+      : `${formatDisplay(state.display)} ${state.unit}`;
+    // Pinned thumb, truthful readout: the value is outside the declared
+    // travel and the chrome says so instead of hiding it.
+    readout.style.color = state.pinned ? '#ffd166' : 'inherit';
+    readout.title = state.pinned
+      ? 'outside the declared range' : '';
+  };
+  show(control);
+
+  const write = () => {
+    const design = Number(input.value);
+    if (!Number.isFinite(design)) {
+      return;
+    }
+    // Through the same conversion an instruction target takes and into
+    // the same store call the host API makes -- one door, so a value
+    // set on screen and one set programmatically are the same event.
+    actions.setDriver(control.id, toNative(design, control.driver));
+  };
+  input.addEventListener('input', write);
+  input.addEventListener('change', write);
+
+  updates.set(control.id, (value: number, fromChrome: boolean) => {
+    const state = driverControl(control.id, control.driver, value);
+    show(state);
+    if (fromChrome) {
+      // The maker is holding this control; writing its own value back
+      // would fight the drag.
+      return;
+    }
+    input.value = state.slider === null
+      ? formatDisplay(state.display) : String(state.slider.position);
+  });
+
+  row.append(name, input, readout);
+  return row;
 }
 
 function buildControls(

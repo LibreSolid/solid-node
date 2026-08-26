@@ -4,14 +4,20 @@
   "drivers": {
     "x_axis.motor": {
       "default": 8000,
-      "range": null,
+      "range": [
+        0,
+        100
+      ],
       "unit": "ustep",
       "dtype": "int",
       "scale": 0.0125
     },
     "y_axis.motor": {
       "default": 8000,
-      "range": null,
+      "range": [
+        0,
+        100
+      ],
       "unit": "ustep",
       "dtype": "int",
       "scale": 0.0125

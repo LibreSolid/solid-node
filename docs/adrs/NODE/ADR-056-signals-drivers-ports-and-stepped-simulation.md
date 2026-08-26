@@ -449,6 +449,44 @@ unenforced by any test.
   round-half-to-even, and the parity fixture pins it. A target landing
   exactly between two native units is not hypothetical for an integer
   driver, and "nearest" is not a single rule across languages.
+- **Stage 3c implemented (2026-08-26)** as change
+  `layered-driver-controls`, putting the chrome on the 3b API: a
+  button per instruction and a bounded slider with a numeric readout
+  per driver, built from the document's own two tables and calling the
+  same `setDriver`/`trigger` a host calls, so a value set on screen and
+  one set through the handle are indistinguishable to expressions,
+  listeners and readbacks. Scoping is strict per layer — an id belongs
+  to the focused layer iff it splits into the focus path's segments
+  plus exactly one more, root focus selecting the bare ids — so a root
+  declaring everything on its children legitimately shows no controls,
+  which is product pressure toward declaring machine-level instructions
+  on the machine rather than a defect. An in-widget breadcrumb derives
+  its navigable children from the tables rather than the assembly tree
+  (the distinct next segments strictly below the focus), which reaches
+  every declaring layer by construction and omits a child with nothing
+  declared beneath it for free; it drives the same internal
+  focus-changed path a host `setRoot` does, so the two can never
+  disagree. `driverControls: 'inline' | 'none'` lets a host building
+  its own instrument panel suppress the pixels while keeping the whole
+  driving API, and a driverless document renders exactly what it
+  rendered before. Every decision lives in a pure `controls.ts` tested
+  in plain node (this bench has no DOM test framework and may install
+  none); the thin DOM layer's proof is a live headless-Chromium drive
+  of the spike machine against a fresh temp bundle. 884 framework tests
+  green (879 baseline), widget vitest 141 green (99 baseline).
+- **`range` is pinned to design units** by the same change: the units a
+  maker thinks in and instruction targets are stated in, whatever
+  `scale` says, published verbatim beside a native `default`. The
+  slider is the first consumer that must convert it, so its units could
+  not stay unstated; pinning was free because no shipped project
+  declares a scaled range yet.
+- The judgment worth recording from 3c: the chrome does not clamp, and
+  says so rather than hiding it. A value bound past the declared travel
+  shows a slider pinned at its end beside a readout of the true value
+  (live: `setDriver(-400)` on a 0..100mm axis reads `-5`), because a
+  crash is a thing a simulation must be able to show. Raycast
+  click-to-focus picking on the 3D scene was deliberately excluded and
+  remains deferred; the breadcrumb is the whole focus affordance.
 
 ## Open questions (updated after stage 3b)
 
@@ -502,6 +540,22 @@ Resolved by stage 3b (`driver-aware-viewer`):
   and disabling the `^` rewrite fails it by up to 0.186. Seam 7 of the
   expression spike is closed.
 
+Resolved by stage 3c (`layered-driver-controls`):
+
+- **UI chrome for drivers.** Settled and shipped. Sliders, instruction
+  buttons and readouts are the widget's, scoped strictly to the focused
+  assembly layer and reachable through an in-widget breadcrumb, with a
+  host option to suppress them. They use `range` as presentation bounds
+  only, exactly as the open question required: the slider pins at an end
+  and the readout stays truthful. A driver declaring no range gets a
+  numeric input, because bounds cannot be invented from a default.
+- **`range` is metadata, not a clamp.** Still true, and now first
+  consumed: nothing in the framework or the widget clamps, and the
+  chrome shows an out-of-range value rather than pretending the machine
+  stopped. What the change adds is the units the metadata is stated in
+  — design units, like an instruction target — which the slider forced
+  and which the `simulation` spec now states.
+
 Still open:
 
 - **Instruction semantics v1.** Held to target + duration + linear
@@ -509,11 +563,10 @@ Still open:
   program — that is the G-code layer's job; faking it in the UI schema
   would fight the real thing later. (Ramp mechanics themselves are
   spike-validated; `trigger` is the seat that layer will occupy.)
-- **UI chrome for drivers.** Stage 3b is the API a button or slider
-  calls, deliberately with no visual element of its own. Sliders,
-  instruction buttons and readouts are a later cycle or the host
-  app's, and a slider using `range` must treat it as presentation
-  bounds rather than a clamp.
+- **Click-to-focus picking.** The breadcrumb moves focus; picking a
+  part in the 3D scene by raycast does not exist and was excluded from
+  stage 3c rather than half-built. A maker pointing at the axis they
+  can see is the obvious next affordance.
 - **Scenario assertion cadence defaults** — resolved structurally by
   the first spike (cadence budgets assertion cost; ticks are free);
   the numeric default per model size remains a project-level choice.
@@ -524,10 +577,11 @@ Still open:
 - **Unit-story unification.** `Driver.scale` (instruction targets) and
   `Port.scale` (geometry binding) state the same physical ratio in two
   places; unify when the viewer needs one authoritative unit story.
-- **`range` is metadata, not a clamp.** Nothing enforces declared
-  driver ranges (a crash scenario deliberately drives past travel); a
-  later UI story must not assume clamping. Sliders may use `range` as
-  presentation bounds only.
+  Stage 3c made the gap visible rather than closing it: `unit` names
+  the NATIVE unit while the value beside it is now design units, so the
+  spike's axis honestly reads `50 ustep` for 50 millimetres of travel.
+  The chrome shows what the declaration says; a declaration with two
+  units and one name is the thing to fix.
 
 ## First validation targets
 

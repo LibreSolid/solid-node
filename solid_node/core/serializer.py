@@ -127,7 +127,12 @@ def drivers_table(declarations):
     ``dtype`` is published by name because a document is JSON and a Python
     type is not; everything else travels verbatim.  A declaration's
     ``range`` is carried for presentation only -- nothing in the framework
-    or the viewer clamps to it.
+    or the viewer clamps to it -- and is carried in the DESIGN units it
+    was declared in, beside a ``default`` that is native.  The producer
+    deliberately does not convert it: a client that received one reading
+    of a scaled driver's bounds could not tell which one it was, while a
+    client holding both the range and the ``scale`` converts once, exactly
+    as ``Driver.native`` converts an instruction target.
     """
     return {
         identifier: {
