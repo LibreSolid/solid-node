@@ -1,0 +1,2 @@
+[tool.solid-node]
+model = "machine_model:Machine"
