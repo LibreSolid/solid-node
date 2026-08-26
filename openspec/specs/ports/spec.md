@@ -1,7 +1,11 @@
 # ports Specification
 
 ## Purpose
-TBD - created by archiving change multi-driver-state-seam. Update Purpose after archive.
+Domain-typed connection points on nodes (ADR-056): port declarations
+carrying physical domain, unit, and scale metadata, bound per render
+by the parent's causal `connect()`. The reserved flow slot keeps the
+door open for later acausal (bond-graph) modeling without renaming
+project code.
 ## Requirements
 ### Requirement: Domain-typed ports
 

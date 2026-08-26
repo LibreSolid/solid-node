@@ -18,7 +18,10 @@ from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
-from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+from .serializer import (
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, serialize_node,
+    symbolic_drivers,
+)
 from .pieces import PieceInventory
 from solid_node.node.base import StlRenderStart
 
@@ -360,18 +363,24 @@ class Builder(FileSystemEventHandler):
 
         Returns whether this made anything new reachable, so a build that
         found everything already published notifies nobody.
+
+        Serialized in symbolic driver mode, the same guarantee export
+        makes: the published document describes the machine, not the
+        pose whatever bound a snapshot last happened to leave it in.
         """
         os.makedirs(self.build_dir, exist_ok=True)
         inventory = PieceInventory()
-        snapshot = {'format': DOCUMENT_FORMAT,
-                    'version': DOCUMENT_VERSION,
-                    'animation': {'fps': 30, 'frames': 360},
-                    'root': serialize_node(
-                        self.node,
-                        lambda rigid_node: os.path.relpath(
-                            rigid_node.stl_file, self.build_dir),
-                        inventory.register,
-                    )}
+        with symbolic_drivers(self.node) as declarations:
+            snapshot = {'format': DOCUMENT_FORMAT,
+                        'version': DOCUMENT_VERSION,
+                        'animation': {'fps': 30, 'frames': 360},
+                        'drivers': drivers_table(declarations),
+                        'root': serialize_node(
+                            self.node,
+                            lambda rigid_node: os.path.relpath(
+                                rigid_node.stl_file, self.build_dir),
+                            inventory.register,
+                        )}
         snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
         if self._published_document() == document:

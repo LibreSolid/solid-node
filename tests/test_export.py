@@ -186,6 +186,9 @@ class ExportBuildSnapshotParityTest(TestCase):
         self.assertEqual(build['format'], 'solid-node-export')
         self.assertEqual(export['version'], build['version'])
         self.assertEqual(export['animation'], build['animation'])
+        # The driver table is part of the shared schema, so the two
+        # producers publish the same one for the same tree.
+        self.assertEqual(export['drivers'], build['drivers'])
 
         export_root = export['root']
         build_root = build['root']
@@ -294,7 +297,11 @@ class ExportRigidLeafTest(ExportBaseTest):
         manifest = self.export(flat_project.SimpleCylinder())
 
         self.assertEqual(manifest['format'], 'solid-node-export')
-        self.assertEqual(manifest['version'], 1)
+        # Schema v2 (instance-qualified drivers): a tree declaring no
+        # driver publishes an empty table, which every existing consumer
+        # renders exactly as it rendered version 1.
+        self.assertEqual(manifest['version'], 2)
+        self.assertEqual(manifest['drivers'], {})
         self.assertEqual(manifest['animation'], {'fps': 30, 'frames': 360})
 
     def test_animation_parameters_are_configurable(self):

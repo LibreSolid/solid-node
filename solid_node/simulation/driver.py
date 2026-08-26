@@ -24,16 +24,20 @@ division never lets a float into the trajectory -- which is what makes
 "the same scenario twice" decidable by exact comparison rather than by
 tolerance (the ADR-050 reasoning applied to simulation state).
 
-This module deliberately imports nothing from solid_node.node: the
-dependency runs one way only, so a node that declares no driver never
-pulls the simulation layer in.
+The dependency runs one way only, and still does: this module imports
+the node layer's `DriverDeclaration` marker (so the node layer can
+recognize a declaration well enough to qualify it and deliver a state
+entry to it), while `solid_node.node` imports nothing from here -- a
+node that declares no driver never pulls the simulation layer in.
 """
 
 from dataclasses import dataclass
 
+from solid_node.node.qualified import DriverDeclaration, declared_drivers_of
+
 
 @dataclass(frozen=True)
-class Driver:
+class Driver(DriverDeclaration):
     """A driver declaration, made as a class attribute on an assembly.
 
     Frozen on purpose: an attribute that could be assigned here would
@@ -41,6 +45,12 @@ class Driver:
     over it. `scale` is design units per native unit -- millimetres per
     microstep, say -- and is what lets an instruction state a target in
     the units a maker thinks in while the state stays native.
+
+    It subclasses the node layer's `DriverDeclaration` marker, and the
+    dependency still runs one way: the node layer has to RECOGNIZE a
+    declaration to qualify it and deliver a state entry to it, while
+    what a driver means -- native units, integer rounding, ramps --
+    stays here. `solid_node.node` imports nothing from this package.
     """
 
     default: object
@@ -77,13 +87,13 @@ def declared_drivers(node_class):
     Walked base-first so a subclass redeclaring an inherited driver
     wins -- the same discovery declared_ports performs, deliberately,
     because the two declarations answer the same kind of question.
+
+    Single-class only, and that is its limit: a machine's drivers live
+    across its whole tree, and enumerating THOSE is
+    `simulation.enumeration.qualified_drivers`, which walks the linked
+    tree and keys by qualified id.
     """
-    drivers = {}
-    for klass in reversed(node_class.__mro__):
-        for name, value in vars(klass).items():
-            if isinstance(value, Driver):
-                drivers[name] = value
-    return drivers
+    return declared_drivers_of(node_class)
 
 
 class Program:
@@ -174,6 +184,13 @@ class DriverState:
 
 def driver_states(node_class):
     """A fresh state bank for every driver `node_class` declares, each
-    starting at its declared default. One simulation, one bank."""
+    starting at its declared default.
+
+    Single-class, like `declared_drivers` it reads. `Sim` builds its own
+    bank from `enumeration.qualified_drivers`, keyed by qualified id
+    across the whole tree, because a machine's drivers live on its
+    mechanisms; this stays for a caller holding one class and wanting
+    exactly its own declarations.
+    """
     return {name: DriverState(name, declaration)
             for name, declaration in declared_drivers(node_class).items()}

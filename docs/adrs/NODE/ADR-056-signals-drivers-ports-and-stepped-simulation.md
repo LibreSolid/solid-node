@@ -395,14 +395,65 @@ unenforced by any test.
   holds for every *caller*, but a subclass that overrides `set_state`
   now intercepts keyframing too, since `set_keyframe` routes through
   it.
+- **Stage 3a implemented (2026-08-26)** as change
+  `instance-qualified-drivers`, opening all eight seams the expression
+  spike named except evaluator reconciliation (seam 7, deferred to
+  3b): the qualified id and `DriverToken` in
+  `solid_node/node/qualified.py`; qualified `set_state`/`clear_state`
+  delivery over a walk that links before recursing, with an ambiguous
+  bare bind failing loudly; the symbolic serialization mode and
+  document schema v2 with its `drivers` table; the one tree-walk
+  enumeration authority in `solid_node/simulation/enumeration.py`
+  feeding the `Sim` bank, qualified instructions, the driver table and
+  build-path defaults; `Sim` binding the global `time` clock in
+  seconds each tick; and declared defaults bound by the loader. 872
+  framework tests green (813 baseline), widget vitest 43 green,
+  v8-engine 33/33 unchanged, and both spikes revalidate — the
+  expression spike now as caller validation on the shipped API, with
+  its shims deleted.
+- One implementation decision worth recording: the node layer needs to
+  *recognize* a driver declaration in order to qualify it and deliver
+  a qualified entry, and it may not import `simulation/`. A
+  `DriverDeclaration` marker base class in
+  `solid_node/node/qualified.py`, subclassed by `simulation.Driver`,
+  places that dependency explicitly; the node layer reads only
+  `default` off it.
 
-## Open questions (updated after stages 1–2 and the expression spike)
+## Open questions (updated after stage 3a)
 
 Resolved since the last revision: **expression representation** (the
 2026-08-26 spike decided the eagerly-qualified token and measured
-parity; what remains is stage-3a implementation, not an open design
-question) and the **`_driver`/`Driver` naming collision** (stage 1
-renamed the ADR-023 tag to `_animator`/`_animated_nodes`).
+parity; stage 3a shipped it) and the **`_driver`/`Driver` naming
+collision** (stage 1 renamed the ADR-023 tag to
+`_animator`/`_animated_nodes`).
+
+Resolved by stage 3a (`instance-qualified-drivers`):
+
+- **Document schema versioning.** Settled: shared `version: 2` across
+  `manifest.json` and `viewer.json`, adding a `drivers` table of
+  qualified id → `{default, range, unit, dtype, scale}` verbatim from
+  the declaration, with expressions free to reference qualified ids and
+  preserved verbatim under the same producer guarantee `$t` has. A tree
+  declaring no drivers serializes an empty table, which is exactly the
+  version 1 document; consumers gate on the table, not the number, and
+  a consumer that cannot evaluate driver expressions refuses a
+  non-empty one rather than rendering a wrong pose.
+- **Build-path defaults.** Settled in the loader: `load_node` binds the
+  declarations' own defaults across the tree by qualified id, through
+  the enumeration authority in `simulation/`. `node/` still imports
+  nothing from `simulation/`, and the rejected alternative — a
+  `node/`-level hook the simulation package registers into — would have
+  hidden the dependency rather than placed it. A tree declaring no
+  driver is not touched at all, so a driverless project loads exactly
+  as before.
+- **Time-driver unification.** Settled: `Sim` binds the global `time`
+  entry every tick to the exact instant `k*dt` **in seconds**, computed
+  from the integer tick count and never accumulated, so `self.time`
+  under a simulation reads the stepped clock. Seconds and not a
+  normalized 0..1 fraction, because a scenario's duration is unknown at
+  declaration and a non-periodic machine has no natural period. `time`
+  stays *global* (unqualified) — the one entry that propagates flat —
+  and the ADR-008 symbolic `$t` path outside simulations is untouched.
 
 Still open:
 
@@ -414,24 +465,16 @@ Still open:
 - **Scenario assertion cadence defaults** — resolved structurally by
   the first spike (cadence budgets assertion cost; ticks are free);
   the numeric default per model size remains a project-level choice.
-- **Document schema versioning** for the driver table and richer
-  expressions (ADR-034/ADR-035 declared-API rules, ADR-051's
-  producer-owned time). The expression spike settled the id scheme
-  (qualified dotted instance paths) but not the schema shape or
-  version gate.
-- **Build-path defaults.** The CLI build/test path renders before any
-  simulation exists, so a driver-declaring assembly must bind its own
-  declared defaults in `__init__` to be buildable today; the
-  expression spike sharpened it (`Sim` on a driverless root whose
-  children declare drivers fails outright). Since `node/` cannot
-  import `simulation/`, the answer must live in the loader/manager or
-  a hook the simulation package offers — the tree-walk driver
-  enumeration (spike seam 5) is the natural place.
-- **Time-driver unification.** `Sim` does not auto-bind `time`; a node
-  reading `self.time` under a simulation still gets symbolic `$t`.
-  Unifying the built-in time driver with the snapshot belongs to the
-  stage that also serializes the driver table. `time` stays *global*
-  (unqualified) — the one entry that should propagate flat.
+- **Client-side driver evaluation (stage 3b).** The shipped viewer
+  publishes the driver table but evaluates `$t` only; `evalExpr` must
+  take a driver map, and `isAnimated`'s substring test must become the
+  parsed-tree free-variable set the expression spike demonstrated (an
+  author-chosen driver named `total` breaks the substring test). Until
+  then a non-empty driver table is refused loudly.
+- **Name sanitization for list-held children.** A driver reachable
+  only through an `<attr>-<index>` name is forbidden loudly in v1, not
+  sanitized. Bijective sanitization is a recorded, compatible
+  extension for when a real project needs drivers on list children.
 - **Unit-story unification.** `Driver.scale` (instruction targets) and
   `Port.scale` (geometry binding) state the same physical ratio in two
   places; unify when the viewer needs one authoritative unit story.
@@ -442,7 +485,10 @@ Still open:
 - **ADR-022 staleness.** Its "known defect" section and two-evaluator
   premise no longer describe the shipped code; the stage that makes
   the evaluator driver-aware should revise ADR-022 and finally put
-  parity under test.
+  parity under test. Stage 3a deliberately left this alone: the
+  expression spike's parity harness still hand-copies
+  `viewers/widget/src/evaluator.ts` rather than importing it (seam 7),
+  so cross-runtime parity remains measured, at 2.5e-14, but unenforced.
 
 ## First validation targets
 

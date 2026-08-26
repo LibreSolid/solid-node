@@ -81,6 +81,14 @@ class BrowserRenderer:
         document = {
             "format": DOCUMENT_FORMAT,
             "version": DOCUMENT_VERSION,
+            # Empty by construction, and not an oversight: this producer
+            # photographs ONE instant, so it serializes the node exactly
+            # as the caller posed it -- animation time keyframed, drivers
+            # numerically bound -- and the resulting document names no
+            # driver at all. Publishing a table the document never
+            # references would only tell a viewer to refuse a picture it
+            # can render perfectly well.
+            "drivers": {},
             "animation": {"fps": 30, "frames": 360},
             "root": root,
             "pieces": inventory.pieces(),

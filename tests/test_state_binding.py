@@ -19,8 +19,12 @@ builds STLs, because only a mesh can answer it.
 """
 
 from solid_node.node import AssemblyNode
+from solid_node.node.qualified import DriverIdError
+from solid_node.simulation import Driver
 
 from .base import BaseNodeTest
+from .meta_project.machine import Axis, ListMachine
+from .meta_project.machine import Machine as QualifiedMachine
 from .meta_project.nested import Nested
 from .meta_project.parts import Cube
 
@@ -194,3 +198,137 @@ class KeyframeEquivalenceTest(BaseNodeTest):
 
         self.assertEqual(dict(node.state), {'motor': 100})
         self.assertEqual(str(node.time), '$t')
+
+
+class IdleAxis(AssemblyNode):
+    """Declares a driver it does not consume: the snapshot can then be
+    inspected entry by entry, including after a clear, without the
+    unbound-read contract firing on the propagation's own re-render."""
+
+    motor = Driver(default=0)
+
+    def __init__(self, label):
+        super().__init__(label)
+        self.cube = Cube()
+
+    def render(self):
+        return [self.cube]
+
+
+class IdleMachine(AssemblyNode):
+
+    def __init__(self):
+        super().__init__()
+        self.x_axis = IdleAxis('x')
+        self.y_axis = IdleAxis('y')
+
+    def render(self):
+        return [self.x_axis, self.y_axis]
+
+
+class QualifiedStateBindingTest(BaseNodeTest):
+    """Instance-qualified entries: two instances of one class hold
+    independent values for their same-named driver, `time` stays the
+    one global entry, and a bare name that could mean either of them
+    fails instead of silently meaning both."""
+
+    def test_sibling_instances_bind_independently(self):
+        node = QualifiedMachine()
+
+        node.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000})
+
+        self.assertEqual(node.x_axis.state['motor'], 8000)
+        self.assertEqual(node.y_axis.state['motor'], 2000)
+        self.assertEqual(translations(node.x_axis.carriage),
+                         [['t', ['100.0', '0', '0']]])
+        self.assertEqual(translations(node.y_axis.carriage),
+                         [['t', ['25.0', '0', '0']]])
+
+    def test_the_consumed_segment_is_stripped_on_descent(self):
+        """The addressed instance receives the LOCAL name its render()
+        reads, not the qualified one; nothing else receives it."""
+        node = QualifiedMachine()
+
+        node.set_state(**{'x_axis.motor': 800, 'y_axis.motor': 0})
+
+        self.assertEqual(dict(node.state), {})
+        self.assertEqual(dict(node.x_axis.state), {'motor': 800})
+
+    def test_time_stays_global(self):
+        node = QualifiedMachine()
+
+        node.set_state(time=0.25, **{'x_axis.motor': 0, 'y_axis.motor': 0})
+
+        self.assertEqual(node.time, 0.25)
+        self.assertEqual(node.x_axis.time, 0.25)
+        self.assertEqual(node.y_axis.time, 0.25)
+
+    def test_an_ambiguous_bare_name_fails_loudly(self):
+        node = QualifiedMachine()
+        node.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000})
+
+        with self.assertRaises(ValueError) as caught:
+            node.set_state(motor=1234)
+
+        message = str(caught.exception)
+        self.assertIn('x_axis.motor', message)
+        self.assertIn('y_axis.motor', message)
+        # Neither instance's state changed.
+        self.assertEqual(node.x_axis.state['motor'], 8000)
+        self.assertEqual(node.y_axis.state['motor'], 2000)
+
+    def test_an_ambiguous_bare_name_on_an_unbound_tree_still_says_so(self):
+        """Caught by the expression spike's revalidation run: rolling
+        the failed bind back re-renders, and a tree nobody had bound
+        yet cannot be rendered -- so the cleanup raised the unbound-read
+        error over the ambiguity error that caused it."""
+        node = QualifiedMachine()
+
+        with self.assertRaises(ValueError) as caught:
+            node.set_state(motor=1234)
+
+        self.assertIn('x_axis.motor', str(caught.exception))
+
+    def test_an_unambiguous_bare_name_still_binds(self):
+        """One declaring instance in the tree: the stage-2 flat form is
+        still exactly right, and still means what it said."""
+        node = Axis('x')
+
+        node.set_state(motor=1600)
+
+        self.assertEqual(node.state['motor'], 1600)
+        self.assertEqual(translations(node.carriage),
+                         [['t', ['20.0', '0', '0']]])
+
+    def test_clear_state_accepts_a_qualified_name(self):
+        """Cleared on one instance only. The fixture declares a driver
+        its render() does not read, for the same reason `Idle` above
+        does: a render that consumed the entry would fail loudly on the
+        very next propagation, which is a different requirement."""
+        node = IdleMachine()
+        node.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000})
+
+        node.clear_state('x_axis.motor')
+
+        self.assertEqual(dict(node.x_axis.state), {})
+        self.assertEqual(node.y_axis.state['motor'], 2000)
+
+    def test_propagation_links_children_before_recursing(self):
+        """Qualification is only correct where `_link_child` has run,
+        so the propagation walk links exactly as the scad and
+        serializer passes do -- on a never-assembled tree."""
+        node = QualifiedMachine()
+
+        node.set_state(**{'x_axis.motor': 0, 'y_axis.motor': 0})
+
+        self.assertEqual(node.x_axis.name, 'x_axis')
+        self.assertEqual(node.y_axis.name, 'y_axis')
+        self.assertIs(node.x_axis._parent, node)
+
+    def test_a_driver_behind_an_illegal_segment_fails_loudly(self):
+        node = ListMachine()
+
+        with self.assertRaises(DriverIdError) as caught:
+            node.set_state(**{'axes-0.motor': 0})
+
+        self.assertIn('axes-0', str(caught.exception))

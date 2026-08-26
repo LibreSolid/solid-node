@@ -6,6 +6,15 @@ Run from the framework worktree root:
 
 Prints a VERDICT line per sub-question and a summary. Artifacts land in
 spike/expressions/_build/ (gitignored). NON-SHIPPING.
+
+Since the `instance-qualified-drivers` change landed, this is CALLER
+VALIDATION rather than a spike behind shims: every sub-question is now
+answered by the shipped API -- `AssemblyNode.set_state` by qualified
+id, `core.serializer.symbolic_drivers`,
+`simulation.enumeration.qualified_drivers`, and `Sim` over a driverless
+root. The two hazards the spike found (an unlinked walk qualifying to
+the bare name, a list-held child's illegal id segment) are now loud
+failures, and this runner asserts the noise.
 """
 
 import contextlib
@@ -22,14 +31,17 @@ import trimesh
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from solid_node.core.serializer import symbolic_drivers           # noqa: E402
 from solid_node.node.assembly import AssemblyNode                # noqa: E402
 from solid_node.node.base import _compose_world_matrix           # noqa: E402
+from solid_node.node.qualified import (DriverIdError, DriverToken,  # noqa: E402
+                                       driver_id, instance_path)
 from solid_node.simulation import Sim                            # noqa: E402
-from solid_node.simulation.driver import DriverState, driver_states  # noqa: E402
+from solid_node.simulation.driver import declared_drivers        # noqa: E402
+from solid_node.simulation.enumeration import qualified_drivers  # noqa: E402
 
 from machine_model import Axis, Machine                          # noqa: E402
-from symbolic import (bind_numeric, bind_symbolic, collect_ops,  # noqa: E402
-                      driver_id, instance_path, qualified_drivers)
+from symbolic import collect_ops                                 # noqa: E402
 
 BUILD = os.path.join(HERE, '_build')
 NODE = 'node'
@@ -88,20 +100,23 @@ def sub_question_1():
         loud = True
         print(f'  unbound read raises, as designed: KeyError({error})')
 
-    from symbolic import DriverToken
-    token = DriverToken(machine.x_axis, 'motor')
+    token = DriverToken('x_axis.motor')
     try:
-        machine.set_state(motor=token)
+        machine.set_state(**{'x_axis.motor': token})
         rejected = False
         findings.append('set_state accepted a symbolic value')
     except TypeError as error:
         rejected = True
-        print(f'  set_state rejects a symbolic value: TypeError({error})')
+        print(f'  set_state still rejects a symbolic value: '
+              f'TypeError({error})')
 
-    # The shim: bind tokens directly into the state dicts.
+    # Seam 1 closed: the shipped symbolic serialization MODE binds every
+    # declared driver to its token through an internal path, so
+    # _validate_state's numbers-only contract never had to be relaxed.
     machine = Machine()
-    bind_symbolic(machine)
-    values, chain, nodes = collect_ops(machine)
+    with symbolic_drivers(machine) as declarations:
+        values, chain, nodes = collect_ops(machine)
+    print(f'  symbolic_drivers bound {sorted(declarations)}')
     for key in sorted(values):
         print(f'    {key} = {values[key]}')
 
@@ -113,10 +128,12 @@ def sub_question_1():
 
     ok = loud and rejected and well_formed
     verdict('1-symbolic-reads',
-            'validated (behind a shim; seam named)' if ok else 'INVALIDATED',
+            'validated on the shipped API' if ok else 'INVALIDATED',
             'unbound reads stay loud, set_state still refuses non-numbers, '
-            'and tokens bound past it flow through project arithmetic and '
-            f'degree trig into well-formed wire strings'
+            'and the shipped symbolic serialization mode binds every '
+            'declared driver to its token through a separate internal door, '
+            'flowing through project arithmetic and degree trig into '
+            'well-formed wire strings'
             if ok else '; '.join(findings))
     return values, chain, nodes
 
@@ -125,6 +142,16 @@ def sub_question_1():
 # Sub-question 2: qualification
 # --------------------------------------------------------------------
 
+def _root_of(node):
+    """The topmost linked ancestor: the spike's own convenience, since
+    the shipped `instance_path(node, root)` addresses a path RELATIVE to
+    a stated root (there is no global namespace to walk to)."""
+    current = node
+    while getattr(current, '_parent', None) is not None:
+        current = current._parent
+    return current
+
+
 class ProbeAxis(Axis):
     """Records what the node knows about its own identity at the exact
     moment render() builds its expressions."""
@@ -132,9 +159,9 @@ class ProbeAxis(Axis):
     trace = []
 
     def render(self):
-        ProbeAxis.trace.append(
-            (self.label, self.name, instance_path(self),
-             getattr(self, '_parent', None) is not None))
+        linked = getattr(self, '_parent', None) is not None
+        path = instance_path(self, _root_of(self)) if linked else None
+        ProbeAxis.trace.append((self.label, self.name, path, linked))
         return super().render()
 
 
@@ -167,7 +194,8 @@ def sub_question_2(sym_values):
 
     ProbeAxis.trace = []
     probe = ProbeMachine()
-    bind_symbolic(probe)
+    with symbolic_drivers(probe):
+        pass
     print('  render-time identity, in binding/serialization order:')
     for label, name, path, linked in ProbeAxis.trace:
         print(f'    Axis({label!r}): name={name!r} path={path} '
@@ -175,20 +203,26 @@ def sub_question_2(sym_values):
     known_at_render = all(linked and len(path) == 1
                           for _, _, path, linked in ProbeAxis.trace)
 
-    # The hazard: set_state's own propagation renders children WITHOUT
-    # linking them first.
+    # SEAM 3 CLOSED: set_state's own propagation now links each child
+    # before recursing, exactly as the scad and serializer passes do, so
+    # a never-assembled tree is qualified correctly instead of silently
+    # collapsing both instances onto the bare name.
     hazard = Machine()
-    hazard._states.update({})
-    for axis in (hazard.x_axis, hazard.y_axis):
-        axis._states['motor'] = 0
-    hazard.set_state(time=0.0)
-    unlinked_names = {hazard.x_axis.name, hazard.y_axis.name}
+    hazard.set_state(**{'x_axis.motor': 0, 'y_axis.motor': 0, 'time': 0.0})
+    linked_names = sorted({hazard.x_axis.name, hazard.y_axis.name})
     print(f'  after set_state() on a never-assembled tree: names='
-          f'{sorted(unlinked_names)} -- set_state renders children '
-          f'without linking them (assembly.py _rendered_children)')
+          f'{linked_names} -- the propagation walk links before it '
+          f'recurses (assembly.py _rendered_children)')
+    walk_links = linked_names == ['x_axis', 'y_axis']
 
-    x_id = driver_id(Machine().x_axis, 'motor')  # unlinked -> collides
-    print(f'    an unlinked instance qualifies to {x_id!r}')
+    try:
+        instance_path(Machine().x_axis, Machine())
+        unlinked_loud = False
+        print('    an unlinked instance qualified silently (unexpected)')
+    except DriverIdError as error:
+        unlinked_loud = True
+        print(f'    an unlinked instance refuses to qualify: '
+              f'DriverIdError({str(error)[:88]}...)')
 
     # Two instances, distinct ids, distinct bound values.
     distinct_ids = (
@@ -200,8 +234,8 @@ def sub_question_2(sym_values):
     print(f"  y pulley angle: {sym_values['Machine/y_axis/pulley#0.angle']}")
 
     numeric = Machine()
-    bind_numeric(numeric, {'x_axis.motor': 8000, 'y_axis.motor': 2000})
-    numeric.set_state(time=0.0)
+    numeric.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000,
+                         'time': 0.0})
     num_values, _, _ = collect_ops(numeric)
     x_num = float(num_values['Machine/x_axis/carriage#0.t0'])
     y_num = float(num_values['Machine/y_axis/carriage#0.t0'])
@@ -209,32 +243,37 @@ def sub_question_2(sym_values):
           f'y carriage={y_num} mm')
     distinct_values = abs(x_num - 100.0) < 1e-9 and abs(y_num - 25.0) < 1e-9
 
-    # A child held in a LIST gets the name `<attr>-<index>`
+    # SEAM 4 CLOSED: a child held in a LIST is named `<attr>-<index>`
     # (base.py _attr_name_for), which is not a legal identifier in
-    # either target runtime -- the id would parse as a subtraction.
-    listed = ListMachine()
-    bind_symbolic(listed)
-    list_values, _, _ = collect_ops(listed)
-    bad_key = next(key for key in list_values
-                   if 'pulley' in key and '-' in key)
-    bad_id = list_values[bad_key]
-    print(f'  identifier hazard: a child held in a LIST is named '
-          f'{bad_key.split("/")[1]!r}, so its driver serializes as '
-          f'{bad_id!r} -- a subtraction, not a name')
+    # either target runtime. v1 forbids it loudly rather than emitting
+    # an id that parses as a subtraction.
+    try:
+        with symbolic_drivers(ListMachine()):
+            pass
+        segment_loud = False
+        print('  a list-held driver serialized silently (unexpected)')
+    except DriverIdError as error:
+        segment_loud = True
+        print(f'  identifier rule: a driver behind a list-held child '
+              f'refuses to qualify: DriverIdError({str(error)[:96]}...)')
 
-    flat_id = driver_id(probe.x_axis, 'motor', sep='__')
-    print(f"  flat-identifier variant (sep='__'): {flat_id!r} -- also "
-          'well-formed, and legal in OpenSCAD as well')
+    print(f"  id syntax as shipped: {driver_id(('x_axis',), 'motor')!r}")
 
-    ok = known_at_render and distinct_ids and distinct_values
+    ok = (known_at_render and distinct_ids and distinct_values
+          and walk_links and unlinked_loud and segment_loud)
     verdict('2-qualification',
-            'validated (eager qualification viable)' if ok
+            'validated on the shipped API' if ok
             else 'INVALIDATED',
             'a node knows its parent and derived name at the moment its '
             'own render() runs, in every pass that links before it '
-            'recurses; two instances of one class serialize x_axis.motor '
-            'vs y_axis.motor and bind 100 mm vs 25 mm'
-            if ok else 'path not knowable at render time')
+            'recurses -- including set_state, which now links; two '
+            'instances of one class serialize x_axis.motor vs '
+            'y_axis.motor and bind 100 mm vs 25 mm, and both hazards the '
+            'spike found are loud failures'
+            if ok else f'known_at_render={known_at_render} '
+                       f'walk_links={walk_links} '
+                       f'unlinked_loud={unlinked_loud} '
+                       f'segment_loud={segment_loud}')
     return known_at_render
 
 
@@ -268,9 +307,7 @@ def sub_question_3(sym_values, sym_chain):
     numeric = Machine()
     python_values = {}
     for index, snapshot in enumerate(SNAPSHOTS):
-        bind_numeric(numeric, {k: v for k, v in snapshot.items()
-                               if k != 'time'})
-        numeric.set_state(time=snapshot['time'])
+        numeric.set_state(**snapshot)
         values, chain, nodes = collect_ops(numeric)
         python_values[index] = {k: float(v) for k, v in values.items()}
         if index == 0:
@@ -390,7 +427,7 @@ def emit_scad(snapshot, filename):
     """A fresh tree bound to `snapshot`, with time left UNBOUND so it
     stays solid2's symbolic $t, assembled and written as .scad."""
     machine = Machine()
-    bind_numeric(machine, snapshot)
+    machine.set_state(**snapshot)
     with quiet():
         machine.build_stls()
     code = machine.scad_code
@@ -482,52 +519,45 @@ def sub_question_4():
 def sub_question_5():
     section('Sub-question 5: state-bank qualification')
 
-    print(f'  driver_states(Machine) = {driver_states(Machine)} '
-          '-- Sim enumerates the ROOT class only, and the root declares '
-          'no driver')
+    print(f'  declared_drivers(Machine) = {declared_drivers(Machine)} '
+          '-- the single-class scan still sees nothing, because the root '
+          'declares no driver')
+    print(f'  qualified_drivers(Machine()) = '
+          f'{sorted(qualified_drivers(Machine()))} -- SEAM 5 CLOSED: the '
+          'shipped enumeration walks the whole linked tree')
 
-    unbound = Machine()
-    try:
-        Sim(unbound, 0.02)
-        sim_blocked = False
-        print('  Sim(machine, dt) constructed (unexpected)')
-    except KeyError as error:
-        sim_blocked = True
-        print(f'  Sim(machine, dt) fails at its first render: KeyError'
-              f'({str(error)[:90]}...)')
-
+    # SEAM 2 CLOSED: an ambiguous BARE bind no longer shares one value
+    # between two instances -- it refuses, naming the qualified cure.
     flat = Machine()
-    for axis in (flat.x_axis, flat.y_axis):
-        axis._states['motor'] = 0
-    flat.set_state(motor=1234, time=0.0)
-    collided = (flat.x_axis.state['motor'] == flat.y_axis.state['motor']
-                == 1234)
-    print(f'  set_state(motor=1234) -> x_axis.motor='
-          f'{flat.x_axis.state["motor"]}, y_axis.motor='
-          f'{flat.y_axis.state["motor"]} -- one flat dict reaches every '
-          'descendant, so the two instances CANNOT differ')
+    try:
+        flat.set_state(motor=1234, time=0.0)
+        refuses_ambiguity = False
+        print(f'  set_state(motor=1234) -> x_axis.motor='
+              f'{flat.x_axis.state["motor"]}, y_axis.motor='
+              f'{flat.y_axis.state["motor"]} (unexpected: silently shared)')
+    except ValueError as error:
+        refuses_ambiguity = True
+        print(f'  set_state(motor=1234) refuses rather than sharing one '
+              f'value: ValueError({str(error)[:104]}...)')
 
-    # The shim: a state bank keyed by qualified id, stepped per instance.
+    # The whole machine now steps through the shipped Sim, over a root
+    # that declares nothing: the bank is keyed by the same qualified ids
+    # the serialized document publishes.
     machine = Machine()
-    bind_numeric(machine, {'x_axis.motor': 8000, 'y_axis.motor': 0})
-    machine.set_state(time=0.0)
-    bank = {key: DriverState(key, declaration)
-            for key, (_, _, declaration) in
-            qualified_drivers(machine).items()}
-    for key, state in bank.items():
-        state.value = {'x_axis.motor': 8000, 'y_axis.motor': 0}[key]
-    print(f'  qualified bank: {sorted(bank)}')
+    sim = Sim(machine, 0.1)
+    print(f'  Sim(machine, dt) constructs; qualified bank: '
+          f'{sorted(sim.drivers)}')
+    sim.drivers['x_axis.motor'].value = 8000
+    sim.drivers['y_axis.motor'].value = 0
+    sim.drivers['x_axis.motor'].ramp_to(0, 10, 0)        # x homes
+    sim.drivers['y_axis.motor'].ramp_to(6400, 10, 0)     # y to 80 mm
 
-    bank['x_axis.motor'].ramp_to(0, 10, 0)        # x homes
-    bank['y_axis.motor'].ramp_to(6400, 10, 0)     # y advances to 80 mm
     trajectory = []
-    for tick in range(1, 11):
-        snapshot = {key: state.advance(tick) for key, state in bank.items()}
-        bind_numeric(machine, snapshot)
-        machine.set_state(time=tick / 10)
+    for _ in range(10):
+        sim.run(0.1)
         values, _, _ = collect_ops(machine)
         trajectory.append((
-            tick,
+            sim.tick,
             float(values['Machine/x_axis/carriage#0.t0']),
             float(values['Machine/y_axis/carriage#0.t0']),
         ))
@@ -538,16 +568,32 @@ def sub_question_5():
                    abs(trajectory[-1][2] - 80.0) < 1e-9 and
                    all(abs(x - y) > 1e-9 for _, x, y in trajectory[:-1]))
 
-    ok = sim_blocked and collided and independent
+    # `time` is one driver among the rest, and under a Sim it is the
+    # stepped clock in seconds rather than the normalized 0..1 $t.
+    clock = abs(machine.time - 1.0) < 1e-12
+    print(f'  self.time under the Sim after 10 ticks of dt=0.1: '
+          f'{machine.time} s (the stepped clock, not $t)')
+
+    # A child's instruction homes only that child.
+    homing = Sim(Machine(), 0.1)
+    homing.at(0.0).trigger('x_axis.Home')
+    homing.run(2.0)
+    per_instance = (homing.state['x_axis.motor'] == 0 and
+                    homing.state['y_axis.motor'] == 8000)
+    print(f"  trigger('x_axis.Home') -> {homing.state} -- SEAM 6 CLOSED: "
+          'only the addressed instance ramps')
+
+    ok = refuses_ambiguity and independent and clock and per_instance
     verdict('5-state-bank',
-            'invalidated for the shipped API; validated behind the shim'
-            if ok else 'INVALIDATED',
-            "today's flat propagation and root-only driver enumeration make "
-            'independent addressing structurally impossible; a bank keyed by '
-            'the same qualified id sub-question 2 lands on drives the two '
-            'axes to 0 mm and 80 mm independently'
-            if ok else f'sim_blocked={sim_blocked} collided={collided} '
-                       f'independent={independent}')
+            'validated on the shipped API' if ok else 'INVALIDATED',
+            'the shipped Sim enumerates a driverless root\'s whole tree, '
+            'keys its bank by the same qualified ids the document '
+            'publishes, drives the two axes to 0 mm and 80 mm '
+            'independently, binds `time` as the stepped clock in seconds, '
+            'and homes one instance without touching its sibling'
+            if ok else f'refuses_ambiguity={refuses_ambiguity} '
+                       f'independent={independent} clock={clock} '
+                       f'per_instance={per_instance}')
 
 
 # --------------------------------------------------------------------

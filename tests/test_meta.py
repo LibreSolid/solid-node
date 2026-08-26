@@ -729,3 +729,28 @@ class NodeReferenceMetaTest(TestCase):
         })
         self.assertEqual((run.total, run.passed, run.failed), (2, 2, 0))
         self.assertEqual(run.returncode, 0)
+
+
+class DriverDefaultsMetaTest(TestCase):
+    """A driver-declaring project builds and tests through the CLI with
+    nothing bound in its own __init__: the loader binds the
+    declarations' defaults across the tree before the first render.
+
+    The end-to-end colour of this is what a unit test cannot give --
+    `solid build` renders through the loader, the builder and OpenSCAD,
+    and an unbound driver would stop it dead on the first render."""
+
+    def test_a_driver_declaring_project_builds(self):
+        proc = run_solid('build', 'tests/meta_project/machine.py:Machine')
+
+        self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+
+    def test_a_driver_declaring_project_tests(self):
+        run = solid_test('axis')
+
+        self.assertEqual(run.results, {
+            'test_homing_stays_clear_of_the_stop': 'passed',
+            'test_a_crash_is_caught_at_the_tick_it_appears': 'passed',
+            'test_each_scenario_starts_from_the_declared_defaults': 'passed',
+        })
+        self.assertEqual(run.returncode, 0)

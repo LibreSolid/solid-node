@@ -11,6 +11,7 @@ import tomllib
 from importlib import import_module
 
 from solid_node.node.base import AbstractBaseNode
+from solid_node.simulation.enumeration import bind_declared_defaults
 from solid_node.test import TestCase
 
 
@@ -178,6 +179,16 @@ def load_node(reference=None):
     # The named file is part of the selected entry point even when it is a
     # package facade; the implementation source is already in node.files.
     node.files.add(referenced_path)
+    # A driver-declaring assembly reads its drivers in render(), and every
+    # build, test and viewer path renders long before a simulation exists,
+    # so the declarations' own defaults are bound here -- across the whole
+    # tree, by qualified id -- rather than restated in the project's
+    # __init__. A tree that declares no driver is left strictly alone, so
+    # a driverless project loads exactly as it always did.
+    #
+    # This is the layer that may import the simulation package; the node
+    # layer never does.
+    bind_declared_defaults(node)
     return node
 
 

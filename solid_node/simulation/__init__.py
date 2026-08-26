@@ -13,13 +13,16 @@ pure function of the snapshot.
 
 The dependency runs one way. solid_node.node never imports this
 package; a project declares Drivers as class attributes and the
-simulation discovers them off the class, so a node without drivers
-carries no simulation import anywhere.
+simulation discovers them off the class -- across the whole linked
+tree, by qualified id (`enumeration.qualified_drivers`) -- so a node
+without drivers carries no simulation import anywhere.
 """
 
 from .driver import Driver, RampProgram
+from .enumeration import qualified_drivers, qualified_instructions
 from .instruction import Instruction
 from .scenario import ScenarioTest
 from .sim import Sim
 
-__all__ = ['Driver', 'Instruction', 'RampProgram', 'ScenarioTest', 'Sim']
+__all__ = ['Driver', 'Instruction', 'RampProgram', 'ScenarioTest', 'Sim',
+           'qualified_drivers', 'qualified_instructions']

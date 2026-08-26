@@ -28,7 +28,8 @@ npm build hint.
 ### Requirement: Manifest contract
 
 The manifest SHALL retain the document name `manifest.json` and SHALL declare
-`format: "solid-node-export"`, `version: 1`, `animation: {fps, frames}`, and a
+`format: "solid-node-export"`, `version: 2`, `animation: {fps, frames}`, a
+`drivers` table, and a
 `root` tree with the same observable schema and child-name behavior as the
 normal-build `viewer.json`. A rigid node SHALL emit one `model` reference and
 stop recursion; a non-rigid node whose render result is a list or tuple SHALL
@@ -39,6 +40,26 @@ beneath the export's `models/` directory and SHALL resolve to a copied artifact
 so the export remains portable and self-contained. Changes to the shared tree
 shape or operation serialization are breaking and MUST bump `version` and
 update every producer and consumer of the shared schema together.
+
+The `drivers` table SHALL map each qualified driver id in the serialized
+tree to its declared metadata — `default`, `range`, `unit`, `dtype`, and
+`scale` — verbatim from the declaration, with `range` carried as
+presentation metadata only, never a clamp. Operation expression strings
+MAY reference qualified driver ids, and the producer SHALL preserve them
+verbatim under the same guarantee as `$t`: the document is serialized in
+symbolic driver mode, with every declared driver bound to its qualified
+symbolic token (and animation time symbolic), regardless of any numeric
+snapshot bound before serialization; the producer SHALL restore the
+node's prior binding discipline afterwards exactly as it already does
+for animation time. Every qualified id referenced by any serialized
+expression SHALL appear in the `drivers` table. A tree declaring no
+drivers SHALL serialize an empty `drivers` table, and consumers SHALL
+render such a document exactly as they rendered `version: 1`; evaluating
+driver-referencing expressions is a consumer capability introduced
+separately, so a consumer without it SHALL fail loudly on a non-empty
+`drivers` table rather than render a wrong pose. The OpenSCAD `.scad`
+output path is unchanged by this contract: it substitutes bound driver
+values numerically and keeps `$t` symbolic.
 
 Preserving `$t` verbatim SHALL be a guarantee of the export producer, not an
 obligation on its caller. Export SHALL return the node to symbolic animation
@@ -62,6 +83,30 @@ presentation of an exported document is obtained from the widget's `?t=` and
   is `$t * 360` and then exports that same node
 - **THEN** the manifest still stores the `$t` expression, not the constant the
   keyframe computed
+
+#### Scenario: Driver expressions survive export from a stepped node
+
+- **WHEN** an assembly whose pulley angle derives from a declared driver
+  is bound to a numeric snapshot by a simulation and then exported
+- **THEN** the manifest stores the expression referencing the qualified
+  driver id (e.g. `(x_axis.motor * 0.1125)`), not the constant the
+  snapshot computed, and the `drivers` table carries `x_axis.motor`
+  with its declared default, range, unit, dtype, and scale
+
+#### Scenario: Sibling instances serialize distinct ids
+
+- **WHEN** two instances of one `motor`-declaring class are exported
+  under one parent
+- **THEN** their operations reference `x_axis.motor` and
+  `y_axis.motor` respectively and both ids appear in the `drivers`
+  table
+
+#### Scenario: A driverless document degrades to prior behavior
+
+- **WHEN** a tree declaring no drivers is exported
+- **THEN** the document declares `version: 2` with an empty `drivers`
+  table and existing consumers render it exactly as a `version: 1`
+  document
 
 #### Scenario: Export leaves the node in symbolic time
 

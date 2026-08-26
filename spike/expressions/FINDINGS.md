@@ -422,3 +422,70 @@ runner and its transcript), plus `pyproject.toml` and `.gitignore`.
 About 1050 lines including docstrings and evidence printing; roughly
 200 of those are the shim under test. Nothing here ships, and nothing
 under `spike/axis/` or `solid_node/` was modified.
+
+## Addendum (2026-08-26, after stage 3a landed)
+
+The `instance-qualified-drivers` change absorbed every shim this spike
+prototyped, and this directory became caller validation — the same
+transition `spike/axis/` made when stage 2 shipped `steplab.py` into
+`solid_node/simulation/`.
+
+**Dissolved, not adapted.** `symbolic.py` lost `DriverToken`,
+`driver_id`, `instance_path`, `bind`/`bind_symbolic`/`bind_numeric` and
+`qualified_drivers` — all four SEAM markers with them. What shipped:
+
+| shim | shipped as |
+|---|---|
+| `DriverToken`, `driver_id`, `instance_path` | `solid_node.node.qualified` |
+| `bind` (link-aware per-instance walk) | `solid_node.node.qualified.drive_tree`, reached publicly as `AssemblyNode.set_state(**{'x_axis.motor': …})` |
+| `bind_symbolic` | `solid_node.core.serializer.symbolic_drivers` |
+| `qualified_drivers` | `solid_node.simulation.enumeration.qualified_drivers` |
+
+`collect_ops` stayed: it is measurement, not a shim — a flat map of
+operation scalars for comparing two passes key by key, which the
+shipped nested-document `serialize_node` does not produce.
+
+**All five verdicts revalidate through the shipped API** (`run_spike.py`,
+exit 0, 2026-08-26), with the parity numbers unchanged to the last
+digit: 182 evaluations, max scalar deviation **2.487e-14**, max
+world-matrix deviation **4.302e-16**, and `^` still worth up to 0.186.
+Three verdict lines are re-worded because the answer changed:
+
+- **1** and **2** are now *validated on the shipped API* rather than
+  behind a shim.
+- **5** was *invalidated for the shipped API*; it is now validated on
+  it. `Sim(machine, dt)` constructs over the driverless root, its bank
+  is keyed `['x_axis.motor', 'y_axis.motor']`, the two axes step to
+  0 mm and 80 mm independently, `self.time` reads 1.0 s after ten
+  0.1 s ticks, and `trigger('x_axis.Home')` leaves `y_axis.motor` at
+  8000.
+
+**The two hazards are now loud failures**, and the runner asserts the
+noise rather than the silence:
+
+```
+  after set_state() on a never-assembled tree: names=['x_axis', 'y_axis'] -- the propagation walk links before it recurses
+    an unlinked instance refuses to qualify: DriverIdError(cannot qualify Axis 'Axis': it is not linked under Machine 'Machine'...)
+  identifier rule: a driver behind a list-held child refuses to qualify: DriverIdError(cannot qualify driver 'motor' through node segment 'axes-0'...)
+```
+
+**The revalidation run earned its keep**: it caught a real defect in the
+shipped code. An ambiguous *bare* bind rolls the failed binding back and
+re-renders, and on a tree nobody had bound yet that re-render raised the
+unbound-read `KeyError` *over* the `ValueError` that caused it. Fixed by
+skipping the cleanup re-render when the restored snapshot has holes, and
+pinned by
+`tests/test_state_binding.py::…::test_an_ambiguous_bare_name_on_an_unbound_tree_still_says_so`.
+
+**Seam status.** 1, 2, 3, 4, 5, 6 and 8 are closed by this change. Seam
+7 (evaluator reconciliation) is **not**: `parity_harness.js` still
+hand-copies `viewers/widget/src/evaluator.ts` rather than importing it,
+and `evalExpr` still takes a single scalar time rather than a driver
+map. That is stage 3b's work, together with the free-variable
+replacement for `isAnimated` this document demonstrated; stage 3a only
+gates the shipped viewer on the driver table, so a document it cannot
+evaluate is refused instead of rendered at a wrong pose.
+
+`spike/axis/` needed no changes and revalidates unmodified (exit 0,
+2026-08-26): all five of its verdicts, including the exact 2700 mm³
+teeth overlap.

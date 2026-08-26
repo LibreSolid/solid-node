@@ -189,6 +189,30 @@ Clearing is reversible by re-render: an operation records whatever
 value `render()` computed, so a bound tree has no symbolic form left
 to recover until it re-renders (ADR-051).
 
+An entry is addressed to the whole tree or to one instance in it
+(ADR-056 stage 3a). A **qualified driver id** is the dotted path of
+linked child names from the addressing root plus the class-local
+driver name — `x_axis.motor`; a root-declared driver keeps its bare
+name. `set_state(**{'x_axis.motor': 8000})` reaches only that
+instance's subtree, stripping the consumed segment as it descends, so
+two instances of one class hold independent values for their
+same-named driver. `time` remains the one global entry and propagates
+flat. A bare project-driver name stays valid while exactly one
+declared driver in the tree bears it; when two do, binding fails
+naming both qualified ids rather than silently giving them one value.
+The propagation walk links each child before recursing, exactly as the
+scad and serializer passes do, because a name is derived by the parent
+and an unlinked node has none. Qualification never falls back and never
+sanitizes: a driver reachable only through an unlinked node, or through
+a list-held child's `<attr>-<index>` name (a legal node name, an
+illegal expression identifier), raises. `solid_node/node/qualified.py`
+owns the id, the linked walk, and `DriverToken` — an `OpenSCADConstant`
+subclass whose string *is* the qualified id, so ordinary solid2
+arithmetic and `solid_node.math`'s degree trig build the wire
+expression with no new operators. It also carries `DriverDeclaration`,
+the marker the node layer needs to recognize a declaration; what a
+driver *means* stays in the simulation layer, which subclasses it.
+
 Assembly `render()`s are wrapped for **animator-tagged idempotency**
 (ADR-023; tag renamed from "driver" so that word can mean a simulation
 input): operations applied during a render are tagged with the
@@ -229,22 +253,47 @@ two runs of one scenario comparable with `==`. `Instruction` records
 design-unit targets plus a duration; conversion to native state
 happens once, at trigger time, through the driver's declared scale.
 
+`simulation/enumeration.py` is the **one authority** on what drivers a
+machine has (ADR-056 stage 3a). `declared_drivers(cls)` reads a single
+class, which stops being enough the moment a machine is built out of
+mechanisms — a printer's drivers live on its axes and its root may
+declare none. `qualified_drivers(root)` walks the linked tree and
+returns `{qualified_id: Driver}`, binding each declaration's own
+default as it descends because finding children means rendering.
+Everything that names a driver reads it: the `Sim` bank,
+instruction-target resolution, the loader's opening snapshot, and the
+serialized document's driver table — so the id in the document and the
+key in the bank are the same string by construction rather than by two
+implementations agreeing. `qualified_instructions(root)` does the same
+for instructions, which are declared with class-local target names and
+qualify by their declaring node's path.
+
 `Sim` is the fixed-`dt` loop: instants become integer tick counts the
 moment they are stated (rejected if not whole — the ADR-050 reasoning
-applied to simulated time); construction binds every declared default
-through `set_state` before the first render; each tick advances
-programs, binds the full snapshot, records the trajectory, then runs
+applied to simulated time); construction enumerates the whole linked
+tree and binds every declared default through `set_state` by qualified
+id before the first render, so a driverless root with driver-declaring
+children simulates. The bank, trajectory, programs, and instruction
+targets all key by qualified id, and `trigger('x_axis.Home')` ramps
+only that instance. Each tick advances programs and binds the full
+snapshot together with the global `time` entry set to the exact
+instant `k*dt` **in seconds**, computed from the integer tick count
+and never accumulated — so under a simulation `self.time` reads the
+stepped clock, while the normalized 0..1 `$t` animation path outside
+simulations is untouched. Then it records the trajectory and runs
 deferred `at(t)` actions (`.trigger(name)`, `.run(fn)`) and cadence
 `every()` slots, each accounting its own cost — ticks are free,
 cadence budgets assertion cost. `ScenarioTest` composes over the CAD
 `TestCase`: one class runs unchanged under pytest and the `solid
 test` runner, building STLs only when `meshes = True`.
 
-Known stage boundaries (ADR-056 stage 3+ territory): the build path
-binds no defaults, so a driver-declaring assembly must bind its own
-in `__init__` to be CLI-buildable today; `time` is not auto-bound by
-`Sim` (symbolic `$t` fallback still governs it); `range` is
-declarative metadata, not a clamp.
+Known stage boundaries (ADR-056 stage 3b+ territory): the shipped
+viewer publishes the driver table but does not yet evaluate
+driver-referencing expressions, so it refuses a document with a
+non-empty table rather than render a wrong pose; `range` is
+declarative metadata, not a clamp; `Driver.scale` and `Port.scale`
+remain two declarations; a driver on a list-held child is forbidden
+rather than sanitized.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
@@ -261,6 +310,17 @@ closure, so an edit to it invalidates and reloads the active node.
 Artifacts land under `$SOLID_BUILD_DIR` (default `_build`, resolved
 against the discovered project root rather than the working directory),
 mirroring the source layout, basename `<script>-<uniq_id>`.
+
+Loading a node also **binds its declared driver defaults** across the
+tree by qualified id, before the first render (ADR-056 stage 3a), so a
+driver-declaring project builds, tests, and serves through the CLI
+without restating its declarations in `__init__`. A tree that declares
+no driver is left strictly alone — not bound, not even walked, since
+the walk renders — so a driverless project loads exactly as it always
+did. The binding lives in the loader, which may import
+`solid_node/simulation/`; the node layer never does, and a hook there
+for the simulation layer to register into would hide that dependency
+rather than place it.
 
 STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 `openscad` process, PID lock files guard concurrency, and
@@ -486,7 +546,7 @@ removed after either success or failure (ADR-041).
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
 `solid export` (ADR-020/034/035/042) emits a self-contained static artifact:
-`manifest.json` (`format: solid-node-export, version: 1` — a versioned
+`manifest.json` (`format: solid-node-export, version: 2` — a versioned
 tree-document schema shared with `viewer.json`, not a portability claim),
 deduplicated `models/*.stl`, and a
 React-free three.js **widget** whose side-effect-free imperative core mounts a
@@ -516,13 +576,37 @@ snapshot keyframes deliberately and bakes one instant through `math.py`, whose
 degree semantics are the ADR-022 source of truth. A new producer states its own
 time contract.
 
+**Schema version 2 extends that guarantee from `$t` to named drivers**
+(ADR-056 stage 3a). `symbolic_drivers(node)` is a serialization *mode*,
+not a relaxed validator: it binds every declared driver of the tree to
+its qualified `DriverToken` through an internal path — `set_state`'s
+numbers-only contract is untouched, which is what keeps a bound pose a
+pure function of numbers — serializes, then restores exactly the
+snapshot each node held and re-renders under it. So a document
+serialized from a numerically stepped node still publishes
+`(x_axis.motor * 0.1125)` rather than the constant that instant
+computed. Beside `root` it publishes a **`drivers` table**: qualified
+id → `default`, `range`, `unit`, `dtype`, `scale`, straight from the
+declaration, presentation metadata only (`range` is never a clamp), and
+every id any serialized expression references appears in it. The export
+manifest and the normal-build `viewer.json` use the mode; the browser
+snapshot does not, because it photographs one instant on purpose — its
+document names no driver, so its table is empty. A tree declaring no
+drivers is not walked at all and serializes the version 1 document with
+an empty table added, which is why consumers gate on the table rather
+than the number: an empty one renders exactly as version 1, a non-empty
+one is refused by a consumer that cannot evaluate driver expressions
+rather than rendered at a wrong pose. The `.scad` path is unchanged —
+bound drivers collapse to numerals because Python evaluates eagerly,
+and `$t` stays live.
+
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
 one entry per distinct built artifact content, carrying `id`, `name`,
 contributing `sources` and `models`, `count`, bounding `size`, `volume`, and
 `watertight`, with every rigid node carrying the `piece` id that resolves into
 it. Facts are read from the artifact's own base mesh, so no pose or `$t` leaks
-into them. The section is additive at `version: 1`; a consumer reading only the
+into them. The section is additive; a consumer reading only the
 tree is unaffected.
 
 The Sphinx extension (`.. solid-node:: <export-dir>`) embeds exports

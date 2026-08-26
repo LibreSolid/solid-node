@@ -427,6 +427,16 @@ class AbstractBaseNode:
         No-op for non-animated nodes; overridden by AssemblyNode."""
         pass
 
+    def _receive_state(self, entries, path, declared, saved):
+        """This node's share of a set_state propagation.
+        No-op for non-animated nodes; overridden by AssemblyNode."""
+        pass
+
+    def _receive_clear(self, names):
+        """This node's share of a clear_state propagation.
+        No-op for non-animated nodes; overridden by AssemblyNode."""
+        pass
+
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""

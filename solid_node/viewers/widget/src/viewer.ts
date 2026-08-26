@@ -275,6 +275,23 @@ function visibleBounds(root: THREE.Object3D): THREE.Box3 {
   return bounds;
 }
 
+// The document schema this viewer evaluates. Version 2 added the
+// `drivers` table; evaluating driver-referencing expressions is a
+// separate capability this viewer does not have yet, so a document that
+// carries drivers is refused rather than rendered at a wrong pose. An
+// empty table -- and a version 1 document, which has none -- names no
+// driver, so it renders exactly as it always did.
+export function assertRenderable(document: Manifest, sourceUrl: string): void {
+  const drivers = Object.keys(document.drivers ?? {});
+  if (drivers.length > 0) {
+    throw new Error(
+      `${sourceUrl} declares named drivers (${drivers.join(', ')}), whose ` +
+      'expressions this viewer cannot evaluate yet. Publish a document ' +
+      'without drivers, or use a viewer that supports them.',
+    );
+  }
+}
+
 async function loadDocument(sourceUrl: string): Promise<Manifest> {
   let response: Response;
   try {
@@ -285,11 +302,14 @@ async function loadDocument(sourceUrl: string): Promise<Manifest> {
   if (!response.ok) {
     throw new Error(`Failed to load ${sourceUrl}: ${response.status}`);
   }
+  let document: Manifest;
   try {
-    return await response.json() as Manifest;
+    document = await response.json() as Manifest;
   } catch (error) {
     throw new Error(`Failed to parse ${sourceUrl}: ${String(error)}`);
   }
+  assertRenderable(document, sourceUrl);
+  return document;
 }
 
 function resolveContainer(target: HTMLElement | string): HTMLElement {

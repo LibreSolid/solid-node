@@ -420,7 +420,11 @@ class ViewerSnapshotContentTest(TestCase):
         with open(os.path.join(root, 'viewer.json')) as snapshot:
             data = json.load(snapshot)
         self.assertEqual(data['format'], 'solid-node-export')
-        self.assertEqual(data['version'], 1)
+        # Schema v2 (instance-qualified drivers): a tree declaring no
+        # driver publishes an empty table and is otherwise the document
+        # version 1 published.
+        self.assertEqual(data['version'], 2)
+        self.assertEqual(data['drivers'], {})
         self.assertEqual(data['root']['name'], 'part')
         self.assertEqual(data['root']['model'], 'part.stl')
         self.assertEqual(data['root']['mtime'], 0)

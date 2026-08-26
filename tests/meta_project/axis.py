@@ -12,16 +12,16 @@ cadence assertion at the tick the overlap appears. Geometry fidelity
 is beside the point; what the fixture has to provide is a mesh
 question a scenario can genuinely get wrong.
 
-The declared defaults are bound in __init__ because a build path --
-`solid test` builds the node before any test class runs -- has no
-simulation to bind them for it. Binding defaults in the build and
-viewer paths is a later stage of ADR-056; until then an assembly whose
-render() reads a driver states its own opening snapshot.
+Nothing here binds an opening snapshot. It used to: `solid test` builds
+the node before any test class runs, and until the loader bound
+declared defaults across the tree, an assembly whose render() read a
+driver had to restate its own declarations in __init__. That workaround
+is gone -- the declarations are the only place the defaults are
+written, and the build/test loader binds them.
 """
 
 from solid_node.node import AssemblyNode
 from solid_node.simulation import Driver, Instruction
-from solid_node.simulation.driver import declared_drivers
 
 from .parts import Cube
 
@@ -46,8 +46,6 @@ class Axis(AssemblyNode):
         self.stop = Cube(size=4.0)
         self.carriage = Cube(size=6.0)
         super().__init__()
-        self.set_state(**{name: driver.default for name, driver
-                          in declared_drivers(type(self)).items()})
 
     def render(self):
         self.carriage.translate(

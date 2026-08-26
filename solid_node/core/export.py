@@ -22,7 +22,10 @@ import logging
 import os
 import shutil
 
-from .serializer import DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node
+from .serializer import (
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, serialize_node,
+    symbolic_drivers,
+)
 from .builder import project_build_lock
 from .pieces import PieceInventory
 from solid_node.viewers import bundle as viewer_bundle
@@ -53,18 +56,24 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     - unless widget=False: index.html plus the solid-widget.js bundle,
       making the directory a self-contained, embeddable viewer
 
-    The manifest always carries symbolic $t operations. Preserving them
-    is this producer's guarantee, not the caller's obligation: `node` is
-    returned to symbolic animation time before it is serialized, so a
-    host that keyframed it -- to read a mesh, run a test, or render one
-    instant -- still publishes the animated document rather than the
-    constants that keyframe computed.
+    The manifest always carries symbolic $t operations, and symbolic
+    named-driver operations beside them. Preserving both is this
+    producer's guarantee, not the caller's obligation: `node` is
+    returned to symbolic animation time before it is serialized, and
+    every declared driver in its tree is bound to its qualified token
+    for the duration of the walk, so a host that keyframed or stepped
+    it -- to read a mesh, run a test, or render one instant -- still
+    publishes the animated document rather than the constants that
+    keyframe or snapshot computed.
 
     `node` is left in symbolic time afterwards; a previously set
     keyframe is NOT restored, because an assembly's children can be
     recreated objects on each render, so the only safe restore would
     flatten a non-uniform nested keyframe. A caller wanting a numeric
-    pose back applies set_keyframe again. A static PRESENTATION of an
+    pose back applies set_keyframe again. Driver bindings ARE restored,
+    because there is nothing to flatten: the symbolic mode binds every
+    declared driver of the tree by qualified id and puts back exactly
+    the per-instance snapshot each node held. A static PRESENTATION of an
     export needs no frozen document: the widget's ?t= and ?autoplay=0
     options render any instant of an animated one.
 
@@ -77,18 +86,21 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     # Maps each rigid node's stl_file to its manifest-relative path
     models = {}
     inventory = PieceInventory()
-    root = serialize_node(
-        node,
-        lambda rigid_node: models.setdefault(
-            rigid_node.stl_file, _model_path(rigid_node),
-        ),
-        inventory.register,
-    )
+    with symbolic_drivers(node) as declarations:
+        root = serialize_node(
+            node,
+            lambda rigid_node: models.setdefault(
+                rigid_node.stl_file, _model_path(rigid_node),
+            ),
+            inventory.register,
+        )
+        drivers = drivers_table(declarations)
 
     manifest = {
         'format': MANIFEST_FORMAT,
         'version': MANIFEST_VERSION,
         'animation': {'fps': fps, 'frames': frames},
+        'drivers': drivers,
         'root': root,
         'pieces': inventory.pieces(),
     }
