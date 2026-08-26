@@ -23,8 +23,8 @@ import os
 import shutil
 
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, serialize_node,
-    symbolic_drivers,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, instructions_table,
+    serialize_node, symbolic_document,
 )
 from .builder import project_build_lock
 from .pieces import PieceInventory
@@ -86,7 +86,7 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     # Maps each rigid node's stl_file to its manifest-relative path
     models = {}
     inventory = PieceInventory()
-    with symbolic_drivers(node) as declarations:
+    with symbolic_document(node) as (declarations, instructions):
         root = serialize_node(
             node,
             lambda rigid_node: models.setdefault(
@@ -95,12 +95,14 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
             inventory.register,
         )
         drivers = drivers_table(declarations)
+        events = instructions_table(instructions)
 
     manifest = {
         'format': MANIFEST_FORMAT,
         'version': MANIFEST_VERSION,
         'animation': {'fps': fps, 'frames': frames},
         'drivers': drivers,
+        'instructions': events,
         'root': root,
         'pieces': inventory.pieces(),
     }

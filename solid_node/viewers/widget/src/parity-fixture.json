@@ -1,0 +1,3178 @@
+{
+  "generated_by": "solid_node/viewers/widget/tools/generate_parity_fixture.py",
+  "corpus": "spike/expressions/machine_model.py",
+  "drivers": {
+    "x_axis.motor": {
+      "default": 8000,
+      "range": null,
+      "unit": "ustep",
+      "dtype": "int",
+      "scale": 0.0125
+    },
+    "y_axis.motor": {
+      "default": 8000,
+      "range": null,
+      "unit": "ustep",
+      "dtype": "int",
+      "scale": 0.0125
+    }
+  },
+  "cases": [
+    {
+      "key": "0|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 5.0
+    },
+    {
+      "key": "0|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 2.0
+    },
+    {
+      "key": "0|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "0|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "0|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 100.0
+    },
+    {
+      "key": "0|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 8.770886623168595e-15
+    },
+    {
+      "key": "0|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 15.0
+    },
+    {
+      "key": "0|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 900.0
+    },
+    {
+      "key": "0|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.786057109949175
+    },
+    {
+      "key": "1|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 15.425
+    },
+    {
+      "key": "1|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 9.473433464453965
+    },
+    {
+      "key": "1|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 5.078033905932738
+    },
+    {
+      "key": "1|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 138.82500000000002
+    },
+    {
+      "key": "1|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 1.9951760873103408
+    },
+    {
+      "key": "1|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "1|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "1|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 81.78750000000001
+    },
+    {
+      "key": "1|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 3.972419015341277
+    },
+    {
+      "key": "1|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 11.714283905932739
+    },
+    {
+      "key": "1|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 736.0875
+    },
+    {
+      "key": "1|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "1|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 1.8596169477458926
+    },
+    {
+      "key": "2|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 50.0
+    },
+    {
+      "key": "2|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 14.477512185929925
+    },
+    {
+      "key": "2|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 5.0
+    },
+    {
+      "key": "2|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 450.0
+    },
+    {
+      "key": "2|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 1.9487175269905077
+    },
+    {
+      "key": "2|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "2|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "2|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 5.0
+    },
+    {
+      "key": "2|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 10.182067403158902
+    },
+    {
+      "key": "2|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.5000000000000003
+    },
+    {
+      "key": "2|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 45.0
+    },
+    {
+      "key": "2|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "2|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 1.999493685911511
+    },
+    {
+      "key": "3|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 100.0
+    },
+    {
+      "key": "3|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 8.770886623168595e-15
+    },
+    {
+      "key": "3|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 6.577264470356559
+    },
+    {
+      "key": "3|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 900.0
+    },
+    {
+      "key": "3|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 1.786057109949175
+    },
+    {
+      "key": "3|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "3|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "3|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 40.0
+    },
+    {
+      "key": "3|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": -3.508354649267438e-15
+    },
+    {
+      "key": "3|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.5772644703565581
+    },
+    {
+      "key": "3|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 360.0
+    },
+    {
+      "key": "3|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "3|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 1.9673332203772702
+    },
+    {
+      "key": "4|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -5.0
+    },
+    {
+      "key": "4|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -10.182067403158902
+    },
+    {
+      "key": "4|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -5.5
+    },
+    {
+      "key": "4|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -45.0
+    },
+    {
+      "key": "4|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 1.999493685911511
+    },
+    {
+      "key": "4|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "4|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "4|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 1.3875000000000002
+    },
+    {
+      "key": "4|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 3.098728495772674
+    },
+    {
+      "key": "4|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -4.86125
+    },
+    {
+      "key": "4|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 12.4875
+    },
+    {
+      "key": "4|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "4|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 1.9999610152059841
+    },
+    {
+      "key": "5|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 81.78750000000001
+    },
+    {
+      "key": "5|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 3.972419015341277
+    },
+    {
+      "key": "5|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 8.178749999999999
+    },
+    {
+      "key": "5|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 736.0875
+    },
+    {
+      "key": "5|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 1.8596169477458926
+    },
+    {
+      "key": "5|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "5|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "5|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 15.425
+    },
+    {
+      "key": "5|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 9.473433464453965
+    },
+    {
+      "key": "5|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 1.5424999999999993
+    },
+    {
+      "key": "5|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 138.82500000000002
+    },
+    {
+      "key": "5|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "5|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 1.9951760873103408
+    },
+    {
+      "key": "6|Machine/x_axis/carriage#0.0",
+      "expression": "(x_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 40.0
+    },
+    {
+      "key": "6|Machine/x_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((x_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": -3.508354649267438e-15
+    },
+    {
+      "key": "6|Machine/x_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 8.045084971874736
+    },
+    {
+      "key": "6|Machine/x_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/pulley#0.0",
+      "expression": "(x_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 360.0
+    },
+    {
+      "key": "6|Machine/x_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/x_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.9673332203772702
+    },
+    {
+      "key": "6|Machine/y_axis#0.0",
+      "expression": "90",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 90.0
+    },
+    {
+      "key": "6|Machine/y_axis#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis#1.2",
+      "expression": "60",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 60.0
+    },
+    {
+      "key": "6|Machine/y_axis/carriage#0.0",
+      "expression": "(y_axis.motor * 0.0125)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 100.0
+    },
+    {
+      "key": "6|Machine/y_axis/carriage#0.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/carriage#0.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/cover#0.0",
+      "expression": "asin((0.25 * sin((y_axis.motor * 0.1125))))",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 8.770886623168595e-15
+    },
+    {
+      "key": "6|Machine/y_axis/cover#1.0",
+      "expression": "((5.0 * cos((360.0 * $t))) + ((y_axis.motor * 0.0125) * 0.1))",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 14.045084971874736
+    },
+    {
+      "key": "6|Machine/y_axis/cover#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/cover#1.2",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/pulley#0.0",
+      "expression": "(y_axis.motor * 0.1125)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 900.0
+    },
+    {
+      "key": "6|Machine/y_axis/pulley#1.0",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/pulley#1.1",
+      "expression": "0",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "6|Machine/y_axis/pulley#1.2",
+      "expression": "(sqrt((400.0 - ((0.01 * (y_axis.motor * 0.1125)) ^ 2))) * 0.1)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.786057109949175
+    }
+  ],
+  "conversions": [
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 0.0,
+      "native": 0
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 100.0,
+      "native": 8000
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 12.5,
+      "native": 1000
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": -5.0,
+      "native": -400
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 0.01,
+      "native": 1
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": -0.01,
+      "native": -1
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 0.00625,
+      "native": 0
+    },
+    {
+      "driver": {
+        "default": 8000,
+        "range": null,
+        "unit": "ustep",
+        "dtype": "int",
+        "scale": 0.0125
+      },
+      "target": 0.01875,
+      "native": 1
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": 0.5,
+      "native": 0
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": 1.5,
+      "native": 2
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": 2.5,
+      "native": 2
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": -0.5,
+      "native": 0
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": -1.5,
+      "native": -2
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": 3.4,
+      "native": 3
+    },
+    {
+      "driver": {
+        "default": 0,
+        "range": null,
+        "unit": "step",
+        "dtype": "int",
+        "scale": null
+      },
+      "target": -3.6,
+      "native": -4
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": 0.5,
+      "native": 0.5
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": 1.5,
+      "native": 1.5
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": 2.5,
+      "native": 2.5
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": -0.5,
+      "native": -0.5
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": -1.5,
+      "native": -1.5
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": 3.4,
+      "native": 3.4
+    },
+    {
+      "driver": {
+        "default": 0.0,
+        "range": null,
+        "unit": "deg",
+        "dtype": "float",
+        "scale": null
+      },
+      "target": -3.6,
+      "native": -3.6
+    }
+  ]
+}

@@ -89,6 +89,9 @@ class BrowserRenderer:
             # references would only tell a viewer to refuse a picture it
             # can render perfectly well.
             "drivers": {},
+            # Empty for the same reason, and necessarily: an instruction
+            # moves a driver, and this document names none.
+            "instructions": {},
             "animation": {"fps": 30, "frames": 360},
             "root": root,
             "pieces": inventory.pieces(),

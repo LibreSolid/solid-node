@@ -27,11 +27,13 @@ import os
 
 from solid_node.core.export import export_node
 from solid_node.core.serializer import (
-    DOCUMENT_VERSION, drivers_table, serialize_node, symbolic_drivers,
+    DOCUMENT_VERSION, drivers_table, instructions_table, serialize_node,
+    symbolic_document, symbolic_drivers,
 )
 from solid_node.simulation.enumeration import bind_declared_defaults
 
 from .base import BaseNodeTest
+from .meta_project.axis import Axis as RootAxis
 from .meta_project.machine import Machine
 from .meta_project.nested import Nested
 
@@ -138,6 +140,88 @@ class DriverTableTest(BaseNodeTest):
             table = drivers_table(declarations)
 
         self.assertEqual(json.loads(json.dumps(table)), table)
+
+
+class InstructionTableTest(BaseNodeTest):
+    """Schema v2's `instructions` table (ADR-056 stage 3b).
+
+    An instruction is what a button press means, and a client that can
+    evaluate driver expressions can also run one: the document therefore
+    has to say which instructions exist, which drivers each moves, and
+    for how long. The names and the target keys are QUALIFIED by the
+    declaring node's path, for the same reason the driver ids are --
+    `Home` on two axis instances means two different motions, and the
+    key a client sends must be the key the bank holds.
+
+    Targets stay in DESIGN units verbatim: the conversion to native
+    state belongs to the driver declaration, which the table beside this
+    one publishes, so a client converts exactly once and exactly as
+    `Driver.native` does.
+    """
+
+    def table(self, node):
+        with symbolic_document(node) as (_, instructions):
+            return instructions_table(instructions)
+
+    def test_the_table_qualifies_names_and_targets(self):
+        self.assertEqual(self.table(Machine()), {
+            'x_axis.Home': {'targets': {'x_axis.motor': 0.0},
+                            'duration': 2.0},
+            'y_axis.Home': {'targets': {'y_axis.motor': 0.0},
+                            'duration': 2.0},
+        })
+
+    def test_a_root_declared_instruction_keeps_its_bare_name(self):
+        self.assertEqual(self.table(RootAxis()), {
+            'Home': {'targets': {'x': 0.0}, 'duration': 2.0},
+            'Crash': {'targets': {'x': -5.0}, 'duration': 2.0},
+        })
+
+    def test_an_instructionless_tree_publishes_an_empty_table(self):
+        self.assertEqual(self.table(Nested()), {})
+
+    def test_the_table_is_json_serializable(self):
+        table = self.table(Machine())
+
+        self.assertEqual(json.loads(json.dumps(table)), table)
+
+    def test_a_driver_declaring_export_publishes_the_instructions(self):
+        machine = Machine()
+        bind_declared_defaults(machine)
+        out_dir = os.path.join(self.build_dir, 'export_out')
+
+        manifest = export_node(machine, out_dir, widget=False)
+
+        self.assertEqual(manifest['instructions'], {
+            'x_axis.Home': {'targets': {'x_axis.motor': 0.0},
+                            'duration': 2.0},
+            'y_axis.Home': {'targets': {'y_axis.motor': 0.0},
+                            'duration': 2.0},
+        })
+
+    def test_an_instructionless_export_publishes_an_empty_table(self):
+        out_dir = os.path.join(self.build_dir, 'export_out')
+
+        manifest = export_node(Nested(), out_dir, widget=False)
+
+        self.assertEqual(manifest['version'], 2)
+        self.assertEqual(manifest['drivers'], {})
+        self.assertEqual(manifest['instructions'], {})
+
+    def test_every_target_id_appears_in_the_drivers_table(self):
+        """The two tables are one contract: a target a client cannot
+        resolve to a declared driver is a document it cannot run."""
+        machine = Machine()
+        bind_declared_defaults(machine)
+        out_dir = os.path.join(self.build_dir, 'export_out')
+
+        manifest = export_node(machine, out_dir, widget=False)
+
+        targeted = {identifier
+                    for entry in manifest['instructions'].values()
+                    for identifier in entry['targets']}
+        self.assertTrue(targeted)
+        self.assertLessEqual(targeted, set(manifest['drivers']))
 
 
 class DocumentVersionTest(BaseNodeTest):

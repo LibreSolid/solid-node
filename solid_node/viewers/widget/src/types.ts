@@ -34,6 +34,14 @@ export interface ManifestDriver {
   scale: number | null;
 }
 
+// One declared instruction: what a button press means. `targets` are in
+// DESIGN units, keyed by qualified driver id; the conversion to native
+// driver units happens here, once, through the driver table.
+export interface ManifestInstruction {
+  targets: Record<string, number>;
+  duration: number;
+}
+
 export interface Manifest {
   format: string;
   version: number;
@@ -44,7 +52,12 @@ export interface Manifest {
   // Every qualified driver id the document's expressions may reference.
   // A version 1 document has no table at all, and a version 2 document
   // whose tree declares no drivers has an empty one -- both mean the
-  // same thing to this viewer, which evaluates `$t` and nothing else.
+  // same thing to this viewer: nothing to bind but `$t`.
   drivers?: Record<string, ManifestDriver>;
+  // Additive within version 2: an instruction moves a driver, so a
+  // document carrying instructions carries a non-empty `drivers` table
+  // too, and a consumer without driver evaluation already refuses that
+  // loudly -- nobody can misread the added key.
+  instructions?: Record<string, ManifestInstruction>;
   root: ManifestNode;
 }

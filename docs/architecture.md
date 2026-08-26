@@ -287,13 +287,12 @@ cadence budgets assertion cost. `ScenarioTest` composes over the CAD
 `TestCase`: one class runs unchanged under pytest and the `solid
 test` runner, building STLs only when `meshes = True`.
 
-Known stage boundaries (ADR-056 stage 3b+ territory): the shipped
-viewer publishes the driver table but does not yet evaluate
-driver-referencing expressions, so it refuses a document with a
-non-empty table rather than render a wrong pose; `range` is
+Known stage boundaries (ADR-056 stage 3c+ territory): `range` is
 declarative metadata, not a clamp; `Driver.scale` and `Port.scale`
 remain two declarations; a driver on a list-held child is forbidden
-rather than sanitized.
+rather than sanitized; the viewer's `trigger` runs one instruction's
+ramps and nothing sequences them — programs and G-code are a later
+layer, and determinism belongs to `Sim`, not to the client animation.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
@@ -562,6 +561,29 @@ Hosts may supply camera position/target, an up direction, and field of view;
 the latter two retain Z-up/50° defaults when absent. OpenSCAD camera conversion
 is isolated as pure math and supplies the browser renderer with eye, target,
 up, and OpenSCAD's 22.5° perspective field of view (ADR-041).
+
+**The handle also drives the document** (ADR-056 stage 3b). A document
+whose `drivers` table is non-empty loads and renders at the pose its
+expressions evaluate to under the declared defaults; what is refused is
+a document naming an id its own table does not declare, which has no
+value to bind. The handle exposes `drivers()` and `instructions()`
+verbatim, `driver(id)`/`setDriver(id, value)` in **native** driver
+units (a `range` never clamps, and an unknown id fails loudly listing
+the declared ones), `onDriverChange(fn)` — once per changed driver per
+frame, synchronously on `setDriver`, returning an unsubscribe — and
+`trigger(name)`, which converts the instruction's design-unit targets
+through the driver table and ramps each target driver linearly from its
+current value over the declared duration, returning `{done, cancel()}`.
+Ramps advance on wall-clock elapsed time in the existing animation
+loop: endpoints and duration are contract (integer dtypes are whole at
+every frame and land exactly on target), intermediate values are
+sampling, and a new trigger replaces an active ramp from where it
+stands, as `Sim`'s programs do. Determinism stays with the Python
+simulation; the client is an animation. Which operations recompute is
+decided by the **free variables of their parsed expressions**, not by a
+substring test: a driver change re-evaluates exactly the operations
+naming it, `$t` operations keep animating from the time transport, and
+a driver named `total` is never found inside a function name.
 The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core
@@ -600,6 +622,18 @@ rather than rendered at a wrong pose. The `.scad` path is unchanged —
 bound drivers collapse to numerals because Python evaluates eagerly,
 and `$t` stays live.
 
+Beside it, still within `version: 2`, the document publishes an
+**`instructions` table** (ADR-056 stage 3b): qualified instruction name
+→ design-unit targets keyed by qualified driver id, plus a duration,
+verbatim from the declarations the same tree walk found. The key is
+additive rather than a version bump because an instruction targets a
+driver, so a document carrying instructions necessarily carries a
+non-empty `drivers` table, which a consumer without driver evaluation
+already refuses loudly — no consumer can misread it. Targets stay in
+design units: the conversion to native state belongs to the driver
+declaration, and the client performs it exactly once, exactly as
+`Driver.native` does.
+
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
 one entry per distinct built artifact content, carrying `id`, `name`,
@@ -616,12 +650,24 @@ stack.
 
 ### Expression math (MATH · in spec `kinematics`)
 
-There is exactly one `$t` semantics: **OpenSCAD's degree
-conventions**, with `^` as power (ADR-022). `solid_node/math.py` is
-the dual-mode source of truth (numeric under keyframes, deferred
-OpenSCAD expressions when symbolic); the dev viewer's evaluator
-reproduces it. Four runtimes must agree: math.py, OpenSCAD, dev
-viewer, export widget.
+There is exactly one expression semantics: **OpenSCAD's degree
+conventions**, with `^` as power (ADR-022, revised). `solid_node/math.py`
+is the dual-mode source of truth (numeric under keyframes, deferred
+OpenSCAD expressions when symbolic). Three runtimes must agree —
+`math.py`, OpenSCAD, and the one TypeScript evaluator in the shared
+viewer package — and since ADR-056 stage 3b the same semantics govern
+**driver expressions** too: a qualified id resolves through a nested
+driver map, needing no grammar extension.
+
+That agreement is **enforced**, not documented: `parity-fixture.test.ts`
+runs the shipped evaluator against `parity-fixture.json`, whose expected
+values are producer values — one numeric render of a tree paired by
+structure with one symbolic serialization of it, so nothing recomputes
+an expression a second way. `tools/generate_parity_fixture.py`
+regenerates it from the ADR-056 expression spike's corpus (182 cases:
+linear driver terms, port scales, degree-trig chains, `^` terms, mixed
+`$t`-and-driver formulas), and it pins `Driver.native`'s design-to-native
+conversion, integer round-half-to-even included, for the same reason.
 
 ## Load-bearing invariants
 
@@ -657,8 +703,11 @@ The short list that changes must not silently break:
   version and updating every producer and consumer together. Portability stays
   producer-specific: `manifest.json` is copied and portable, `viewer.json` is
   build-root-relative and private (ADR-020/031/034).
-- Every `$t` evaluator uses degree trig and treats `^` as power
-  (ADR-022).
+- Every expression evaluator — of `$t` or of a driver id — uses degree
+  trig and treats `^` as power, and the client's agreement with the
+  producer's numerics is held by the parity fixture (ADR-022).
+- A `range` is presentation metadata. Nothing in the framework, the
+  simulation, or the viewer clamps a driver to it (ADR-056).
 - Users never override `assemble()`; rigid geometry is time-invariant
   (ADR-002/003).
 - A topmost rigid node is the boundary of one printed solid, not a guarantee
@@ -668,12 +717,11 @@ The short list that changes must not silently break:
 
 ## Known gaps and tensions
 
-- **Export-widget `$t` parity defect** (ADR-022): the widget evaluator
-  uses radian trig and lacks the `^` rewrite — non-linear animated
-  exports render wrong. Open; first in line for an OpenSpec change.
-- **No automated cross-runtime parity enforcement** (ADR-022): the
-  four-runtime agreement holds by discipline; a golden parity corpus
-  or shared evaluator is the recorded way out.
+- **OpenSCAD is outside the parity fixture** (ADR-022): the corpus pins
+  the TypeScript evaluator to Python's numerics, and the `.scad`
+  boundary is exercised by rendered spike snapshots rather than by a
+  test. Closing it needs OpenSCAD in the loop, which nothing yet
+  requires.
 - **Create React App is deprecated** (ADR-013): the dev viewer's
   toolchain carries migration debt (Vite or similar).
 - **Sequential STL rendering**: `build_stls` renders one STL at a

@@ -14,7 +14,20 @@
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { ManifestNode, RawOperation } from './types';
-import { evalExpr, isAnimated } from './evaluator';
+import { EvalScope, evalExpr, freeVariables, TIME_ID } from './evaluator';
+
+/** What changed since the last update, when not everything did.
+ *
+ * `drivers` holds the qualified ids whose values moved this frame. A
+ * node recomputes its matrix when time advanced and it reads `$t`, or
+ * when one of its own free variables is in that set -- so a slider on
+ * one axis costs the operations of that axis and nothing else. */
+export interface ChangeSet {
+  time: boolean;
+  drivers: ReadonlySet<string>;
+}
+
+export type Changed = ChangeSet | 'all';
 
 const stlLoader = new STLLoader();
 
@@ -57,6 +70,9 @@ export class WidgetTree {
   // refetch bytes already on screen. Consumed by the next reconcile either way,
   // so a later genuine change is still detected.
   private freshFromArtifact = false;
+  // The union of this node's operations' free variables, computed once
+  // and dropped whenever a reconcile replaces the operations.
+  private freeVars: ReadonlySet<string> | undefined;
 
   // Resolves when this node's mesh (if any) and all descendants
   // finished loading, so the camera can be fit to the actual bounds.
@@ -159,6 +175,7 @@ export class WidgetTree {
       this.mtime = data.mtime;
       this.freshFromArtifact = false;
       this.operations = data.operations;
+      this.freeVars = undefined;
       this.setColor(nextColor);
 
       const retained = new Set(nextChildren.map((child) => child.tree));
@@ -200,11 +217,42 @@ export class WidgetTree {
       });
   }
 
+  /** Whether anything under here reads `$t`, and therefore whether the
+   * document has a timeline to play. Driver-driven motion is not this:
+   * a machine posed by its drivers has no period to scrub. */
   get animated(): boolean {
     return (
-      this.operations.some(operationIsAnimated) ||
+      this.free.has(TIME_ID) ||
       this.children.some((child) => child.animated)
     );
+  }
+
+  /** Every input this node's own operations read, `$t` included. */
+  private get free(): ReadonlySet<string> {
+    if (this.freeVars === undefined) {
+      const found = new Set<string>();
+      for (const operation of this.operations) {
+        const expressions = operation[0] === 'r'
+          ? [operation[1]] : operation[1];
+        for (const expression of expressions) {
+          for (const name of freeVariables(expression)) {
+            found.add(name);
+          }
+        }
+      }
+      this.freeVars = found;
+    }
+    return this.freeVars;
+  }
+
+  private needsUpdate(changed: Changed): boolean {
+    if (changed === 'all') return true;
+    const free = this.free;
+    if (changed.time && free.has(TIME_ID)) return true;
+    for (const id of changed.drivers) {
+      if (free.has(id)) return true;
+    }
+    return false;
   }
 
   assembly(path: AssemblyPath = []): AssemblyNode {
@@ -256,11 +304,15 @@ export class WidgetTree {
     visit(this, []);
   }
 
-  // Recompute every local matrix for animation time t (0..1)
-  update(t: number): void {
-    this.group.matrix.copy(operationsMatrix(this.operations, t));
+  // Recompute local matrices under `scope` (animation time 0..1 plus the
+  // document's driver values). `changed` bounds the work: a node whose
+  // free variables none of it touches keeps the matrix it has.
+  update(scope: EvalScope, changed: Changed = 'all'): void {
+    if (this.needsUpdate(changed)) {
+      this.group.matrix.copy(operationsMatrix(this.operations, scope));
+    }
     for (const child of this.children) {
-      child.update(t);
+      child.update(scope, changed);
     }
   }
 
@@ -306,30 +358,23 @@ function uniqueDataByName(children: ManifestNode[]): Set<string> {
   return seen;
 }
 
-function operationIsAnimated(op: RawOperation): boolean {
-  if (op[0] === 'r') {
-    return isAnimated(op[1]);
-  }
-  return op[1].some(isAnimated);
-}
-
 // Operations listed [op1, op2, ...] apply to the solid in order:
 // v' = opN(...(op1(v))), i.e. matrix = M_opN * ... * M_op1
-function operationsMatrix(ops: RawOperation[], t: number): THREE.Matrix4 {
+function operationsMatrix(ops: RawOperation[], scope: EvalScope): THREE.Matrix4 {
   const matrix = new THREE.Matrix4();
   const step = new THREE.Matrix4();
   const axis = new THREE.Vector3();
 
   for (const op of ops) {
     if (op[0] === 'r') {
-      const angle = evalExpr(op[1], t) * (Math.PI / 180);
+      const angle = evalExpr(op[1], scope) * (Math.PI / 180);
       axis.set(op[2][0], op[2][1], op[2][2]).normalize();
       step.makeRotationAxis(axis, angle);
     } else {
       step.makeTranslation(
-        evalExpr(op[1][0], t),
-        evalExpr(op[1][1], t),
-        evalExpr(op[1][2], t),
+        evalExpr(op[1][0], scope),
+        evalExpr(op[1][1], scope),
+        evalExpr(op[1][2], scope),
       );
     }
     matrix.premultiply(step);

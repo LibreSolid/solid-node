@@ -186,9 +186,11 @@ class ExportBuildSnapshotParityTest(TestCase):
         self.assertEqual(build['format'], 'solid-node-export')
         self.assertEqual(export['version'], build['version'])
         self.assertEqual(export['animation'], build['animation'])
-        # The driver table is part of the shared schema, so the two
-        # producers publish the same one for the same tree.
+        # The driver and instruction tables are part of the shared
+        # schema, so the two producers publish the same ones for the
+        # same tree.
         self.assertEqual(export['drivers'], build['drivers'])
+        self.assertEqual(export['instructions'], build['instructions'])
 
         export_root = export['root']
         build_root = build['root']

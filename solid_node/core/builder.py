@@ -19,8 +19,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, serialize_node,
-    symbolic_drivers,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, instructions_table,
+    serialize_node, symbolic_document,
 )
 from .pieces import PieceInventory
 from solid_node.node.base import StlRenderStart
@@ -370,11 +370,12 @@ class Builder(FileSystemEventHandler):
         """
         os.makedirs(self.build_dir, exist_ok=True)
         inventory = PieceInventory()
-        with symbolic_drivers(self.node) as declarations:
+        with symbolic_document(self.node) as (declarations, instructions):
             snapshot = {'format': DOCUMENT_FORMAT,
                         'version': DOCUMENT_VERSION,
                         'animation': {'fps': 30, 'frames': 360},
                         'drivers': drivers_table(declarations),
+                        'instructions': instructions_table(instructions),
                         'root': serialize_node(
                             self.node,
                             lambda rigid_node: os.path.relpath(

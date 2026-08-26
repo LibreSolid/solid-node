@@ -9,8 +9,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { frameBounds, ViewerView } from './camera';
 import { AssemblyNavigation } from './assembly';
 import { controlPlan, resolveBaseUrl, resolveOptions } from './options';
+import { DriverListener, DriverStore, TriggerHandle } from './drivers';
+import { EvalScope, freeVariables, TIME_ID } from './evaluator';
 import { AssemblyNode, AssemblyPath, WidgetTree } from './tree';
-import { Manifest } from './types';
+import { Manifest, ManifestDriver, ManifestInstruction, ManifestNode } from './types';
 import { API_VERSION } from './version';
 
 export type AnimationMode = 'inline' | 'toggle' | 'none' | 'external';
@@ -45,6 +47,14 @@ export interface ViewerHandle {
   setRoot(path: AssemblyPath | null): void;
   setVisible(path: AssemblyPath, visible: boolean): void;
   setTime(time: number): void;
+  // The driving API (ADR-056 stage 3b). Values are NATIVE driver units
+  // and ids are verbatim from the document; `range` never clamps.
+  drivers(): Record<string, ManifestDriver>;
+  driver(id: string): number;
+  setDriver(id: string, value: number): void;
+  onDriverChange(listener: DriverListener): () => void;
+  instructions(): Record<string, ManifestInstruction>;
+  trigger(name: string): TriggerHandle;
   apiVersion: number;
 }
 
@@ -90,13 +100,19 @@ export async function mount(
   let cycleSeconds = 1;
   let disposed = false;
   const assemblyNavigation = new AssemblyNavigation();
+  // One driver state for this mount, reconciled (not replaced) when the
+  // document is republished, so a host's listeners and its current pose
+  // survive a live rebuild.
+  const drivers = new DriverStore();
+
+  const scope = (): EvalScope => ({ time, drivers: drivers.scope() });
 
   const setTime = (next: number) => {
     time = Math.min(Math.max(next, 0), 1);
     if (slider) {
       slider.value = String(time);
     }
-    tree?.update(time);
+    tree?.update(scope(), { time: true, drivers: EMPTY });
     renderer.render(scene, camera);
   };
 
@@ -122,8 +138,9 @@ export async function mount(
 
   const replaceTree = async (view: View | null) => {
     const document = await loadDocument(sourceUrl);
+    drivers.reconcile(document.drivers ?? {}, document.instructions ?? {});
     const next = new WidgetTree(document.root, baseUrl);
-    next.update(time);
+    next.update(scope());
     await next.loaded;
     if (disposed) {
       next.dispose();
@@ -184,10 +201,15 @@ export async function mount(
     const elapsed = lastTimestamp === undefined
       ? 0 : (timestamp - lastTimestamp) / 1000;
     lastTimestamp = timestamp;
+    // Ramps advance on wall-clock elapsed time, in the same loop: their
+    // endpoints and duration are exact, and only the sampling between
+    // them varies with the frame rate (design D4 -- this is an
+    // animation, and determinism stays with the Python simulation).
+    const movedDrivers = drivers.tick();
     if (playing) {
       setTime((time + elapsed / cycleSeconds) % 1);
     }
-    tree?.update(time);
+    tree?.update(scope(), { time: playing, drivers: movedDrivers });
     renderer.render(scene, camera);
   });
 
@@ -201,6 +223,9 @@ export async function mount(
       renderer.setAnimationLoop(null);
       observer.disconnect();
       controls.dispose();
+      // Nothing will advance the ramps again, so their promises settle
+      // here rather than never.
+      drivers.dispose();
       tree?.dispose();
       renderer.dispose();
       container.replaceChildren();
@@ -218,10 +243,11 @@ export async function mount(
     },
     async manifestChanged() {
       const document = await loadDocument(sourceUrl);
+      drivers.reconcile(document.drivers ?? {}, document.instructions ?? {});
       await tree?.reconcile(document.root, baseUrl);
       if (tree) {
         const rootChanged = assemblyNavigation.reconcile(tree);
-        tree.update(time);
+        tree.update(scope());
         refreshControls(document);
         if (rootChanged) {
           applyFrame(null);
@@ -251,8 +277,24 @@ export async function mount(
       renderer.render(scene, camera);
     },
     setTime,
+    drivers: () => drivers.drivers(),
+    driver: (id: string) => drivers.driver(id),
+    setDriver(id: string, value: number) {
+      drivers.setDriver(id, value);
+      // The set is answered this frame: only the operations naming this
+      // driver are re-evaluated, and the rest keep the matrices they
+      // have.
+      tree?.update(scope(), { time: false, drivers: drivers.tick() });
+      renderer.render(scene, camera);
+    },
+    onDriverChange: (listener: DriverListener) =>
+      drivers.onDriverChange(listener),
+    instructions: () => drivers.instructions(),
+    trigger: (name: string) => drivers.trigger(name),
   };
 }
+
+const EMPTY: ReadonlySet<string> = new Set();
 
 function visibleBounds(root: THREE.Object3D): THREE.Box3 {
   const bounds = new THREE.Box3();
@@ -276,18 +318,43 @@ function visibleBounds(root: THREE.Object3D): THREE.Box3 {
 }
 
 // The document schema this viewer evaluates. Version 2 added the
-// `drivers` table; evaluating driver-referencing expressions is a
-// separate capability this viewer does not have yet, so a document that
-// carries drivers is refused rather than rendered at a wrong pose. An
-// empty table -- and a version 1 document, which has none -- names no
-// driver, so it renders exactly as it always did.
+// `drivers` table, and since ADR-056 stage 3b this viewer EVALUATES
+// driver-referencing expressions rather than refusing them: a non-empty
+// table is now a document to render at its declared defaults and drive,
+// not one to turn away.
+//
+// What is still refused is a document that contradicts itself: an
+// expression naming a qualified id its own table does not declare has
+// no value to bind, and rendering it anyway would show a wrong machine
+// instead of an error. The producer guarantees every referenced id
+// appears in the table; this is what makes a broken producer loud.
 export function assertRenderable(document: Manifest, sourceUrl: string): void {
-  const drivers = Object.keys(document.drivers ?? {});
-  if (drivers.length > 0) {
+  const declared = new Set(Object.keys(document.drivers ?? {}));
+  const missing = new Set<string>();
+
+  const visit = (node: ManifestNode) => {
+    for (const operation of node.operations) {
+      const expressions = operation[0] === 'r'
+        ? [operation[1]] : operation[1];
+      for (const expression of expressions) {
+        for (const name of freeVariables(expression)) {
+          if (name !== TIME_ID && !declared.has(name)) {
+            missing.add(name);
+          }
+        }
+      }
+    }
+    (node.children ?? []).forEach(visit);
+  };
+  visit(document.root);
+
+  if (missing.size > 0) {
+    const known = [...declared].sort().join(', ') || 'none';
     throw new Error(
-      `${sourceUrl} declares named drivers (${drivers.join(', ')}), whose ` +
-      'expressions this viewer cannot evaluate yet. Publish a document ' +
-      'without drivers, or use a viewer that supports them.',
+      `${sourceUrl} has expressions naming undeclared drivers ` +
+      `(${[...missing].sort().join(', ')}); its drivers table declares: ` +
+      `${known}. The document is malformed: refusing it rather than ` +
+      'rendering a wrong pose.',
     );
   }
 }

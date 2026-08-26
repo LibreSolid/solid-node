@@ -15,8 +15,21 @@ vi.mock('three/examples/jsm/loaders/STLLoader.js', () => ({
   STLLoader: class { loadAsync = loadAsync; },
 }));
 
+// The real evaluator, watched: what a driver change must NOT do is
+// re-evaluate an expression that does not name it, and the only way to
+// see that is to count the evaluations.
+vi.mock('./evaluator', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./evaluator')>();
+  return { ...actual, evalExpr: vi.fn(actual.evalExpr) };
+});
+
+import { evalExpr } from './evaluator';
 import { assemblyPathKey, materialForColor, WidgetTree } from './tree';
 import { ManifestNode } from './types';
+
+const evaluations = () =>
+  (evalExpr as unknown as ReturnType<typeof vi.fn>).mock.calls
+    .map((call) => call[0] as string);
 
 const leaf = (overrides: Partial<ManifestNode> = {}): ManifestNode => ({
   name: 'leaf', type: 'part', color: '#cc4444', operations: [],
@@ -207,5 +220,110 @@ describe('WidgetTree assembly navigation', () => {
     tree.applyVisibility(null, new Set([assemblyPathKey(['arm'])]));
     expect(tree.children[0].group.visible).toBe(false);
     expect(tree.children[0].children[0].group.visible).toBe(true);
+  });
+});
+
+// ADR-056 stage 3b: which operations recompute is decided by the FREE
+// VARIABLES of their parsed expressions (design D2), not by whether the
+// raw string contains `$t`. A driver change must re-evaluate exactly the
+// operations that name that driver, and nothing else -- that bound is
+// what makes per-driver interactivity cheap on a large tree.
+describe('WidgetTree driver-aware updates', () => {
+  const STATIC = '90';
+  const X_TERM = '(x_axis.motor * 0.0125)';
+  const Y_TERM = '(y_axis.motor * 0.0125)';
+  const SPIN = '(360.0 * $t)';
+  const MIXED = '((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))';
+
+  const machine = (): ManifestNode => root([
+    leaf({ name: 'frame', operations: [['r', STATIC, [0, 0, 1]] as const] }),
+    leaf({ name: 'x', operations: [['t', [X_TERM, '0', '0']] as const] }),
+    leaf({ name: 'y', operations: [['t', [Y_TERM, '0', '0']] as const] }),
+    leaf({ name: 'spin', operations: [['r', SPIN, [0, 0, 1]] as const] }),
+    leaf({ name: 'cover', operations: [['t', [MIXED, '0', '0']] as const] }),
+  ]);
+
+  const scope = (time: number, x: number, y: number) => ({
+    time, drivers: { x_axis: { motor: x }, y_axis: { motor: y } },
+  });
+
+  const mounted = async () => {
+    const tree = new WidgetTree(machine(), '/build/');
+    await tree.loaded;
+    tree.update(scope(0, 8000, 2000));
+    (evalExpr as unknown as ReturnType<typeof vi.fn>).mockClear();
+    return tree;
+  };
+
+  it('re-evaluates only the operations naming a changed driver', async () => {
+    const tree = await mounted();
+
+    tree.update(scope(0, 1600, 2000),
+                { time: false, drivers: new Set(['x_axis.motor']) });
+
+    expect(evaluations()).toContain(X_TERM);
+    expect(evaluations()).toContain(MIXED);
+    expect(evaluations()).not.toContain(Y_TERM);
+    expect(evaluations()).not.toContain(SPIN);
+    expect(evaluations()).not.toContain(STATIC);
+  });
+
+  it('moves the carriage to the pose the new driver value implies', async () => {
+    const tree = await mounted();
+
+    tree.update(scope(0, 1600, 2000),
+                { time: false, drivers: new Set(['x_axis.motor']) });
+
+    expect(tree.children[1].group.matrix.elements[12]).toBeCloseTo(20);
+    expect(tree.children[2].group.matrix.elements[12]).toBeCloseTo(25);
+  });
+
+  it('keeps animating $t operations from the time transport', async () => {
+    const tree = await mounted();
+
+    tree.update(scope(0.25, 8000, 2000),
+                { time: true, drivers: new Set() });
+
+    expect(evaluations()).toContain(SPIN);
+    expect(evaluations()).toContain(MIXED);
+    expect(evaluations()).not.toContain(X_TERM);
+    expect(evaluations()).not.toContain(STATIC);
+  });
+
+  it('recomputes everything when nothing is named as changed', async () => {
+    const tree = await mounted();
+
+    tree.update(scope(0.25, 1600, 2000));
+
+    expect(evaluations()).toContain(STATIC);
+    expect(evaluations()).toContain(X_TERM);
+    expect(evaluations()).toContain(Y_TERM);
+  });
+
+  it('reads `animated` off the parsed tree, not a substring', async () => {
+    const timeDriven = new WidgetTree(machine(), '/build/');
+    const driverOnly = new WidgetTree(root([
+      leaf({ name: 'x', operations: [['t', [X_TERM, '0', '0']] as const] }),
+    ]), '/build/');
+    await Promise.all([timeDriven.loaded, driverOnly.loaded]);
+
+    // A driver-driven document has no timeline to scrub: `animated` is
+    // about the `$t` transport, and `x_axis.motor` is not it.
+    expect(timeDriven.animated).toBe(true);
+    expect(driverOnly.animated).toBe(false);
+  });
+
+  it('forgets a node\'s free variables when its operations are replaced', async () => {
+    const tree = await mounted();
+
+    await tree.reconcile(root([
+      leaf({ name: 'frame', operations: [['t', [X_TERM, '0', '0']] as const] }),
+    ]), '/build/');
+    (evalExpr as unknown as ReturnType<typeof vi.fn>).mockClear();
+
+    tree.update(scope(0, 1600, 2000),
+                { time: false, drivers: new Set(['x_axis.motor']) });
+
+    expect(evaluations()).toContain(X_TERM);
   });
 });

@@ -29,7 +29,7 @@ npm build hint.
 
 The manifest SHALL retain the document name `manifest.json` and SHALL declare
 `format: "solid-node-export"`, `version: 2`, `animation: {fps, frames}`, a
-`drivers` table, and a
+`drivers` table, an `instructions` table, and a
 `root` tree with the same observable schema and child-name behavior as the
 normal-build `viewer.json`. A rigid node SHALL emit one `model` reference and
 stop recursion; a non-rigid node whose render result is a list or tuple SHALL
@@ -54,12 +54,22 @@ node's prior binding discipline afterwards exactly as it already does
 for animation time. Every qualified id referenced by any serialized
 expression SHALL appear in the `drivers` table. A tree declaring no
 drivers SHALL serialize an empty `drivers` table, and consumers SHALL
-render such a document exactly as they rendered `version: 1`; evaluating
-driver-referencing expressions is a consumer capability introduced
-separately, so a consumer without it SHALL fail loudly on a non-empty
-`drivers` table rather than render a wrong pose. The OpenSCAD `.scad`
-output path is unchanged by this contract: it substitutes bound driver
-values numerically and keeps `$t` symbolic.
+render such a document exactly as they rendered `version: 1`. A consumer
+SHALL either evaluate driver-referencing expressions or fail loudly on a
+non-empty `drivers` table rather than render a wrong pose. The OpenSCAD
+`.scad` output path is unchanged by this contract: it substitutes bound
+driver values numerically and keeps `$t` symbolic.
+
+The `instructions` table SHALL map each declared instruction's qualified
+name (the declaring node's instance path joined with the instruction
+name; root-declared instructions keep bare names) to its design-unit
+targets keyed by qualified driver id and its duration, verbatim from the
+declarations the tree-walk enumeration finds. The `instructions` key is
+additive within `version: 2`: a document carrying instructions
+necessarily carries a non-empty `drivers` table, which consumers without
+driver evaluation already refuse loudly, so no consumer can misread the
+added key. A tree declaring no instructions SHALL serialize an empty
+`instructions` table.
 
 Preserving `$t` verbatim SHALL be a guarantee of the export producer, not an
 obligation on its caller. Export SHALL return the node to symbolic animation
@@ -101,12 +111,21 @@ presentation of an exported document is obtained from the widget's `?t=` and
   `y_axis.motor` respectively and both ids appear in the `drivers`
   table
 
+#### Scenario: Declared instructions are published qualified
+
+- **WHEN** both axis instances of one class declare
+  `'Home': Instruction({'motor': 0.0}, duration=2.0)` and the tree is
+  exported
+- **THEN** the `instructions` table carries `x_axis.Home` and
+  `y_axis.Home`, each with targets keyed `x_axis.motor` /
+  `y_axis.motor` in design units and duration 2.0
+
 #### Scenario: A driverless document degrades to prior behavior
 
 - **WHEN** a tree declaring no drivers is exported
-- **THEN** the document declares `version: 2` with an empty `drivers`
-  table and existing consumers render it exactly as a `version: 1`
-  document
+- **THEN** the document declares `version: 2` with empty `drivers` and
+  `instructions` tables and existing consumers render it exactly as a
+  `version: 1` document
 
 #### Scenario: Export leaves the node in symbolic time
 

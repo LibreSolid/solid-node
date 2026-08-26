@@ -489,3 +489,32 @@ evaluate is refused instead of rendered at a wrong pose.
 `spike/axis/` needed no changes and revalidates unmodified (exit 0,
 2026-08-26): all five of its verdicts, including the exact 2700 mm³
 teeth overlap.
+
+## Addendum (2026-08-26, after stage 3b landed): seam 7 is closed
+
+The `driver-aware-viewer` change closes the last open seam of this
+spike. `parity_harness.js` is **superseded as the parity authority**
+and remains only as the record of how the measurement was first made.
+
+- The parity check now runs against the **shipped module**:
+  `solid_node/viewers/widget/src/parity-fixture.test.ts` evaluates
+  `evaluator.ts` itself, over a committed fixture that
+  `solid_node/viewers/widget/tools/generate_parity_fixture.py`
+  regenerates from *this* corpus — `machine_model.py` and the seven
+  snapshots above, verbatim. It carries the same **182 expression
+  cases**, of which the same **14 contain `^`**.
+- The expected values are producer values, obtained the way this spike
+  obtained them: one numeric render beside one symbolic serialization
+  of the same tree, paired by structure. Nothing evaluates an
+  expression a second way, so a disagreement means the client drifted.
+- The `^` guard travelled too, and reproduces this document's number
+  exactly: with the `powify` rewrite disabled the suite fails on those
+  14 cases, worst deviation **0.1862511823824271** — the 0.186 recorded
+  under sub-question 3.
+- `evalExpr` now takes an evaluation scope (`{time, drivers}`) with the
+  nested driver map this spike recommended, and the free-variable set
+  read off the parsed tree — the `isAnimated` replacement demonstrated
+  here — is what decides which operations re-evaluate.
+
+**Seam status: all eight closed.** Nothing in this directory changed;
+its runner still revalidates unmodified.

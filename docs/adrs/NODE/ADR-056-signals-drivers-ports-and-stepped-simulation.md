@@ -418,8 +418,39 @@ unenforced by any test.
   `solid_node/node/qualified.py`, subclassed by `simulation.Driver`,
   places that dependency explicitly; the node layer reads only
   `default` off it.
+- **Stage 3b implemented (2026-08-26)** as change
+  `driver-aware-viewer`, closing the expression spike's last seam
+  (seam 7, evaluator reconciliation). The widget evaluator takes an
+  evaluation scope (`{time, drivers}`) with the nested driver map the
+  spike recommended, so a dotted qualified id resolves as member
+  access and the grammar is unchanged; `isAnimated`'s substring test
+  is gone, replaced by the free-variable set read off the cached parse,
+  which is what decides that a driver change re-evaluates only the
+  operations naming it. The loader gate inverts: a non-empty `drivers`
+  table now loads and renders at its declared defaults, and what is
+  refused is a document naming an id its own table does not declare.
+  The handle gained the driving API — `drivers()`, `driver`,
+  `setDriver`, `onDriverChange`, `instructions()`, `trigger` returning
+  `{done, cancel()}` — with values in native units, no clamping, and
+  ramps advanced on wall-clock elapsed time with exact landing and
+  last-wins replacement, mirroring `Sim`'s programs without claiming
+  its determinism. The producer gained the `instructions` table,
+  additive within `version: 2`. Cross-runtime parity is finally
+  enforced by a committed, producer-generated fixture run against the
+  shipped evaluator module, and ADR-022 is revised to the resulting
+  reality. 879 framework tests green (872 baseline), widget vitest 99
+  green (43 baseline), v8-engine 33/33 unchanged, both spikes
+  revalidate. The widget bundle is not rebuilt in the bench (its
+  `dist/` is a symlink into the primary checkout), so the change is
+  carried by TypeScript source and vitest; packaging rebuilds it, as
+  in stage 3a.
+- The one judgment worth recording from 3b: design-to-native
+  conversion is reproduced in the client down to Python's
+  round-half-to-even, and the parity fixture pins it. A target landing
+  exactly between two native units is not hypothetical for an integer
+  driver, and "nearest" is not a single rule across languages.
 
-## Open questions (updated after stage 3a)
+## Open questions (updated after stage 3b)
 
 Resolved since the last revision: **expression representation** (the
 2026-08-26 spike decided the eagerly-qualified token and measured
@@ -455,22 +486,37 @@ Resolved by stage 3a (`instance-qualified-drivers`):
   stays *global* (unqualified) — the one entry that propagates flat —
   and the ADR-008 symbolic `$t` path outside simulations is untouched.
 
+Resolved by stage 3b (`driver-aware-viewer`):
+
+- **Client-side driver evaluation.** Settled and shipped. `evalExpr`
+  takes a scope carrying `$t` and a nested driver map; free-variable
+  sets read off the parsed tree replace the substring test and bound
+  re-evaluation to the operations that name a changed driver; a
+  non-empty driver table is rendered rather than refused, and only a
+  document naming an undeclared id still fails loudly. The driving API
+  is on the handle, in native units, with no clamping.
+- **ADR-022 staleness.** Resolved: ADR-022 is revised (single
+  evaluator, recorded defect fixed, driver expressions in scope) and
+  parity is no longer merely measured — a committed fixture of
+  producer-computed values runs against the shipped evaluator module,
+  and disabling the `^` rewrite fails it by up to 0.186. Seam 7 of the
+  expression spike is closed.
+
 Still open:
 
 - **Instruction semantics v1.** Held to target + duration + linear
   ramp. Sequencing ("home X, then home Y") is the beginning of a
   program — that is the G-code layer's job; faking it in the UI schema
   would fight the real thing later. (Ramp mechanics themselves are
-  spike-validated.)
+  spike-validated; `trigger` is the seat that layer will occupy.)
+- **UI chrome for drivers.** Stage 3b is the API a button or slider
+  calls, deliberately with no visual element of its own. Sliders,
+  instruction buttons and readouts are a later cycle or the host
+  app's, and a slider using `range` must treat it as presentation
+  bounds rather than a clamp.
 - **Scenario assertion cadence defaults** — resolved structurally by
   the first spike (cadence budgets assertion cost; ticks are free);
   the numeric default per model size remains a project-level choice.
-- **Client-side driver evaluation (stage 3b).** The shipped viewer
-  publishes the driver table but evaluates `$t` only; `evalExpr` must
-  take a driver map, and `isAnimated`'s substring test must become the
-  parsed-tree free-variable set the expression spike demonstrated (an
-  author-chosen driver named `total` breaks the substring test). Until
-  then a non-empty driver table is refused loudly.
 - **Name sanitization for list-held children.** A driver reachable
   only through an `<attr>-<index>` name is forbidden loudly in v1, not
   sanitized. Bijective sanitization is a recorded, compatible
@@ -482,13 +528,6 @@ Still open:
   driver ranges (a crash scenario deliberately drives past travel); a
   later UI story must not assume clamping. Sliders may use `range` as
   presentation bounds only.
-- **ADR-022 staleness.** Its "known defect" section and two-evaluator
-  premise no longer describe the shipped code; the stage that makes
-  the evaluator driver-aware should revise ADR-022 and finally put
-  parity under test. Stage 3a deliberately left this alone: the
-  expression spike's parity harness still hand-copies
-  `viewers/widget/src/evaluator.ts` rather than importing it (seam 7),
-  so cross-runtime parity remains measured, at 2.5e-14, but unenforced.
 
 ## First validation targets
 

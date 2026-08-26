@@ -27,6 +27,17 @@ declaring no drivers serializes an empty table and is byte-for-byte the
 document version 1 published, which is what lets a consumer that cannot yet
 evaluate driver expressions keep rendering every document that has none --
 and fail loudly on one that has them, rather than render a wrong pose.
+
+Beside it, the ``instructions`` table says what the machine can be TOLD to
+do: each declared instruction's qualified name, its design-unit targets
+keyed by qualified driver id, and its duration.  It is additive within
+version 2 (ADR-056 stage 3b): an instruction targets a driver, so a
+document carrying instructions necessarily carries a non-empty ``drivers``
+table, which a consumer without driver evaluation already refuses loudly --
+no consumer can misread the added key.  Both tables come from ONE walk:
+``drive_tree`` visits every assembly after binding its drivers, so the
+instruction declarations are collected in the same descent that builds the
+symbolic expressions.
 """
 
 from contextlib import contextmanager
@@ -45,32 +56,54 @@ DOCUMENT_VERSION = 2
 def symbolic_drivers(node):
     """Serialize ``node`` in symbolic driver mode, then restore it.
 
-    Yields ``{qualified_id: declaration}`` for every driver in the tree,
-    with each one bound to a token whose string is its own id, so ordinary
-    solid2 arithmetic has already produced the wire expression by the time
-    the walk renders.  The mode binds ALL of them -- never a subset, so no
-    render can find a hole -- and afterwards restores exactly the snapshot
-    each node held and re-renders under it, so a caller that had a numeric
-    pose still has one.
+    Yields ``{qualified_id: declaration}`` for every driver in the tree.
+    The instruction half of the same walk is available through
+    ``symbolic_document``; this name stays for a caller that only wants
+    the drivers.
+    """
+    with symbolic_document(node) as (declarations, _):
+        yield declarations
+
+
+@contextmanager
+def symbolic_document(node):
+    """Serialize ``node`` in symbolic driver mode, then restore it.
+
+    Yields ``(declarations, instructions)``: ``{qualified_id:
+    declaration}`` for every driver in the tree, with each one bound to a
+    token whose string is its own id, so ordinary solid2 arithmetic has
+    already produced the wire expression by the time the walk renders; and
+    ``{qualified_name: (path, instruction)}`` for every instruction the
+    same descent found.  The mode binds ALL the drivers -- never a subset,
+    so no render can find a hole -- and afterwards restores exactly the
+    snapshot each node held and re-renders under it, so a caller that had a
+    numeric pose still has one.
 
     A tree that declares no drivers is not walked at all: it has nothing to
     bind, and a walk would render it for no reason.  Its document is the
-    version 1 document with an empty table added.
+    version 1 document with two empty tables added -- including the
+    instruction one, because an instruction moves a driver and a tree with
+    no drivers has nothing for one to move.
     """
     if not tree_declares_drivers(node):
-        yield {}
+        yield {}, {}
         return
 
     previous = {}
+    instructions = {}
 
     def symbolic(target, path, name, declaration):
         if id(target) not in previous:
             previous[id(target)] = (target, dict(target._states))
         return DriverToken(driver_id(path, name))
 
-    declarations = drive_tree(node, symbolic)
+    def collect(target, path):
+        for name, instruction in getattr(target, 'instructions', {}).items():
+            instructions['.'.join(path + (name,))] = (path, instruction)
+
+    declarations = drive_tree(node, symbolic, collect)
     try:
-        yield declarations
+        yield declarations, instructions
     finally:
         for target, states in previous.values():
             target._states.clear()
@@ -107,6 +140,32 @@ def drivers_table(declarations):
             'scale': declaration.scale,
         }
         for identifier, declaration in sorted(declarations.items())
+    }
+
+
+def instructions_table(instructions):
+    """The document's ``instructions`` table: what the machine can be told.
+
+    ``instructions`` is what ``symbolic_document`` collected --
+    ``{qualified_name: (declaring path, instruction)}``.  A declaration
+    names its targets class-locally (``{'motor': 0.0}``), so the declaring
+    node's path is what turns them into targets on ``x_axis.motor``: the
+    same qualification, through the same ``driver_id``, that keyed the
+    driver table, so a client resolves a target against a declared driver
+    by string equality rather than by two schemes agreeing.
+
+    Targets stay in DESIGN units, verbatim, and the duration in seconds.
+    The conversion to native state belongs to the driver declaration --
+    the one place that knows what a native unit is worth -- and happens
+    once, in the client, exactly as ``Driver.native`` performs it.
+    """
+    return {
+        name: {
+            'targets': {driver_id(path, target): value
+                        for target, value in instruction.targets.items()},
+            'duration': instruction.duration,
+        }
+        for name, (path, instruction) in sorted(instructions.items())
     }
 
 
