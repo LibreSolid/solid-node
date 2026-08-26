@@ -1,6 +1,7 @@
 # ADR-056: Signals, drivers, ports, and stepped simulation
 
-**Status:** Proposed (design draft; core spike-validated 2026-08-25)
+**Status:** Proposed (design draft; core spike-validated 2026-08-25,
+expression representation spike-validated 2026-08-26)
 
 **Date:** 2026-08-25
 
@@ -156,7 +157,12 @@ client-side and recomputes absolute matrices per frame. The app is that
 mechanism with a richer vocabulary and a client-side stepping loop:
 
 - the serialized document gains a **driver table** (name, range,
-  default, unit) and operation expressions may reference driver names;
+  default, unit) and operation expressions may reference driver names.
+  Driver names are class-local; the wire namespace is flat, so the
+  document keys drivers by a **qualified id** — the instance path from
+  the serialization root joined with the local name, Modelica-flattening
+  style (`x_axis.motor`), computed during the serialization walk and
+  never stored. Authors only ever write local names;
 - the client holds driver states, applies increments each animation
   frame, and re-evaluates matrices — sliders and buttons change driver
   values in the browser with **no server round-trip and no re-render**;
@@ -304,6 +310,72 @@ requirements rather than open questions:
    the port-level conversion (mm → µsteps) maps them onto driver
    state.
 
+## Spike evidence: named-driver expressions (2026-08-26)
+
+The expression-representation risk — named driver variables travelling
+render → serialized document → client evaluation — was spiked in this
+worktree with zero framework edits:
+[`spike/expressions/SCOPE.md`](../../../spike/expressions/SCOPE.md),
+[`spike/expressions/FINDINGS.md`](../../../spike/expressions/FINDINGS.md),
+runner `spike/expressions/run_spike.py`, on one `Axis` class
+(driver + port + degree trig + a mixed `$t`/driver formula + a `^`
+term) instantiated twice under a driverless parent so the class-local
+name collides for real. **Primary question validated; neither
+design-invalidating outcome occurred.**
+
+- **Representation decided: an eagerly-qualified token subclassing
+  solid2's `OpenSCADConstant`, whose string is the qualified id** — not
+  a tree-preserving expression type. The condition that picks it holds:
+  both the scad and serializer passes link a child to its parent
+  *before* the child's `render()` runs, so the id is final when the
+  token is created and solid2's string-eager arithmetic loses nothing.
+  Ordinary solid2 arithmetic produces the wire strings for free, and
+  `solid_node.math`'s symbolic degree-trig mode works untouched because
+  it dispatches on the base class.
+- **Qualified id syntax: dotted instance path** (`x_axis.motor`).
+  jokenizer parses it as member access, so the client holds a nested
+  driver map and needs no evaluator grammar change.
+- **Client parity: max |Python − client| 2.5e-14** over 182
+  evaluations (4.3e-16 on composed world matrices), with a false-pass
+  guard: without the `^`→`pow` rewrite the same expressions diverge by
+  up to 0.186. Two instances of one class serialized distinct ids and
+  bound distinct values.
+- **OpenSCAD snapshot substitution costs nothing.** Binding drivers
+  numerically and leaving `time` unbound is already what
+  `set_state`/`self.time` do: driver terms collapse to literals at
+  emission, `$t` stays live (`--animate` frames differ), and the mixed
+  formula survives partial substitution. OpenSCAD support stays, as a
+  snapshot camera — trace-driven OpenSCAD animation is excluded
+  outright, not deferred.
+- **`isAnimated` (`includes('$t')`) is replaced by the free-variable
+  set** read off the parsed expression tree — it separates static,
+  driver-only, and mixed expressions, and enables recomputing a subtree
+  only when one of *its* drivers changed.
+- **The shipped state bank cannot address same-named drivers on
+  sibling instances** — `Sim` enumerates the root class only and
+  `set_state` propagates one flat dict — while a bank keyed by the
+  qualified id drives both axes independently with `DriverState`/
+  `RampProgram` unchanged. The gap is addressing, nothing else.
+
+The spike names eight seams (FINDINGS §"Seams stage 3a must open") —
+now design requirements for the next stage rather than open questions:
+a symbolic binding mode distinct from numeric snapshots (never a
+relaxation of `_validate_state`); qualified per-instance state binding
+with `time` staying global; a guaranteed-linked pass (today
+`set_state`'s child walk renders without linking, so an unlinked
+instance would qualify to the bare local name — a silent collision);
+an identifier rule for derived names (a list-held child's `axes-0`
+parses as subtraction); one tree-walk authority enumerating qualified
+drivers for both the Sim bank and the document driver table; qualified
+instruction lookup and targets; parity testing against the real widget
+evaluator with `evalExpr` taking a driver map; and build-path defaults
+(sharpened: `Sim` on a driverless root fails today).
+
+Incidental finding: ADR-022 is stale — its "known defect" is fixed in
+the shipped widget evaluator and its two-evaluator premise no longer
+holds (one TS evaluator remains); cross-runtime parity is still
+unenforced by any test.
+
 ## Implementation status (2026-08-25)
 
 - **Stage 1 implemented and archived** as change
@@ -324,47 +396,53 @@ requirements rather than open questions:
   now intercepts keyframing too, since `set_keyframe` routes through
   it.
 
-## Open questions (stage 3+, updated after stages 1–2)
+## Open questions (updated after stages 1–2 and the expression spike)
 
-- **Expression representation.** Client-side multi-driver evaluation
-  needs expressions with named variables beyond solid2's `$t`: extend
-  the solid2 constant mechanism or introduce a small solid-node
-  expression type rendering to both the serialized viewer form and a
-  numeric value. This is the main remaining implementation risk; spike
-  before the viewer-facing change. ADR-022's evaluator-parity concerns
-  apply to whatever is chosen. The stepping spike confirmed this risk
-  is fully decoupled from the simulation core.
+Resolved since the last revision: **expression representation** (the
+2026-08-26 spike decided the eagerly-qualified token and measured
+parity; what remains is stage-3a implementation, not an open design
+question) and the **`_driver`/`Driver` naming collision** (stage 1
+renamed the ADR-023 tag to `_animator`/`_animated_nodes`).
+
+Still open:
+
 - **Instruction semantics v1.** Held to target + duration + linear
   ramp. Sequencing ("home X, then home Y") is the beginning of a
   program — that is the G-code layer's job; faking it in the UI schema
   would fight the real thing later. (Ramp mechanics themselves are
   spike-validated.)
 - **Scenario assertion cadence defaults** — resolved structurally by
-  the spike (cadence budgets assertion cost; ticks are free); the
-  numeric default per model size remains a project-level choice.
-- **Naming collision:** ADR-023's internal `operation._driver` (the
-  assembly that tagged an operation) vs the new `Driver`. Semantically
-  adjacent (assemblies drive operations; drivers drive signals) but
-  the implementation should unify or rename to avoid confusion.
+  the first spike (cadence budgets assertion cost; ticks are free);
+  the numeric default per model size remains a project-level choice.
 - **Document schema versioning** for the driver table and richer
   expressions (ADR-034/ADR-035 declared-API rules, ADR-051's
-  producer-owned time).
+  producer-owned time). The expression spike settled the id scheme
+  (qualified dotted instance paths) but not the schema shape or
+  version gate.
 - **Build-path defaults.** The CLI build/test path renders before any
   simulation exists, so a driver-declaring assembly must bind its own
-  declared defaults in `__init__` to be buildable today. Stage 3 needs
-  the real answer, and since `node/` cannot import `simulation/`, it
-  must live in the loader/manager or a hook the simulation package
-  offers.
+  declared defaults in `__init__` to be buildable today; the
+  expression spike sharpened it (`Sim` on a driverless root whose
+  children declare drivers fails outright). Since `node/` cannot
+  import `simulation/`, the answer must live in the loader/manager or
+  a hook the simulation package offers — the tree-walk driver
+  enumeration (spike seam 5) is the natural place.
 - **Time-driver unification.** `Sim` does not auto-bind `time`; a node
   reading `self.time` under a simulation still gets symbolic `$t`.
   Unifying the built-in time driver with the snapshot belongs to the
-  stage that also serializes the driver table.
+  stage that also serializes the driver table. `time` stays *global*
+  (unqualified) — the one entry that should propagate flat.
 - **Unit-story unification.** `Driver.scale` (instruction targets) and
   `Port.scale` (geometry binding) state the same physical ratio in two
   places; unify when the viewer needs one authoritative unit story.
 - **`range` is metadata, not a clamp.** Nothing enforces declared
   driver ranges (a crash scenario deliberately drives past travel); a
-  later UI story must not assume clamping.
+  later UI story must not assume clamping. Sliders may use `range` as
+  presentation bounds only.
+- **ADR-022 staleness.** Its "known defect" section and two-evaluator
+  premise no longer describe the shipped code; the stage that makes
+  the evaluator driver-aware should revise ADR-022 and finally put
+  parity under test.
 
 ## First validation targets
 
