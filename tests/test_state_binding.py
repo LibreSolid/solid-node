@@ -12,6 +12,13 @@ snapshot of named numeric driver values, propagating exactly as
 `set_keyframe` always has; `time` becomes one entry among several and
 `set_keyframe` becomes the time-only surface over it.
 
+Every bound name names a declared driver, `time` excepted. The
+fixtures here declare what they bind: they were written before
+`Driver` existed and used to bind bare strings nothing declared, which
+is no longer a thing the framework accepts -- an entry with no
+declaration behind it cannot be read by anything, because the read is
+`self.<name>` off the declaring node.
+
 These tests sit at the same layer as test_keyframe_reversal.py: real
 assemblies rendered in process, with the serialized operations
 inspected directly. Only the scenario that is explicitly about pose
@@ -39,22 +46,28 @@ class Machine(AssemblyNode):
     advancing the rotor 0.001mm per step, and a lift height in mm.
     Neither is derivable from `$t` -- that is the whole point."""
 
+    motor = Driver(default=0, unit='ustep')
+    lift = Driver(default=0.0, unit='mm')
+
     def __init__(self):
         self.rotor = Cube()
         self.platform = Cube(size=2.0)
         super().__init__()
 
     def render(self):
-        self.rotor.translate([self.state['motor'] * 0.001, 0, 0])
-        self.platform.translate([0, 0, self.state['lift']])
+        self.rotor.translate([self.motor * 0.001, 0, 0])
+        self.platform.translate([0, 0, self.lift])
         return [self.rotor, self.platform]
 
 
 class Idle(AssemblyNode):
-    """An assembly that binds state without consuming it, so a snapshot
-    can be inspected while it is still being assembled entry by entry
-    -- a render reading an entry not yet bound would fail loudly, which
-    is a different requirement."""
+    """An assembly that declares two drivers without consuming them, so
+    a snapshot can be inspected while it is still being assembled entry
+    by entry -- a render reading an entry not yet bound would fail
+    loudly, which is a different requirement."""
+
+    motor = Driver(default=0, unit='ustep')
+    lift = Driver(default=0.0, unit='mm')
 
     def __init__(self):
         self.cube = Cube()
@@ -70,8 +83,8 @@ class StateBindingTest(BaseNodeTest):
         node = Machine()
         node.set_state(motor=4000, lift=2.5)
 
-        self.assertEqual(node.state['motor'], 4000)
-        self.assertEqual(node.state['lift'], 2.5)
+        self.assertEqual(node.motor, 4000)
+        self.assertEqual(node.lift, 2.5)
         self.assertEqual(translations(node.rotor), [['t', ['4.0', '0', '0']]])
         self.assertEqual(translations(node.platform),
                          [['t', ['0', '0', '2.5']]])
@@ -99,19 +112,21 @@ class StateBindingTest(BaseNodeTest):
         node.set_state(motor=4000)
         node.set_state(lift=1.0)
 
-        self.assertEqual(dict(node.state), {'motor': 4000, 'lift': 1.0})
+        self.assertEqual(node.motor, 4000)
+        self.assertEqual(node.lift, 1.0)
 
     def test_re_binding_a_name_replaces_only_that_entry(self):
         node = Idle()
         node.set_state(motor=4000, lift=1.0)
         node.set_state(motor=8000)
 
-        self.assertEqual(dict(node.state), {'motor': 8000, 'lift': 1.0})
+        self.assertEqual(node.motor, 8000)
+        self.assertEqual(node.lift, 1.0)
 
     def test_unbound_state_access_fails_loudly(self):
         node = Machine()
 
-        with self.assertRaises(KeyError) as caught:
+        with self.assertRaises(AttributeError) as caught:
             node.render()
 
         message = str(caught.exception)
@@ -139,12 +154,11 @@ class StateBindingTest(BaseNodeTest):
 
     def test_clearing_state_restores_symbolic_time(self):
         node = Nested()
-        node.set_state(time=0.5, motor=100)
+        node.set_state(time=0.5)
         self.assertEqual(node.time, 0.5)
 
         node.clear_state()
 
-        self.assertEqual(dict(node.state), {})
         self.assertEqual(str(node.time), '$t')
         self.assertEqual(str(node.inner.time), '$t')
         self.assertEqual([op.serialized for op in node.inner.cube.operations],
@@ -156,14 +170,15 @@ class StateBindingTest(BaseNodeTest):
 
         node.clear_state('motor')
 
-        self.assertEqual(dict(node.state), {'lift': 1.0})
+        self.assertEqual(node.lift, 1.0)
+        with self.assertRaises(AttributeError):
+            node.motor
 
-    def test_state_propagates_into_nested_assemblies(self):
+    def test_time_propagates_into_nested_assemblies(self):
         node = Nested()
-        node.set_state(time=0.5, motor=100)
+        node.set_state(time=0.5)
 
-        self.assertEqual(dict(node.inner.state),
-                         {'time': 0.5, 'motor': 100})
+        self.assertEqual(node.inner.time, 0.5)
 
     def test_binding_is_a_no_op_on_a_leaf(self):
         cube = Cube()
@@ -171,7 +186,71 @@ class StateBindingTest(BaseNodeTest):
         cube.set_state(motor=10)
         cube.clear_state()
 
-        self.assertFalse(hasattr(cube, 'state'))
+        self.assertFalse(hasattr(cube, '_states'))
+
+
+class UndeclaredBindingTest(BaseNodeTest):
+    """A bound name has to name a declared driver. Nothing can read an
+    entry with no declaration behind it -- the read is `self.<name>` on
+    the declaring node -- so accepting one would be a silent no-op that
+    surfaces later, somewhere else, as a different driver's
+    unbound-read error."""
+
+    def test_an_undeclared_bare_name_is_refused(self):
+        node = Idle()
+
+        with self.assertRaises(ValueError) as caught:
+            node.set_state(motr=4000)
+
+        message = str(caught.exception)
+        self.assertIn('motr', message)
+        self.assertIn('motor', message)
+
+    def test_a_refused_bare_name_leaves_nothing_bound(self):
+        node = Idle()
+        node.set_state(motor=4000, lift=1.0)
+
+        with self.assertRaises(ValueError):
+            node.set_state(motr=9999)
+
+        self.assertEqual(node.motor, 4000)
+        self.assertEqual(node.lift, 1.0)
+
+    def test_an_unknown_qualified_id_is_refused(self):
+        node = QualifiedMachine()
+        node.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000})
+
+        with self.assertRaises(ValueError) as caught:
+            node.set_state(**{'z_axis.motor': 100})
+
+        message = str(caught.exception)
+        self.assertIn('z_axis.motor', message)
+        self.assertIn('x_axis.motor', message)
+        # Nothing moved: the refused binding rolled the tree back.
+        self.assertEqual(node.x_axis.motor, 8000)
+        self.assertEqual(node.y_axis.motor, 2000)
+
+    def test_an_unknown_id_on_an_unbound_tree_reports_the_unbound_read(self):
+        """The ordering trade-off the ambiguity path already carries:
+        only the walk knows what is declared, and the walk renders. A
+        qualified id addressed to nobody delivers nothing, so a tree
+        that was never bound fails on its own unbound read before
+        there is a declaration list to judge the name against. The
+        first message still names a real problem, and binding the tree
+        first gets the precise one."""
+        node = QualifiedMachine()
+
+        with self.assertRaises(AttributeError) as caught:
+            node.set_state(**{'z_axis.motor': 100})
+
+        self.assertIn('motor', str(caught.exception))
+
+    def test_time_needs_no_declaration(self):
+        node = Nested()
+
+        node.set_state(time=0.25)
+
+        self.assertEqual(node.time, 0.25)
 
 
 class KeyframeEquivalenceTest(BaseNodeTest):
@@ -180,23 +259,29 @@ class KeyframeEquivalenceTest(BaseNodeTest):
     test, not a comment."""
 
     def test_set_keyframe_is_set_state_time(self):
-        node = Nested()
+        node = Idle()
         node.set_state(motor=100)
 
         node.set_keyframe(0.3)
 
         self.assertEqual(node.time, 0.3)
-        self.assertEqual(dict(node.state), {'motor': 100, 'time': 0.3})
-        self.assertEqual(node.inner.state['time'], 0.3)
+        self.assertEqual(node.motor, 100)
+
+    def test_set_keyframe_reaches_a_nested_assembly(self):
+        node = Nested()
+
+        node.set_keyframe(0.3)
+
+        self.assertEqual(node.inner.time, 0.3)
 
     def test_clear_keyframe_is_clear_state_time(self):
-        node = Nested()
+        node = Idle()
         node.set_state(motor=100)
         node.set_keyframe(0.3)
 
         node.clear_keyframe()
 
-        self.assertEqual(dict(node.state), {'motor': 100})
+        self.assertEqual(node.motor, 100)
         self.assertEqual(str(node.time), '$t')
 
 
@@ -237,8 +322,8 @@ class QualifiedStateBindingTest(BaseNodeTest):
 
         node.set_state(**{'x_axis.motor': 8000, 'y_axis.motor': 2000})
 
-        self.assertEqual(node.x_axis.state['motor'], 8000)
-        self.assertEqual(node.y_axis.state['motor'], 2000)
+        self.assertEqual(node.x_axis.motor, 8000)
+        self.assertEqual(node.y_axis.motor, 2000)
         self.assertEqual(translations(node.x_axis.carriage),
                          [['t', ['100.0', '0', '0']]])
         self.assertEqual(translations(node.y_axis.carriage),
@@ -251,8 +336,8 @@ class QualifiedStateBindingTest(BaseNodeTest):
 
         node.set_state(**{'x_axis.motor': 800, 'y_axis.motor': 0})
 
-        self.assertEqual(dict(node.state), {})
-        self.assertEqual(dict(node.x_axis.state), {'motor': 800})
+        self.assertEqual(node.x_axis.motor, 800)
+        self.assertEqual(node.y_axis.motor, 0)
 
     def test_time_stays_global(self):
         node = QualifiedMachine()
@@ -274,8 +359,8 @@ class QualifiedStateBindingTest(BaseNodeTest):
         self.assertIn('x_axis.motor', message)
         self.assertIn('y_axis.motor', message)
         # Neither instance's state changed.
-        self.assertEqual(node.x_axis.state['motor'], 8000)
-        self.assertEqual(node.y_axis.state['motor'], 2000)
+        self.assertEqual(node.x_axis.motor, 8000)
+        self.assertEqual(node.y_axis.motor, 2000)
 
     def test_an_ambiguous_bare_name_on_an_unbound_tree_still_says_so(self):
         """Caught by the expression spike's revalidation run: rolling
@@ -296,7 +381,7 @@ class QualifiedStateBindingTest(BaseNodeTest):
 
         node.set_state(motor=1600)
 
-        self.assertEqual(node.state['motor'], 1600)
+        self.assertEqual(node.motor, 1600)
         self.assertEqual(translations(node.carriage),
                          [['t', ['20.0', '0', '0']]])
 
@@ -310,8 +395,9 @@ class QualifiedStateBindingTest(BaseNodeTest):
 
         node.clear_state('x_axis.motor')
 
-        self.assertEqual(dict(node.x_axis.state), {})
-        self.assertEqual(node.y_axis.state['motor'], 2000)
+        self.assertEqual(node.y_axis.motor, 2000)
+        with self.assertRaises(AttributeError):
+            node.x_axis.motor
 
     def test_propagation_links_children_before_recursing(self):
         """Qualification is only correct where `_link_child` has run,

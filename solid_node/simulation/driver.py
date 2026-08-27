@@ -59,6 +59,15 @@ class Driver(DriverDeclaration):
     declaration to qualify it and deliver a state entry to it, while
     what a driver means -- native units, integer rounding, ramps --
     stays here. `solid_node.node` imports nothing from this package.
+
+    The read surface comes with the marker: `DriverDeclaration` is a
+    descriptor, so a declaration made as `x = Driver(...)` is read
+    `self.x` off the node that declares it, and the declaration itself
+    off the class. That is node-layer business -- it hands back what
+    the node-layer snapshot holds -- and it leaves the fields below
+    untouched: the name a declaration is bound under is kept in a
+    private non-field slot, so two identical declarations on different
+    attributes still compare equal.
     """
 
     default: object

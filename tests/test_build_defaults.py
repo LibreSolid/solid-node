@@ -39,8 +39,8 @@ class LoaderDefaultBindingTest(BaseNodeTest):
     def test_a_driver_declaring_tree_loads_with_its_defaults_bound(self):
         node = self.load('meta_project/machine.py:Machine')
 
-        self.assertEqual(node.x_axis.state['motor'], 8000)
-        self.assertEqual(node.y_axis.state['motor'], 8000)
+        self.assertEqual(node.x_axis.motor, 8000)
+        self.assertEqual(node.y_axis.motor, 8000)
 
     def test_the_loaded_tree_renders_without_an_unbound_error(self):
         node = self.load('meta_project/machine.py:Machine')
@@ -54,10 +54,12 @@ class LoaderDefaultBindingTest(BaseNodeTest):
     def test_a_root_declared_driver_binds_by_its_bare_name(self):
         node = self.load('meta_project/axis.py:Axis')
 
-        self.assertEqual(node.state['x'], 800)
+        self.assertEqual(node.x, 800)
 
     def test_a_driverless_project_loads_untouched(self):
         node = self.load('meta_project/nested.py:Nested')
 
-        self.assertEqual(dict(node.state), {})
+        # Nothing bound (time still reads symbolically) and nothing
+        # rendered (the walk's translate would be here otherwise).
+        self.assertEqual(str(node.time), '$t')
         self.assertEqual(node.inner.cube.operations, [])

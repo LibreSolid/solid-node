@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
-from collections.abc import Mapping
 from solid2 import get_animation_time
 from .base import _render_stack
 from .internal import InternalNode
@@ -113,34 +112,6 @@ def _names_for(names, child_name):
     return tuple(delivered)
 
 
-class _BoundState(Mapping):
-    """The driver snapshot as render() reads it: a read-only view of
-    the assembly's bound entries.
-
-    A plain dict would answer a missing entry with a bare KeyError
-    naming the key, which reads like a typo in the render code. The
-    real cause is almost always that nobody bound that driver at all,
-    so the message names the cure instead. The view is live rather than
-    a copy, so it stays correct across the re-render set_state performs.
-    """
-
-    def __init__(self, states):
-        self._states = states
-
-    def __getitem__(self, name):
-        try:
-            return self._states[name]
-        except KeyError:
-            raise KeyError(f"no driver state '{name}' bound; bind it with "
-                           f"set_state({name}=...)") from None
-
-    def __iter__(self):
-        return iter(self._states)
-
-    def __len__(self):
-        return len(self._states)
-
-
 class AssemblyNode(InternalNode):
     """
     Represents a collection of components that can be moved relative to each other.
@@ -187,37 +158,43 @@ class AssemblyNode(InternalNode):
         qualified ids rather than quietly giving them one value.
         `time` is the one entry that is global by contract, and never
         needs qualifying.
+
+        Every other entry has to NAME a declared driver -- a bare name
+        some declaration in the tree bears, or a qualified id the tree
+        publishes -- and binding fails when it does not. Nothing could
+        read such an entry: a driver is read as an attribute of the
+        node that declares it, so a name with no declaration behind it
+        binds a value that is unreachable, and the mistake would
+        surface later, somewhere else, as a DIFFERENT driver's
+        unbound-read error.
         """
         for name, value in states.items():
             self._validate_state(name, value)
-        # A bare project-driver entry is the only thing that can turn
-        # out to be ambiguous, and only a tree walk can say so: the
-        # walk therefore records what it can roll back to, and only
-        # when there is something a rollback could be needed for.
-        bare = [name for name in states
-                if '.' not in name and name != 'time']
+        # Only a tree walk can say what is declared, so the walk
+        # records what it can roll back to whenever there is a name to
+        # judge -- which is every entry except the one global.
+        judged = [name for name in states if name != 'time']
         declared = {}
-        saved = [] if bare else None
+        saved = [] if judged else None
         self._receive_state(states, (), declared, saved)
-        ambiguous = {name: declared[name] for name in bare
-                     if len(declared.get(name, ())) > 1}
+        publishes = {identifier
+                     for ids in declared.values() for identifier in ids}
+        unknown = [name for name in judged
+                   if (name not in publishes if '.' in name
+                       else name not in declared)]
+        ambiguous = {name: declared[name] for name in judged
+                     if '.' not in name and len(declared.get(name, ())) > 1}
+        if unknown:
+            self._undo(saved)
+            known = ', '.join(sorted(publishes)) or 'none'
+            raise ValueError(
+                f'undeclared driver name in set_state: '
+                f'{", ".join(repr(name) for name in sorted(unknown))}. '
+                f'A bound name must name a declared driver, because a '
+                f'driver is read as an attribute of the node declaring '
+                f'it; declared: {known}.')
         if ambiguous:
-            for node, previous in saved:
-                node._states.clear()
-                node._states.update(previous)
-            # Re-render under the restored snapshot, so no operation
-            # survives from the pose that was never accepted. Unless the
-            # snapshot restored to has holes: a tree nobody had bound
-            # could not be rendered before this call either, and
-            # inventing a value to re-render it with is exactly what the
-            # unbound contract forbids -- so its stale operations wait
-            # for whatever renders it next, and the caller gets the
-            # ambiguity error rather than an unbound-read error raised
-            # while cleaning up after it.
-            if all(name in previous
-                   for node, previous in saved
-                   for name in declared_drivers_of(type(node))):
-                self._receive_state({}, (), {}, None)
+            self._undo(saved)
             detail = '; '.join(
                 f"'{name}' could mean {', '.join(sorted(ids))}"
                 for name, ids in sorted(ambiguous.items()))
@@ -226,6 +203,27 @@ class AssemblyNode(InternalNode):
                 'the instance you mean by its qualified id, e.g. '
                 f'set_state(**{{{sorted(next(iter(ambiguous.values())))[0]!r}'
                 ': ...}).')
+
+    def _undo(self, saved):
+        """Restore the snapshot every node held before a binding this
+        call is about to refuse, so a rejected `set_state` leaves no
+        half-bound tree."""
+        for node, previous in saved:
+            node._states.clear()
+            node._states.update(previous)
+        # Re-render under the restored snapshot, so no operation
+        # survives from the pose that was never accepted. Unless the
+        # snapshot restored to has holes: a tree nobody had bound
+        # could not be rendered before this call either, and
+        # inventing a value to re-render it with is exactly what the
+        # unbound contract forbids -- so its stale operations wait
+        # for whatever renders it next, and the caller gets the
+        # binding error rather than an unbound-read error raised
+        # while cleaning up after it.
+        if all(name in previous
+               for node, previous in saved
+               for name in declared_drivers_of(type(node))):
+            self._receive_state({}, (), {}, None)
 
     def _receive_state(self, entries, path, declared, saved):
         """One node's share of a `set_state` propagation.
@@ -297,11 +295,6 @@ class AssemblyNode(InternalNode):
         except TypeError:
             raise TypeError(f"state '{name}' must be a plain number, "
                             f"not {value!r}") from None
-
-    @property
-    def state(self):
-        """The bound driver snapshot this assembly's render() reads."""
-        return _BoundState(self._states)
 
     def set_keyframe(self, time):
         """Set a fixed time for keyframes and tests, propagating it

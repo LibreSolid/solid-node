@@ -180,10 +180,17 @@ Transforms are first-class operation objects (ADR-023):
 `AssemblyNode` is the only animatable node, and it binds a
 **multi-driver state snapshot** (ADR-056 stage 1): `set_state(**states)`
 merges named plain-number driver values and propagates down the
-rendered tree; `render()` reads them through the `state` mapping, and
-an unbound name fails loudly naming `set_state`. `time` is one snapshot
-entry with the ADR-008 fallback: symbolic OpenSCAD `$t` (0..1) when
-unbound. `set_keyframe(t)`/`clear_keyframe()` are the preserved
+rendered tree. `render()` reads a driver it declares **as an
+attribute** — `x = Driver(...)` is read `self.x` (ADR-056, amended
+2026-08-27) — which is
+the only read there is; the snapshot has no mapping view. An unbound
+read fails loudly naming `set_state`, assigning to a driver fails the
+same way, and a driver declared over a name the node class already
+carries fails at class-definition time. Every bound name must name a
+declared driver, bare or qualified, because nothing could read an
+entry with no declaration behind it; `time` is the exception, one
+snapshot entry with the ADR-008 fallback to symbolic OpenSCAD `$t`
+(0..1) when unbound, read through the `time` property. `set_keyframe(t)`/`clear_keyframe()` are the preserved
 time-only surface — exactly `set_state(time=t)`/`clear_state('time')`.
 Clearing is reversible by re-render: an operation records whatever
 value `render()` computed, so a bound tree has no symbolic form left
@@ -210,8 +217,11 @@ owns the id, the linked walk, and `DriverToken` — an `OpenSCADConstant`
 subclass whose string *is* the qualified id, so ordinary solid2
 arithmetic and `solid_node.math`'s degree trig build the wire
 expression with no new operators. It also carries `DriverDeclaration`,
-the marker the node layer needs to recognize a declaration; what a
-driver *means* stays in the simulation layer, which subclasses it.
+which is both the marker the node layer needs to recognize a
+declaration and the data descriptor that hands its bound value back
+(ADR-056 amendment) — the same responsibility over the same `_states` dict, and
+the same shape `Port` already had. What a driver *means* stays in the
+simulation layer, which subclasses it.
 
 Assembly `render()`s are wrapped for **animator-tagged idempotency**
 (ADR-023; tag renamed from "driver" so that word can mean a simulation
@@ -244,7 +254,8 @@ a node without drivers pulls none of it in. `Driver` is a frozen
 class-attribute declaration on an assembly (default, range, unit,
 optional `dtype=int` for discrete devices, optional scale in design
 units per native unit), discovered off the class MRO exactly like
-`declared_ports`; all mutable state — current value, active program —
+`declared_ports` and read off an instance exactly like a port
+(ADR-056 amendment); all mutable state — current value, active program —
 lives in the per-simulation bank a `Sim` builds, so two simulations
 share nothing and there is nothing to reset. `RampProgram` advances
 state as a pure function of the tick (`start + delta*k//n` for

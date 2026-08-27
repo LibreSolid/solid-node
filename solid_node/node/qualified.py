@@ -32,12 +32,16 @@ raises instead.
 Two things live here rather than in the simulation layer, for one
 reason: `solid_node/node/` never imports `solid_node/simulation/`.
 
-- `DriverDeclaration` is the marker the node layer recognizes. The node
-  layer has to know that a class attribute IS a driver declaration --
-  to qualify it, to deliver a state entry to it, to tell an ambiguous
-  bare name from an unambiguous one. What a driver MEANS (native units,
-  dtype rounding, ramps) stays in the simulation layer, which owns the
-  `Driver` that subclasses this.
+- `DriverDeclaration` is the marker the node layer recognizes, AND the
+  descriptor that hands the bound value back. The node layer has to
+  know that a class attribute IS a driver declaration -- to qualify it,
+  to deliver a state entry to it, to tell an ambiguous bare name from
+  an unambiguous one -- and delivering the entry and handing it back
+  are the same responsibility over the same `_states` dict, so the
+  read lives here rather than in `simulation/driver.py`. What a driver
+  MEANS (native units, dtype rounding, ramps) stays in the simulation
+  layer, which owns the `Driver` that subclasses this. `Port` next
+  door is the same shape for the same reason.
 - `DriverToken` is the symbolic read of one driver. It subclasses
   solid2's `OpenSCADConstant`, so ordinary project arithmetic and
   `solid_node.math`'s degree-trig symbolic mode produce a well-formed
@@ -56,12 +60,72 @@ class DriverIdError(ValueError):
 
 
 class DriverDeclaration:
-    """Marker base for a driver declaration (see the module docstring).
+    """Marker base for a driver declaration, and the descriptor that
+    reads one (see the module docstring).
 
-    Deliberately empty: the node layer needs to recognize a declaration
-    and read the `default` the simulation layer's `Driver` publishes,
-    and nothing else about it.
+    A driver is declared as a class attribute and read as an attribute
+    of the instance -- `x = Driver(...)` is read `self.x` -- which is
+    exactly how a `Port` is declared and read, and for the same
+    reason: the declaration is class metadata shared by every
+    instance, while the value belongs to one node's snapshot. It is
+    the ONLY way to read a driver value; there is no mapping view of
+    the snapshot to read it through instead.
+
+    A DATA descriptor, deliberately. A `__get__`-only descriptor loses
+    to an instance attribute of the same name, so `self.x = 5` would
+    silently shadow the driver for every later read and surface as
+    wrong geometry rather than as an error. Defining `__set__` makes
+    the instance dict lose instead -- and keeps `_attr_name_for`,
+    which derives child names by scanning a node's `__dict__`,
+    seeing exactly what it saw before.
     """
+
+    # Set by __set_name__; a default so an unbound declaration that
+    # was never assigned to a class attribute still reports something.
+    _name = None
+
+    def __set_name__(self, owner, name):
+        for klass in owner.__mro__[1:]:
+            existing = vars(klass).get(name)
+            if existing is None or isinstance(existing, DriverDeclaration):
+                # Absent, or an inherited declaration this one
+                # overrides -- base-first discovery lets a subclass
+                # redeclare, and that stays legal.
+                continue
+            raise TypeError(
+                f"driver '{name}' on {owner.__name__} would shadow "
+                f"{klass.__name__}.{name}, which a driver read would then "
+                f"hide for good. A driver is read as an attribute of its "
+                f"node, so its name has to be free on that node: rename "
+                f"the driver.")
+        # object.__setattr__ because the simulation layer's Driver is a
+        # frozen dataclass. A private non-field slot, not a `name`
+        # field, so where a declaration is bound never enters the
+        # generated __eq__/__hash__/__repr__.
+        object.__setattr__(self, '_name', name)
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        try:
+            return instance._states[self._name]
+        except (AttributeError, KeyError):
+            # AttributeError: a node with no snapshot at all (a leaf).
+            # KeyError: a snapshot that has no entry for this driver.
+            # Both mean the same thing to the caller, and neither is a
+            # value this layer may invent -- the declaration states a
+            # default, and binding it is the loader's or the
+            # simulation's job, never a silent fallback here.
+            raise AttributeError(
+                f"driver '{self._name}' of "
+                f"{type(instance).__name__} is not bound; bind it with "
+                f"set_state({self._name}=...)") from None
+
+    def __set__(self, instance, value):
+        raise AttributeError(
+            f"driver '{self._name}' of {type(instance).__name__} cannot be "
+            f"assigned: its value belongs to the bound snapshot. Use "
+            f"set_state({self._name}={value!r}).")
 
 
 # A segment of a qualified id must be a name in every runtime that

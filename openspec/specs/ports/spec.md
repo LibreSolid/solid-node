@@ -62,8 +62,9 @@ this surface.
 #### Scenario: Stepper microsteps drive a carriage in design units
 
 - **WHEN** an axis assembly's `render()` binds a motor's rotational
-  output from `self.state['motor']` and `connect()`s it to a carriage
-  input port whose scale declares millimetres per microstep
+  output from its declared driver read as `self.motor` and
+  `connect()`s it to a carriage input port whose scale declares
+  millimetres per microstep
 - **THEN** after `set_state(motor=4000)` the carriage input port reads
   the converted position in millimetres and the derived translation
   places the carriage there absolutely

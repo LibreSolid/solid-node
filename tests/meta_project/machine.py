@@ -53,7 +53,7 @@ class Axis(AssemblyNode):
         self.cover = Cube(size=3.0)
 
     def render(self):
-        usteps = self.state['motor']
+        usteps = self.motor
         self.connect(usteps, self.position)
         # Linear in the driver, and through the port's unit scale.
         self.carriage.translate([self.position.value, 0, 0])

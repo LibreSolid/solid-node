@@ -51,5 +51,5 @@ class Axis(AssemblyNode):
 
     def render(self):
         self.carriage.translate(
-            [self.state['x'] * MM_PER_USTEP + 6.0, 0, 0])
+            [self.x * MM_PER_USTEP + 6.0, 0, 0])
         return [self.stop, self.carriage]

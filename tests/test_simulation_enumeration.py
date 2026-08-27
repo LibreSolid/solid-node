@@ -58,8 +58,8 @@ class QualifiedEnumerationTest(BaseNodeTest):
 
         qualified_drivers(machine)
 
-        self.assertEqual(machine.x_axis.state['motor'], 8000)
-        self.assertEqual(machine.y_axis.state['motor'], 8000)
+        self.assertEqual(machine.x_axis.motor, 8000)
+        self.assertEqual(machine.y_axis.motor, 8000)
 
     def test_an_illegal_id_segment_fails_loudly(self):
         with self.assertRaises(DriverIdError) as caught:
@@ -89,7 +89,7 @@ class DefaultBindingTest(BaseNodeTest):
 
         self.assertEqual(sorted(bind_declared_defaults(machine)),
                          ['x_axis.motor', 'y_axis.motor'])
-        self.assertEqual(machine.x_axis.state['motor'], 8000)
+        self.assertEqual(machine.x_axis.motor, 8000)
 
     def test_a_driverless_tree_is_not_even_rendered(self):
         """`Nested` declares no driver anywhere, so loading it must do
@@ -98,5 +98,7 @@ class DefaultBindingTest(BaseNodeTest):
         node = Nested()
 
         self.assertEqual(bind_declared_defaults(node), {})
-        self.assertEqual(dict(node.state), {})
+        # Nothing bound (time still reads symbolically) and nothing
+        # rendered (the walk's translate would be here otherwise).
+        self.assertEqual(str(node.time), '$t')
         self.assertEqual(node.inner.cube.operations, [])

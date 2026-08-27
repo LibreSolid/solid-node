@@ -21,6 +21,7 @@ from solid2 import cube
 from solid_node.node import (AssemblyNode, RotationalPort, SignalPort,
                              Solid2Node, TranslationalPort)
 from solid_node.node.ports import Port, declared_ports
+from solid_node.simulation import Driver
 
 from .base import BaseNodeTest
 
@@ -70,7 +71,16 @@ class Axis(AssemblyNode):
     """The whole seam in one render: the motor emits its driver state
     on its output port, connect() converts it into the carriage's
     design units, and the carriage is placed from the converted value.
-    Nothing is stored between renders -- every tick rebinds."""
+    Nothing is stored between renders -- every tick rebinds.
+
+    The driver is `usteps`, not `motor`, because `self.motor` is
+    already the child node emitting it. A driver is read as an
+    attribute of its node, so the two cannot share a name -- the
+    declaration would be assigned over in __init__, which is an error
+    the driver descriptor raises rather than a shadowing to discover
+    later."""
+
+    usteps = Driver(default=0, unit='ustep')
 
     def __init__(self):
         self.motor = Motor()
@@ -78,7 +88,7 @@ class Axis(AssemblyNode):
         super().__init__()
 
     def render(self):
-        self.motor.shaft.value = self.state['motor']
+        self.motor.shaft.value = self.usteps
         self.connect(self.motor.shaft, self.carriage.position)
         self.carriage.translate([self.carriage.position.value, 0, 0])
         return [self.motor, self.carriage]
@@ -139,7 +149,7 @@ class PortConnectionTest(BaseNodeTest):
     def test_microsteps_drive_the_carriage_in_design_units(self):
         axis = Axis()
 
-        axis.set_state(motor=4000)
+        axis.set_state(usteps=4000)
 
         self.assertEqual(axis.motor.shaft.value, 4000)
         self.assertEqual(axis.carriage.position.value, 10.0)
@@ -149,8 +159,8 @@ class PortConnectionTest(BaseNodeTest):
     def test_rebinding_is_absolute_across_renders(self):
         axis = Axis()
 
-        axis.set_state(motor=4000)
-        axis.set_state(motor=1000)
+        axis.set_state(usteps=4000)
+        axis.set_state(usteps=1000)
 
         self.assertEqual(axis.motor.shaft.value, 1000)
         self.assertEqual(axis.carriage.position.value, 2.5)

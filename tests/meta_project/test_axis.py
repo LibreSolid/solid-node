@@ -61,4 +61,4 @@ class AxisScenarioTest(ScenarioTest):
         sim = self.simulation()
 
         self.assertEqual(sim.state, {'x': 800})
-        self.assertEqual(self.node.state['x'], 800)
+        self.assertEqual(self.node.x, 800)

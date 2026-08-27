@@ -55,7 +55,7 @@ class Carriage(AssemblyNode):
         super().__init__()
 
     def render(self):
-        self.cube.translate([self.state['motor'] * MM_PER_USTEP, 0, 0])
+        self.cube.translate([self.motor * MM_PER_USTEP, 0, 0])
         return [self.cube]
 
 
@@ -73,7 +73,7 @@ class SimConstructionTest(BaseNodeTest):
         sim = Sim(node, DT)
 
         self.assertEqual(sim.state, {'motor': 8000})
-        self.assertEqual(node.state['motor'], 8000)
+        self.assertEqual(node.motor, 8000)
         self.assertEqual([op.serialized for op in node.cube.operations],
                          [['t', ['100.0', '0', '0']]])
 
@@ -157,7 +157,7 @@ class DeferredActionTest(BaseNodeTest):
         seen = []
 
         sim.at(0.0).trigger('Home X')
-        sim.at(2.0).run(lambda s: seen.append(s.node.state['motor']))
+        sim.at(2.0).run(lambda s: seen.append(s.node.motor))
         sim.run(3.0)
 
         self.assertEqual(seen, [0])
@@ -255,7 +255,7 @@ class InstructionTest(BaseNodeTest):
         sim.run(2.0)
 
         self.assertEqual(sim.state['motor'], 4000)
-        self.assertEqual(sim.node.state['motor'], 4000)
+        self.assertEqual(sim.node.motor, 4000)
 
     def test_an_instruction_targeting_an_undeclared_driver_is_reported(self):
         class Broken(Carriage):
@@ -281,7 +281,7 @@ class QualifiedSimTest(BaseNodeTest):
 
         self.assertEqual(sim.state,
                          {'x_axis.motor': 8000, 'y_axis.motor': 8000})
-        self.assertEqual(machine.x_axis.state['motor'], 8000)
+        self.assertEqual(machine.x_axis.motor, 8000)
 
     def test_stepping_addresses_each_instance_independently(self):
         machine = Machine()
@@ -292,8 +292,8 @@ class QualifiedSimTest(BaseNodeTest):
 
         self.assertEqual(sim.state,
                          {'x_axis.motor': 0, 'y_axis.motor': 8000})
-        self.assertEqual(machine.x_axis.state['motor'], 0)
-        self.assertEqual(machine.y_axis.state['motor'], 8000)
+        self.assertEqual(machine.x_axis.motor, 0)
+        self.assertEqual(machine.y_axis.motor, 8000)
 
     def test_the_trajectory_is_keyed_by_qualified_id(self):
         sim = Sim(Machine(), DT)

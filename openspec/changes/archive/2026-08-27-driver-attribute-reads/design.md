@@ -182,9 +182,17 @@ call carries a bare project-driver name, which is never true for
 `Sim`, since it binds by qualified id — so the stepping loop pays
 nothing. With names to validate in either form, `saved` is built on
 every binding, which is one small dict copy per assembly node per
-`set_state`. The same walk re-renders every one of those nodes, so the
-copy should be far below measurement noise; the implementation
-confirms this against the stepping loop rather than assuming it.
+`set_state`.
+
+Measured on the two-axis fixture over 200 ticks at dt=0.01, best of
+five runs: 32.1 µs/tick with the snapshot against 30.1 µs/tick
+without, so 2.0 µs/tick or 6.7%. That is 6.7% of a BARE tick, and a
+bare tick is not what a scenario costs — `sim.py`'s own reasoning is
+that "a bare tick is microseconds while one mesh assertion is
+milliseconds", which is why cadence exists at all. Two microseconds
+against a millisecond assertion is three orders of magnitude below the
+thing that actually sets scenario runtime, so this is absorbed rather
+than taken back to the pilot.
 
 Alternatives considered: validating against a cached declaration set
 (the declarations are only known by walking, and the walk is the

@@ -1,7 +1,8 @@
 # ADR-056: Signals, drivers, ports, and stepped simulation
 
 **Status:** Proposed (design draft; core spike-validated 2026-08-25,
-expression representation spike-validated 2026-08-26)
+expression representation spike-validated 2026-08-26); amended
+2026-08-27 by `driver-attribute-reads`
 
 **Date:** 2026-08-25
 
@@ -19,7 +20,10 @@ expression representation spike-validated 2026-08-26)
 > the pilot's direction. Nothing in it is ratified, implemented, or
 > validated; it exists so the design can be resumed without re-deriving
 > it. The normal flow — OpenSpec proposal, ratification, red-first
-> implementation — still applies before any of this lands.
+> implementation — still applies before any of this lands. Sections
+> below dated later than this preamble record what has since gone
+> through that flow: the stage log under "Implementation status" and
+> the ratified amendment that precedes it.
 
 ## Context
 
@@ -376,6 +380,178 @@ the shipped widget evaluator and its two-evaluator premise no longer
 holds (one TS evaluator remains); cross-runtime parity is still
 unenforced by any test.
 
+## Amendment (2026-08-27): a declared driver is read as an attribute
+
+Ratified and shipped by change `driver-attribute-reads`. The draft
+above named the two class-level declarations a node carries but never
+settled how a driver is *read*; stage 1 shipped one shape and stage 2
+brought the other, and the mismatch only became legible in project
+code. This section decides it.
+
+### What was wrong
+
+A node acquired two kinds of declared class metadata that look
+identical at the point of declaration:
+
+    motor    = Driver(default=8000, unit='ustep', dtype=int, scale=...)
+    position = TranslationalPort(unit='mm', scale=...)
+
+Both are class attributes. Both are discovered by the same MRO scan
+over `vars()`. Both name something whose VALUE belongs to one instance
+while the DECLARATION belongs to the class. But they were read in two
+different ways: the port as `self.position`, because `Port` is a
+descriptor, and the driver as `self.state['motor']`, through a mapping
+keyed by a string the class had already spelled out.
+
+The string is the problem. It is not checked against the declaration
+it depends on, so a typo is a runtime error rather than a name error;
+it does not read like the declaration three lines above it; and it
+offers a second, parallel vocabulary for a thing the framework already
+had one for. Metamaquina 2 — a root assembly declaring `x`, `y` and
+`z` and then reading three string keys — is the first real machine
+where the asymmetry is visible in ordinary project code.
+
+The `state` mapping was not designed as an alternative to a descriptor
+read. It is the shape stage 1 shipped: `set_state` landed in
+`multi-driver-state-seam`, and `Driver` did not exist until
+`stepped-simulation-layer` came after it. Everything the mapping could
+do that an attribute could not — read a name nothing declares, read
+`time`, enumerate what is bound — is a consequence of that ordering,
+not a capability anyone chose.
+
+The drivers of the decision: one declaration shape should have one
+read shape, and `Port` already established which one; nothing is
+released, so there is no compatibility claim to weigh against removing
+the older surface; a framework with two ways to read one value has to
+keep explaining the difference, and every project has to pick; the
+node layer must not acquire a dependency on the simulation layer; and
+a mistake should fail loudly at the earliest moment it is legible.
+
+### The decision
+
+**A driver declared on a node is read as an attribute of that node,
+and that is the only way to read it.**
+
+`DriverDeclaration` — the marker in `solid_node/node/qualified.py`
+that stage 3a introduced so the node layer could recognize a
+declaration — becomes a descriptor. `__get__` returns the declaration
+on class access and the bound value on instance access. The simulation
+layer's `Driver` inherits the read and gains nothing of its own.
+
+The descriptor lives in the node layer, not beside `Driver`, because
+handing back a bound value and delivering the entry in the first place
+are the same responsibility over the same `AssemblyNode._states` dict.
+The layering this ADR drew is unchanged: the node layer recognizes a
+declaration, qualifies it, delivers its state and now hands it back;
+what a driver MEANS — native units, integer dtype, ramps — stays in
+the simulation layer.
+
+It is a DATA descriptor. `__set__` is defined and raises, because a
+`__get__`-only descriptor loses to an instance attribute, so
+`self.x = 5` would silently shadow the driver for every later read and
+surface as wrong geometry rather than as an error. Defining `__set__`
+also leaves `_attr_name_for` — which derives child names by scanning a
+node's `__dict__` — seeing exactly what it saw before.
+
+The name a declaration is bound under is kept in a private non-field
+slot written through `object.__setattr__`, because `Driver` is a
+frozen dataclass and a `name` FIELD would join the generated `__eq__`,
+`__hash__` and `__repr__` — making two identical declarations on
+different attributes compare unequal.
+
+Three consequences follow, and are decided here rather than left open:
+
+**The `state` mapping is removed.** `_BoundState` and the
+`AssemblyNode.state` property are deleted. `self.time` is the only
+read for animation time, and `qualified_drivers(root)` remains what
+`docs/architecture.md` already called it: the one authority on what
+drivers a machine has.
+
+**`set_state` refuses a name no declaration bears.** A bare name no
+declared driver in the tree carries, and a dotted name that is not a
+qualified id the tree publishes, both fail naming the entry and the
+declared ids; `time` stays exempt. Once the attribute is the only
+read, an entry with no declaration behind it is unreachable, so
+accepting one binds a value nothing can ever see. The check reuses the
+`declared` map the propagation walk already builds for the ambiguity
+test, and the rollback that test already performs.
+
+**A driver may not shadow a node member.** `__set_name__` walks
+`owner.__mro__[1:]` and raises at class-definition time if a base
+carries the name under anything that is not itself a driver
+declaration. `AssemblyNode` has 36 public members, several of them
+plausible driver names for a mechanical design — `color`, `shape`,
+`mesh`, `state`, `time`. A driver name used to be confined to a
+mapping key where it could collide with nothing; the attribute
+namespace is new exposure, and this closes it at the moment it is
+cheapest to read. Redeclaring an inherited driver stays legal, which
+is how a subclass overrides a declaration.
+
+### Consequences of the amendment
+
+**Positive**
+
+- Declaration and read are the same vocabulary, and a mistyped driver
+  is a name error at the read or a rejection at the binding.
+- Drivers and ports are now one concept with one shape.
+- Two silent failure modes are gone: assigning over a driver, and
+  declaring one on top of a node member.
+- Binding is atomic against a name it refuses, like it already was
+  against an ambiguous one.
+
+**Negative / accepted**
+
+- Breaking, deliberately. Every `self.state['name']` read, every
+  `state['time']`, and every `dict(node.state)` assertion changed;
+  fixtures that bound names they never declared now declare them, and
+  one had to rename its driver because a CHILD node already held the
+  attribute — the collision the guard exists for, found in the
+  framework's own tests.
+- `hasattr(node, 'x')` is `False` for an unbound driver and
+  `getattr(node, 'x', default)` yields the default, because both
+  swallow `AttributeError`. Accepted: nothing probes a node that way,
+  discovery reads `vars()`, and any other exception type would break
+  `copy`, `pickle` and `inspect`, which probe for optional dunders
+  with exactly that idiom.
+- Nothing publicly reports "what is bound on this node". The document,
+  `qualified_drivers`, and `_states` for a debugger cover the real
+  need; a per-node view, if one is ever wanted, is an enumeration
+  surface to design rather than a reason to keep a second read path.
+- `set_state` now builds its rollback snapshot on every call rather
+  than only when a bare project-driver name is present, so the
+  stepping loop pays for it. Measured at 2.0 µs/tick against a 32.1
+  µs bare tick on the two-axis fixture — 6.7% of a bare tick, and
+  three orders of magnitude below the millisecond mesh assertion that
+  actually sets a scenario's runtime.
+- Only the walk knows what is declared, and the walk renders. So a
+  qualified id addressed to nobody, bound on a tree that was never
+  bound, reports that tree's own unbound read before the name can be
+  judged. This is the ordering trade-off the ambiguity path already
+  carried; the first message still names a real problem.
+
+### Alternatives considered for the read surface
+
+**Put the descriptor on `Driver`.** Works — a throwaway monkeypatch of
+`Driver.__get__` ran the driver, state, port, simulation and document
+tests green. Rejected because it puts knowledge of
+`AssemblyNode._states` in the layer whose whole point is to be
+ignorable by a driverless node.
+
+**Keep `self.x` and the mapping side by side.** The first draft of the
+change did. Rejected: the mapping's three justifications are all
+stage-1 residue rather than capability, nothing is released, and a
+second read surface is a permanent explanation cost.
+
+**Non-data descriptor.** Simpler, and silently wrong the first time a
+project assigns over a driver name.
+
+**A `name` field on the frozen `Driver` dataclass** instead of a
+private slot. Rejected: it would make declaration equality depend on
+where a declaration is bound.
+
+**No shadowing guard.** Rejected: it converts a class-definition
+mistake into wrong geometry with no message.
+
 ## Implementation status (2026-08-25)
 
 - **Stage 1 implemented and archived** as change
@@ -487,6 +663,18 @@ unenforced by any test.
   crash is a thing a simulation must be able to show. Raycast
   click-to-focus picking on the 3D scene was deliberately excluded and
   remains deferred; the breadcrumb is the whole focus affordance.
+- **The read surface settled (2026-08-27)** by change
+  `driver-attribute-reads`, which amends this ADR rather than adding
+  one — see the amendment section above for the decision and its
+  alternatives. `DriverDeclaration` became a data descriptor, the
+  `state` mapping and `_BoundState` are gone, `set_state` refuses an
+  undeclared name, and a driver may not shadow a node member. Every
+  caller in the framework converged, including two fixtures that had
+  bound names they never declared and one whose driver collided with a
+  child node held on the same attribute. Validated in Metamaquina 2,
+  the originating machine, whose root declared `x`, `y` and `z` and
+  read three string keys: 902 framework tests green and its own 12
+  pass.
 
 ## Open questions (updated after stage 3b)
 
@@ -595,6 +783,8 @@ Still open:
 
 ## References
 
+- solid_node/node/qualified.py — `DriverDeclaration` (marker and data
+  descriptor), qualified id, `DriverToken`
 - solid_node/node/assembly.py — `time` property, `set_keyframe`/`clear_keyframe`
 - solid_node/node/base.py — `_render_stack`, `_tag_driver`, absolute matrix composition
 - solid_node/node/operations.py — access-time symbolic resolution

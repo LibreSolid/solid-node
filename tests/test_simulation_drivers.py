@@ -45,8 +45,7 @@ class Axis(AssemblyNode):
         super().__init__()
 
     def render(self):
-        self.cube.translate([self.state['motor'] * MM_PER_USTEP, 0,
-                             self.state['lift']])
+        self.cube.translate([self.motor * MM_PER_USTEP, 0, self.lift])
         return [self.cube]
 
 

@@ -94,8 +94,8 @@ class SymbolicSerializationTest(BaseNodeTest):
 
         self.document(machine)
 
-        self.assertEqual(machine.x_axis.state['motor'], 8000)
-        self.assertEqual(machine.y_axis.state['motor'], 2000)
+        self.assertEqual(machine.x_axis.motor, 8000)
+        self.assertEqual(machine.y_axis.motor, 2000)
         self.assertEqual(
             [op.serialized for op in machine.x_axis.carriage.operations],
             [['t', ['100.0', '0', '0']]])
@@ -163,8 +163,8 @@ class DriverTableTest(BaseNodeTest):
             table = drivers_table(declarations)
 
         self.assertEqual(table['x_axis.motor']['range'], [0, 100])
-        self.assertEqual(machine.x_axis.state['motor'], -400)
-        self.assertEqual(machine.y_axis.state['motor'], 20000)
+        self.assertEqual(machine.x_axis.motor, -400)
+        self.assertEqual(machine.y_axis.motor, 20000)
 
     def test_the_table_is_json_serializable(self):
         machine = Machine()
