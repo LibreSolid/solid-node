@@ -14,7 +14,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  breadcrumb, controlLayer, displayValue, formatDisplay, navigableChildren,
+  breadcrumb, controlLayer, displayValue, formatDisplay, formatReadout,
+  navigableChildren,
   scopedIds,
 } from './controls';
 import { ManifestDriver, ManifestInstruction } from './types';
@@ -125,6 +126,30 @@ describe('formatDisplay', () => {
     // 3 microsteps of 0.0125mm is 0.037500000000000006 in binary
     // floating point, and a readout is not the place to say so.
     expect(formatDisplay(3 * 0.0125)).toBe('0.0375');
+  });
+});
+
+describe('formatReadout', () => {
+  it('writes the same four decimals whatever the value', () => {
+    // The point of the readout: every value is the same shape, so a
+    // drag does not move the digits under the maker's eye.
+    expect(formatReadout(100)).toBe('100.0000');
+    expect(formatReadout(2.5)).toBe('2.5000');
+    expect(formatReadout(0.0125)).toBe('0.0125');
+  });
+
+  it('rounds a value finer than the readout can hold', () => {
+    expect(formatReadout(0.00126)).toBe('0.0013');
+    expect(formatReadout(1.99999)).toBe('2.0000');
+  });
+
+  it('signs a negative value without changing its shape', () => {
+    expect(formatReadout(-5)).toBe('-5.0000');
+    expect(formatReadout(-0.0125)).toBe('-0.0125');
+  });
+
+  it('drops the float noise a conversion leaves behind', () => {
+    expect(formatReadout(3 * 0.0125)).toBe('0.0375');
   });
 });
 

@@ -162,17 +162,39 @@ export function breadcrumb(focus: ControlPath | null,
   return trail;
 }
 
-/** A design-unit value as a readout string.
+/** A design-unit value as an EDITABLE string, for a field the maker
+ * types into.
  *
  * Rounded to a precision no machine this chrome drives can act below,
  * then written without trailing zeros: a conversion through a scale
  * leaves binary-float noise (3 microsteps of 0.0125mm is
  * 0.037500000000000006), and a readout claiming that precision would be
- * lying about the machine rather than reporting it.
+ * lying about the machine rather than reporting it. The shortest
+ * faithful form is what a field wants -- rewriting a maker's `2.5` as
+ * `2.5000` fights the hand that typed it.
  */
 export function formatDisplay(value: number): string {
   return String(Number(value.toFixed(6)));
 }
+
+/** A design-unit value as a READ string, for the output beside a
+ * slider.
+ *
+ * The opposite job to `formatDisplay`, and why they are two functions:
+ * a readout changes sixty times a second under a drag, so it wants one
+ * constant SHAPE rather than the shortest one. Fixed decimals, trailing
+ * zeros kept, so the digit count never changes; `toFixed` rounds on the
+ * way, which handles the same conversion noise as above. Four places is
+ * finer than any millimetre-scale machine here resolves and coarser
+ * than binary noise.
+ */
+export function formatReadout(value: number): string {
+  return value.toFixed(READOUT_DECIMALS);
+}
+
+/** How many decimal places a readout writes -- the whole of the fixed
+ * precision policy, in one place, if it ever needs to vary by driver. */
+export const READOUT_DECIMALS = 4;
 
 function sliderPlan(display: number, driver: ManifestDriver): SliderPlan | null {
   const range = driver.range;

@@ -13,7 +13,7 @@ import {
 } from './options';
 import {
   BreadcrumbSegment, ControlLayer, controlLayer, DriverControl,
-  driverControl, formatDisplay,
+  driverControl, formatDisplay, formatReadout,
 } from './controls';
 import {
   DriverListener, DriverStore, TriggerHandle, toNative,
@@ -677,13 +677,32 @@ function buildDriverRow(
     input.style.cssText = 'width:8em;font:inherit;';
   }
 
+  // A readout that holds still under a drag. The number and the unit
+  // are separate elements so the alignment box is the NUMBER's: writing
+  // them as one right-aligned string pins the unit and lets the digits
+  // walk about underneath it. Tabular figures make every digit the same
+  // width -- the panel's system font is otherwise proportional, so even
+  // a constant digit count would shift -- and that is also what makes
+  // the `ch` reservation exact, since `ch` is the width of `0`. Ten:
+  // sign, four integer digits, point, four decimals. `min-width`, not
+  // `width`, so a value past that grows its own row instead of lying.
   const readout = document.createElement('output');
-  readout.style.cssText = 'min-width:6em;text-align:right;';
+
+  const figure = document.createElement('span');
+  figure.style.cssText = 'display:inline-block;min-width:10ch;'
+    + 'text-align:right;font-variant-numeric:tabular-nums;';
+
+  // The separating space lives in the text, not in a flex gap, so the
+  // readout still READS as "12.3457 mm" to a screen reader and to
+  // anyone who copies it. A single space is a constant width, so it
+  // costs the alignment nothing.
+  const unit = document.createElement('span');
+
+  readout.append(figure, unit);
 
   const show = (state: DriverControl) => {
-    readout.textContent = state.unit === null
-      ? formatDisplay(state.display)
-      : `${formatDisplay(state.display)} ${state.unit}`;
+    figure.textContent = formatReadout(state.display);
+    unit.textContent = state.unit === null ? '' : ` ${state.unit}`;
     // Pinned thumb, truthful readout: the value is outside the declared
     // travel and the chrome says so instead of hiding it.
     readout.style.color = state.pinned ? '#ffd166' : 'inherit';
