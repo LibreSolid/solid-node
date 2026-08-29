@@ -49,6 +49,8 @@ class FakeNode:
     def as_number(self, n):
         return float(n)
 
+    base_mesh = AbstractBaseNode.base_mesh
+
     @property
     def mesh(self):
         return AbstractBaseNode.mesh.fget(self)

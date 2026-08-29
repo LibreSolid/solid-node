@@ -76,19 +76,24 @@ whose artifact is absent or stale SHALL follow the full lifecycle above.
 The system SHALL distinguish rigid nodes (`rigid = True`; can produce a cached
 STL) from non-rigid nodes. Rigidity SHALL be determined by node type and SHALL
 NOT be recomputed from a node's children: `LeafNode` and `FusionNode` are
-rigid, `AssemblyNode` is non-rigid. Only rigid nodes generate STL files.
+rigid, `AssemblyNode` is non-rigid, and a flexible leaf (`FlexibleNode`, the
+`flexible-parts` capability) is the one non-rigid leaf kind — its geometry is
+a function of bound state, so it makes no time-invariance promise. Only rigid
+nodes generate cached STL files.
 
 A `FusionNode` SHALL reject a non-rigid child. Fusion combines solids into one
-solid; an assembled thing cannot be fused. The rejection SHALL name the fusion
-and the offending child and SHALL happen during render validation, before any
+solid; an assembled thing cannot be fused, and neither can a part whose shape
+varies with machine state. The rejection SHALL name the fusion and the
+offending child and SHALL happen during render validation, before any
 geometry is produced.
 
 A **topmost rigid node** is a rigid node whose parent is non-rigid, or the root
 node when the root is itself rigid. Because a fusion cannot contain an
-assembly, every rigid node is either a topmost rigid node or a descendant of
-exactly one. A topmost rigid node is the boundary of one printed solid and the
-unit selected by whole-solid assertions; this definition does not itself run
-an assertion or guarantee that the solid's geometry is connected.
+assembly or a flexible leaf, every rigid node is either a topmost rigid node
+or a descendant of exactly one. A topmost rigid node is the boundary of one
+printed solid and the unit selected by whole-solid assertions; this definition
+does not itself run an assertion or guarantee that the solid's geometry is
+connected. A flexible leaf is never a topmost rigid node.
 
 #### Scenario: An assembly cannot be fused
 
@@ -122,6 +127,12 @@ an assertion or guarantee that the solid's geometry is connected.
 - **THEN** its status as a topmost rigid node neither rejects the model nor
   causes a connectivity assertion to run
 
+#### Scenario: A flexible leaf is a non-rigid leaf
+
+- **WHEN** `rigid` is read on a flexible leaf
+- **THEN** it reports `False` while the node remains a leaf, and a
+  `FusionNode` rendering it raises naming both nodes
+
 ### Requirement: Animation-time access restrictions
 
 The system SHALL restrict the `time` property to `AssemblyNode`. `LeafNode`
@@ -140,11 +151,13 @@ The system SHALL provide leaf adapters for multiple CAD backends —
 `OpenScadNode` (with `scad_source` and optional `module_name`), and `JScadNode`
 (with `jscad_source`) — one sheet leaf kind, `Build123dSheetNode`, whose
 part is authored as a profile plus thickness under the `sheet-parts`
-capability, and one mesh-import leaf, `StlNode` (with `stl_source`), whose
-part is a committed STL mesh under the `stl-import` capability. Each adapter
+capability, one mesh-import leaf, `StlNode` (with `stl_source`), whose
+part is a committed STL mesh under the `stl-import` capability, and one
+flexible leaf kind, `MolejoNode`, whose part is a molejo shape spec fed by
+ports under the `flexible-parts` capability. Each adapter
 SHALL implement `as_scad()`; adapters
 declaring a `namespace` (`Solid2Node`, `CadQueryNode`, `Build123dNode`,
-`OpenScadNode`, `Build123dSheetNode`) get namespace-based render
+`OpenScadNode`, `Build123dSheetNode`, `MolejoNode`) get namespace-based render
 validation, while `JScadNode` and `StlNode` declare none and skip that check.
 
 `Build123dNode` SHALL accept as a render result a build123d solid — a `Part`,
@@ -159,12 +172,18 @@ to this adapter and SHALL NOT constrain the results of the other adapters.
 `profile()` rather than `render()`, and what its `profile()` must produce —
 one planar build123d face — is specified by the `sheet-parts` capability.
 
+`MolejoNode` is a flexible leaf, not a rigid adapter: its `render()` returns
+a molejo `Shape`, its per-instant parameter values arrive through declared
+ports rather than constructor arguments, and its rigidity, artifact, and
+document behavior are specified by the `flexible-parts` capability.
+
 OpenSCAD SHALL be the compilation target for the adapters that emit SCAD for
 it to render: `Solid2Node` and `OpenScadNode` have their STL rendered by
 OpenSCAD from the SCAD each emits. An adapter that produces its own artifact
 through another tool SHALL NOT additionally require OpenSCAD to do so —
 `CadQueryNode`, `Build123dNode` and `Build123dSheetNode` through their own
-kernel, `JScadNode` through the `jscad` binary, and `StlNode` through no
+kernel, `JScadNode` through the `jscad` binary, `MolejoNode` through molejo's
+Python evaluator, and `StlNode` through no
 external tool at all: its artifact is materialized from the committed mesh.
 Every adapter still emits SCAD, so the assembled document remains complete and
 the OpenSCAD GUI viewer can still open any project; emitting it does not imply
@@ -173,12 +192,14 @@ that OpenSCAD renders it.
 An adapter that produces its artifact inside `as_scad()` SHALL produce it only
 when that artifact is not up to date, and SHALL return the same SCAD output in
 either case. This covers every artifact the adapter owns; the sheet adapter's
-DXF is produced and guarded under the same rule.
+DXF is produced and guarded under the same rule, and the flexible adapter's
+snapshot artifact is guarded per binding as the `flexible-parts` capability
+specifies.
 
 An adapter whose backend is a boundary-representation kernel SHALL additionally
 expose its geometry exactly, under the `exact-geometry` capability.
-`CadQueryNode`, `Build123dNode` and `Build123dSheetNode` are such adapters:
-each is exact and provides `shape()`.
+`CadQueryNode`, `Build123dNode`, `Build123dSheetNode` and `MolejoNode` are
+such adapters: each is exact and provides `shape()`.
 `Solid2Node`, `OpenScadNode`, `JScadNode` and `StlNode` produce geometry only
 as meshes and are not exact. Exposing exact geometry SHALL NOT change an
 adapter's SCAD output or its mesh artifact, so a project that never asks an
@@ -215,6 +236,12 @@ exact question is unaffected.
 - **THEN** its materialized artifact is imported via `import_stl` in the
   SCAD output, as for the other artifact-owning adapters
 
+#### Scenario: Flexible adapter routes through its snapshot
+
+- **WHEN** a `MolejoNode` is assembled at a bound numeric snapshot
+- **THEN** its per-binding snapshot STL is imported via `import_stl` in the
+  SCAD output, as the `flexible-parts` capability specifies
+
 #### Scenario: A builder result is accepted
 
 - **WHEN** a `Build123dNode.render()` returns a `BuildPart` builder rather
@@ -232,17 +259,18 @@ exact question is unaffected.
 #### Scenario: An adapter does not rewrite a current artifact
 
 - **WHEN** `as_scad()` runs on a `CadQueryNode`, `Build123dNode`,
-  `Build123dSheetNode`, `JScadNode` or `StlNode` whose artifacts are up to
-  date
+  `Build123dSheetNode`, `JScadNode`, `StlNode` or `MolejoNode` whose
+  artifacts are up to date (for the flexible adapter: current for the
+  unchanged binding)
 - **THEN** no export or external renderer runs, and the returned SCAD output
   is unchanged
 
 #### Scenario: Only the B-rep backends are exact
 
 - **WHEN** `exact` is read across one instance of each adapter
-- **THEN** the `CadQueryNode`, `Build123dNode` and `Build123dSheetNode`
-  report true and the `Solid2Node`, `OpenScadNode`, `JScadNode` and
-  `StlNode` report false
+- **THEN** the `CadQueryNode`, `Build123dNode`, `Build123dSheetNode` and
+  `MolejoNode` report true and the `Solid2Node`, `OpenScadNode`,
+  `JScadNode` and `StlNode` report false
 
 #### Scenario: Exactness does not disturb the SCAD path
 

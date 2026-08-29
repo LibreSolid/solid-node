@@ -10,6 +10,27 @@ export type RawRotation = ['r', string, number[]];
 export type RawTranslation = ['t', string[]];
 export type RawOperation = RawRotation | RawTranslation;
 
+// A part whose GEOMETRY follows the machine -- a spring, a belt, a loom
+// -- travels as the analytic spec its evaluator reads plus one
+// expression per parameter, never as a mesh: there is no per-frame
+// artifact to publish, and evaluating shape is the same mechanism as
+// evaluating pose with `geometry = f(params)` instead of
+// `matrix = f(params)`.
+export interface ManifestFlexible {
+  // The technology that evaluates `spec`. A consumer that does not know
+  // it refuses the document naming it, rather than rendering a wrong
+  // shape -- the posture it already takes toward an undeclared driver.
+  tech: string;
+  // The evaluator's own document, embedded verbatim as the producer's
+  // adapter serialized it. Opaque here on purpose: its schema belongs to
+  // the evaluator, which is the only thing that reads it.
+  spec: Record<string, unknown>;
+  // One raw, unevaluated expression string per shape parameter, in the
+  // same evaluation scope and with the same verbatim guarantee as an
+  // operation's: `$t` and qualified driver ids survive to the client.
+  params: Record<string, string>;
+}
+
 export interface ManifestNode {
   name: string;
   type: string;
@@ -22,7 +43,16 @@ export interface ManifestNode {
   // part of the geometry identity: a source edit can retain the same path.
   mtime?: number;
   children?: ManifestNode[];
+  // A flexible leaf: geometry from a spec, and neither a model nor
+  // children below it. Present only in a version 3 document.
+  flexible?: ManifestFlexible;
 }
+
+// Every document version this package renders. The producer emits the
+// LOWEST version its content needs -- a document holding no flexible
+// node is byte-identical to the version 2 it always was -- so accepting
+// the whole union is accepting exactly what the producer can emit.
+export type ManifestVersion = 1 | 2 | 3;
 
 // One declared driver, as the producer publishes it. Presentation
 // metadata only: `range` is never a clamp.
@@ -44,7 +74,7 @@ export interface ManifestInstruction {
 
 export interface Manifest {
   format: string;
-  version: number;
+  version: ManifestVersion;
   animation: {
     fps: number;
     frames: number;

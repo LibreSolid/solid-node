@@ -10,9 +10,12 @@ geometry is available as an exact boundary representation rather than only as
 a triangle mesh.
 
 For a leaf, `exact` SHALL be determined by its adapter type and SHALL NOT be
-recomputed from rendered content: `CadQueryNode`, `Build123dNode` and
-`Build123dSheetNode` are exact; `Solid2Node`, `OpenScadNode` and `JScadNode`
-are not.
+recomputed from rendered content: `CadQueryNode`, `Build123dNode`,
+`Build123dSheetNode` and `MolejoNode` are exact; `Solid2Node`,
+`OpenScadNode` and `JScadNode` are not. `MolejoNode`'s exact geometry is
+per-instant — the solid molejo's B-rep evaluator constructs at the bound
+snapshot, under the `flexible-parts` capability — and its exactness is fixed
+by type like every other adapter's, not by installation state or binding.
 
 For an internal node, `exact` SHALL be true when every child is exact. This
 composition rule is deliberately the opposite of `rigid`, which is fixed by
@@ -36,8 +39,8 @@ exact.
 
 #### Scenario: An exact leaf
 
-- **WHEN** `exact` is read on a `CadQueryNode`, a `Build123dNode` or a
-  `Build123dSheetNode`
+- **WHEN** `exact` is read on a `CadQueryNode`, a `Build123dNode`, a
+  `Build123dSheetNode` or a `MolejoNode`
 - **THEN** it is true, without rendering the node
 
 #### Scenario: A faceted leaf
@@ -63,6 +66,13 @@ exact.
   `Build123dSheetNode` and one `CadQueryNode`
 - **THEN** it is true, and the fusion's `shape()` fuses the sheet's extruded
   solid with the other child
+
+#### Scenario: A flexible leaf composes exactly under an assembly
+
+- **WHEN** `exact` is read on an assembled `AssemblyNode` holding one
+  `MolejoNode` and one `CadQueryNode`
+- **THEN** it is true, and an exact question at a bound snapshot decides on
+  the B-rep solids of both children
 
 #### Scenario: One faceted child makes the composition faceted
 

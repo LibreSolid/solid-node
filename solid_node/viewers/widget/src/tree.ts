@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { ManifestNode, RawOperation } from './types';
 import { EvalScope, evalExpr, freeVariables, TIME_ID } from './evaluator';
+import { FlexibleShape } from './flexible';
 
 /** What changed since the last update, when not everything did.
  *
@@ -73,6 +74,9 @@ export class WidgetTree {
   // The union of this node's operations' free variables, computed once
   // and dropped whenever a reconcile replaces the operations.
   private freeVars: ReadonlySet<string> | undefined;
+  // A flexible leaf's geometry: no model to fetch, no children below it,
+  // and its own dependency set beside the operations' one.
+  private flexible: FlexibleShape | undefined;
 
   // Resolves when this node's mesh (if any) and all descendants
   // finished loading, so the camera can be fit to the actual bounds.
@@ -94,6 +98,15 @@ export class WidgetTree {
 
     if (data.model) {
       pending.push(this.loadModel(baseUrl + data.model, color));
+    }
+
+    // Nothing to fetch: the geometry is the spec, and the first update
+    // fills it. That update is the mount's own (`replaceTree` calls it
+    // before the camera frames anything), so a flexible node is on
+    // screen at the driver defaults exactly as a rigid one is.
+    if (data.flexible) {
+      this.flexible = new FlexibleShape(data.name, data.flexible, color);
+      this.group.add(this.flexible.mesh);
     }
 
     for (const childData of data.children ?? []) {
@@ -146,6 +159,16 @@ export class WidgetTree {
     const replacement = data.model && modelChanged
       ? await loadMesh(baseUrl + data.model, nextColor) : undefined;
 
+    // Built here rather than below for the reason the mesh above is:
+    // a `tech` this viewer cannot evaluate must be refused BEFORE the
+    // live tree is touched, so a rejected document leaves the scene it
+    // was going to replace intact. A spec that did not change needs no
+    // replacement at all -- only the expressions are rebound, and the
+    // buffers behind them survive the republish.
+    const nextFlexible = data.flexible
+      && !this.flexible?.describes(data.flexible)
+      ? new FlexibleShape(data.name, data.flexible, nextColor) : undefined;
+
     const existing = uniqueByName(this.children);
     const incoming = uniqueDataByName(data.children ?? []);
     const nextChildren = await Promise.all((data.children ?? []).map(async (childData) => {
@@ -178,6 +201,16 @@ export class WidgetTree {
       this.freeVars = undefined;
       this.setColor(nextColor);
 
+      if (nextFlexible) {
+        this.removeFlexible();
+        this.flexible = nextFlexible;
+        this.group.add(nextFlexible.mesh);
+      } else if (data.flexible) {
+        this.flexible!.rebind(data.flexible);
+      } else {
+        this.removeFlexible();
+      }
+
       const retained = new Set(nextChildren.map((child) => child.tree));
       this.children.filter((child) => !retained.has(child)).forEach((child) => {
         this.group.remove(child.group);
@@ -196,6 +229,13 @@ export class WidgetTree {
     this.group.add(mesh);
   }
 
+  private removeFlexible(): void {
+    if (!this.flexible) return;
+    this.group.remove(this.flexible.mesh);
+    this.flexible.dispose();
+    this.flexible = undefined;
+  }
+
   private removeMesh(): void {
     this.group.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
       .forEach((mesh) => {
@@ -209,6 +249,12 @@ export class WidgetTree {
   private setColor(color: string | null): void {
     if (this.color === color) return;
     this.color = color;
+    if (this.flexible) {
+      // Its own material, because a swept indexed surface is shaded
+      // flat to match the rigid parts an STL already renders that way.
+      this.flexible.setColor(color);
+      return;
+    }
     this.group.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
       .forEach((mesh) => {
         const previous = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -223,6 +269,7 @@ export class WidgetTree {
   get animated(): boolean {
     return (
       this.free.has(TIME_ID) ||
+      (this.flexible?.free.has(TIME_ID) ?? false) ||
       this.children.some((child) => child.animated)
     );
   }
@@ -246,13 +293,7 @@ export class WidgetTree {
   }
 
   private needsUpdate(changed: Changed): boolean {
-    if (changed === 'all') return true;
-    const free = this.free;
-    if (changed.time && free.has(TIME_ID)) return true;
-    for (const id of changed.drivers) {
-      if (free.has(id)) return true;
-    }
-    return false;
+    return touchedBy(this.free, changed);
   }
 
   assembly(path: AssemblyPath = []): AssemblyNode {
@@ -311,6 +352,13 @@ export class WidgetTree {
     if (this.needsUpdate(changed)) {
       this.group.matrix.copy(operationsMatrix(this.operations, scope));
     }
+    // Shape follows the same rule pose does, off its own dependency
+    // set: a spring is re-evaluated on the frames its `params`
+    // expressions name a changed input, and a driver none of them names
+    // costs it nothing.
+    if (this.flexible && touchedBy(this.flexible.free, changed)) {
+      this.flexible.evaluate(scope);
+    }
     for (const child of this.children) {
       child.update(scope, changed);
     }
@@ -327,6 +375,21 @@ export class WidgetTree {
       materials.forEach((material) => material.dispose());
     });
   }
+}
+
+/** Whether `changed` touches anything in `free`.
+ *
+ * The one rule, applied to both dependency sets a node has: the free
+ * variables of its operations decide whether its MATRIX recomputes, and
+ * the free variables of a flexible part's `params` decide whether its
+ * GEOMETRY does. */
+function touchedBy(free: ReadonlySet<string>, changed: Changed): boolean {
+  if (changed === 'all') return true;
+  if (changed.time && free.has(TIME_ID)) return true;
+  for (const id of changed.drivers) {
+    if (free.has(id)) return true;
+  }
+  return false;
 }
 
 function isPathPrefix(prefix: AssemblyPath, path: AssemblyPath): boolean {

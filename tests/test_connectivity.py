@@ -64,6 +64,8 @@ class StlNode:
     def as_number(self, value):
         return float(value)
 
+    base_mesh = AbstractBaseNode.base_mesh
+
     @property
     def mesh(self):
         return AbstractBaseNode.mesh.fget(self)

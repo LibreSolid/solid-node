@@ -17,7 +17,7 @@ from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
 from solid_node.core.pieces import PieceInventory
 from solid_node.core.serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, serialize_node,
+    DOCUMENT_FORMAT, document_version, serialize_node,
 )
 from solid_node.viewers import bundle as viewer_bundle
 
@@ -80,7 +80,11 @@ class BrowserRenderer:
         )
         document = {
             "format": DOCUMENT_FORMAT,
-            "version": DOCUMENT_VERSION,
+            # Read off the tree, as every producer of this document does:
+            # a snapshot of a project holding a flexible part still needs
+            # the version that knows the shape, even though the part is
+            # photographed at one numeric instant like everything else.
+            "version": document_version(root),
             # Empty by construction, and not an oversight: this producer
             # photographs ONE instant, so it serializes the node exactly
             # as the caller posed it -- animation time keyframed, drivers

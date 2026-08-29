@@ -81,6 +81,19 @@ The rename from `set_testing_time()` to `set_keyframe()` in November 2023 improv
 
 The mentioned "FlexibleNode" for time-dependent leaf geometry remains unimplemented in the roadmap, suggesting the current restriction adequately covers practical use cases. Implementing morphing geometry would add complexity around mesh topology changes and STL caching invalidation.
 
+## Amendment: Morphing Leaf Geometry, Without Time (2026-08-28)
+
+The "FlexibleNode" this ADR left in the roadmap now exists, delivered by
+[ADR-057](./ADR-057-the-flexible-leaf-and-spec-carried-geometry.md), and it
+does not weaken the restriction recorded above: a flexible leaf reads no
+time either. Its geometry is a pure function of the values its parent binds
+to its declared ports (ADR-056), so `time` raises on it exactly as on any
+other leaf, and the two concerns this ADR named as the cost of morphing
+geometry — mesh topology changes and STL cache invalidation — are answered
+rather than accepted: the tessellation is declared and
+parameter-independent, and a flexible part has no cached rigid artifact at
+all because its viewer representation is its shape spec, not a mesh.
+
 ## References
 
 - solid-node/solid_node/node/assembly.py:32-43

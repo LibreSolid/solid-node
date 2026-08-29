@@ -32,10 +32,10 @@ that way.
 ### NODE — core node tree and lifecycle
 - [ADR-001](NODE/ADR-001-composite-pattern-node-tree-architecture.md) — Composite pattern node tree — **Accepted**
 - [ADR-002](NODE/ADR-002-template-method-pattern-for-node-lifecycle.md) — Template-method node lifecycle — **Accepted**, amended by 033
-- [ADR-003](NODE/ADR-003-rigid-vs-non-rigid-node-distinction.md) — Rigid vs non-rigid distinction — **Accepted**, amended by 039
+- [ADR-003](NODE/ADR-003-rigid-vs-non-rigid-node-distinction.md) — Rigid vs non-rigid distinction — **Accepted**, amended by 039, third case added by 057
 - [ADR-004](NODE/ADR-004-multi-cad-backend-adapter-pattern.md) — Multi-CAD backend adapters — **Accepted**, universal target superseded by 046
 - [ADR-006](NODE/ADR-006-mtime-based-stl-caching-strategy.md) — Mtime-based STL caching — **Accepted**, extended by 026/028/033, amended by 050
-- [ADR-008](NODE/ADR-008-time-based-animation-system-for-assemblies.md) — Time-based animation — **Accepted**, extended by 023
+- [ADR-008](NODE/ADR-008-time-based-animation-system-for-assemblies.md) — Time-based animation — **Accepted**, extended by 023, deferred leaf geometry resolved by 057
 - [ADR-023](NODE/ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md) — Kinematic operations, driver-tagged idempotent renders — **Accepted**, extended by 027/028
 - [ADR-026](NODE/ADR-026-node-identity-parameter-hashed-artifact-keys-vs-tree-names.md) — Parameter-hashed artifact keys vs tree names — **Accepted**, extended by 043
 - [ADR-028](NODE/ADR-028-cached-base-meshes-and-single-matrix-world-composition.md) — Cached base meshes, single-matrix world composition — **Accepted** (characterization)
@@ -50,6 +50,7 @@ that way.
 - [ADR-054](NODE/ADR-054-imported-meshes-admitted-selected-and-corrected-explicitly.md) — An imported mesh is admitted, selected and corrected explicitly — **Accepted**
 - [ADR-055](NODE/ADR-055-wrapper-module-in-the-imported-part-source-set.md) — The wrapper module joins an imported part's tracked source set — **Accepted**
 - [ADR-056](NODE/ADR-056-signals-drivers-ports-and-stepped-simulation.md) — Signals, drivers, ports, and stepped simulation — **Proposed** (design draft, pre-OpenSpec), amended 2026-08-27
+- [ADR-057](NODE/ADR-057-the-flexible-leaf-and-spec-carried-geometry.md) — The flexible leaf, whose geometry travels as a spec — **Accepted**
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**

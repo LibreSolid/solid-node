@@ -60,6 +60,10 @@ class FakeNode:
     def as_number(self, n):
         return float(n)
 
+    # The real getter reads its geometry through base_mesh, so a
+    # stand-in that borrows the getter borrows that seam too.
+    base_mesh = AbstractBaseNode.base_mesh
+
     @property
     def mesh(self):
         return AbstractBaseNode.mesh.fget(self)

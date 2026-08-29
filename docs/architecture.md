@@ -47,7 +47,9 @@ Three architectural commitments shape almost every subsystem:
    through OpenSCAD. The OCCT backends — CadQuery and build123d — preserve
    BREP geometry, and all-exact fusions compose and tessellate in OCCT
    without OpenSCAD, whichever of the two produced each child. JSCAD produces
-   its STL through its own `jscad` tool. OpenSCAD is therefore conditional on
+   its STL through its own `jscad` tool, and a flexible part through molejo's
+   evaluators — mesh, STL and B-rep from one analytic spec.
+   OpenSCAD is therefore conditional on
    the paths that invoke it, not a universal framework prerequisite. The same
    rule governs the `manifold3d` mesh engine (ADR-052): it decides faceted
    geometry, so it is required by comparisons involving a part without exact
@@ -90,9 +92,18 @@ Two concrete internal nodes encode the **rigid/non-rigid** axis
 (non-rigid, animatable). Rigidity is static and determined by node type;
 a fusion rejects any non-rigid child during validation, enforcing "fuse
 solids, then assemble them" (ADR-039). Only rigid nodes produce STLs, which
-is why rigid geometry must be time-invariant. A topmost rigid node is the
+is why cached geometry must be time-invariant. A topmost rigid node is the
 first rigid node on a branch below an assembly, or a rigid root itself; its
 STL is the complete printed solid for that branch.
+
+The axis has **three** cases, not two, because *leaf* and *rigid* are not
+the same word (ADR-057). Beside the rigid leaves and the non-rigid
+assembly stands one **non-rigid leaf** kind, `FlexibleNode`: a part whose
+shape follows machine state. It composes with the rules above rather than
+relaxing them — a fusion rejects it as it rejects any non-rigid child, it
+enters no cached-artifact set so the time-invariance precondition is
+untouched, it is never a topmost rigid node and contributes no printed
+piece, and `time` raises on it as on any leaf.
 
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` and `Build123dNode` (both export to STL and re-import),
@@ -148,18 +159,50 @@ parameter. The extrusion is an ordinary backend solid, so a sheet part is an
 exact leaf in every respect above — `exact.py` needed no change, and a fusion
 may mix a sheet part with any other exact child.
 
+One leaf kind carries no solid at all. `FlexibleNode` — internal base,
+`MolejoNode` its v1 adapter — is a part whose *geometry*, not merely whose
+placement, is a function of machine state: a valve spring, a belt, a loom
+(ADR-057). Its per-instant parameters arrive **through declared ports**,
+connected by the parent assembly's `connect()` — ADR-056's guardrail
+extended from *pose is a pure function of the driver snapshot* to *shape
+is*. Constructor arguments stay structural, because every one of them
+enters `uniq_id` (ADR-026) and a value that follows a cam would otherwise
+mint an artifact identity per frame; `uniq_id` therefore stays structural
+and two instances of one flexible class share it. The port name is the
+parameter name, and the two name sets are checked in both directions
+immediately after `render()`, an unbound port failing loudly rather than
+defaulting. `MolejoNode.render()` returns a molejo `Shape`, validated by
+the ordinary `namespace` mechanism: the render contract is the backend's
+object, as for every other adapter. It is exact by type, `shape()`
+evaluating the bound instant through molejo's B-rep evaluator and
+recasting it into ADR-047's one currency, with the backend's declared
+approximation surfaced as `shape_tolerance` (`1e-6` for a helix or spline
+sweep, `0.0` where every surface is analytic) rather than hidden. Nothing
+of that geometry is persisted: `shape()` computes on demand behind an
+in-memory memo keyed on the binding, because `(path, mtime)` keying is
+currency for a *source* and never for a *binding*.
+
 Exact nodes expose unplaced BREP geometry through
 `shape()`; placement remains the caller's responsibility through the same
 composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
 Each adapter still emits SCAD, but artifact production follows its backend:
 Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d — sheet
-parts included — use OCCT, JSCAD uses `jscad`, and an imported mesh uses no
+parts included — use OCCT, JSCAD uses `jscad`, a flexible leaf uses molejo's
+Python evaluator, and an imported mesh uses no
 tool whatsoever (ADR-046). Emitting SCAD
 does not itself require the OpenSCAD binary. A sheet leaf writes one artifact
 the others do not: a nominal DXF of its profile, in millimeters with arcs
 preserved, beside its `.stl` and `.brep` and under the same freshness rules,
-which its skip guard also requires.
+which its skip guard also requires. A flexible leaf writes another: a
+per-binding snapshot STL, so the assembled SCAD document stays complete for
+the OpenSCAD GUI — a snapshot camera, never animation, the treatment
+drivers already receive. The camera declines where there is no instant to
+photograph: a port fed by animation time, which nothing binds on this path
+(ADR-008), yields no artifact and no geometry rather than failing the build
+or inventing a moment. An unbound port, or one still carrying a raw driver
+token the loader should have bound, is a wiring mistake and still fails
+loudly (ADR-057).
 
 Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
@@ -170,7 +213,11 @@ and the viewer, and never touches geometry (ADR-026). A **piece** id
 so solids factored into different classes but building identical geometry
 are one piece, while handed variants are two (ADR-043). Each answers a
 different question — rebuild needed, addressed how, same thing to print —
-and conflating any two produces silently wrong answers.
+and conflating any two produces silently wrong answers. A flexible leaf's
+snapshot artifact adds a fourth key beside — never inside — `uniq_id`: a
+`binding_hash` of its resolved parameter values, which is what makes a
+changed *state* a different file rather than a rewrite of one whose mtime
+already claims it is current (ADR-057).
 
 ### Kinematics (NODE · spec `kinematics`)
 
@@ -360,7 +407,10 @@ the check happens before the expensive work rather than after it.
 Internal nodes always render: their file set is the union of their
 children's and is only known by walking them. The adapters that write
 their artifact inside `as_scad()` — CadQuery, build123d, sheet, JSCAD — carry
-the same guard, for nodes that opt out of optimization.
+the same guard, for nodes that opt out of optimization. A flexible leaf
+carries it per binding: mtime equality decides *source* currency within one
+binding exactly as elsewhere, and a different binding is a different file
+rather than a question mtime is asked and cannot answer (ADR-057).
 
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
@@ -389,9 +439,25 @@ a broad recursive watch and keeps the loop alive.
 
 An exact rigid node has a private `.brep` beside its `.stl` (ADR-044). Both
 must match the node mtime for the build to be current; the BREP is spared by
-the artifact sweep but is never named in a viewer or export document. An
+the artifact sweep but is never named in a viewer or export document. That
+freshness rule is why a flexible leaf persists no exact geometry at all: the
+`.brep` requirement is scoped to nodes that are both rigid and exact, the
+sweep spares `.brep` files unconditionally by extension so per-binding ones
+could never be collected, and nothing reads them anyway — the exact
+composition path fuses the shapes children *return*, and a fusion refuses a
+flexible child (ADR-057). An
 all-exact fusion is the exception to the subprocess protocol: it writes its
 BREP and tessellates its fused shape synchronously in process (ADR-045).
+
+The artifact sweep learns one thing from the tree rather than from the
+document. A flexible leaf's snapshot is addressed by its binding, and the
+published document is symbolic — it describes the machine, not the pose —
+so it cannot name the file the assembled SCAD imported. The assembled tree
+can, and it is the same tree that publication describes, so each flexible
+node's `snapshot_file` joins the referenced set and every other binding's
+snapshot is swept. A build whose only change is the binding writes no new
+document and therefore runs no sweep, so one superseded snapshot survives
+until the next document-changing build (ADR-057).
 
 Publication enforces build mechanics and model validity, not project-selected
 geometry contracts. It therefore does not count STL components or invoke
@@ -556,14 +622,15 @@ removed after either success or failure (ADR-041).
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
 `solid export` (ADR-020/034/035/042) emits a self-contained static artifact:
-`manifest.json` (`format: solid-node-export, version: 2` — a versioned
-tree-document schema shared with `viewer.json`, not a portability claim),
+`manifest.json` (`format: solid-node-export`, at the versioned tree-document
+schema shared with `viewer.json` — `version: 2`, or `3` when the tree holds
+a flexible node; not a portability claim),
 deduplicated `models/*.stl`, and a
 React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
 auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
 pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
-global exposes API version 4 so a host can check compatibility before mounting.
+global exposes API version 5 so a host can check compatibility before mounting.
 The handle exposes immutable assembly metadata and host-controlled subtree
 focus and visibility by root-relative name path. Those inspection controls are
 session state: they neither mutate nor unload the published tree, and valid
@@ -595,6 +662,30 @@ decided by the **free variables of their parsed expressions**, not by a
 substring test: a driver change re-evaluates exactly the operations
 naming it, `$t` operations keep animating from the time transport, and
 a driver named `total` is never found inside a function name.
+
+**The widget evaluates shape per frame the way it evaluates pose**
+(ADR-057). It bundles molejo's JavaScript evaluator through the ADR-035
+delivery path, and per flexible node parses its `params` once through the
+existing expression cache, evaluates them in the existing scope (`$t` plus
+the nested driver map), and hands the values to molejo. Buffers are
+allocated by molejo's *first* evaluation — only that call can know the
+counts, which the spec fixes — and every later binding refills the same
+`Float32Array` in place, leaving the index untouched: no reallocation and
+no topology change ever happens at frame rate. Gating is **one rule over
+two dependency sets**: `touchedBy(free, changed)` decides both whether a
+node's matrix recomputes, from its operations' free variables, and whether
+its geometry does, from its `params`' — so a driver named by no `params`
+expression costs a spring nothing and the two sets cannot drift into two
+rules. The surface is shaded **flat**, which is a decision rather than a
+default: molejo emits no normals, its mesh is indexed and shares rim
+vertices between wall and caps so computed vertex normals would round the
+rim, an STL arrives non-indexed and therefore already looks flat, and
+skipping the pass spares O(V) work per driven frame. Two refusals stand in
+the prepare phase, before the live tree is touched, so a rejected document
+leaves the standing scene intact: a document version outside the accepted
+set `[1, 2, 3]` — a check the loader previously did not perform at all —
+and a `flexible` node whose `tech` this build cannot evaluate, each named
+in the error.
 The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core
@@ -644,6 +735,27 @@ already refuses loudly — no consumer can misread it. Targets stay in
 design units: the conversion to native state belongs to the driver
 declaration, and the client performs it exactly once, exactly as
 `Driver.native` does.
+
+**Schema version 3 adds a third node shape** (ADR-057). Beside a `model`
+reference and a list of `children`, a node may carry `flexible`: the
+evaluating technology (`tech`), the shape spec verbatim as the adapter
+serialized it (`spec`, inlined — a molejo document is a few kilobytes and
+there is no mesh to deduplicate), and a `params` table of one raw
+expression string per shape parameter. The producer reads that shape off
+`node.flexible` exactly as it reads `node.rigid`, so the document's shape
+follows the node's kind rather than a type test; `type` keeps publishing
+the framework node *kind* (`LeafNode`), unchanged. `params` expressions are
+produced by the same symbolic mode as operations and carry the same
+verbatim guarantee structurally — `drive_tree` binds every declared driver
+before serialization — so a snapshot-bound tree still publishes
+`(46.8 - valvetrain.lift)` rather than the constant that instant computed,
+and every id they reference appears in the `drivers` table. A flexible leaf
+contributes no `models/` entry and no piece: its geometry *is* the spec.
+The version is a property of the **content**, not of the producer:
+`document_version()` reads it off the finished tree, so a document with no
+flexible node stays byte-identical to the version 2 it always was and an
+old consumer refuses only what it genuinely cannot render. Consumers accept
+1, 2 and 3.
 
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
@@ -711,7 +823,9 @@ The short list that changes must not silently break:
   Kinematic fit still needs the Blocked **and** Free pair (ADR-025/029/044).
 - The `solid-node-export` format/version identifies a shared tree-document
   schema; breaking its tree shape or operation serialization means bumping the
-  version and updating every producer and consumer together. Portability stays
+  version and updating every producer and consumer together. A producer emits
+  the **lowest version its content needs**, so a consumer refuses exactly the
+  documents it genuinely cannot render and no others (ADR-057). Portability stays
   producer-specific: `manifest.json` is copied and portable, `viewer.json` is
   build-root-relative and private (ADR-020/031/034).
 - Every expression evaluator — of `$t` or of a driver id — uses degree
@@ -720,7 +834,9 @@ The short list that changes must not silently break:
 - A `range` is presentation metadata. Nothing in the framework, the
   simulation, or the viewer clamps a driver to it (ADR-056).
 - Users never override `assemble()`; rigid geometry is time-invariant
-  (ADR-002/003).
+  (ADR-002/003). A part whose shape follows machine state is therefore
+  not rigid — the one non-rigid leaf kind — and it is fused by nothing,
+  cached as nothing, and printed as nothing (ADR-057).
 - A topmost rigid node is the boundary of one printed solid, not a guarantee
   that its geometry is connected. Whole-solid integrity is an explicit
   project assertion; connectivity uses the solid-local frame and collision
@@ -743,11 +859,11 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry` | 001–004, 006, 026, 044–045, 047 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048 |
 | Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
-| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export` | 020, 034, 051 |
+| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export`, `viewer-package` | 020, 034, 035, 051, 057 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

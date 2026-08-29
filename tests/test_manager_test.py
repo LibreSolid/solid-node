@@ -173,6 +173,7 @@ class InstrumentedChild:
 
     save_checkpoint = AbstractBaseNode.save_checkpoint
     restore_checkpoint = AbstractBaseNode.restore_checkpoint
+    base_mesh = AbstractBaseNode.base_mesh
 
     @property
     def mesh(self):

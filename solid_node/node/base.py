@@ -52,6 +52,29 @@ def _atomic_write_text(path, content, mtime_ns):
         raise
 
 
+def _atomic_write_bytes(path, content, mtime_ns):
+    """`_atomic_write_text` for a binary artifact.
+
+    Same contract, and it matters for the same reason: the stamp is
+    applied before the rename, so the file at `path` is never a
+    half-written mesh and never carries a build-time mtime that would
+    make it look newer than the source it came from.
+    """
+    directory = os.path.dirname(path) or '.'
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
+    try:
+        with os.fdopen(descriptor, 'wb') as output:
+            output.write(content)
+        os.utime(temporary, ns=(time.time_ns(), mtime_ns))
+        os.replace(temporary, path)
+    except Exception:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+        raise
+
+
 # Module-level cache of loaded base meshes (no operations applied),
 # keyed on (stl_file, mtime) -- skill-repo docs/performance-improvement.md
 # fix 1. Before this cache, AbstractBaseNode.mesh called trimesh.load()
@@ -274,6 +297,26 @@ def _build_uniq_id(klass, args, kwargs):
     prefix = _UNSAFE_PREFIX_CHARS.sub('_', canonical)[:_PREFIX_LEN]
     return f'{prefix}-{digest}'
 
+
+def binding_hash(values):
+    """The artifact key of one parameter binding, beside `_build_uniq_id`.
+
+    A flexible leaf's geometry is a function of its bound ports, so a
+    snapshot of it is addressed by those values as well as by the node
+    that rendered it. `uniq_id` stays structural -- a continuously
+    varying value must never mint a new node identity (ADR-026) -- and
+    this key is what makes a changed binding a DIFFERENT file rather
+    than a rewrite of one whose mtime already says it is current.
+
+    Names are sorted and values serialized through repr, so the key
+    depends on the binding and not on the order it was collected in, and
+    two floats that print alike but are not equal still key apart.
+    """
+    canonical = ','.join(f'{name}={value!r}'
+                         for name, value in sorted(values.items()))
+    return hashlib.sha256(canonical.encode()).hexdigest()[:_HASH_LEN]
+
+
 class AbstractBaseNode:
     """A mechanical project in solid-node is represented by a
     tree, and this is the abstract base class for all nodes.
@@ -288,6 +331,13 @@ class AbstractBaseNode:
 
     # This determines if stl can be generated for this Node
     rigid = True
+
+    # Whether this node's geometry is a function of its bound ports
+    # rather than a solid it can hand over. Fixed by type beside `rigid`,
+    # and for the same reason: it says what KIND of thing the node is,
+    # which is what the serialized document publishes it as. Only
+    # `FlexibleNode` sets it (see solid_node/node/flexible.py).
+    flexible = False
 
     # All children nodes, initialized as tuple for compliance
     children = tuple()
@@ -728,6 +778,19 @@ class AbstractBaseNode:
         _tag_animator(self, operation)
         return self
 
+    def base_mesh(self):
+        """The node's geometry in its OWN frame, as a fresh mutable copy.
+
+        The one seam every framed view goes through -- `mesh` here, and
+        the test runner's `_mesh_in_frame`, which needs the same geometry
+        in the solid frame instead. A node kind whose geometry is not a
+        cached artifact overrides this single method rather than each
+        framing separately: a flexible leaf (`FlexibleNode`) evaluates
+        its current binding here, because it has no cached rigid STL to
+        read and its shape is not time-invariant.
+        """
+        return cached_base_mesh(self.stl_file).copy()
+
     @property
     def mesh(self):
         """The node's mesh in WORLD coordinates: its own operations
@@ -737,7 +800,7 @@ class AbstractBaseNode:
         always returned as a fresh COPY with a single composed world
         matrix applied (see _compose_world_matrix) -- callers are free
         to mutate the result; the cached base mesh never is."""
-        mesh = cached_base_mesh(self.stl_file).copy()
+        mesh = self.base_mesh()
         mesh.apply_transform(_compose_world_matrix(self))
         return mesh
 

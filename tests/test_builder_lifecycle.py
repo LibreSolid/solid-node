@@ -461,7 +461,8 @@ class PublicationOrderingTest(TestCase):
                                    color=None, mtime=0, operations=(),
                                    stl_file=path)
         children = [leaf(name) for name in names]
-        return SimpleNamespace(name='assembly', rigid=False, _type='Assembly',
+        return SimpleNamespace(name='assembly', rigid=False, flexible=False,
+                               _type='Assembly',
                                color=None, mtime=0, operations=(),
                                children=children,
                                render=lambda: children,

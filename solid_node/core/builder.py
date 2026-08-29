@@ -19,7 +19,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, instructions_table,
+    DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
     serialize_node, symbolic_document,
 )
 from .pieces import PieceInventory
@@ -371,17 +371,21 @@ class Builder(FileSystemEventHandler):
         os.makedirs(self.build_dir, exist_ok=True)
         inventory = PieceInventory()
         with symbolic_document(self.node) as (declarations, instructions):
+            root = serialize_node(
+                self.node,
+                lambda rigid_node: os.path.relpath(
+                    rigid_node.stl_file, self.build_dir),
+                inventory.register,
+            )
             snapshot = {'format': DOCUMENT_FORMAT,
-                        'version': DOCUMENT_VERSION,
+                        # The lowest version this tree's content needs:
+                        # a project with no flexible part publishes the
+                        # document it always did.
+                        'version': document_version(root),
                         'animation': {'fps': 30, 'frames': 360},
                         'drivers': drivers_table(declarations),
                         'instructions': instructions_table(instructions),
-                        'root': serialize_node(
-                            self.node,
-                            lambda rigid_node: os.path.relpath(
-                                rigid_node.stl_file, self.build_dir),
-                            inventory.register,
-                        )}
+                        'root': root}
         snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
         if self._published_document() == document:
@@ -435,7 +439,27 @@ class Builder(FileSystemEventHandler):
             for child in node.get('children', []):
                 collect(child)
 
+        def collect_snapshots(node):
+            """The per-binding artifacts the assembled tree imports.
+
+            A flexible leaf's snapshot is addressed by its binding as well
+            as by the node, and the published document is serialized
+            symbolically -- it describes the machine, not the pose -- so
+            the document cannot name the file the assembled SCAD actually
+            imports. The tree can, and it is the same tree this
+            publication describes. Every other binding's snapshot is
+            therefore unreferenced, which is exactly what the sweep
+            collects.
+            """
+            artifact = getattr(node, 'snapshot_file', None)
+            if artifact:
+                referenced.add(os.path.normpath(
+                    os.path.relpath(artifact, self.build_dir)))
+            for child in getattr(node, 'children', ()):
+                collect_snapshots(child)
+
         collect(snapshot['root'])
+        collect_snapshots(self.node)
         for root, _, files in os.walk(self.build_dir):
             for filename in files:
                 path = os.path.join(root, filename)

@@ -23,12 +23,40 @@
 
 import { describe, expect, it } from 'vitest';
 import { assertRenderable } from './viewer';
-import { Manifest, ManifestNode, RawOperation } from './types';
+import {
+  Manifest, ManifestFlexible, ManifestNode, RawOperation,
+} from './types';
 
 const node = (name: string, operations: RawOperation[],
               children?: ManifestNode[]): ManifestNode => ({
   name, type: 'AssemblyNode', color: null, operations, children,
 });
+
+// The valve spring of `tests/flexible_project/spring.py`, as the
+// producer publishes it: the spec verbatim and one expression per
+// parameter.
+const SPRING_SPEC = {
+  molejo: 1,
+  profile: { type: 'circle', radius: 2.0 },
+  path: [{ type: 'helix', radius: 14.0, turns: 6.5,
+           height: { param: 'height' } }],
+  loop: false,
+  tessellation: { path: 240, profile: 16 },
+};
+
+const spring = (overrides: Partial<ManifestFlexible> = {}): ManifestNode => ({
+  name: 'spring', type: 'LeafNode', color: null, operations: [],
+  flexible: {
+    tech: 'molejo', spec: SPRING_SPEC,
+    params: { height: '(46.8 - valvetrain.lift)' },
+    ...overrides,
+  },
+});
+
+const lift = {
+  default: 0.0, range: [0.0, 12.0], unit: 'mm',
+  dtype: 'float', scale: null,
+};
 
 const document = (overrides: Partial<Manifest>): Manifest => ({
   format: 'solid-node-export',
@@ -112,5 +140,73 @@ describe('assertRenderable', () => {
 
     expect(() => assertRenderable(manifest, '/m.json'))
       .toThrow(/y_axis\.motor/);
+  });
+});
+
+// Schema v3 (the flexible node shape). The producer emits the LOWEST
+// version its content needs, so this viewer accepts the whole range it
+// can render and refuses anything outside it -- the same posture it
+// takes toward a `tech` it cannot evaluate, and for the same reason:
+// a schema this build cannot read is not a document to guess at.
+describe('assertRenderable on a flexible document', () => {
+  it('accepts a version 3 document carrying a flexible node', () => {
+    const manifest = document({
+      version: 3,
+      drivers: { 'valvetrain.lift': lift },
+      root: node('engine', [], [node('valvetrain', [], [spring()])]),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json')).not.toThrow();
+  });
+
+  it('refuses a technology it cannot evaluate, naming node and tech', () => {
+    const manifest = document({
+      version: 3,
+      drivers: { 'valvetrain.lift': lift },
+      root: node('engine', [], [spring({ tech: 'wibble' })]),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/spring/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/wibble/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/molejo/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/m\.json/);
+  });
+
+  it('refuses a version it does not render, naming it and the ones it does', () => {
+    const manifest = document({
+      version: 4 as unknown as Manifest['version'],
+      root: node('root', []),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/\b4\b/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/1, 2, 3/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/m\.json/);
+  });
+
+  it('holds a `params` expression to the same drivers table', () => {
+    // `params` is an expression like any other, so an id its own table
+    // does not declare is the same malformed document as an operation's
+    // -- there is no value to bind, and evaluating it anyway would show
+    // a wrong SHAPE instead of a wrong pose.
+    const manifest = document({
+      version: 3,
+      drivers: {},
+      root: node('engine', [], [spring()]),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json'))
+      .toThrow(/valvetrain\.lift/);
+  });
+
+  it('leaves a `$t` parameter alone: animation time is not a driver', () => {
+    const manifest = document({
+      version: 3,
+      drivers: {},
+      root: node('engine', [], [
+        spring({ params: { height: '(46.8 - (12.0 * $t))' } }),
+      ]),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json')).not.toThrow();
   });
 });

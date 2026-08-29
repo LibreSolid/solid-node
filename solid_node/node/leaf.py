@@ -22,9 +22,16 @@ class LeafNode(AbstractBaseNode):
     @property
     def time(self):
         """Raise an exception, as leaf nodes cannot rely on time.
-        Implementing a FlexibleNode is in the roadmap"""
+
+        A part whose SHAPE follows the machine -- a spring, a belt, a
+        loom -- is a flexible leaf (`MolejoNode`), and it reads no time
+        either: its geometry is a pure function of the values its parent
+        binds to its declared ports.
+        """
         raise Exception(f"Leaf node cannot rely on time, animation should be "
-                        "done on internal nodes")
+                        "done on internal nodes. A part whose shape follows "
+                        "the machine is a flexible leaf (MolejoNode), whose "
+                        "parameters arrive through its declared ports")
 
     @property
     def children(self):

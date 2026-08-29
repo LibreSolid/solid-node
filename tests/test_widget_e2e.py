@@ -30,7 +30,7 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from subprocess import run
 
 from solid_node.core.export import export_node
-from solid_node.viewers.bundle import bundle_path
+from solid_node.viewers.bundle import api_version, bundle_path
 
 from .base import BaseNodeTest
 from . import spinner_project
@@ -292,7 +292,10 @@ class ViewerMountApiTest(BaseNodeTest):
           };
         }""")
 
-        self.assertEqual(result['apiVersion'], 4)
+        # Read the declared version rather than a literal: the mount
+        # handle's whole job is to report what the package declares,
+        # and a literal here silently rots every time it is bumped.
+        self.assertEqual(result['apiVersion'], api_version())
         self.assertIsInstance(result['node']['name'], str)
         self.assertEqual(result['node']['path'], [])
         self.assertIsInstance(result['node']['model'], bool)

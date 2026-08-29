@@ -29,7 +29,12 @@ describe('API_VERSION', () => {
     expect(API_VERSION).toBe(pkg.solidNodeViewerApi);
   });
 
-  it('declares the camera-orientation API as version 3', () => {
-    expect(API_VERSION).toBe(4);
+  // Raised whenever the mount interface or the handle changes
+  // incompatibly, AND whenever a capability a host may require is added
+  // to it. Rendering `version: 3` documents -- parts whose geometry
+  // follows the machine -- is such a capability: a host that needs a
+  // spring to move cannot tell from the interface alone.
+  it('declares the flexible-geometry API as version 5', () => {
+    expect(API_VERSION).toBe(5);
   });
 });

@@ -19,6 +19,7 @@ import {
   DriverListener, DriverStore, TriggerHandle, toNative,
 } from './drivers';
 import { EvalScope, freeVariables, TIME_ID } from './evaluator';
+import { evaluatesTech, knownTechnologies } from './flexible';
 import { AssemblyNode, AssemblyPath, WidgetTree } from './tree';
 import { Manifest, ManifestDriver, ManifestInstruction, ManifestNode } from './types';
 import { API_VERSION } from './version';
@@ -404,32 +405,68 @@ function visibleBounds(root: THREE.Object3D): THREE.Box3 {
   return bounds;
 }
 
+// Every schema version this viewer renders. The producer emits the
+// LOWEST version its content needs -- a document holding no flexible
+// node is byte-identical to the version 2 it always was -- so this set
+// is exactly what the producer can emit and this build can read.
+const RENDERED_VERSIONS: readonly number[] = [1, 2, 3];
+
 // The document schema this viewer evaluates. Version 2 added the
 // `drivers` table, and since ADR-056 stage 3b this viewer EVALUATES
 // driver-referencing expressions rather than refusing them: a non-empty
 // table is now a document to render at its declared defaults and drive,
-// not one to turn away.
+// not one to turn away. Version 3 added the `flexible` node shape, whose
+// geometry this viewer evaluates from the embedded spec.
 //
 // What is still refused is a document that contradicts itself: an
 // expression naming a qualified id its own table does not declare has
 // no value to bind, and rendering it anyway would show a wrong machine
 // instead of an error. The producer guarantees every referenced id
-// appears in the table; this is what makes a broken producer loud.
+// appears in the table; this is what makes a broken producer loud. A
+// `params` expression is an expression like any other and is held to the
+// same table -- what it would get wrong is the SHAPE rather than the
+// pose. Beside it stand two refusals of the same kind: a schema version
+// this build cannot read, and a flexible technology it cannot evaluate.
 export function assertRenderable(document: Manifest, sourceUrl: string): void {
+  if (!RENDERED_VERSIONS.includes(document.version)) {
+    throw new Error(
+      `${sourceUrl} declares document version ${document.version}, which ` +
+      `this viewer does not render; it renders versions ` +
+      `${RENDERED_VERSIONS.join(', ')}. The document is written to a ` +
+      'schema this build cannot read: refusing it rather than rendering ' +
+      'part of a machine it does not understand.',
+    );
+  }
+
   const declared = new Set(Object.keys(document.drivers ?? {}));
   const missing = new Set<string>();
+
+  const note = (expression: string) => {
+    for (const name of freeVariables(expression)) {
+      if (name !== TIME_ID && !declared.has(name)) {
+        missing.add(name);
+      }
+    }
+  };
 
   const visit = (node: ManifestNode) => {
     for (const operation of node.operations) {
       const expressions = operation[0] === 'r'
         ? [operation[1]] : operation[1];
       for (const expression of expressions) {
-        for (const name of freeVariables(expression)) {
-          if (name !== TIME_ID && !declared.has(name)) {
-            missing.add(name);
-          }
-        }
+        note(expression);
       }
+    }
+    if (node.flexible) {
+      if (!evaluatesTech(node.flexible.tech)) {
+        throw new Error(
+          `${sourceUrl} carries the flexible node "${node.name}", whose ` +
+          `technology "${node.flexible.tech}" this viewer cannot ` +
+          `evaluate; it evaluates: ${knownTechnologies()}. Refusing the ` +
+          'document rather than rendering a wrong shape.',
+        );
+      }
+      Object.values(node.flexible.params).forEach(note);
     }
     (node.children ?? []).forEach(visit);
   };

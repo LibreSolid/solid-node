@@ -38,6 +38,15 @@ no consumer can misread the added key.  Both tables come from ONE walk:
 ``drive_tree`` visits every assembly after binding its drivers, so the
 instruction declarations are collected in the same descent that builds the
 symbolic expressions.
+
+Version 3 adds the ``flexible`` node shape: a part whose GEOMETRY follows
+the machine travels as its shape spec plus one expression per parameter,
+never as a mesh, so the consumer evaluates shape the way it already
+evaluates pose.  The version is a property of the CONTENT, not of the
+producer -- ``document_version`` reads it off the finished tree -- because
+a document holding no flexible node is byte-identical to the version 2 it
+has always been, and claiming otherwise would make an old consumer refuse
+documents it renders perfectly.
 """
 
 from contextlib import contextmanager
@@ -49,7 +58,18 @@ from solid_node.simulation.enumeration import tree_declares_drivers
 
 
 DOCUMENT_FORMAT = 'solid-node-export'
+
+#: The version a document without flexible content declares -- which is
+#: every document the producer emitted before flexible parts existed, and
+#: byte-for-byte the same one.
 DOCUMENT_VERSION = 2
+
+#: The version a document carrying at least one flexible node declares.
+#: A new tree shape is a breaking change (ADR-034), so it needs a bump;
+#: emitting it only where the content needs it is the drivers-table
+#: precedent, and it is what keeps an old consumer refusing exactly the
+#: documents it genuinely cannot render.
+FLEXIBLE_DOCUMENT_VERSION = 3
 
 
 @contextmanager
@@ -174,13 +194,35 @@ def instructions_table(instructions):
     }
 
 
+def document_version(root):
+    """The LOWEST schema version the serialized tree ``root`` needs.
+
+    Read off the document rather than tracked while building it, so the
+    three producers that share this walk cannot disagree about what they
+    just emitted.  A tree carrying a flexible node carries a shape no
+    version 2 consumer knows and says so; a tree carrying none is
+    unchanged in every byte and claims nothing new, which is what lets a
+    consumer that cannot render flexible parts keep rendering every
+    document that has none -- and refuse loudly only on one that has
+    them, rather than render nothing where a spring belongs.
+    """
+    if 'flexible' in root:
+        return FLEXIBLE_DOCUMENT_VERSION
+    for child in root.get('children', ()):
+        if document_version(child) != DOCUMENT_VERSION:
+            return FLEXIBLE_DOCUMENT_VERSION
+    return DOCUMENT_VERSION
+
+
 def serialize_node(node, model_path, piece_id=None):
     """Serialize one node using ``model_path`` for rigid artifacts.
 
     The established parent-linking rule must run before recursion because a
     render may create and bind a fresh child on each invocation.  A rigid node
-    is a terminal model reference; a non-list/tuple non-rigid render keeps the
-    existing partial-node representation for lifecycle validation to handle.
+    is a terminal model reference; a flexible leaf is a terminal ``flexible``
+    object carrying the spec its geometry travels as; a non-list/tuple
+    non-rigid render keeps the existing partial-node representation for
+    lifecycle validation to handle.
 
     ``piece_id``, when supplied, is called as ``piece_id(node, model)`` for
     every rigid node -- ``model`` being the reference just resolved above --
@@ -199,6 +241,13 @@ def serialize_node(node, model_path, piece_id=None):
         data['model'] = model
         if piece_id is not None:
             data['piece'] = piece_id(node, model)
+        return data
+
+    if node.flexible:
+        # No model reference and no piece: its geometry is the spec, and
+        # a part that deforms is no printed solid.  The recursion stops
+        # here for the same reason it stops at a rigid node -- a leaf.
+        data['flexible'] = node.flexible_document()
         return data
 
     children = node.render()

@@ -40,6 +40,11 @@ And one whose part is not modelled here at all, but imported:
 * **StlNode** A part that comes from a committed STL mesh — a model
   published as a mesh rather than as CAD source
 
+And one whose part does not hold still:
+
+* **MolejoNode** A flexible part — a spring, a belt, a cable — whose
+  shape follows the machine's state instead of being fixed
+
 The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
 technology.
@@ -527,6 +532,149 @@ real obligations, but they belong in your project's documentation, not
 in a class attribute. And it does not take an STL set apart into an
 assembly: import each part you need and assemble them with the nodes and
 operations you already have.
+
+MolejoNode
+==========
+
+Every leaf so far promises a part that holds still: whatever the machine
+does, the geometry is the same solid moved around. Plenty of parts do not
+work that way. A valve spring is compressed by the cam that opens the
+valve, a timing belt follows the idler that tensions it, a cable loom is
+dragged along by the carriage it feeds. Their *shape*, not just their
+placement, is a function of where the machine is.
+
+A **MolejoNode** is that kind of part. It is a **flexible** leaf: instead
+of returning a finished solid, `render()` returns a swept shape —  a
+closed profile carried along a path — described analytically with
+`molejo <https://github.com/LibreSolid/molejo>`_, with the moving
+dimensions left as *parameters*:
+
+.. code-block:: python
+
+    from molejo import Circle, Helix, P, Shape
+    from solid_node.node import MolejoNode, TranslationalPort
+
+    class ValveSpring(MolejoNode):
+
+        height = TranslationalPort(unit='mm')
+
+        def render(self):
+            return Shape(
+                profile=Circle(radius=2.0),
+                path=[Helix(radius=14.0, turns=6.5, height=P.height)],
+                path_samples=240,
+                profile_samples=16,
+            )
+
+`P.height` is molejo's way of saying "this dimension is a parameter named
+`height`". Circle radius, coil radius and turn count are written down as
+numbers, because they describe the spring you would buy; the free height
+is left open, because that is the thing the engine moves.
+
+Mind where the shape sits: molejo paths start at the node's origin, so a
+helix *winds about an axis offset by its coil radius* — the wire starts
+at the origin and the coil's centreline runs through ``(-radius, 0)``.
+Place the node (or author the path) with that in mind; the v8-engine
+valve springs found this the hard way when a spring drawn "at" a valve
+stem coiled 14 mm beside it.
+
+Parameters come from ports
+--------------------------
+
+A flexible part never receives its moving values through its constructor.
+It **declares one port per parameter**, and the parent assembly connects
+them, exactly as it connects any other port:
+
+.. code-block:: python
+
+    from solid_node.node import AssemblyNode
+    from solid_node.simulation import Driver
+
+    FREE_HEIGHT = 46.8
+
+    class Valvetrain(AssemblyNode):
+
+        lift = Driver(default=0.0, range=(0.0, 12.0), unit='mm')
+
+        def __init__(self):
+            self.retainer = Retainer()
+            self.spring = ValveSpring()
+            super().__init__()
+
+        def render(self):
+            self.connect(FREE_HEIGHT - self.lift, self.spring.height)
+            self.retainer.translate([0, 0, FREE_HEIGHT - self.lift])
+            return [self.retainer, self.spring]
+
+The port's attribute name **is** the parameter's name, and the two sets
+must match exactly. A shape parameter with no port would be fed by
+nothing; a port no parameter reads would bind a value no geometry
+follows. Either one fails naming the node, the offending name and both
+sets, before any geometry is produced. A port nobody connected fails too,
+naming the node and the port — it is never quietly defaulted.
+
+Values through the constructor are the one thing that would not work.
+Constructor arguments key a node's build artifacts, so a value that
+changes every frame would create a new part every frame. Ports keep the
+identity structural: two `ValveSpring()` instances are one part, whatever
+each is currently doing. Dimensions that genuinely describe a *different*
+spring — a thicker wire, another coil count — do belong in the
+constructor, for the same reason.
+
+In the viewer
+-------------
+
+A flexible part travels into the viewer as its **shape spec**, not as a
+mesh, and the browser evaluates it. Move the driver that feeds a port —
+with the slider the viewer builds for it, or from your own host code —
+and the spring re-computes its geometry on the frames the value actually
+changed, in the buffers it already has. See
+:doc:`Animating with time <animation>`.
+
+OpenScad has no equivalent, so it gets a snapshot: the part is evaluated
+at its current state and written as an ordinary STL that the assembled
+`.scad` imports, which keeps the document complete enough for the
+OpenScad GUI to open any project. It is a still, not an animation — the
+same treatment every other machine input already gets there.
+
+Exact, with an honest tolerance
+-------------------------------
+
+A flexible part is **exact**: `shape()` gives the OCCT solid for the
+state currently bound, so a spring at a given lift answers interference
+and fit questions on real boundary geometry rather than on triangles, and
+mixes with CadQuery and build123d parts in the usual way (see
+:doc:`Test-driven CAD <testing>`).
+
+Where the sweep has no closed form — a helix, a spline — the solid is
+approximated, and the node says so: `shape_tolerance` reports the
+approximation it was built to (`0.0` when every surface is analytic).
+Nothing pretends a swept helix is exact to the last decimal.
+
+What a flexible part is not
+---------------------------
+
+It cannot be **fused**. A fusion makes one printed solid out of its
+children, and a part that deforms is not part of one — the fusion refuses
+it, naming both nodes. For the same reason a flexible part is not a
+printed piece and never appears in the pieces inventory: you buy a
+spring, you do not print it. And it has no `time` of its own, like every
+other leaf: its shape follows the values its parent binds, and nothing
+else.
+
+Installing molejo
+-----------------
+
+**molejo is not published yet.** Until it is, it is not installed with
+solid-node and a `MolejoNode` will not import; install it from its own
+checkout alongside solid-node:
+
+.. code-block:: bash
+
+    pip install -e /path/to/molejo[brep]
+
+The `brep` extra is what provides the exact geometry above. When molejo
+is released this becomes an ordinary dependency and the step disappears.
 
 .. _fn-property:
 

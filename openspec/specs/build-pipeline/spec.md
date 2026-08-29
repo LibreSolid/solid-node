@@ -211,6 +211,13 @@ node whose mesh is current but whose exact geometry is absent or stale SHALL
 be rendered rather than skipped. A build directory produced before the node
 became exact therefore reports not-current once and is rebuilt.
 
+Mtime equality decides source currency, never binding currency. A flexible
+leaf's snapshot artifact (the `flexible-parts` capability) is addressed by a
+name that includes a hash of the bound parameter values, so a changed binding
+selects a different artifact rather than defeating this rule; within one
+binding the snapshot participates in mtime currency exactly as any
+adapter-owned artifact does.
+
 A node's tracked files SHALL include its own source together with the
 project-local modules that source imports, transitively. Modules outside the
 project tree SHALL NOT be tracked. Where the contributing set cannot be
@@ -274,6 +281,19 @@ artifact.
   floating-point back-date is built by the current version
 - **THEN** those artifacts report not-up-to-date and are regenerated once,
   after which they report current
+
+#### Scenario: A source edit invalidates a flexible snapshot
+
+- **WHEN** a flexible leaf's source file is modified after its snapshot
+  artifact was written and the node is re-assembled at the same binding
+- **THEN** the snapshot reports not-up-to-date and is re-evaluated
+
+#### Scenario: A binding change selects a different snapshot
+
+- **WHEN** a flexible leaf is re-assembled at a different bound snapshot with
+  unmodified sources
+- **THEN** a differently named snapshot artifact is produced, and the prior
+  one's currency is untouched until the sweep collects it
 
 ### Requirement: Concurrent render locking
 

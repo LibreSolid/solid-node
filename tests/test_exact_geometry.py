@@ -19,6 +19,7 @@ from solid_node.node import (
     CadQueryNode,
     FusionNode,
     JScadNode,
+    MolejoNode,
     OpenScadNode,
     Solid2Node,
 )
@@ -124,6 +125,9 @@ class NodeExactnessTest(TestCase):
     def test_leaf_exactness_is_derived_from_adapter_type(self):
         self.assertTrue(self.uninitialized(CadQueryNode).exact)
         self.assertTrue(self.uninitialized(Build123dNode).exact)
+        # A flexible leaf's exact geometry is per-instant, but WHETHER it
+        # has any is fixed by adapter type like every other adapter's.
+        self.assertTrue(self.uninitialized(MolejoNode).exact)
         self.assertFalse(self.uninitialized(Solid2Node).exact)
         self.assertFalse(self.uninitialized(OpenScadNode).exact)
         self.assertFalse(self.uninitialized(JScadNode).exact)

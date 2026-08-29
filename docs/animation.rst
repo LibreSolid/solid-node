@@ -90,6 +90,52 @@ plain number (see :ref:`testing_steps <testing-steps>`). Python's
 `math.sin` would crash on symbolic time — and it works in radians,
 while all angles in Solid Node are degrees.
 
+Animating a shape, not just a placement
+=======================================
+
+Everything above moves a part *around*. A spring, a belt or a cable
+moves differently: the part itself changes shape. That is what a flexible
+leaf is for (see :doc:`Modeling parts <leaf-nodes>`), and it animates
+through the same idea as everything else on this page — a value the
+viewer resolves — with one extra hop.
+
+The hop exists because `self.time` is one global clock, and a machine has
+more than one input: a crank angle, a valve lift, a carriage position.
+Those are **drivers**, declared on an assembly with a default and the
+range a maker thinks in:
+
+.. code-block:: python
+
+    from solid_node.simulation import Driver
+
+    class Valvetrain(AssemblyNode):
+
+        lift = Driver(default=0.0, range=(0.0, 12.0), unit='mm')
+
+A driver is read as an ordinary attribute — `self.lift` — and used in
+expressions exactly as `self.time` is. The chain to a flexible part is
+then **driver → port → shape**: the assembly writes an expression over
+its drivers and connects it to the part's port, and the part's geometry
+follows:
+
+.. code-block:: python
+
+    def render(self):
+        self.connect(FREE_HEIGHT - self.lift, self.spring.height)
+        self.gear.rotate(self.lift * 30, [1, 0, 0])
+        return [self.gear, self.spring]
+
+Both lines in that `render()` are the same kind of statement. One says
+where a rigid gear sits; the other says how tall the spring is. Neither
+computes a number: like a `self.time` expression, each is carried into
+the viewer unevaluated and resolved there, so the spring's geometry is
+recomputed in the browser on exactly the frames its own inputs moved.
+
+The viewer builds a slider for each declared driver, so a reader of your
+published model can push the valve down and watch the spring close. `$t`
+still works alongside them — one expression may mix the two — and the
+timeline transport keeps driving `self.time` as before.
+
 Freezing and releasing time
 ===========================
 

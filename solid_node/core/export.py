@@ -23,8 +23,8 @@ import os
 import shutil
 
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, drivers_table, instructions_table,
-    serialize_node, symbolic_document,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, document_version, drivers_table,
+    instructions_table, serialize_node, symbolic_document,
 )
 from .builder import project_build_lock
 from .pieces import PieceInventory
@@ -34,6 +34,9 @@ from solid_node.viewers import bundle as viewer_bundle
 logger = logging.getLogger('core.export')
 
 MANIFEST_FORMAT = DOCUMENT_FORMAT
+# The version a manifest without flexible content declares. A manifest
+# carrying a flexible part needs the shape only a later version knows, so
+# what each export declares is read off the tree it just serialized.
 MANIFEST_VERSION = DOCUMENT_VERSION
 
 class WidgetBundleMissing(Exception):
@@ -99,7 +102,7 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
 
     manifest = {
         'format': MANIFEST_FORMAT,
-        'version': MANIFEST_VERSION,
+        'version': document_version(root),
         'animation': {'fps': fps, 'frames': frames},
         'drivers': drivers,
         'instructions': events,

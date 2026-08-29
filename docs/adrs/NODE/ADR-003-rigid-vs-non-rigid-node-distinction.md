@@ -90,6 +90,18 @@ under that fusion—is now invalid and raises before geometry is produced. The
 binary rigid/non-rigid distinction, STL caching boundary, and restriction of
 animation to assemblies remain accepted.
 
+## Amendment: The Non-Rigid Leaf (2026-08-28)
+
+The "FlexibleNode" this ADR called unimplemented now exists.
+[ADR-057](./ADR-057-the-flexible-leaf-and-spec-carried-geometry.md) adds a
+third case to the rigidity story — a **non-rigid leaf**, whose shape is a
+pure function of its declared ports' bound values — so "leaf" no longer
+implies "rigid". The binary distinction and its consequences are unchanged
+and carry the new kind without exception: a fusion rejects it as any
+non-rigid child, it produces no cached STL so the time-invariance
+precondition above still holds for every cached artifact, it is never a
+topmost rigid node, and `time` still raises on it.
+
 ## References
 
 - solid-node/solid_node/node/base.py:54 (rigid property default)

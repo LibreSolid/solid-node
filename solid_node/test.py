@@ -14,7 +14,8 @@ from scipy.optimize import linprog
 from unittest import TestCase as BaseTestCase
 
 from solid_node.mesh_engine import require_mesh_engine
-from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
+from solid_node.node.base import (binding_hash, cached_base_mesh,
+                                  _compose_solid_matrix,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
 from solid_node.node.operations import Rotation, Translation
@@ -44,6 +45,16 @@ class IntersectionStats:
 # once per boolean. Keyed the same way as cached_base_mesh (fix 1),
 # with the same stale-entry eviction on rebuild.
 _manifold_cache = {}
+
+# Manifolds for flexible leaves, one per (uniq_id, binding). A flexible
+# leaf has no artifact behind its inherited `stl_file` -- and a stale
+# rigid artifact a predecessor of the node left at that path would
+# answer with the wrong geometry -- so its Manifold is built from
+# `base_mesh()`, the same evaluated-at-this-binding seam `mesh` and
+# `_mesh_in_frame` already read. Keyed by the structural identity plus
+# the binding hash: identical instances at one binding share a build,
+# and rebinding evicts the stale entries the way a rebuilt STL does.
+_flexible_manifold_cache = {}
 
 # Companion cache holding only what the mesh engine is NOT needed for:
 # a solid's local bounding box, and the watertightness verdict that
@@ -116,6 +127,36 @@ def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
     return cached
 
 
+def _flexible_manifold(node, needed_by=_FACETED_NEEDED_BY,
+                       reason=_FACETED_REASON):
+    """(Manifold, local_bounds) for a flexible leaf at its current
+    binding, built from ``base_mesh()`` -- never from ``stl_file``,
+    which for a flexible leaf names an artifact it does not write.
+    """
+    values = node.bound_values()
+    key = (node.uniq_id, binding_hash(values))
+    cached = _flexible_manifold_cache.get(key)
+    if cached is None:
+        Manifold, Mesh = require_mesh_engine(needed_by, reason)
+        for stale_key in [k for k in _flexible_manifold_cache
+                          if k[0] == node.uniq_id]:
+            del _flexible_manifold_cache[stale_key]
+        mesh = node.base_mesh()
+        if not mesh.is_watertight:
+            raise ValueError(
+                f"{node.name} is not watertight at this binding -- cannot "
+                f"build a Manifold from its evaluated mesh"
+            )
+        bounds = (mesh.bounds[0].copy(), mesh.bounds[1].copy())
+        manifold = Manifold(mesh=Mesh(
+            vert_properties=np.asarray(mesh.vertices, np.float32),
+            tri_verts=np.asarray(mesh.faces, np.uint32),
+        ))
+        cached = (manifold, bounds)
+        _flexible_manifold_cache[key] = cached
+    return cached
+
+
 def _body_count(mesh):
     """Number of connected components in `mesh`.
 
@@ -135,6 +176,9 @@ def _fast_geometry(node, compose_matrix=_compose_world_matrix):
     for a node that only implements `.mesh` (e.g. the FakeNode test
     doubles in tests/test_assertions.py), which then falls back to a
     plain boolean over `.mesh` with no caching or culling."""
+    if getattr(node, 'flexible', False):
+        manifold, bounds = _flexible_manifold(node)
+        return manifold, bounds, compose_matrix(node)
     stl_file = getattr(node, 'stl_file', None)
     if stl_file is None:
         return None
@@ -852,15 +896,20 @@ def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
 
 
 def _mesh_in_frame(node, compose_matrix):
-    """Copy a node's base STL and place it in the requested frame.
+    """Copy a node's base geometry and place it in the requested frame.
 
-    Mesh-only test doubles have no base artifact to reframe; their ``mesh`` is
+    Through ``base_mesh`` rather than the STL directly, so a node kind whose
+    geometry is not a cached artifact -- a flexible leaf, which evaluates its
+    current binding -- is reframed here exactly as ``node.mesh`` reframes it
+    in world coordinates.
+
+    Mesh-only test doubles have no base geometry to reframe; their ``mesh`` is
     already treated as the caller's local geometry.
     """
-    stl_file = getattr(node, 'stl_file', None)
-    if stl_file is None:
+    base_mesh = getattr(node, 'base_mesh', None)
+    if base_mesh is None:
         return node.mesh
-    mesh = cached_base_mesh(stl_file).copy()
+    mesh = base_mesh()
     mesh.apply_transform(compose_matrix(node))
     return mesh
 

@@ -92,7 +92,7 @@ class Axis(AssemblyNode):
         self.cover = Cover()
 
     def render(self):
-        usteps = self.state['motor']
+        usteps = self.motor
 
         # Port binding, re-executed every render: microsteps in,
         # carriage position out through the belt ratio.
