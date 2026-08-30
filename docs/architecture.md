@@ -469,8 +469,13 @@ of any geometric test (ADR-039, amended 2026-08-10).
 
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
-duck-typed registry: `build`, `develop`, `test`, `snapshot`, `new` (offline
-scaffold), `export`. Snapshot has an explicit renderer choice
+duck-typed registry naming where each lives: `build`, `develop`, `test`,
+`snapshot`, `new` (offline scaffold), `export`, `viewer`. Only the invoked
+command's module is imported, and the node and simulation packages resolve
+their exports on first access, so a command pays for the backends it uses and
+not for the rest (ADR-059) — `solid viewer` answers from the installed bundle
+alone. Top-level `-h` is the exception: it renders every command's docstring,
+so it loads them all. Snapshot has an explicit renderer choice
 (ADR-021/041/046): OpenSCAD remains the external-tool default with xvfb
 fallback, while the
 optional `web` renderer captures the packaged viewer in sandboxed headless

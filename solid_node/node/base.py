@@ -10,12 +10,10 @@ import hashlib
 import logging
 import tempfile
 import numpy as np
-import trimesh
 from decimal import Decimal
 from subprocess import Popen
 from solid2 import scad_render, import_stl, color
 from solid_node.openscad import require_openscad
-from .operations import Rotation, Translation
 from .sources import source_closure
 
 
@@ -87,6 +85,41 @@ def _atomic_write_bytes(path, content, mtime_ns):
 _base_mesh_cache = {}
 
 
+# trimesh costs 0.64 s to import and cached_base_mesh below is the only
+# thing in this module that reads a mesh, so the library is imported on
+# first use rather than at module scope: every command that merely
+# touches a node module used to pay for a mesh library it never asked a
+# question of. It stays a REQUIRED dependency -- a missing one raises
+# ImportError here, uncaught and unsubstituted, at the point of use.
+#
+# The resolution is published into globals() so the name behaves exactly
+# as the module-scope import made it behave: one shared binding, readable
+# as `solid_node.node.base.trimesh`, which is the target
+# tests/test_node_mesh_cache.py patches to count disk loads. Reading the
+# global first (rather than re-importing) is what preserves that -- a
+# caller that replaces the binding keeps its replacement.
+def _mesh_library():
+    """The mesh library, imported on first use and shared thereafter."""
+    try:
+        return globals()['trimesh']
+    except KeyError:
+        import trimesh
+        globals()['trimesh'] = trimesh
+        return trimesh
+
+
+def __getattr__(name):
+    """Resolve the deferred `trimesh` binding on attribute access (PEP
+    562), so reading `solid_node.node.base.trimesh` works in a process
+    that has not yet loaded a mesh. Without it the deferral would break
+    every by-name reference to the module's mesh library, patching
+    included, in exactly the runs that never call cached_base_mesh
+    first."""
+    if name == 'trimesh':
+        return _mesh_library()
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+
+
 def cached_base_mesh(stl_file):
     """The node's immutable base mesh (STL geometry, no operations
     applied), loaded once per (stl_file, mtime) and shared across every
@@ -102,7 +135,7 @@ def cached_base_mesh(stl_file):
     if cached is None:
         for stale_key in [k for k in _base_mesh_cache if k[0] == stl_file]:
             del _base_mesh_cache[stale_key]
-        cached = trimesh.load(stl_file)
+        cached = _mesh_library().load(stl_file)
         _base_mesh_cache[key] = cached
     return cached
 
@@ -767,12 +800,18 @@ class AbstractBaseNode:
     # Transformations that can be applied to Node
     # model or mesh
     def rotate(self, angle, axis):
+        # Deferred for the same reason as trimesh in cached_base_mesh, and
+        # to the same end: operations.py imports trimesh at ITS module
+        # scope, so importing it from here at module scope would import the
+        # mesh library through the back door and undo the deferral above.
+        from .operations import Rotation
         operation = Rotation(angle, axis, self)
         self.operations.append(operation)
         _tag_animator(self, operation)
         return self
 
     def translate(self, translation):
+        from .operations import Translation
         operation = Translation(translation, self)
         self.operations.append(operation)
         _tag_animator(self, operation)
