@@ -32,6 +32,12 @@ dependencies = [
     # a second distribution installing the same OCP package.
     "cadquery==2.7.*",
     "build123d==0.10.*",
+    # The flexible leaf evaluates molejo shapes, and MolejoNode reaches for
+    # molejo's OCCT evaluator at import, so `brep` is required rather than
+    # optional. Pinned to the minor: a molejo minor carries the shape-spec
+    # version it implements, and the documents this framework writes name
+    # that version.
+    "molejo[brep]==0.1.*",
     "httpx==0.27.*",
     "fastapi==0.111.*",
     "termcolor==2.4.*",
