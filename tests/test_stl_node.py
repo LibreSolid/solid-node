@@ -37,6 +37,7 @@ from solid_node.node import (Build123dNode, Build123dSheetNode, CadQueryNode,
 from solid_node.openscad import openscad_binary
 
 from .stl_project import originals, parts, rack
+from .utils import edit_source
 
 
 PROJECT = os.path.dirname(os.path.realpath(parts.__file__))
@@ -187,15 +188,36 @@ class StlSourceDeclarationTest(BuildDirTestCase):
         self.assertIn('stl_source', str(raised.exception))
 
     def test_editing_the_mesh_invalidates_the_artifact(self):
+        """The mesh IS this leaf's geometry, so a changed mesh must
+        invalidate the artifact built from it.
+
+        The file is genuinely rewritten. A stamp that moves over
+        unchanged bytes is the case build-pipeline's content-verified
+        fallback exists to spare, and this leaf is the one whose source
+        set is largest -- a mesh, its wrapper, and what the wrapper
+        imports -- so it is worth stating on the real thing.
+        """
         self.keep_times(BRACKET_STL)
         built = parts.Bracket()
         built.assemble()
         self.assertTrue(built._up_to_date(built.stl_file))
 
+        edit_source(self, BRACKET_STL)
         future = time.time() + 10
         os.utime(BRACKET_STL, (future, future))
 
         self.assertFalse(parts.Bracket()._up_to_date(built.stl_file))
+
+    def test_restamping_the_mesh_leaves_the_artifact_current(self):
+        """The same file, restamped and not rewritten."""
+        self.keep_times(BRACKET_STL)
+        built = parts.Bracket()
+        built.assemble()
+
+        future = time.time() + 10
+        os.utime(BRACKET_STL, (future, future))
+
+        self.assertTrue(parts.Bracket()._up_to_date(built.stl_file))
 
     def test_the_wrapper_module_is_tracked(self):
         """Unlike every other external-file leaf: the wrapper carries
@@ -208,6 +230,7 @@ class StlSourceDeclarationTest(BuildDirTestCase):
         built.assemble()
         self.assertTrue(built._up_to_date(built.stl_file))
 
+        edit_source(self, PARTS_MODULE)
         future = time.time() + 10
         os.utime(PARTS_MODULE, (future, future))
 

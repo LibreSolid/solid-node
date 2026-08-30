@@ -298,7 +298,7 @@ class FlexibleNode(LeafNode):
         snapshot = self.snapshot_stl_file(values)
         if not self._up_to_date(snapshot):
             _atomic_write_bytes(snapshot, self._snapshot_stl(rendered, values),
-                                self.mtime_ns)
+                                self.mtime_ns, self.source_digest)
         self.snapshot_file = snapshot
         return import_stl(self.local_snapshot_stl(values))
 

@@ -23,6 +23,7 @@ from .serializer import (
     serialize_node, symbolic_document,
 )
 from .pieces import PieceInventory
+from solid_node import currency
 from solid_node.node.base import StlRenderStart
 
 
@@ -458,6 +459,11 @@ class Builder(FileSystemEventHandler):
             for child in getattr(node, 'children', ()):
                 collect_snapshots(child)
 
+        def kept(relative, filename):
+            return (relative in referenced or
+                    filename in ('viewer.json', 'errors.json') or
+                    filename.endswith(('.scad', '.brep', '.stl.lock', '.tmp')))
+
         collect(snapshot['root'])
         collect_snapshots(self.node)
         for root, _, files in os.walk(self.build_dir):
@@ -465,10 +471,18 @@ class Builder(FileSystemEventHandler):
                 path = os.path.join(root, filename)
                 relative = os.path.normpath(os.path.relpath(path,
                                                             self.build_dir))
-                if (relative in referenced or filename in ('viewer.json',
-                                                            'errors.json') or
-                        filename.endswith(
-                            ('.scad', '.brep', '.stl.lock', '.tmp'))):
+                # A source digest is not an artifact and is never named by
+                # the document, so it is judged by the artifact it vouches
+                # for rather than on its own. Sweeping them all -- which
+                # is what the unreferenced rule below would do -- leaves
+                # every build working and the content-verified fallback
+                # permanently off, with nothing to notice it by.
+                described = currency.describes(relative)
+                if described is not None:
+                    if not kept(described, os.path.basename(described)):
+                        os.remove(path)
+                    continue
+                if kept(relative, filename):
                     continue
                 os.remove(path)
 

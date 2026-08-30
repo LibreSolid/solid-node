@@ -14,6 +14,7 @@ import trimesh
 from decimal import Decimal
 from subprocess import Popen
 from solid2 import scad_render, import_stl, color
+from solid_node import currency
 from solid_node.openscad import require_openscad
 from .operations import Rotation, Translation
 from .sources import source_closure
@@ -36,7 +37,7 @@ def _seconds(mtime_ns):
     return seconds + nanoseconds * 1e-9
 
 
-def _atomic_write_text(path, content, mtime_ns):
+def _atomic_write_text(path, content, mtime_ns, digest=None):
     directory = os.path.dirname(path) or '.'
     os.makedirs(directory, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
@@ -45,14 +46,14 @@ def _atomic_write_text(path, content, mtime_ns):
         with os.fdopen(descriptor, 'w') as output:
             output.write(content)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        os.replace(temporary, path)
+        currency.publish(temporary, path, digest)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
         raise
 
 
-def _atomic_write_bytes(path, content, mtime_ns):
+def _atomic_write_bytes(path, content, mtime_ns, digest=None):
     """`_atomic_write_text` for a binary artifact.
 
     Same contract, and it matters for the same reason: the stamp is
@@ -68,7 +69,7 @@ def _atomic_write_bytes(path, content, mtime_ns):
         with os.fdopen(descriptor, 'wb') as output:
             output.write(content)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        os.replace(temporary, path)
+        currency.publish(temporary, path, digest)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
@@ -396,7 +397,7 @@ class AbstractBaseNode:
         # the working directory: a node's artifact path must not depend on
         # the directory the command happened to run from, or a build from a
         # subdirectory publishes a second, private tree.
-        root = project_root(self.src)
+        root = self._project_root = project_root(self.src)
         self.build_dir = os.path.normpath(os.path.join(
             get_build_dir(self.src),
             os.path.relpath(self.basedir, root),
@@ -598,6 +599,21 @@ class AbstractBaseNode:
         ])
 
     @property
+    def source_digest(self):
+        """What this node's tracked sources say, as one digest.
+
+        Computed over exactly the set `mtime_ns` is the maximum of, so it
+        answers precisely the question the timestamp was standing in for:
+        would re-deriving this artifact reproduce it? Recorded beside an
+        artifact when it is written and consulted only when mtime
+        equality has already failed (see `_up_to_date`).
+
+        None when any tracked source cannot be read -- an answer, not an
+        error: nothing can be vouched for, so nothing is current.
+        """
+        return currency.source_digest(self.files, self._project_root)
+
+    @property
     def mtime(self):
         """Maximum mtime in source file of all nodes rendered inside this one.
 
@@ -637,7 +653,8 @@ class AbstractBaseNode:
         return code
 
     def generate_scad(self):
-        _atomic_write_text(self.scad_file, self.scad_code, self.mtime_ns)
+        _atomic_write_text(self.scad_file, self.scad_code, self.mtime_ns,
+                           self.source_digest)
         logger.info(f"{self.scad_file} generated with {self.mtime}!")
 
     def trigger_stl(self):
@@ -701,7 +718,7 @@ class AbstractBaseNode:
         fh.close()
         logger.info(f'Job started with pid {proc.pid}')
         raise StlRenderStart(proc, self.stl_file, temporary, self.mtime_ns,
-                             self.lock_file)
+                             self.lock_file, self.source_digest)
 
     @property
     def stl_builder_command(self):
@@ -826,17 +843,53 @@ class AbstractBaseNode:
 
 
     def _up_to_date(self, path):
-        """Exact equality, in integer nanoseconds.
+        """Exact equality, in integer nanoseconds, and content beneath it.
 
         Equality and not tolerance: a window wide enough to absorb a
         filesystem's quantum is exactly a window in which a real edit
         becomes invisible, and ADR-033 ranks a stale model above a
         spurious rebuild for good reason.
+
+        The equality is unchanged and still decides alone whenever it
+        succeeds -- nothing is read, hashed or opened on that path. Only
+        when it fails does the content-verified fallback get a say, and
+        all it can do is answer the same question on stronger evidence.
         """
-        return (
-            os.path.exists(path) and
-            os.stat(path).st_mtime_ns == self.mtime_ns
-        )
+        if not os.path.exists(path):
+            return False
+        if os.stat(path).st_mtime_ns == self.mtime_ns:
+            return True
+        return self._content_verified(path)
+
+    def _content_verified(self, path):
+        """Whether `path` was produced from the sources that are here now.
+
+        The timestamp moved -- a clone, a branch switch, a stash pop, a
+        copy, a formatter rewriting a file byte for byte. If the digest
+        recorded when this artifact was written is the digest of the
+        sources on disk, then re-deriving it would reproduce it, which is
+        a strictly stronger claim than the equality that just failed.
+
+        Anything less says no: no record, an unreadable source, or any
+        disagreement at all. The artifact is then rebuilt exactly as it
+        always was.
+
+        The restamp is a deliberate side effect inside a predicate, and it
+        is the same `os.utime` a build performs: it moves the artifact
+        onto the fast path so no later build pays for this again. It is
+        best effort, and the answer does not depend on it -- where the
+        filesystem cannot store the exact stamp, the artifact is still
+        current for this build on the strength of the digest, and the
+        fallback is simply consulted again next time.
+        """
+        recorded = currency.recorded_digest(path)
+        if recorded is None:
+            return False
+        digest = self.source_digest
+        if digest is None or digest != recorded:
+            return False
+        currency.restamp(path, self.mtime_ns)
+        return True
 
     def _make_build_dirs(self):
         # The build directory is absolute once anchored on the project root,
@@ -846,13 +899,20 @@ class AbstractBaseNode:
 
 class StlRenderStart(Exception):
 
-    def __init__(self, proc, stl_file, temporary_file, mtime_ns, lock_file):
+    def __init__(self, proc, stl_file, temporary_file, mtime_ns, lock_file,
+                 digest=None):
         super().__init__()
         self.proc = proc
         self.stl_file = stl_file
         self.temporary_file = temporary_file
         self.mtime_ns = mtime_ns
         self.lock_file = lock_file
+        # The sources this render was started from, carried across the
+        # subprocess so finish() can vouch for what it publishes. Read
+        # when the render began, not when it ended: an edit that lands
+        # mid-render must not be recorded as the thing that produced
+        # this artifact.
+        self.digest = digest
 
     @property
     def mtime(self):
@@ -860,7 +920,7 @@ class StlRenderStart(Exception):
 
     def finish(self):
         os.utime(self.temporary_file, ns=(time.time_ns(), self.mtime_ns))
-        os.replace(self.temporary_file, self.stl_file)
+        currency.publish(self.temporary_file, self.stl_file, self.digest)
         logger.info(f"{self.stl_file} generated with {self.mtime}!")
         if os.path.exists(self.lock_file):
             os.remove(self.lock_file)

@@ -801,7 +801,15 @@ The short list that changes must not silently break:
   (ADR-050); an exact node requires both STL and BREP current, and every
   cache keys on that signal (ADR-006/028/029/044). Equality, not
   tolerance: a window wide enough to absorb a filesystem's timestamp
-  quantum is a window in which a real edit is invisible.
+  quantum is a window in which a real edit is invisible. When and only
+  when that equality fails, a content-verified fallback compares a digest
+  of the node's tracked sources against the digest recorded beside the
+  artifact when it was written; identical sources restamp rather than
+  re-derive, so a clone, a branch switch or a stash pop costs a settled
+  rebuild instead of a full one (ADR-060). The fallback reads nothing on
+  the fresh path and is strictly stricter than the rule it stands behind
+  — byte equality rather than timestamp equality — so it cannot report a
+  changed source current.
 - A node's source set is its own file plus the project-local modules it
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file

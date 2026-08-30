@@ -119,3 +119,61 @@ artifact.
 
 - **WHEN** an artifact produced before this rule existed reports a stale mtime
 - **THEN** it is rebuilt as it is today, and gains a digest when it is written
+
+
+#### Scenario: A library change does not invalidate
+
+- **WHEN** a node imports a module from outside the project tree
+- **THEN** that module is not part of the node's tracked files
+
+#### Scenario: Unchanged sources skip rendering
+
+- **WHEN** `generate_stl` runs and the STL mtime equals `node.mtime`
+- **THEN** no OpenSCAD process is launched
+
+#### Scenario: Missing exact geometry is not current
+
+- **WHEN** an exact node's `.stl` and `.scad` are current but its `.brep` is
+  absent
+- **THEN** the node reports not-up-to-date and is rendered, producing both
+
+#### Scenario: Sub-second source mtimes cache on a coarse-resolution filesystem
+
+- **WHEN** a project whose source files carry arbitrary sub-second mtimes is
+  built twice with no edit between the builds, on a filesystem that stores
+  timestamps to the millisecond
+- **THEN** the second build reports every artifact current and renders nothing
+
+#### Scenario: Exact artifacts cache on a coarse-resolution filesystem
+
+- **WHEN** an exact rigid node is built twice with no edit between the builds,
+  on a filesystem that stores timestamps to the millisecond
+- **THEN** both its `.stl` and its `.brep` report current on the second build
+  and neither is rewritten
+
+#### Scenario: A coarse filesystem never makes a changed source look current
+
+- **WHEN** a source file is modified after a build, on a filesystem that
+  stores timestamps to the millisecond
+- **THEN** the node's artifacts report not-up-to-date and are regenerated,
+  whatever the sub-millisecond remainder of either timestamp
+
+#### Scenario: Artifacts stamped by an earlier version rebuild once
+
+- **WHEN** a build directory whose artifacts were stamped through the previous
+  floating-point back-date is built by the current version
+- **THEN** those artifacts report not-up-to-date and are regenerated once,
+  after which they report current
+
+#### Scenario: A source edit invalidates a flexible snapshot
+
+- **WHEN** a flexible leaf's source file is modified after its snapshot
+  artifact was written and the node is re-assembled at the same binding
+- **THEN** the snapshot reports not-up-to-date and is re-evaluated
+
+#### Scenario: A binding change selects a different snapshot
+
+- **WHEN** a flexible leaf is re-assembled at a different bound snapshot with
+  unmodified sources
+- **THEN** a differently named snapshot artifact is produced, and the prior
+  one's currency is untouched until the sweep collects it
