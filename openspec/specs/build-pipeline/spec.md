@@ -205,6 +205,37 @@ than the source filesystem — the artifact SHALL report not current and be
 rebuilt. Currency SHALL fail only in this direction: a source that has changed
 SHALL NOT be reported current under any timestamp resolution.
 
+When, and only when, mtime equality fails, the system SHALL consult a
+content-verified fallback before rebuilding. It SHALL compare a digest of the
+node's tracked source files, as they are on disk now, against the digest
+recorded for that artifact when the artifact was produced. When the two agree,
+the sources that produced the artifact are byte-identical to the sources
+present, so the system SHALL restamp the artifact to the current `node.mtime`
+and treat it as current rather than re-deriving it. When they disagree, when no
+digest was recorded, or when any tracked source cannot be read, the artifact
+SHALL be rebuilt exactly as it is today.
+
+The fallback SHALL NOT run when mtime equality succeeds, so the cost of the
+common path is unchanged. It SHALL read only the node's own tracked source
+files, never its artifacts. Recording the digest SHALL happen wherever the
+artifact is stamped, so an artifact and the digest that vouches for it are
+written together or not at all.
+
+The fallback SHALL preserve the direction-of-failure guarantee: it can only
+report current an artifact whose sources are identical, which is a stricter
+condition than the mtime equality it stands behind. It SHALL NOT report current
+an artifact whose sources differ, and SHALL NOT weaken any case in which the
+mtime rule already rebuilds for a genuine content change. Where a restamp
+cannot achieve equality — the coarse-filesystem case above — the artifact SHALL
+still be treated as current for this build on the strength of the digest, and
+the fallback SHALL simply be consulted again next time rather than looping.
+
+The recorded digest SHALL live inside the build directory, SHALL NOT be
+referenced by the published viewer document, and SHALL NOT change what
+publication means. A successful build's sweep of unreferenced artifacts SHALL
+keep the digest belonging to an artifact it keeps, and SHALL NOT leave a digest
+behind for an artifact it removes.
+
 For an exact node the `.brep` artifact SHALL participate in this rule exactly
 as the `.stl` does: the node's artifacts are current only when both are, so a
 node whose mesh is current but whose exact geometry is absent or stale SHALL
@@ -237,6 +268,34 @@ artifact.
   that module is modified
 - **THEN** the node's artifact reports not-up-to-date and is regenerated with
   the new values on the next build
+
+#### Scenario: A timestamp moves but no content changes
+
+- **WHEN** every source file's mtime is rewritten with no byte changed — as a
+  fresh clone, a branch switch, a stash pop or a copy does — and the project is
+  rebuilt
+- **THEN** no geometry is re-derived, every artifact is restamped to the new
+  source mtime and is byte-identical to the one already published, and the
+  published document names the same tree and the same artifacts — differing
+  only in the source mtimes it records per node, which a timestamp rewrite
+  genuinely moves and which no build has ever held stable across one
+
+#### Scenario: A rewritten source with different content still rebuilds
+
+- **WHEN** a source file is rewritten with different content
+- **THEN** the digest disagrees, the artifact is re-derived, and the fallback
+  does not report it current
+
+#### Scenario: The fast path is not slowed
+
+- **WHEN** an artifact's mtime already equals the node mtime
+- **THEN** currency is decided from that alone, and no source file is read for
+  a digest
+
+#### Scenario: An artifact with no recorded digest
+
+- **WHEN** an artifact produced before this rule existed reports a stale mtime
+- **THEN** it is rebuilt as it is today, and gains a digest when it is written
 
 #### Scenario: A library change does not invalidate
 

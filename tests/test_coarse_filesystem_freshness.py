@@ -41,6 +41,7 @@ from .base import BaseNodeTest
 from .coarse_fs import (PINNED_STAMP_NS, MILLISECOND_NS, SECOND_NS,
                         float_to_ns, millisecond_filesystem, stamp,
                         truncate_to_ms)
+from .utils import edit_source
 
 
 class ExactLeaf(CadQueryNode):
@@ -257,14 +258,22 @@ class CoarseFilesystemTest(BaseNodeTest):
 
     def test_an_edited_source_is_never_current(self):
         """The guard. Caching may not be bought with staleness: a source
-        that moved must invalidate whatever the timestamp resolution, and
-        this passes before the fix as well as after it."""
+        that changed must invalidate whatever the timestamp resolution,
+        and this passes before the fix as well as after it.
+
+        The source is genuinely rewritten, not merely restamped. A stamp
+        that moves over unchanged content is the case build-pipeline's
+        content-verified fallback exists to spare, and asserting the
+        artifact stale for that would be asserting the defect.
+        """
+        source = os.path.realpath(ExactLeaf().src)
         with millisecond_filesystem():
             built = ExactLeaf()
             self.quantise_sources(built)
             built.assemble()
 
-            stamp(os.path.realpath(built.src), PINNED_STAMP_NS + SECOND_NS)
+            edit_source(self, source)
+            stamp(source, PINNED_STAMP_NS + SECOND_NS)
 
             rebuilt = ExactLeaf()
             self.assertFalse(rebuilt._up_to_date(rebuilt.stl_file))
@@ -274,16 +283,40 @@ class CoarseFilesystemTest(BaseNodeTest):
         """The same guard at the resolution the filesystem cannot see.
         An edit one millisecond later is the smallest change this
         filesystem can record, and it must still invalidate."""
+        source = os.path.realpath(ExactLeaf().src)
+        with millisecond_filesystem():
+            built = ExactLeaf()
+            self.quantise_sources(built)
+            built.assemble()
+
+            edit_source(self, source)
+            stamp(source, PINNED_STAMP_NS + MILLISECOND_NS)
+
+            rebuilt = ExactLeaf()
+            self.assertFalse(rebuilt._up_to_date(rebuilt.stl_file))
+
+    def test_a_restamped_source_is_current_without_a_rebuild(self):
+        """The other direction, and the reason the two above had to say
+        what they mean: on a filesystem that cannot store the stamp, an
+        unchanged source is served from the digest rather than rebuilt,
+        and asking again does not loop."""
         with millisecond_filesystem():
             built = ExactLeaf()
             self.quantise_sources(built)
             built.assemble()
 
             stamp(os.path.realpath(built.src),
-                  PINNED_STAMP_NS + MILLISECOND_NS)
+                  PINNED_STAMP_NS + 2 * MILLISECOND_NS)
 
             rebuilt = ExactLeaf()
-            self.assertFalse(rebuilt._up_to_date(rebuilt.stl_file))
+            calls, patched = count_renders(ExactLeaf)
+            with patched:
+                self.assertTrue(rebuilt._up_to_date(rebuilt.stl_file))
+                self.assertTrue(rebuilt._up_to_date(rebuilt.brep_file))
+                self.assertTrue(rebuilt._up_to_date(rebuilt.stl_file))
+                ExactLeaf().assemble()
+
+        self.assertEqual(calls, [])
 
 
 class NativeFilesystemTest(BaseNodeTest):

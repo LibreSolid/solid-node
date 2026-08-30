@@ -26,6 +26,7 @@ from unittest import TestCase, mock
 from solid2 import scad_render
 
 from .base import BaseNodeTest
+from .utils import edit_source
 from .source_set_project import dimensions
 from .source_set_project.block import Block
 from .source_set_project.cyl import Cyl
@@ -109,16 +110,38 @@ class SourceSetTest(BaseNodeTest):
 
     def test_editing_an_imported_module_invalidates_the_artifact(self):
         """The correctness gate. A built artifact must stop reporting
-        up to date once a module its geometry depends on is edited."""
+        up to date once a module its geometry depends on is edited.
+
+        The module is genuinely rewritten. Moving its timestamp alone
+        stopped being an edit when build-pipeline gained its
+        content-verified fallback: unchanged content under a new stamp is
+        precisely the case the fallback spares.
+        """
         built = Block()
         built.assemble()
         self.assertTrue(built._up_to_date(built.stl_file))
 
+        edit_source(self, DIMENSIONS)
         future = time.time() + 10
         os.utime(DIMENSIONS, (future, future))
 
         rebuilt = Block()
         self.assertFalse(rebuilt._up_to_date(rebuilt.stl_file))
+
+    def test_a_restamped_module_leaves_the_artifact_current(self):
+        """The same module, restamped and not rewritten: a clone, a
+        branch switch or a copy moves every source mtime and changes
+        nothing the geometry depends on."""
+        built = Block()
+        built.assemble()
+
+        future = time.time() + 10
+        os.utime(DIMENSIONS, (future, future))
+
+        rebuilt = Block()
+        self.assertTrue(rebuilt._up_to_date(rebuilt.stl_file))
+        self.assertEqual(os.stat(rebuilt.stl_file).st_mtime_ns,
+                         rebuilt.mtime_ns)
 
 
 class UpToDateLeafTest(BaseNodeTest):
@@ -167,7 +190,7 @@ class UpToDateLeafTest(BaseNodeTest):
         # back-dates the STL it just wrote, and a mock that writes
         # nothing would fail this test on the missing file rather than
         # on the export.
-        def export_stub(shape, path, mtime):
+        def export_stub(shape, path, mtime, digest=None):
             with open(path, 'w') as fh:
                 fh.write('solid empty\nendsolid empty\n')
 

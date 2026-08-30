@@ -7,6 +7,7 @@ import sys
 import time
 from solid2 import import_stl
 from subprocess import Popen
+from solid_node import currency
 from solid_node.node.leaf import LeafNode
 
 
@@ -51,10 +52,17 @@ class JScadNode(LeafNode):
             '-o', self.stl_file,
         ]
         print('\n' + ' '.join(cmd))
+        # Alone among the adapters, jscad writes straight to the published
+        # path, so there is a window in which the artifact is neither the
+        # old one nor the new one. Drop the record first: a digest must
+        # never be able to vouch for a file a killed renderer left
+        # half-written.
+        currency.drop(self.stl_file)
         proc = Popen(cmd)
         proc.communicate()
         try:
             os.utime(self.stl_file, ns=(time.time_ns(), self.mtime_ns))
         except FileNotFoundError:
-            pass
+            return import_stl(self.local_stl)
+        currency.record(self.stl_file, self.source_digest)
         return import_stl(self.local_stl)

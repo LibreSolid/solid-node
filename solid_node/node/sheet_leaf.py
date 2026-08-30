@@ -173,7 +173,7 @@ class SheetLeafNode(ExactLeafNode):
         scad = super().as_scad(rendered)
         if not self._up_to_date(self.dxf_file):
             self._write_dxf(self.validated_profile(), self.dxf_file,
-                            self.mtime_ns)
+                            self.mtime_ns, self.source_digest)
         return scad
 
     ##############################################
@@ -194,6 +194,6 @@ class SheetLeafNode(ExactLeafNode):
         backend's own terms."""
         raise NotImplementedError
 
-    def _write_dxf(self, face, path, mtime_ns):
+    def _write_dxf(self, face, path, mtime_ns, digest=None):
         """Write the nominal cut file for a validated face."""
         raise NotImplementedError

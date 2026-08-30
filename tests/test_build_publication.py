@@ -102,6 +102,11 @@ class RenderVisibilityTest(TestCase):
         node.lock_file = os.path.join(self.root, 'part.stl.lock')
         node.mtime = 0
         node.mtime_ns = 0
+        # Stubbed for the same reason mtime_ns is: both are read straight
+        # out of the node and written to the filesystem, and a Mock's
+        # stand-in for either is not something a file can hold. None is
+        # the honest value here -- nothing vouches for this artifact.
+        node.source_digest = None
         node.rigid = True
         node._up_to_date = lambda path: False
         node._stl_generation_locked = False
