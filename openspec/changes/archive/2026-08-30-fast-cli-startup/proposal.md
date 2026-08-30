@@ -89,10 +89,12 @@ modules are imported.
 - Dependencies are unchanged: `cadquery` and `trimesh` remain required
   installs (`pyproject.toml`). This change is about *when* they are imported,
   not whether they are needed.
-- `solid build` still imports `trimesh`, because `PieceInventory`
+- Publishing a build still imports `trimesh`, because `PieceInventory`
   (`solid_node/core/pieces.py`) derives every piece's geometry facts from the
-  cached base mesh on each publication. The deferral benefits the commands
-  that never reach that path.
+  cached base mesh on each publication. Note where: `solid build` forks a
+  builder per generation, so it is the forked child that publishes and
+  therefore the child that imports it — after this change the CLI parent of a
+  `Solid2Node`-only build imports no `trimesh` at all.
 - Consumers that read `solid_node.node.<submodule>` as an attribute without
   importing the submodule keep working, because the same accessor resolves
   submodule names.

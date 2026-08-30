@@ -12,7 +12,6 @@ from importlib import import_module
 
 from solid_node.node.base import AbstractBaseNode
 from solid_node.simulation.enumeration import bind_declared_defaults
-from solid_node.test import TestCase
 
 
 class ProjectManifestError(Exception):
@@ -194,6 +193,13 @@ def load_node(reference=None):
 
 def load_tests(path, root=None):
     """Return every companion ``TestCase`` defined next to ``path``."""
+    # Imported here rather than at module scope because this is its only
+    # use site, and this module is on the path of every node-scoped
+    # command: `solid_node.test` reaches `solid_node.exact` and so
+    # `cadquery`, which a build has no use for. Deferred, not optional --
+    # discovering a test still imports the framework, right here.
+    from solid_node.test import TestCase
+
     root = root or project_root(path)
     path = os.path.realpath(path)
     filename = 'test.py' if os.path.basename(path) == '__init__.py' else \

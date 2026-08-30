@@ -1,5 +1,8 @@
-## ADDED Requirements
+# cli-startup-cost Specification
 
+## Purpose
+TBD - created by archiving change fast-cli-startup. Update Purpose after archive.
+## Requirements
 ### Requirement: A command loads only its own implementation
 
 The system SHALL import the implementation module of exactly the command being
@@ -160,8 +163,9 @@ The system SHALL also keep `trimesh` out of `solid_node.node.base` by way of
 This SHALL NOT change what any mesh-reading path does: the same cache keyed on
 `(stl_file, mtime)`, the same stale-entry eviction, and the same values
 returned. Publishing a build still reads every piece's mesh through that path,
-so `solid build` still imports `trimesh`; the deferral serves the commands that
-never reach it.
+so the process that publishes still imports `trimesh`; the deferral serves every
+path that never reaches it, including the CLI parent of a build whose model
+needs no mesh read.
 
 The name `trimesh` SHALL remain resolvable as an attribute of
 `solid_node.node.base`, so a caller that patches it keeps working whether or
@@ -192,3 +196,4 @@ attribute.
   `solid_node.node`
 - **THEN** the underlying import error is raised, naming the requested name,
   rather than an `AttributeError`
+
