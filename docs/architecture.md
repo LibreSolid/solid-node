@@ -808,7 +808,11 @@ The short list that changes must not silently break:
   (ADR-033). The set over-approximates on purpose: a spurious rebuild is
   cheap, a stale model is not — which is why a leaf whose source is a
   foreign file adds the closure of the python module wrapping it when that
-  module carries geometry-affecting code (ADR-055).
+  module carries geometry-affecting code (ADR-055). Resolving the package a
+  file was imported as, which the closure needs for relative imports, reads a
+  one-shot index of the loaded module table keyed on the exact set of module
+  names, so building a closure does not scale with what the interpreter has
+  imported and cannot answer from a superseded module set (ADR-058).
 - `name=` never influences geometry or `uniq_id`; any parameter change
   changes the artifact key (ADR-026). Piece identity is the converse: it
   derives from built content only, never from a class, its parameters, or

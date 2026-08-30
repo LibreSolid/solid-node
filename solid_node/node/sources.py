@@ -98,15 +98,55 @@ def _parse_project_imports(path, root):
     )
 
 
+# The package of every loaded module's file, keyed on the module set it
+# was built from -- the same shape as _import_cache above, and for the
+# same reason: what is cached is a view of something mutable, so the key
+# is what makes a stale view unusable rather than invisible.
+#
+# The answer _package_of gives is a property of neither the number of
+# files a project has nor the number of modules the interpreter happens
+# to have imported, but asking used to cost the product of the two:
+# every call rescanned sys.modules and realpath'd each module's
+# __file__. On Metamaquina2, 135 calls over ~1800 modules spent 341 169
+# realpath calls and 3.46 million lstat syscalls, and load_node took
+# 15.3 s against 2.7 s indexed.
+#
+# The stamp is the exact set of module names rather than
+# len(sys.modules), which cannot tell a module removed and another
+# imported from nothing having happened -- and the loader does remove
+# them, evicting a name that belongs to a different project. A package
+# answered from a superseded module set would change which files a node
+# tracks, the one failure ADR-006's mtime caching cannot survive: it
+# makes a stale artifact report itself current. Taking the stamp costs
+# ~30 us a call against the 10.6 s of syscalls it removes.
+_package_index = {}
+
+
 def _package_of(path):
     """The package a file was imported as, needed to resolve its
     relative imports. Taken from the interpreter, which has already
     done the resolution correctly."""
+    stamp = frozenset(sys.modules)
+    index = _package_index.get(stamp)
+    if index is None:
+        _package_index.clear()
+        index = _package_index[stamp] = _index_loaded_modules()
+    return index.get(path)
+
+
+def _index_loaded_modules():
+    index = {}
     for module in list(sys.modules.values()):
         filename = getattr(module, '__file__', None)
-        if filename and os.path.realpath(filename) == path:
-            return getattr(module, '__package__', None) or None
-    return None
+        if not filename:
+            continue
+        # setdefault, never assignment. Two modules can resolve to one
+        # real path, and the scan this replaces returned the first one
+        # sys.modules offered; assigning would silently hand a file to
+        # the last importer instead.
+        index.setdefault(os.path.realpath(filename),
+                         getattr(module, '__package__', None) or None)
+    return index
 
 
 def _import_from_targets(statement, package):

@@ -42,7 +42,7 @@ Measured cold, in a fresh process:
 | --- | ---: | ---: |
 | `load_node` (excluding framework imports) | 15.5 s | 2.6–2.9 s |
 | cold `load_node` including imports | 19.4 s | 4.8 s |
-| **a no-op `solid build`, wall clock** | **23–24 s** | **3.6–3.9 s** |
+| **a no-op `solid build`, wall clock** | **23.4–24.3 s** | **8.0 s** |
 | `realpath` calls inside `_package_of` | 341 169 | 2 635 |
 | `lstat` calls inside `_package_of` | 3 463 099 | 26 434 |
 
