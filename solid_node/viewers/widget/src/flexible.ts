@@ -24,7 +24,7 @@
 // replaced, and the index is never rewritten.
 
 import * as THREE from 'three';
-import { evaluate, MolejoBuffers } from 'molejo';
+import { evaluate, validate, MolejoBuffers } from 'molejo';
 import { EvalScope, evalExpr, freeVariables } from './evaluator';
 import { ManifestFlexible } from './types';
 
@@ -40,6 +40,25 @@ export function evaluatesTech(tech: string): boolean {
 /** The technologies, listed for an error message. */
 export function knownTechnologies(): string {
   return [...FLEXIBLE_TECHNOLOGIES].sort().join(', ');
+}
+
+/** Why the bundled evaluator cannot read `spec`, or `null` if it can.
+ *
+ * This viewer does not read a spec. Which documents are readable -- the
+ * version they declare, the vocabulary they use -- is the evaluator's
+ * question, and ADR-057 put the document through here opaquely on
+ * purpose. So this asks molejo and carries its answer back verbatim,
+ * which is also why the message a caller builds from it says something
+ * specific rather than "invalid spec".
+ *
+ * Called once per node at construction, never per frame. */
+export function specRefusal(spec: unknown): string | null {
+  try {
+    validate(spec);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 /** The one mesh of one flexible node, and the buffers behind it.
@@ -69,6 +88,19 @@ export class FlexibleShape {
         `"${flexible.tech}", which this viewer cannot evaluate; it ` +
         `evaluates: ${knownTechnologies()}. Refusing it rather than ` +
         'rendering a wrong shape.',
+      );
+    }
+    // The same refusal one step further in: a technology this viewer
+    // evaluates, carrying a spec its evaluator cannot read -- a document
+    // written for an older molejo, say. Caught here rather than left to
+    // the first evaluate(), so it names the node at load instead of
+    // surfacing as a bare evaluator error on some later frame.
+    const refusal = specRefusal(flexible.spec);
+    if (refusal !== null) {
+      throw new Error(
+        `The node "${name}" is a flexible part whose spec this viewer's ` +
+        `${flexible.tech} cannot read: ${refusal}. Refusing it rather ` +
+        'than failing while rendering.',
       );
     }
     this.tech = flexible.tech;

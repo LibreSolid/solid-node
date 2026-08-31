@@ -3858,7 +3858,7 @@
     "node": "spring",
     "tech": "molejo",
     "spec": {
-      "molejo": 1,
+      "molejo": "0.1",
       "profile": {
         "type": "circle",
         "radius": 2.0

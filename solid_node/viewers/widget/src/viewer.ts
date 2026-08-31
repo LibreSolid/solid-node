@@ -19,7 +19,7 @@ import {
   DriverListener, DriverStore, TriggerHandle, toNative,
 } from './drivers';
 import { EvalScope, freeVariables, TIME_ID } from './evaluator';
-import { evaluatesTech, knownTechnologies } from './flexible';
+import { evaluatesTech, knownTechnologies, specRefusal } from './flexible';
 import { AssemblyNode, AssemblyPath, WidgetTree } from './tree';
 import { Manifest, ManifestDriver, ManifestInstruction, ManifestNode } from './types';
 import { API_VERSION } from './version';
@@ -464,6 +464,15 @@ export function assertRenderable(document: Manifest, sourceUrl: string): void {
           `technology "${node.flexible.tech}" this viewer cannot ` +
           `evaluate; it evaluates: ${knownTechnologies()}. Refusing the ` +
           'document rather than rendering a wrong shape.',
+        );
+      }
+      const refusal = specRefusal(node.flexible.spec);
+      if (refusal !== null) {
+        throw new Error(
+          `${sourceUrl} carries the flexible node "${node.name}", whose ` +
+          `spec this viewer's ${node.flexible.tech} cannot read: ` +
+          `${refusal}. Refusing the document rather than rendering a ` +
+          'wrong shape.',
         );
       }
       Object.values(node.flexible.params).forEach(note);

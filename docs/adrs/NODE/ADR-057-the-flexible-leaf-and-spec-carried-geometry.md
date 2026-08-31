@@ -310,7 +310,7 @@ The serialized tree gains `flexible` beside `model` and `children`:
   "operations": [],
   "flexible": {
     "tech": "molejo",
-    "spec": { "molejo": 1, "...": "..." },
+    "spec": { "molejo": "0.1", "...": "..." },
     "params": { "height": "(46.8 - valvetrain.lift)" }
   }
 }

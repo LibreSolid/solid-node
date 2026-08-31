@@ -23,19 +23,26 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('molejo', async (importOriginal) => {
   const actual = await importOriginal<typeof import('molejo')>();
-  return { ...actual, evaluate: vi.fn(actual.evaluate) };
+  return {
+    ...actual,
+    evaluate: vi.fn(actual.evaluate),
+    validate: vi.fn(actual.validate),
+  };
 });
 
-import { evaluate } from 'molejo';
+import { evaluate, validate } from 'molejo';
 import { WidgetTree } from './tree';
 import { ManifestFlexible, ManifestNode } from './types';
 
 const evaluations = () =>
   (evaluate as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
 
+const validations = () =>
+  (validate as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+
 // `tests/flexible_project/spring.py` as the producer serializes it.
 const SPRING_SPEC = {
-  molejo: 1,
+  molejo: '0.1',
   profile: { type: 'circle', radius: 2.0 },
   path: [{ type: 'helix', radius: 14.0, turns: 6.5,
            height: { param: 'height' } }],
@@ -120,6 +127,49 @@ describe('a flexible node mounts geometry from its spec', () => {
       .toThrow(/spring/);
     expect(() => new WidgetTree(engine([spring({ tech: 'wibble' })]), '/build/'))
       .toThrow(/wibble/);
+  });
+
+  // The same posture, one step further in: a `tech` this viewer evaluates
+  // carrying a spec its bundled evaluator cannot read. A document written
+  // for an older molejo is exactly that -- it declares its spec version
+  // the way that molejo wrote it. Refused at construction, so the failure
+  // names the node at load instead of escaping `evaluate()` on a frame.
+  const unreadable = { ...SPRING_SPEC, molejo: 1 };
+
+  it('refuses a spec its evaluator cannot read, naming the node', () => {
+    expect(() => new WidgetTree(engine([spring({ spec: unreadable })]), '/build/'))
+      .toThrow(/spring/);
+  });
+
+  it('carries the evaluator\'s own reason for refusing a spec', () => {
+    expect(() => new WidgetTree(engine([spring({ spec: unreadable })]), '/build/'))
+      .toThrow(/spec\.molejo/);
+  });
+
+  it('does not defer an unreadable spec to the render loop', async () => {
+    // Nothing evaluates: the refusal happens before any geometry exists,
+    // so the evaluator is never reached with a spec it cannot read.
+    const before = evaluations();
+    expect(() => new WidgetTree(engine([spring({ spec: unreadable })]), '/build/'))
+      .toThrow();
+    expect(evaluations()).toBe(before);
+  });
+
+  it('reads a readable spec once, at construction and not per frame', async () => {
+    const tree = await mounted();
+    const settled = validations();
+    const evaluated = evaluations();
+    // Load-bearing: if the constructor never asked, the rest proves
+    // nothing about when it asks.
+    expect(settled).toBeGreaterThan(0);
+
+    // Two frames that genuinely re-evaluate the geometry. The evaluator
+    // runs again; the readability question does not get re-asked.
+    tree.update(scope(12), { time: false, drivers: new Set(['valvetrain.lift']) });
+    tree.update(scope(4), { time: false, drivers: new Set(['valvetrain.lift']) });
+
+    expect(evaluations()).toBeGreaterThan(evaluated);
+    expect(validations()).toBe(settled);
   });
 
   it('takes part in the operations matrix like any other node', async () => {

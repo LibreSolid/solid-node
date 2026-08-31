@@ -36,7 +36,7 @@ const node = (name: string, operations: RawOperation[],
 // producer publishes it: the spec verbatim and one expression per
 // parameter.
 const SPRING_SPEC = {
-  molejo: 1,
+  molejo: '0.1',
   profile: { type: 'circle', radius: 2.0 },
   path: [{ type: 'helix', radius: 14.0, turns: 6.5,
            height: { param: 'height' } }],
@@ -169,6 +169,24 @@ describe('assertRenderable on a flexible document', () => {
     expect(() => assertRenderable(manifest, '/m.json')).toThrow(/spring/);
     expect(() => assertRenderable(manifest, '/m.json')).toThrow(/wibble/);
     expect(() => assertRenderable(manifest, '/m.json')).toThrow(/molejo/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/m\.json/);
+  });
+
+  // A `tech` this viewer evaluates, carrying a spec its bundled evaluator
+  // cannot read -- what a document written for an older molejo is. The
+  // document is refused whole, like an unevaluable technology, rather
+  // than loading a tree that throws on a later frame.
+  it('refuses a spec its evaluator cannot read, naming node and reason', () => {
+    const manifest = document({
+      version: 3,
+      drivers: { 'valvetrain.lift': lift },
+      root: node('engine', [], [
+        spring({ spec: { ...SPRING_SPEC, molejo: 1 } }),
+      ]),
+    });
+
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/spring/);
+    expect(() => assertRenderable(manifest, '/m.json')).toThrow(/spec\.molejo/);
     expect(() => assertRenderable(manifest, '/m.json')).toThrow(/m\.json/);
   });
 

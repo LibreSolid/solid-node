@@ -39,7 +39,13 @@ declare module 'molejo' {
   export class NotImplementedError extends EvaluationError {}
   export class SpecError extends Error {}
 
-  export const SPEC_VERSION: number;
+  /** The newest spec version this molejo reads, as its `MAJOR.MINOR`
+   * string -- the release that introduced it, which is what a document's
+   * `molejo` field carries. Declared for completeness; nothing here reads
+   * it, because whether a spec is readable is `validate`'s answer to
+   * give. */
+  export const SPEC_VERSION: string;
+  /** The molejo package version, which is a different number. */
   export const VERSION: string;
 
   export function parseSpec(spec: unknown): Record<string, unknown>;
