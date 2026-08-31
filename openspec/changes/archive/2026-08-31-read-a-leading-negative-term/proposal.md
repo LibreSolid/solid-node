@@ -74,27 +74,33 @@ at all, having been generated before the dependency was added. What was
 actually resolving was a hand-made symlink in the shared `node_modules`
 pointing at this workspace's own molejo working copy.
 
-So the declaration now says what was already true: `molejo` is
-`file:../../../../molejo/js`, the working copy beside the framework, at spec
-version 2. That is what the widget needs rather than a preference — the
-published molejo is `0.1.0` and implements spec version 1, while a machine
-with a belt bent backwards over a pulley publishes a document declaring
-version 2 and no `0.1.0` runtime will read it. `npm ci` from a clean layout
-now resolves `jokenizer@1.0.1` from the registry and `molejo@0.2.0` from that
-path.
+The declaration now names the version the widget really needs and nothing
+about where this machine keeps it: `molejo ^0.2.0`, as an optional peer. Spec
+version 2 is a requirement rather than a preference — the published molejo is
+`0.1.0` and implements spec version 1, and a machine with a belt bent
+backwards over a pulley publishes a document declaring version 2 that no
+`0.1.0` runtime will read.
 
-Two consequences, both stated rather than hidden. The path is relative to the
-manifest, so it is correct from the primary checkout and not from a worktree
-six levels down; a worktree keeps sharing the primary's `node_modules`, which
-is the convention anyway. And a clone of solid-node without this workspace
-beside it cannot install the widget. Publishing molejo `0.2.0` is what removes
-that, and it is not this change's to do.
+Optional-peer is a placeholder for a published dependency, and it is chosen
+because every alternative is worse today. A plain `^0.2.0` in `dependencies`
+cannot resolve, so the manifest stays uninstallable. A `file:` path resolves
+but writes one machine's directory layout into a committed manifest, and it is
+wrong from any worktree anyway, since the path is relative to the manifest. As
+an optional peer, npm installs everything else and does not reach for molejo
+at all, so `npm install` and `npm ci` both succeed and the working copy is
+linked in beside them — which is what was already happening, undeclared.
 
-The one convention this change could not keep is the other half of that rule:
-a worktree never installs or builds inside itself. The whole change is which
-version of a dependency is installed, so the worktree was given its own copy —
-copied, not installed over the shared one, so the primary checkout's install
-was left exactly as it was until the pilot integrates.
+The gap this leaves is stated rather than hidden: an install prunes the link,
+so it is re-made after one, and a clone of solid-node without this workspace
+beside it gets a clear "cannot find molejo" when it builds the bundle rather
+than an `ETARGET` wall. Publishing molejo `0.2.0` is what turns the peer into
+an ordinary dependency, and it is not this change's to do.
+
+The one convention this change could not keep is that a worktree never
+installs or builds inside itself. The whole change is which version of a
+dependency is installed, so the worktree was given its own copy — copied, not
+installed over the shared one, so the primary checkout's install was left
+exactly as it was until integration.
 
 ## Capabilities
 
