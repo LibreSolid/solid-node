@@ -96,6 +96,16 @@ export function freeVariables(expression: string): ReadonlySet<string> {
 // OpenSCAD's ^ is exponentiation, while jokenizer follows JavaScript and
 // evaluates it as bitwise XOR. Convert its parsed Binary nodes to pow() calls
 // before caching and evaluating the expression.
+//
+// The two languages also disagree about which side of a leading minus ^
+// falls on, and converting the operator is the only place that can be
+// settled. JavaScript has no answer -- `-2 ** 2` is a syntax error there
+// exactly because the conventions differ -- while OpenSCAD binds ^ tighter
+// than the unary minus, as Python does, so `-2 ^ 2` is -(2^2) and not
+// (-2)^2. A parsed `^` whose left operand is a negation is therefore
+// rebuilt with the negation outside it. Nothing solid-node emits reaches
+// this: the manifest's expressions are fully parenthesised. An expression
+// written by hand does.
 function powify(node: any): any {
   if (node === null || typeof node !== 'object') return node;
   if (Array.isArray(node)) return node.map(powify);
@@ -105,11 +115,17 @@ function powify(node: any): any {
     result[key] = powify(node[key]);
   }
   if (result.type === 'Binary' && result.operator === '^') {
-    return {
+    const negated = result.left.type === 'Unary'
+      && (result.left.operator === '-' || result.left.operator === '+');
+    const base = negated ? result.left.target : result.left;
+    const power = {
       type: 'Call',
       callee: { type: 'Variable', name: 'pow' },
-      args: [result.left, result.right],
+      args: [base, result.right],
     };
+    return negated
+      ? { type: 'Unary', operator: result.left.operator, target: power }
+      : power;
   }
   return result;
 }

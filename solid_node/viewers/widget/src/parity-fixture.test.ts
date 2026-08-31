@@ -116,6 +116,21 @@ describe('evaluator parity with the producer', () => {
     }
   });
 
+  it('agrees on every leading negative term, which a loose unary would not', () => {
+    // A sum whose head is a negative literal. Read with the unary
+    // minus bound looser than the `+` beside it, `(-25.0 + term)`
+    // becomes `-(25.0 + term)` and the driver's coefficient changes
+    // sign -- so these cases agree at the one setting where the two
+    // readings meet and disagree at every other, which is why a spot
+    // check does not find it and this corpus does.
+    const leading = cases.filter((one) => one.expression.includes('(-25.0 +'));
+
+    expect(leading.length).toBeGreaterThan(0);
+    for (const one of leading) {
+      expect(deviation(one)).toBeLessThanOrEqual(TOLERANCE);
+    }
+  });
+
   it('agrees on the mixed $t-and-driver formula', () => {
     const mixed = cases.filter((one) =>
       one.expression.includes('$t') && one.expression.includes('.motor'));

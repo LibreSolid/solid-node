@@ -85,8 +85,9 @@ class QualifiedIdTest(BaseNodeTest):
 
 
 class DriverTokenTest(BaseNodeTest):
-    """The five expression shapes the spike put on the wire: linear,
-    port-scaled, degree trig, mixed with `$t`, and a power term."""
+    """The six expression shapes the spike put on the wire: linear,
+    port-scaled, degree trig, mixed with `$t`, a power term, and a sum
+    whose leading term is negative."""
 
     def token(self):
         return DriverToken('x_axis.motor')
@@ -107,6 +108,21 @@ class DriverTokenTest(BaseNodeTest):
         self.assertEqual(
             str(sn_math.sqrt(400.0 - (0.01 * angle) ** 2)),
             'sqrt((400.0 - ((0.01 * (x_axis.motor * 0.1125)) ^ 2)))')
+
+    def test_a_leading_negative_term_is_written_as_the_sum_it_is(self):
+        """A placement measured from a rest on the far side of the
+        origin, which is how a negative literal comes to head a sum.
+
+        Written plainly, because that is what the arithmetic is: the
+        minus belongs to the twenty-five and not to the sum. Pinned on
+        the producer's side because it is the producer that decides
+        what a reader has to read, and a reader that binds the unary
+        looser than the `+` returns `-(25.0 + term)` -- the same value
+        at one driver setting and the wrong sign of the coefficient at
+        every other.
+        """
+        self.assertEqual(str(-25.0 + self.token() * 0.0125),
+                         '(-25.0 + (x_axis.motor * 0.0125))')
 
     def test_a_mixed_expression_carries_both_time_and_the_driver(self):
         from solid2 import get_animation_time

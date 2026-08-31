@@ -15,7 +15,11 @@ built to exercise is the shape of the EXPRESSIONS, not the mechanism:
   `solid_node.math` exists for, and
 - a MIXED expression containing BOTH `$t` and a driver term (the
   cover shift), which sub-question 4 must survive partial
-  substitution.
+  substitution, and
+- a sum whose LEADING TERM IS NEGATIVE (the front rail), because a
+  unary minus binds tighter than the arithmetic beside it and a
+  reader that gets that backwards flips the sign of the driver's
+  coefficient while still agreeing at one point.
 
 `label` is a constructor argument only so the two axes get distinct
 uniq_ids; a node's artifact key is class + constructor parameters, so
@@ -34,6 +38,7 @@ MM_PER_REV = 40.0
 MM_PER_USTEP = MM_PER_REV / USTEPS_PER_REV      # 0.0125 mm
 DEG_PER_USTEP = 360.0 / USTEPS_PER_REV          # 0.1125 deg
 HOME_USTEPS = 8000                              # 100 mm
+REST_OFFSET = -25.0                             # a rest on the far side of 0
 
 
 class Rail(Solid2Node):
@@ -123,6 +128,20 @@ class Axis(AssemblyNode):
         #    ADR-022's parity story, and worth putting on the wire.
         lift = sn_math.sqrt(400.0 - (0.01 * angle) ** 2)
         self.pulley.translate([0, 0, lift * 0.1])
+
+        # 6. a sum whose LEADING TERM IS NEGATIVE. Nothing about this
+        #    is exotic: a placement measured from a rest position on
+        #    the far side of the origin puts a negative literal at the
+        #    head of the sum, and the producer writes it plainly as
+        #    `(-25.0 + <driver term>)`. A unary minus binds tighter
+        #    than the arithmetic beside it -- in OpenSCAD as in
+        #    JavaScript -- so that is `(-25.0) + term` and never
+        #    `-(25.0 + term)`, and the two differ in the SIGN of the
+        #    driver's coefficient. A reader that gets it backwards
+        #    tracks the axis the wrong way about the middle of the
+        #    travel while agreeing at one point, which is how it
+        #    survives a spot check.
+        self.rail_front.translate([REST_OFFSET + self.position.value, 0, 0])
 
         return [self.rail_front, self.rail_back, self.carriage,
                 self.pulley, self.cover]

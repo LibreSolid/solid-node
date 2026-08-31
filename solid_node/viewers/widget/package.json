@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "jokenizer": "^0.4.5",
-    "molejo": "^0.0.1",
+    "jokenizer": "^1.0.1",
+    "molejo": "file:../../../../molejo/js",
     "three": "^0.156.1"
   },
   "devDependencies": {

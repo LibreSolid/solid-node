@@ -88,6 +88,56 @@ describe('evalExpr over a driver scope', () => {
   });
 });
 
+describe('evalExpr over a leading negative term', () => {
+  // A unary minus binds TIGHTER than the arithmetic beside it, in
+  // OpenSCAD as in JavaScript: `-100 + x` is `(-100) + x` and never
+  // `-(100 + x)`. Nothing in this module writes the expressions it
+  // reads -- they arrive in a published document -- so a parser that
+  // gets this backwards silently returns a different number for an
+  // expression the emitter, and every other reader, agrees about.
+  //
+  // Found from Metamaquina2: the machine publishes where its filament
+  // enters the extruder as an expression whose first term is the
+  // carriage's own rest position, which is negative. The strand tracked
+  // the print head BACKWARDS about the middle of the X travel -- the
+  // signature of a flipped coefficient -- while the model's own
+  // geometry was right at every position.
+  it('subtracts a leading negative literal rather than negating the sum', () => {
+    expect(evalExpr('(-100.0 + x)', { time: 0, drivers: { x: 100 } }))
+      .toBeCloseTo(0);
+    expect(evalExpr('(-100.0 + x)', { time: 0, drivers: { x: 0 } }))
+      .toBeCloseTo(-100);
+  });
+
+  it('keeps a leading negative term out of the products beside it', () => {
+    expect(evalExpr('(-2 * 3 + 4)', at(0))).toBeCloseTo(-2);
+    expect(evalExpr('(-a - b)', { time: 0, drivers: { a: 5, b: 3 } }))
+      .toBeCloseTo(-8);
+  });
+
+  it('reads the whole entry expression Metamaquina2 publishes', () => {
+    // Verbatim from the machine's serialized document: where the free
+    // run of filament ends, in the strand's own frame, as a function of
+    // the X driver. It is `400 - x`, so the strand's end follows the
+    // carriage and does not mirror it.
+    const entry = '(-((((-100.0 + x) - -100.0) + 0) - 400))';
+
+    for (const [x, expected] of [[-100, 500], [0, 400], [100, 300]]) {
+      expect(evalExpr(entry, { time: 0, drivers: { x } })).toBeCloseTo(expected);
+    }
+  });
+
+  it('still negates a parenthesised sum, which says so', () => {
+    expect(evalExpr('(-(100.0 + x))', { time: 0, drivers: { x: 100 } }))
+      .toBeCloseTo(-200);
+  });
+
+  it('keeps ^ as exponentiation under a leading minus', () => {
+    // OpenSCAD binds ^ tighter than unary minus, so this is -(2^2).
+    expect(evalExpr('(-2 ^ 2)', at(0))).toBeCloseTo(-4);
+  });
+});
+
 describe('freeVariables', () => {
   it('finds nothing in a static expression', () => {
     expect([...freeVariables('90')]).toEqual([]);
