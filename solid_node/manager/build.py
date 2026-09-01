@@ -28,10 +28,12 @@ class Build:
             self.path,
             watch=False,
             lifecycle=True,
+            overrides=self.overrides,
         ).start()
 
     def handle(self, args):
         self.path = args.path
+        self.overrides = list(getattr(args, 'set', None) or [])
         try:
             resolve_node(self.path)
         except (ProjectManifestError, AmbiguousNodeError) as error:

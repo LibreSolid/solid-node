@@ -2,6 +2,20 @@
 History
 =======
 
+Unreleased
+----------
+
+* The declarative node API: typed parameter declarations with a
+  dimension algebra checked on import, derived formulas, children declared
+  in the class body with ``repeat(count)`` for identical units,
+  realization top-down from the root, identity derived by the framework,
+  ``--set name=value`` on every node-loading command, an internal
+  ``render()`` that may return nothing, ``omit()``, and ports bound by
+  assignment. Additive: a class that declares nothing is unchanged. A
+  migrated class re-keys its artifacts once if it used to omit a keyword
+  or pass an integer where a float kind now resolves. A node metaclass
+  must derive from ``solid_node.node.declarative.NodeMeta``.
+
 0.6.0 (2026-09-01)
 ------------------
 

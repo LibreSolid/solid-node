@@ -16,6 +16,9 @@ from solid2 import scad_render, import_stl, color
 from solid_node import currency
 from solid_node.openscad import require_openscad
 from .sources import source_closure
+from .declarative import (ChildDeclaration, NodeMeta, identity_values,
+                          in_class_body, is_declarative,
+                          realize_children, resolve_parameters)
 
 
 logger = logging.getLogger('node.base')
@@ -351,7 +354,7 @@ def binding_hash(values):
     return hashlib.sha256(canonical.encode()).hexdigest()[:_HASH_LEN]
 
 
-class AbstractBaseNode:
+class AbstractBaseNode(metaclass=NodeMeta):
     """A mechanical project in solid-node is represented by a
     tree, and this is the abstract base class for all nodes.
     Above this class, there are two other base classes:
@@ -385,6 +388,22 @@ class AbstractBaseNode:
     # Only works in openscad viewer
     optimize = True
 
+    # Whether the render in progress left this node out of the machine.
+    # Set by omit(), cleared by the parent's render before it runs.
+    _omitted = False
+
+    def __new__(cls, *args, **kwargs):
+        # A call in a node class body is a declaration, never an
+        # instance: a class attribute is one object shared by every
+        # parent instance, so building the node here would give eight
+        # cylinder units one piston. Returning something that is not an
+        # instance of `cls` also makes Python skip __init__, which is
+        # exactly right -- the declaration is realized, per parent, when
+        # the parent is constructed (see declarative.realize_children).
+        if in_class_body():
+            return ChildDeclaration(cls, args, kwargs)
+        return super().__new__(cls)
+
     def __init__(self, *args, name=None, **kwargs):
         # self.uniq_id is the artifact key: always derived from this
         # instance's CLASS plus its constructor parameters via
@@ -404,7 +423,27 @@ class AbstractBaseNode:
         # wins.
         self._explicit_name = name is not None
         self.name = name or self.__class__.__name__
-        self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
+        declarative = is_declarative(type(self))
+        if declarative:
+            # Declaration order is a reading order, not a call order.
+            if args:
+                raise TypeError(
+                    f'{type(self).__name__} takes no positional arguments: '
+                    f'its parameters are declared, pass them by name')
+            # Every declared parameter resolved -- coerced, checked,
+            # derived -- before anything else reads one. The private key
+            # keeps _attr_name_for's scan of __dict__ seeing what it saw.
+            self.__dict__['_parameters'] = resolve_parameters(
+                type(self), kwargs)
+            # Identity is the class plus the resolved declared values:
+            # the same function and the same serialization the
+            # constructor form hashes, fed the COMPLETE map rather than
+            # whatever an author remembered to forward.
+            self.uniq_id = _build_uniq_id(
+                self.__class__, (),
+                identity_values(type(self), self.__dict__['_parameters']))
+        else:
+            self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after
@@ -478,6 +517,24 @@ class AbstractBaseNode:
         self._assembled = False
 
         self._make_build_dirs()
+
+        # Last, so a child is constructed by a parent that already knows
+        # its own name, source and artifact paths -- the reverse of the
+        # constructor form, where children are built before super().
+        if declarative:
+            realize_children(self)
+
+    def omit(self):
+        """Leave this node out of the machine for the render in progress.
+
+        Called from the parent's render() on a declared child: the part
+        is not linked, built, exported, fused or serialized -- a
+        different mass, a different BOM, absent from a fused solid. The
+        parent's render clears the mark before it runs, so presence is
+        decided afresh every render, and it records what was omitted:
+        structure may vary with parameters, never with time.
+        """
+        self._omitted = True
 
     def get_source_file(self):
         """Finds the source file of this node"""

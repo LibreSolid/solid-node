@@ -111,6 +111,12 @@ instances share one — the geometry is the same, so it is built once,
 no matter how many times the part appears in the assembly, or under
 which names.
 
+A node that *declares* its parameters (:doc:`Declaring a machine
+<declaring>`) is keyed the same way, by the framework: the class plus
+the resolved value of every declared parameter, so no keyword can be
+forgotten. Identical units from ``repeat()`` share one key and one
+artifact.
+
 Consequences worth knowing:
 
 * Renaming a node (``name=`` or the holding attribute) never

@@ -123,6 +123,11 @@ class AssemblyNode(InternalNode):
     _type = 'AssemblyNode'
     rigid = False
 
+    # A methodless assembly renders its declared children through the
+    # same sweep a subclass render() gets, so nothing is special about
+    # having nothing to position.
+    render = _idempotent_render(InternalNode.render)
+
     def __init__(self, *args, **kwargs):
         # The bound driver snapshot: the named numeric values render()
         # reads through `state`. A machine that is not periodic depends
@@ -132,6 +137,9 @@ class AssemblyNode(InternalNode):
         super().__init__(*args, **kwargs)
 
     def __init_subclass__(cls, **kwargs):
+        # InternalNode's hook runs first and wraps a subclass render()
+        # for the declarative substitution; the sweep goes outside it, so
+        # the order is sweep, clear omissions, author's render().
         super().__init_subclass__(**kwargs)
         render = cls.__dict__.get('render')
         if render is not None and not getattr(render, '_idempotent', False):

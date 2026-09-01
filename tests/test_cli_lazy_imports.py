@@ -106,6 +106,13 @@ def reference_parser():
                 metavar='reference',
                 help='Node reference: package.module:Class, path/to/file.py, or path/to/file.py:Class',
             )
+            # The root-parameter flag every node-scoped command shares
+            # (spec `cli`, root parameter overrides), part of the shape.
+            command_parser.add_argument(
+                '--set', action='append', default=[], metavar='NAME=VALUE',
+                help='Set a declared parameter of the root node, parsed by '
+                     'its kind (repeatable)',
+            )
         command.add_arguments(command_parser)
         built[name] = command_parser
 

@@ -79,6 +79,14 @@ def add_command_parser(subparsers, name, command):
             metavar='reference',
             help='Node reference: package.module:Class, path/to/file.py, or path/to/file.py:Class',
         )
+        # Registered once, here, beside the reference it applies to: every
+        # command that loads a node takes the root's parameters the same
+        # way, and none re-declares the flag.
+        command_parser.add_argument(
+            '--set', action='append', default=[], metavar='NAME=VALUE',
+            help='Set a declared parameter of the root node, parsed by its '
+                 'kind (repeatable)',
+        )
     command.add_arguments(command_parser)
     return command_parser
 

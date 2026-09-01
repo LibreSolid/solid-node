@@ -5,6 +5,30 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+**The declarative node API.** A node class body can now *declare* its
+parameters (``Length``, ``Angle``, ``Count``, ``Ratio``, ``Flag``,
+``Scalar``), derive others as bare formulas over them, and declare its
+children by constructing them in the class body — with literal lists and
+``repeat(count)`` for identical units. A formula's dimensions are checked
+on ``import``; ``sqrt`` and the degree trigonometry of ``solid_node.math``
+take part. Each parent instance realizes its own children, top-down from
+the root's values, so ``Engine(bore=32.0)`` moves the whole machine, and
+``--set name=value`` on every node-loading command does the same from the
+shell. An internal node's ``render()`` may return nothing, in which case
+the children are the declared ones minus any it ``omit()``\ s; a pure
+grouping node needs no ``render()`` at all. Ports bind by assignment.
+See :doc:`Declaring a machine <declaring>`. (OpenSpec change
+``declarative-node-api``.)
+
+Nothing changes for a class that declares nothing. When migrating a
+class, its artifacts re-key once if it used to omit a keyword from
+``super().__init__()`` or passed an integer where a float kind now
+resolves; the next build rebuilds them. A node class carrying its own
+metaclass must now derive it from ``solid_node.node.declarative.NodeMeta``.
+
 v0.6.0
 ------
 

@@ -178,9 +178,13 @@ class Builder(FileSystemEventHandler):
     """Monitors .py files. On any change, generate STLs and exit"""
     def __init__(self, path, is_reload=False, build_dir=None,
                  watch=True, callback=None,
-                 lifecycle=False):
+                 lifecycle=False, overrides=None):
         super().__init__()
         self.path = path
+        # The root's `--set` words, carried into every load this builder
+        # performs so a develop session's reloads keep the parameters it
+        # was started with.
+        self.overrides = list(overrides or [])
 
         # True for every attempt after the very first: an exception
         # while (re)importing project source on this path is treated as
@@ -222,7 +226,7 @@ class Builder(FileSystemEventHandler):
         os.environ['SOLID_BUILD_DIR'] = self.build_dir
 
         try:
-            self.node = load_node(self.path)
+            self.node = load_node(self.path, overrides=self.overrides)
         except Exception as e:
             return await self._on_reload_exception(e, 'load')
 

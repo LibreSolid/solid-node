@@ -30,6 +30,7 @@ and license your own designs however you choose.
 
    leaf-nodes
    assemblies
+   declaring
    animation
    driving
    fusion

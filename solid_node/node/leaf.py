@@ -64,6 +64,13 @@ class LeafNode(AbstractBaseNode):
 
     def validate(self, rendered):
         """Check if rendered result is an object of proper namespace"""
+        if rendered is None:
+            # Only an internal node's render() may return nothing (its
+            # children are then the declared ones); a leaf has geometry
+            # to hand over or it has nothing.
+            raise Exception(f"{self.__class__} is a LeafNode and its "
+                            f"render() returned None instead of a "
+                            f"{self.namespace} object")
         if type(rendered) in (list, tuple):
             raise Exception(f"{self.__class__} is a LeafNode and should return "
                             f"a {self.namespace} object, not a list")

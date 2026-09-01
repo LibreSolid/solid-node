@@ -114,16 +114,26 @@ linked, built, exported, fused or serialized; it is not in the machine.
 A call in a class body must yield a declaration while the same call in
 `__init__`, a test or a realization must yield a node. The only
 deterministic hook around the execution of a class body is the metaclass:
-`__prepare__` runs before the body and the metaclass `__new__` runs after
-it. `NodeMeta.__prepare__` increments a module-level depth counter and
-`NodeMeta.__new__` decrements it (a counter, not a flag, so a nested node
-class body works). `AbstractBaseNode.__new__` consults the counter: while a
-node class body is executing it returns a `ChildDeclaration` capturing the
+`__prepare__` runs before the body and hands the class statement the
+namespace the body executes in. `NodeMeta.__prepare__` returns a namespace
+of a private type, and `AbstractBaseNode.__new__` recognizes an executing
+body by finding that namespace as the locals of a frame on its stack: while
+a node class body is executing it returns a `ChildDeclaration` capturing the
 class, args and kwargs, and Python skips `__init__` because the returned
 object is not an instance of the class. Outside a class body construction is
-untouched. The metaclass `__new__` is also where the namespace is scanned
-once for parameters, formulas and child declarations, cached per class like
-the port and driver scans.
+untouched.
+
+*Implementation note (2026-09-01).* The ratified text had `__prepare__`
+increment a depth counter that the metaclass `__new__` decrements. The
+implementation found that a body that raises — which the algebra does on
+purpose, on `import` — never reaches `__new__`, so the counter would stay
+stuck and every later construction would yield declarations. The namespace's
+identity on the stack carries the same decision without that failure: an
+aborted body is no longer on the stack. The same namespace names each
+declaration as it is assigned, which is what lets a dimension error in the
+next line say `bore` and `pressure_angle`. The per-class scans for parameters,
+formulas and children read the class dictionaries base-first and are cached,
+like the port and driver scans.
 
 Consequences accepted by the pilot:
 

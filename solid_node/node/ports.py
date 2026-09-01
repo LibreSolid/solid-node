@@ -105,8 +105,44 @@ class Port:
             slot = slots[self.name] = BoundPort(self, instance)
         return slot
 
+    def __set__(self, instance, value):
+        # Assignment binds, exactly as connect() does, scale applied:
+        # `unit.crank = angle + phase` in a render() is the natural verb
+        # for feeding a declared port. Defining __set__ also makes this a
+        # DATA descriptor, so an assignment can never quietly replace the
+        # declaration with a raw number that a later read trips over.
+        bind(self.__get__(instance), value)
+
     def __repr__(self):
         return f'<{self.domain} port declaration {self.name}>'
+
+
+def bind(sink, source):
+    """Bind `sink`'s value from `source`, converting through the sink's
+    declared scale. The one binding path: `connect()` and port
+    assignment both come here.
+
+    `source` is a bound port or a plain value; the value may be a
+    symbolic animation expression, which flows through unresolved
+    exactly as an operation value does.
+    """
+    if isinstance(source, BoundPort):
+        if source.value is None:
+            # An unbound source is a wiring order mistake -- the
+            # emitting node has not run yet -- and silently propagating
+            # None would surface it much later, as a broken operation
+            # value.
+            raise ValueError(
+                f'cannot connect {source.name} of '
+                f'{getattr(source.node, "name", source.node)}: it has '
+                'no value bound yet')
+        value = source.value
+    else:
+        value = source
+    if sink.scale is not None:
+        value = value * sink.scale
+    sink.value = value
+    return sink
 
 
 class RotationalPort(Port):

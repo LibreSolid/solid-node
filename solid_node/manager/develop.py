@@ -42,7 +42,7 @@ class Develop:
 
 
     def openscad(self):
-        OpenScadViewer(self.path).start()
+        OpenScadViewer(self.path, overrides=self.overrides).start()
 
     def web(self):
         WebViewer(self.path, self.web_dev).start()
@@ -56,10 +56,14 @@ class Develop:
             is_reload=is_reload,
             callback=callback,
             lifecycle=True,
+            overrides=self.overrides,
         ).start()
 
     def handle(self, args):
         self.path = args.path
+        # Every builder this loop starts, first run and each reload,
+        # loads the root with the same parameters the session asked for.
+        self.overrides = list(getattr(args, 'set', None) or [])
         callback = getattr(args, 'callback', None)
         no_web = getattr(args, 'no_web', False)
         wants_web = args.web or args.web_dev or args.debug_web

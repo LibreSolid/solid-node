@@ -21,6 +21,12 @@ There are two types of internal nodes:
 Both take part in the node tree the same way: an assembly can contain
 leaf nodes, fusions and other assemblies.
 
+An internal node whose children are *declared* in its class body may
+let `render()` return nothing: the children are then the declared ones,
+and `render()` only positions them. That form, with parameters that
+flow from the root and units that repeat, is :doc:`Declaring a machine
+<declaring>`. This page shows the constructor form it builds on.
+
 The simple clock
 ================
 

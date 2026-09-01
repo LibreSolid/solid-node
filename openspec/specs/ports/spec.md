@@ -49,9 +49,13 @@ values causally each render: an emitting node SHALL set its output
 port's value during `render()`, and `connect(source, sink)` on an
 internal node SHALL bind a sink port to a source — a port or a plain
 numeric value — applying the sink's declared linear scale when one is
-present. Bindings SHALL be re-evaluated on every render, so a
-re-render under a new state snapshot rebinds every port absolutely;
-port binding SHALL NOT accumulate history or interact with the
+present. Assigning a value to a port attribute of a node
+(`unit.crank = expression`) SHALL perform the same binding as
+`connect(expression, unit.crank)`, scale applied; a port declaration is a
+data descriptor, so such an assignment SHALL never shadow the declaration
+with a raw instance attribute. Bindings SHALL be re-evaluated on every
+render, so a re-render under a new state snapshot rebinds every port
+absolutely; port binding SHALL NOT accumulate history or interact with the
 operation sweep.
 
 Connection is one-directional in this version: value flows from source
@@ -77,3 +81,10 @@ this surface.
   value derived from the current snapshot, with no residue of the
   previous one
 
+#### Scenario: Assignment binds with scale
+
+- **WHEN** a hook executes `unit.crank = angle + 90.0` on a child whose
+  `crank` port declares a scale
+- **THEN** the port's bound value is the expression multiplied by the scale
+  and reading `unit.crank` still yields the bound port, not the raw
+  expression

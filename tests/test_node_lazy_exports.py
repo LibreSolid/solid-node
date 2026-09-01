@@ -54,6 +54,16 @@ EXPECTED_EXPORTS = {
     'JScadNode': 'solid_node.node.adapters.jscad',
     'StlNode': 'solid_node.node.adapters.stl',
     'property_as_number': 'solid_node.node.decorators',
+    # Added by the declarative node API, lazily like the rest.
+    'Quantity': 'solid_node.node.declarative',
+    'Length': 'solid_node.node.declarative',
+    'Angle': 'solid_node.node.declarative',
+    'Count': 'solid_node.node.declarative',
+    'Ratio': 'solid_node.node.declarative',
+    'Flag': 'solid_node.node.declarative',
+    'Scalar': 'solid_node.node.declarative',
+    'declared_parameters': 'solid_node.node.declarative',
+    'declared_children': 'solid_node.node.declarative',
 }
 
 # The exports whose submodule reaches `solid_node.exact` -> `cadquery`.

@@ -22,10 +22,10 @@ OPENSCAD_PID = ".openscad.pid"
 class OpenScadViewer:
     """Shows the rendered project in OpenSCAD."""
 
-    def __init__(self, path):
+    def __init__(self, path, overrides=None):
         self.pid_file = OPENSCAD_PID
         self.path = path
-        self.node = load_node(path)
+        self.node = load_node(path, overrides=overrides)
         self.proc = None
 
     @property
