@@ -21,12 +21,15 @@ directive, the submodule and the Read the Docs steps were added
 together, and the workflow was missed.
 
 These tests close the loop, so the failure surfaces in the suite rather
-than in a documentation build.
+than in a documentation build. They also hold the built machines one to
+a page: each directive is an <iframe> running a viewer, so a page
+carrying two of them opens two.
 """
 
 import os
 import re
 import unittest
+from collections import Counter
 from pathlib import Path
 
 import yaml
@@ -180,6 +183,40 @@ class DocumentationExportsTest(unittest.TestCase):
             'exports. Both build the same documentation, so they have to '
             'produce the same directories.',
         )
+
+
+    def test_generated_exports_get_a_page_each(self):
+        """A machine built for the docs is the whole point of its page.
+
+        Every directive is an <iframe> running a viewer, and the two
+        example machines are the largest models published here. Two of
+        them on one page start two viewers and animate both at once,
+        which is how the examples page used to open.
+        """
+        embedded = [(document, export) for document, export in self.embedded
+                    if not export.startswith(COMMITTED)]
+        pages = Counter(document for document, _ in self.embedded)
+
+        for document, export in embedded:
+            with self.subTest(document=document, export=export):
+                self.assertEqual(
+                    pages[document], 1,
+                    f'docs/{document} embeds {export}, a machine built '
+                    'during the documentation build, alongside '
+                    f'{pages[document] - 1} other model(s). Each one '
+                    'starts its own viewer, so give the machine a page '
+                    'of its own and leave the page it came from linking '
+                    'to it.',
+                )
+
+        for export, count in Counter(e for _, e in embedded).items():
+            with self.subTest(export=export):
+                self.assertEqual(
+                    count, 1,
+                    f'{export} is embedded by {count} documents. It is '
+                    'built once, for one page; a second page embedding '
+                    'it means a reader can load it twice over.',
+                )
 
 
 if __name__ == '__main__':
