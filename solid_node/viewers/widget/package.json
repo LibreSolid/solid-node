@@ -12,15 +12,8 @@
   },
   "dependencies": {
     "jokenizer": "^1.0.1",
+    "molejo": "^0.2.0",
     "three": "^0.156.1"
-  },
-  "peerDependencies": {
-    "molejo": "^0.2.0"
-  },
-  "peerDependenciesMeta": {
-    "molejo": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/three": "^0.156.0",

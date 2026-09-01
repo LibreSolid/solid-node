@@ -37,7 +37,7 @@ dependencies = [
     # optional. Pinned to the minor: a molejo minor carries the shape-spec
     # version it implements, and the documents this framework writes name
     # that version.
-    "molejo[brep]==0.1.*",
+    "molejo[brep]==0.2.*",
     "httpx==0.27.*",
     "fastapi==0.111.*",
     "termcolor==2.4.*",
