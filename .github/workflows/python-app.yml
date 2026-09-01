@@ -120,6 +120,15 @@ jobs:
         with:
           submodules: recursive
 
+      # Metamaquina2's leaves read the original OpenSCAD design through
+      # solid2's import_scad, so its export needs the openscad binary.
+      # Kept in step with .readthedocs.yaml, which installs it for the
+      # same reason.
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: openscad
+          version: 1.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -150,6 +159,13 @@ jobs:
           PYTHONPATH="$GITHUB_WORKSPACE" python -c
           "from solid_node.cli import manage; manage()"
           export -o docs/_exports/v8-engine --fps 30 --frames 360
+
+      - name: Generate Metamaquina 2 example export
+        working-directory: docs/examples/metamaquina2
+        run: >-
+          PYTHONPATH="$GITHUB_WORKSPACE" python -c
+          "from solid_node.cli import manage; manage()"
+          export -o docs/_exports/metamaquina2 --fps 30 --frames 360
 
       - name: Build docs (fail on warnings)
         run: python -m sphinx -b html -W docs docs/_build
