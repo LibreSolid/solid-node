@@ -2,7 +2,7 @@
 History
 =======
 
-0.6.0 (2026-08-30)
+0.6.0 (2026-09-01)
 ------------------
 
 The release that makes a model a *machine*. Until now a solid-node model
@@ -10,7 +10,8 @@ moved as a function of one looping ``$t``; it can now declare named inputs,
 be stepped deterministically in Python, and be driven by hand in the viewer.
 Alongside that, three new kinds of part — laser-cut sheets, imported STL
 meshes, and flexible parts whose shape is a function of machine state — and
-an assembly assertion that knows about gravity.
+an assembly assertion that knows about gravity. The build and the CLI also
+got substantially faster on projects large enough for it to matter.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -185,17 +186,85 @@ Correctness and reliability
   one-way door: once ``time`` was a float, ``76.0 * self.time - 38.0``
   evaluated inside user ``render()`` code and the symbolic form no longer
   existed anywhere for the serializer to recover.
+* The viewer reads a leading negative term the way it is written. Its
+  expression parser took a unary operator's operand to be the whole
+  expression beside it, so ``-100.0 + x`` was read as ``-(100.0 + x)`` and
+  the sign of a driver's coefficient changed. A negative literal heads a sum
+  whenever a part is placed from a rest on the far side of the origin, which
+  is ordinary. The cross-runtime parity corpus gains fourteen
+  producer-computed cases of that shape, and all 265 distinct expressions the
+  Metamaquina 2 example publishes now agree between the Python producer and
+  the viewer's parser, where one did not. Separately, ``^`` under a leading
+  minus is now emitted the way OpenSCAD and Python both bind it; nothing
+  solid-node emits reaches that path, but a hand-written expression does.
+* The viewer refuses a flexible part's shape spec that its bundled evaluator
+  cannot read, by name and once at construction, exactly as it already
+  refused an unevaluable ``tech``. Such a spec previously escaped as a raw
+  error out of the evaluator inside the render loop, naming no node and
+  arriving on a frame rather than at load. The viewer still never parses a
+  version itself; it asks the evaluator and repeats the answer.
+
+Performance
+~~~~~~~~~~~
+
+* The ``solid`` command no longer pays for the whole CAD stack to answer a
+  question that does not need it. Every invocation imported all seven command
+  modules and every backend, whichever command was asked for; commands,
+  backends and the test framework are now imported at the point of use.
+  ``import solid_node.cli`` goes from 3.48 s to 0.002 s (77 modules rather
+  than 2227) and ``solid viewer`` from 3.79 s to 0.044 s. A project built
+  entirely from ``Solid2Node`` imports no CadQuery at all; one that uses
+  CadQuery still does. Nothing became optional, and no grammar, help text,
+  option, exit code or public API changed.
+* The source-closure package lookup is indexed instead of rescanned.
+  Resolving a module's package walked all of ``sys.modules`` calling
+  ``realpath`` on each entry, once per call — a cost that scaled with
+  whatever the interpreter happened to have imported, for an answer that
+  does not depend on it. On a 567-node project that was 341169 ``realpath``
+  calls and 21.8 s of 22.4 s of node construction. A cold ``load_node`` goes
+  from 19.4 s to 4.8 s and a no-op ``solid build`` from 23.4 s to 8.0 s, with
+  every published artifact identical by SHA-256 and every node carrying the
+  same source closure.
+* An artifact whose sources were rewritten but not changed is restamped
+  rather than re-derived. Currency is mtime equality, which is precise about
+  edits and blind to content, so a clone, branch switch, stash pop or restore
+  re-derived everything. When mtime equality fails, a digest of exactly the
+  tracked sources is compared against the digest recorded when the artifact
+  was written, and a match restamps. The hit path opens nothing, so the
+  common case is unchanged, and the fallback is stricter than the rule it
+  stands behind — byte equality, not timestamp equality. A 22-part CadQuery
+  project rebuilt after a full timestamp rewrite goes from 35.70 s to 5.83 s,
+  and a relocated copy builds in 5.92 s.
 
 Packaging, documentation, and maintenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * solid-node now depends on `molejo <https://pypi.org/project/molejo/>`_ with
-  its ``brep`` extra, and the bundled viewer on the ``molejo`` npm package.
-  ``MolejoNode`` reaches for molejo's OCCT evaluator at import and
-  ``solid_node.node`` imports the adapter, so ``brep`` is required rather
-  than optional. Both are pinned to molejo's minor, because a molejo minor
-  carries the shape-spec version it implements and this framework's documents
-  name that version.
+  its ``brep`` extra. ``MolejoNode`` reaches for molejo's OCCT evaluator at
+  import and ``solid_node.node`` imports the adapter, so ``brep`` is required
+  rather than optional. The bundled viewer depends on the ``molejo`` npm
+  package for the same reason, and bundles it. Both are pinned to molejo's
+  minor, because a molejo minor carries the shape-spec version it implements
+  and this framework's documents name that version.
+* molejo 0.2 renamed the token a document declares its spec version with:
+  the integer ``1`` or ``2`` is now the ``MAJOR.MINOR`` string of the release
+  that minted it — ``"0.1"``, ``"0.2"`` — and the integer form is refused
+  rather than aliased. solid-node never writes that field, so the change
+  reaches nothing but test data and the parity fixture, which was regenerated
+  rather than hand-patched and came back differing in exactly that one line.
+  Documents this release publishes carry whichever version their content
+  needs, and molejo 0.2 reads both.
+* The user documentation now tells the 0.6 story rather than the 0.3 one.
+  The entry surface — index, why, quickstart, README and status — leads with
+  drivers, simulation and the driveable viewer; two new tutorials cover
+  driving a machine and scenario testing, since ``solid_node.simulation``
+  appeared in no page at all; and the guides' stale claims are corrected
+  throughout, including the viewer API and document schema versions a host
+  needs to know. `Metamaquina 2 <https://github.com/LibreSolid/Metamaquina2>`_
+  — a real open-hardware printer with X/Y/Z drivers, root instructions and
+  flexible filament, belts and springs — joins the V8 engine as a second
+  worked example, and both are exported by the documentation build. A
+  narrative announcement is at ``docs/releases/release-0.6.md``.
 * Internal: the exact-adapter contract (``exact``, ``shape()``,
   ``as_scad()``) moved to a shared ``ExactLeafNode`` base rather than being
   duplicated in ``CadQueryNode`` and ``Build123dNode``. No project-visible

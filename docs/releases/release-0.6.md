@@ -1,6 +1,6 @@
 # solid-node 0.6.0 — release announcement
 
-Released 30 August 2026. Full changelogs: [`HISTORY.rst`](../../HISTORY.rst)
+Released 1 September 2026. Full changelogs: [`HISTORY.rst`](../../HISTORY.rst)
 and [`docs/changelog.rst`](../changelog.rst).
 
 ---

@@ -8,7 +8,7 @@ Changelog
 v0.6.0
 ------
 
-Released on 30/Aug/2026
+Released on 01/Sep/2026
 
 The release that makes a model a *machine*. Until now a solid-node model
 moved as a function of one looping ``$t``; it can now declare named
@@ -16,7 +16,9 @@ inputs, be stepped deterministically in Python, and be driven by hand in
 the viewer. Alongside that, three new kinds of part — laser-cut sheets,
 imported STL meshes, and flexible parts whose shape is a function of
 machine state — and an assembly assertion that knows about gravity. The
-narrative announcement is at `docs/releases/release-0.6.md
+build and the CLI also got substantially faster on projects large enough
+for it to matter. The narrative announcement is at
+`docs/releases/release-0.6.md
 <https://github.com/LibreSolid/solid-node/blob/main/docs/releases/release-0.6.md>`_.
 
 **Breaking changes**
@@ -117,13 +119,51 @@ narrative announcement is at `docs/releases/release-0.6.md
   inverse, returning a subtree to symbolic ``$t``.
 * The viewer's driver readout holds still under a drag: fixed decimal
   places, fixed-width figures, the unit in its own segment.
+* The viewer reads a leading negative term the way it is written. Its
+  expression parser took a unary operator's operand to be the whole
+  expression beside it, so ``-100.0 + x`` was read ``-(100.0 + x)`` and
+  the sign of a driver's coefficient changed. All 265 distinct
+  expressions the Metamaquina 2 example publishes now agree between the
+  Python producer and the viewer's parser, where one did not.
+* The viewer refuses a flexible part's shape spec its bundled evaluator
+  cannot read, by name and once at construction, as it already refused
+  an unevaluable ``tech``. Such a spec previously escaped as a raw error
+  inside the render loop, naming no node.
 
-**Packaging**
+**Performance**
+
+* The ``solid`` command imports commands, backends and the test
+  framework at the point of use rather than all of them on every
+  invocation: ``import solid_node.cli`` 3.48 s → 0.002 s, ``solid
+  viewer`` 3.79 s → 0.044 s. Nothing became optional and no grammar,
+  help, option, exit code or public API changed.
+* The source-closure package lookup is indexed rather than rescanned
+  per call. On a 567-node project a cold ``load_node`` goes 19.4 s →
+  4.8 s and a no-op ``solid build`` 23.4 s → 8.0 s, every published
+  artifact identical by SHA-256.
+* An artifact whose sources were rewritten but not changed — by a
+  clone, branch switch, stash pop or restore — is restamped rather than
+  re-derived, on a digest of exactly the tracked sources consulted only
+  when mtime equality fails. A 22-part CadQuery project rebuilt after a
+  full timestamp rewrite goes 35.70 s → 5.83 s.
+
+**Packaging and documentation**
 
 * solid-node now depends on `molejo <https://pypi.org/project/molejo/>`_
   with its ``brep`` extra, and the bundled viewer on the ``molejo`` npm
   package, both pinned to molejo's minor — a molejo minor carries the
   shape-spec version it implements.
+* molejo 0.2 renamed the token a document declares its spec version
+  with, from an integer to the ``MAJOR.MINOR`` string of the release
+  that minted it. solid-node never writes that field, and molejo 0.2
+  reads both the versions this release can publish.
+* The user documentation now tells the 0.6 story rather than the 0.3
+  one: the entry surface leads with drivers, simulation and the
+  driveable viewer, two new tutorials cover driving a machine and
+  scenario testing, the guides' stale claims are corrected throughout,
+  and `Metamaquina 2 <https://github.com/LibreSolid/Metamaquina2>`_ —
+  a real open-hardware printer — joins the V8 engine as a second worked
+  example.
 
 v0.5.1
 ------
