@@ -49,12 +49,9 @@ that recovers from broken edits.
 Roadmap
 =======
 
-  * A command to pack the project into a distributable with source and builds
-  * Sheet-part production flow: kerf compensation, SVG import, engraving,
-    nesting, and a production-export command (0.6 deliberately left these
-    out; the persisted exact profile keeps them additive)
+  * A new declarative API for describing a model
+  * Semantics for production, so a model carries how a part is to be made
+    and not only what shape it is
   * Friction, adhesion and dynamics in the assembly-support assertion,
     which today proves reachability and static equilibrium only
-  * Presetting drivers from a URL or the Sphinx directive, which today
-    can pin a pose only through ``$t``
   * Improve the web viewer with workplanes, rulers, camera angles, a test runner
