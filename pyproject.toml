@@ -61,6 +61,10 @@ dev = [
     "pillow>=10",
     "black>=25.1",
     "build>=1.2",
+    # tests/test_docs_exports.py reads .readthedocs.yaml and the Actions
+    # workflow. PyYAML arrives anyway as a transitive of trame; this is
+    # the direct use declared rather than left to that accident.
+    "pyyaml",
     "pytest-watch",
     "ipython",
     "ipdb",

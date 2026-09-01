@@ -9,6 +9,7 @@ build>=1.2
 pytest>=8
 pillow>=10
 black>=25.1
+pyyaml
 pytest-watch
 ipython
 ipdb
