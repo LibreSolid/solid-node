@@ -2,3 +2,7 @@
 	path = docs/examples/v8-engine
 	url = https://github.com/LibreSolid/example-v8-engine.git
 	branch = main
+[submodule "docs/examples/metamaquina2"]
+	path = docs/examples/metamaquina2
+	url = https://github.com/LibreSolid/Metamaquina2.git
+	branch = main

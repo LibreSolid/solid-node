@@ -12,7 +12,17 @@ Solid Node
         :alt: Documentation Status
 
 
-**The Open Source framework for parametric 3D printable mechanical projects**
+**The Open Source framework for designing and simulating machines**
+
+A machine is a tree of Python nodes: leaf parts modelled with the CAD
+backend that suits them (OpenSCAD/SolidPython, CadQuery, build123d,
+JSCAD), plus laser-cut sheets, imported STL meshes, and flexible parts
+whose shape follows machine state (via `molejo
+<https://molejo.readthedocs.io>`_, a required dependency). The machine
+declares named driver inputs the browser viewer turns into sliders and
+buttons, a deterministic simulation steps them in Python, and
+mechanical assertions — interference, connectivity, support against
+gravity — run as ordinary tests.
 
 * Open Source: Apache License 2.0
 * Documentation: https://solid-node.readthedocs.io
@@ -24,6 +34,10 @@ Quickstart
 
     $ pip install solid-node
     $ solid new myproject
+
+Upgrading from 0.5.x requires **reinstalling the environment** rather
+than upgrading in place: the shared OCCT binding moves and its versions
+cannot coexist. See the changelog.
 
 Transparent browser-rendered snapshots are optional because they require a
 separate Chromium download:
@@ -64,7 +78,8 @@ assertions are decided by the OCCT kernel and run without it — useful on a
 platform with no compiled wheel, such as WebAssembly. A path that needs it
 and cannot import it says so by name.
 
-Clone with submodules (the docs embed the example V8-engine project):
+Clone with submodules (the docs embed the example V8-engine and
+Metamaquina2 projects):
 
 .. code-block:: bash
 
@@ -120,9 +135,11 @@ Where things live
 * ``solid_node/manager/`` and ``solid_node/cli.py`` — the ``solid`` command:
   develop loop, test, snapshot, new, export
 * ``solid_node/core/`` — build pipeline, loader, caching
+* ``solid_node/simulation/`` — drivers, instructions, the stepped ``Sim``
+  loop, and ``ScenarioTest``
 * ``solid_node/test.py`` — mesh-oriented test cases and assertions
 * ``solid_node/viewers/`` — OpenSCAD snapshotter, web viewer
-  (FastAPI + React/three.js), embeddable widget
+  (FastAPI + React/three.js), embeddable widget with driver controls
 * ``tests/`` — Python test suite
 * ``docs/`` — Sphinx documentation, architecture synthesis, ADRs
 * ``openspec/`` — OpenSpec change proposals and baseline specs

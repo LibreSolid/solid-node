@@ -26,24 +26,29 @@ Common node API
    .. method:: rotate(angle, axis)
 
       Rotate this node by ``angle`` degrees around the vector ``axis``
-      (a list of three numbers, e.g. ``[0, 0, 1]``). Operations accumulate
-      and are applied both in the viewer and to the mesh used by tests.
-      Returns the node itself, so calls can be chained. ``angle`` may be an
-      expression involving :attr:`AssemblyNode.time`.
+      (a list of three numbers, e.g. ``[0, 0, 1]``). Operations chain
+      within one render — each ``render()`` states absolute placement
+      for its instant, and an assembly drops the operations it applied
+      in previous renders before re-rendering — and apply both in the
+      viewer and to the mesh used by tests. Returns the node itself, so
+      calls can be chained. ``angle`` may be an expression involving
+      :attr:`AssemblyNode.time` or any declared driver.
 
    .. method:: translate(translation)
 
       Translate this node by the vector ``translation``, a list of three
-      numbers, e.g. ``.translate([100, 0, 0])``. Like :meth:`rotate`,
-      the operation accumulates and the node itself is returned.
+      numbers, e.g. ``.translate([100, 0, 0])``. Chains like
+      :meth:`rotate`, and the node itself is returned.
 
    .. attribute:: fn
 
       Number of facets used to approximate curved surfaces, applied as
       OpenSCAD's ``$fn`` to the generated code. Only meaningful for
-      OpenSCAD-based nodes (``Solid2Node``, ``OpenScadNode``); CadQuery
-      exports its own high-resolution STL. Default is ``None``, which
-      keeps OpenSCAD's coarse default.
+      OpenSCAD-based nodes (``Solid2Node``, ``OpenScadNode``); the
+      OCCT-backed leaves (``CadQueryNode``, ``Build123dNode``, the
+      sheet leaves, ``MolejoNode``) export high-resolution STLs on
+      their own. Default is ``None``, which keeps OpenSCAD's coarse
+      default.
 
    .. attribute:: name
 
@@ -113,16 +118,97 @@ Leaf nodes
       python file declaring the node. The file must export a ``main``
       function.
 
+.. autoclass:: solid_node.node.StlNode
+
+   .. method:: adjust(mesh)
+
+      Optional hook correcting the selected body in code: receives a
+      `trimesh <https://trimesh.org/>`_ mesh, returns the corrected
+      one. Whatever it returns is what the artifact holds — and what
+      the watertight gate judges.
+
+   .. attribute:: stl_source
+
+      Path of the committed ``.stl``, relative to the directory of the
+      python file declaring the node.
+
+   .. attribute:: require_watertight
+
+      ``True`` by default: a mesh that does not enclose a solid fails
+      at build, naming the defect. Set to ``False`` to admit an open
+      mesh knowingly; the flag never changes geometry.
+
+   .. attribute:: body
+
+      0-based index selecting one connected component of a multi-body
+      file. A multi-body file with no ``body`` fails with a per-body
+      inventory of centroid, bounds and volume.
+
+.. autoclass:: solid_node.node.FlexibleNode
+
+.. autoclass:: solid_node.node.MolejoNode
+   :members: shape_tolerance
+
 Internal nodes
 --------------
 
 .. autoclass:: solid_node.node.internal.InternalNode
+   :members: connect
 
 .. autoclass:: solid_node.node.AssemblyNode
-   :members: set_keyframe, clear_keyframe, time
+   :members: set_state, set_keyframe, clear_keyframe, time
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time
+
+Ports
+=====
+
+Domain-typed connection points between nodes, importable from
+``solid_node.node``. A port is declared as a class attribute; the
+parent assembly binds it every render with
+:meth:`~solid_node.node.internal.InternalNode.connect`. See
+:doc:`Driving a machine <driving>`.
+
+.. autoclass:: solid_node.node.Port
+
+.. autoclass:: solid_node.node.RotationalPort
+
+.. autoclass:: solid_node.node.TranslationalPort
+
+.. autoclass:: solid_node.node.SignalPort
+
+.. autofunction:: solid_node.node.declared_ports
+
+Simulation
+==========
+
+The stepped simulation layer lives in ``solid_node.simulation``. See
+:doc:`Driving a machine <driving>` for drivers and instructions, and
+:doc:`Simulating and testing scenarios <scenarios>` for the loop and
+scenario tests.
+
+.. autoclass:: solid_node.simulation.Driver
+
+.. autoclass:: solid_node.simulation.Instruction
+
+.. autoclass:: solid_node.simulation.RampProgram
+
+.. autoclass:: solid_node.simulation.Sim
+   :members: at, every, trigger, run, state, time,
+             cadence_costs, assertion_stats
+
+   .. attribute:: trajectory
+
+      The recorded ``(tick, states)`` history of the run, one entry
+      per stepped tick.
+
+.. autoclass:: solid_node.simulation.ScenarioTest
+   :members: simulation, scenario_node
+
+.. autofunction:: solid_node.simulation.qualified_drivers
+
+.. autofunction:: solid_node.simulation.qualified_instructions
 
 Testing
 =======

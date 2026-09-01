@@ -1,0 +1,228 @@
+{
+  "format": "solid-node-export",
+  "version": 2,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {
+    "x_axis.position": {
+      "default": 20.0,
+      "range": [
+        0.0,
+        160.0
+      ],
+      "unit": "mm",
+      "dtype": null,
+      "scale": null
+    },
+    "y_axis.position": {
+      "default": 20.0,
+      "range": [
+        0.0,
+        160.0
+      ],
+      "unit": "mm",
+      "dtype": null,
+      "scale": null
+    }
+  },
+  "instructions": {
+    "Center": {
+      "targets": {
+        "x_axis.position": 80.0,
+        "y_axis.position": 80.0
+      },
+      "duration": 1.5
+    },
+    "Home": {
+      "targets": {
+        "x_axis.position": 0.0,
+        "y_axis.position": 0.0
+      },
+      "duration": 2.0
+    }
+  },
+  "root": {
+    "name": "Plotter",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": 1788251241.4723194,
+    "operations": [],
+    "children": [
+      {
+        "name": "bed",
+        "type": "LeafNode",
+        "color": "#b0c4de",
+        "mtime": 1788251241.4723194,
+        "operations": [
+          [
+            "t",
+            [
+              "0",
+              "0",
+              "-3"
+            ]
+          ]
+        ],
+        "model": "models/plotter/__init__-Bed-f816a74c2310.stl",
+        "piece": "8e7dbe86a6a4"
+      },
+      {
+        "name": "x_axis",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": 1788251241.4723194,
+        "operations": [
+          [
+            "t",
+            [
+              "0",
+              "-110",
+              "8"
+            ]
+          ]
+        ],
+        "children": [
+          {
+            "name": "rail",
+            "type": "LeafNode",
+            "color": "#696969",
+            "mtime": 1788251241.4723194,
+            "operations": [],
+            "model": "models/plotter/__init__-Rail-8b270e3335b0.stl",
+            "piece": "9ea35e5f6e96"
+          },
+          {
+            "name": "carriage",
+            "type": "LeafNode",
+            "color": "#ffa500",
+            "mtime": 1788251241.4723194,
+            "operations": [
+              [
+                "t",
+                [
+                  "(x_axis.position - 80.0)",
+                  "0",
+                  "11"
+                ]
+              ]
+            ],
+            "model": "models/plotter/__init__-Carriage-047f12d8000c.stl",
+            "piece": "f880a3f3e41e"
+          }
+        ]
+      },
+      {
+        "name": "y_axis",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": 1788251241.4723194,
+        "operations": [
+          [
+            "r",
+            "90",
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          [
+            "t",
+            [
+              "110",
+              "0",
+              "8"
+            ]
+          ]
+        ],
+        "children": [
+          {
+            "name": "rail",
+            "type": "LeafNode",
+            "color": "#696969",
+            "mtime": 1788251241.4723194,
+            "operations": [],
+            "model": "models/plotter/__init__-Rail-8b270e3335b0.stl",
+            "piece": "9ea35e5f6e96"
+          },
+          {
+            "name": "carriage",
+            "type": "LeafNode",
+            "color": "#ffa500",
+            "mtime": 1788251241.4723194,
+            "operations": [
+              [
+                "t",
+                [
+                  "(y_axis.position - 80.0)",
+                  "0",
+                  "11"
+                ]
+              ]
+            ],
+            "model": "models/plotter/__init__-Carriage-047f12d8000c.stl",
+            "piece": "f880a3f3e41e"
+          }
+        ]
+      }
+    ]
+  },
+  "pieces": [
+    {
+      "id": "8e7dbe86a6a4",
+      "name": "Bed",
+      "sources": [
+        "plotter/__init__.py"
+      ],
+      "models": [
+        "models/plotter/__init__-Bed-f816a74c2310.stl"
+      ],
+      "count": 1,
+      "size": [
+        220.0,
+        220.0,
+        6.0
+      ],
+      "volume": 290400.0,
+      "watertight": true
+    },
+    {
+      "id": "9ea35e5f6e96",
+      "name": "Rail",
+      "sources": [
+        "plotter/__init__.py"
+      ],
+      "models": [
+        "models/plotter/__init__-Rail-8b270e3335b0.stl"
+      ],
+      "count": 2,
+      "size": [
+        200.0,
+        10.0,
+        10.0
+      ],
+      "volume": 20000.0,
+      "watertight": true
+    },
+    {
+      "id": "f880a3f3e41e",
+      "name": "Carriage",
+      "sources": [
+        "plotter/__init__.py"
+      ],
+      "models": [
+        "models/plotter/__init__-Carriage-047f12d8000c.stl"
+      ],
+      "count": 2,
+      "size": [
+        18.0,
+        18.0,
+        12.0
+      ],
+      "volume": 3888.0,
+      "watertight": true
+    }
+  ]
+}

@@ -41,6 +41,18 @@ An explicit ``name=`` passed to the constructor always wins over the
 derived name. Attributes starting with an underscore are ignored by
 the derivation.
 
+The same attribute-derived path is what qualifies a **driver id**
+(:doc:`Driving a machine <driving>`). Two instances of one axis class
+held as `self.x_axis` and `self.y_axis` publish their same-named
+driver as ``x_axis.position`` and ``y_axis.position`` — one string,
+identical in the exported document's driver table, in `set_state`, in
+instruction targets and in a simulation's state. The id must be a
+legal expression identifier, which the indexed list names above are
+not (``planets-0`` would parse as a subtraction): a driver-declaring
+node held in a list makes the tree unqualifiable, and it fails loudly
+naming the offending segment rather than letting two siblings share
+one value.
+
 Node references
 ===============
 
@@ -74,10 +86,23 @@ declare the node they bind to.
 Build identity and caching
 ==========================
 
-Solid Node caches every generated artifact — SCAD, STL — in the build
-directory (`_build` by default, see ``SOLID_BUILD_DIR`` in the
-:doc:`command line reference <cli>`), and rebuilds a part only when
-its source or its parameters change.
+Solid Node caches every generated artifact in the build directory
+(`_build` by default, see ``SOLID_BUILD_DIR`` in the :doc:`command
+line reference <cli>`): the SCAD and STL of OpenSCAD-family parts, a
+`.brep` with the exact geometry beside the STL of OCCT-backed parts,
+and a `.dxf` cut profile beside each sheet part — and rebuilds a part
+only when its source or its parameters change.
+
+"Changed" is decided by stamps, exactly. Source modification times are
+read as integer nanoseconds and artifacts are stamped with the very
+value that was read, so freshness is decided by **exact equality**, no
+tolerance window: an artifact is current when its stamp matches its
+sources, stale otherwise. (When a copy or checkout disturbs mtimes,
+a content check rescues the artifact rather than rebuilding the
+world.) One part tracks more than its parameters: an
+:ref:`imported STL <stl-import>` leaf also counts its declaring Python
+module among its sources, because its ``adjust()`` hook can change the
+geometry without any constructor argument moving.
 
 The cache key of a node instance is derived from its **constructor
 arguments**: a node built as `Gear(teeth=20)` and one built as
@@ -96,3 +121,8 @@ Consequences worth knowing:
   node with different parameters.
 * Parameter values of any size are safe — the key embeds a bounded
   readable prefix plus a hash, not the values verbatim.
+* Driver and port values are deliberately **not** part of the build
+  identity. A part's placement and a flexible part's pose change with
+  every bound snapshot; keying artifacts on them would mint a new part
+  per frame. Identity stays structural — constructor arguments — and
+  state stays in the snapshot.

@@ -409,7 +409,11 @@ only the pairs whose boxes overlap. Each emitted pair meets an exact Manifold
 intersection. Nothing is computed over the assembly as a whole, so the cost
 tracks the number of interacting pairs rather than the model's total triangle
 count. This is a CPU geometry-kernel path (Manifold may use its own CPU
-parallelism), not a GPU computation.
+parallelism), not a GPU computation. The ``manifold3d`` dependency behind it
+is conditional in the same sense as OpenSCAD: it is resolved at the faceted
+operation that needs it, so a fully exact model runs its geometric
+assertions without the compiled wheel, and a path that needs it and cannot
+import it says so by name.
 
 Gravity support
 ---------------
@@ -550,6 +554,16 @@ compatibility but deprecated. It visits every leaf pair and preserves its
 historical ``volume_epsilon`` behavior. New tests should use
 ``assertNoSolidInterference`` and account for the deliberate scope change:
 topmost rigid printed solids instead of every leaf, with no overlap epsilon.
+
+Testing motion: scenarios
+=========================
+
+Everything on this page judges the machine at instants of the ``$t``
+timeline. A machine with :doc:`drivers <driving>` is also testable *in
+motion* — an instruction triggered, an invariant held at a cadence, a
+terminal state asserted at an exact tick — with ``ScenarioTest`` and the
+stepped simulation loop: see :doc:`Simulating and testing scenarios
+<scenarios>`.
 
 See the :doc:`API Reference <api-reference>` for details. All the
 standard `unittest.TestCase` assertions are available as well.

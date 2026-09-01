@@ -6,9 +6,10 @@ Embedding models in pages and docs
 
 ``solid export`` (see the :ref:`command line reference <cli>`) turns a
 node into a static directory that renders the model in any browser —
-animations included, since operations are exported as raw ``self.time``
-expressions and evaluated client-side. No server-side code is needed:
-any static file host works.
+animations and driver controls included, since operations are exported
+as raw symbolic expressions over ``$t`` and qualified driver ids and
+evaluated client-side. No server-side code is needed: any static file
+host works.
 
 What an export contains
 =======================
@@ -16,7 +17,7 @@ What an export contains
 ::
 
     export/
-    ├── manifest.json     # the node tree: names, colors, operations
+    ├── manifest.json     # the document (see below)
     ├── models/           # one STL per distinct rigid part
     │   └── ...
     ├── index.html        # standalone viewer page
@@ -24,8 +25,28 @@ What an export contains
 
 ``manifest.json`` and ``models/`` are the data; ``index.html`` plus
 ``solid-widget.js`` are the viewer (omitted with ``--no-widget``).
-Opening ``index.html`` over HTTP shows the model with orbit controls
-and, for animated nodes, play/pause and a timeline.
+Opening ``index.html`` over HTTP shows the model with orbit controls,
+play/pause and a timeline for animated nodes, and the
+:doc:`driver controls <driving>` for a machine that declares them.
+
+The manifest is a ``solid-node-export`` document carrying ``format``
+and ``version``, the ``animation`` parameters, a ``drivers`` table
+(qualified id → default, range, unit, dtype, scale), an
+``instructions`` table, the ``root`` node tree with its symbolic
+operations, and the printed-``pieces`` inventory. The declared
+``version`` is a property of the *content*: a document with no drivers
+is version 1, drivers make it version 2, and a flexible part makes it
+version 3, so documents published by earlier releases keep rendering.
+
+.. warning::
+
+   The viewer gained a version gate in 0.6, and older viewers have
+   none: a 0.5.x bundle pointed at a version 2 or 3 document will
+   **silently render only the part of the machine it can evaluate**
+   rather than refusing. If your host pins its own copy of
+   ``solid-widget.js``, upgrade it together with the framework. This
+   release's viewer refuses a document schema it cannot read, naming
+   the version.
 
 Embedding in any web page
 =========================
@@ -47,13 +68,24 @@ Two URL query parameters control playback:
     Start paused. Combined with ``t`` this shows a static pose:
     ``index.html?t=0.25&autoplay=0``.
 
-Imperative viewer camera options
-================================
+These two are the whole URL surface: a driver cannot yet be preset or
+the control chrome suppressed from a query string. A host that needs
+either drives the widget programmatically, below.
+
+The JavaScript API
+==================
 
 Hosts that load ``solid-widget.js`` directly may call
-``SolidNodeWidget.mount(target, manifestUrl, options)``. Viewer API version 3
-adds ``up`` and ``fov`` beside ``view``; each vector may be a three-number
-tuple, and ``fov`` is in degrees:
+``SolidNodeWidget.mount(target, manifestUrl, options)``. The package's
+``solidNodeViewerApi`` declaration, browser global, and each mount
+handle all report API version 5, and the viewer accepts document
+schema versions 1, 2 and 3.
+
+Camera options: ``view`` (camera and target), ``up`` and ``fov``; each
+vector may be a three-number tuple, and ``fov`` is in degrees. When
+omitted they preserve the established Z-up direction and 50° field of
+view. ``driverControls: 'none'`` suppresses the built-in sliders,
+buttons and breadcrumb, for a host that builds its own control UI:
 
 .. code-block:: javascript
 
@@ -61,11 +93,40 @@ tuple, and ``fov`` is in degrees:
       view: { camera: [80, -60, 40], target: [0, 0, 0] },
       up: [0, 0, 1],
       fov: 22.5,
+      driverControls: 'none',
     });
 
-When omitted, these options preserve the established Z-up direction and 50°
-field of view. The package's ``solidNodeViewerApi`` declaration, browser
-global, and each mount handle all report API version 3.
+Driving from the host
+---------------------
+
+The mount handle exposes the machine:
+
+``drivers()``
+    The document's driver table: qualified ids with default, range,
+    unit, dtype and scale.
+
+``driver(id)`` / ``setDriver(id, value)``
+    Read and write one driver's current value. Values are in the
+    driver's **native** units (the units its default and state are
+    kept in), and ids are verbatim from the document. A declared
+    ``range`` is presentation metadata and never clamps.
+
+``onDriverChange(fn)``
+    Subscribe to value changes, whatever their source — a slider, a
+    running ramp, or another ``setDriver`` call.
+
+``instructions()`` / ``trigger(name)``
+    List the declared instructions, and run one. ``trigger`` returns
+    ``{done, cancel()}``: the ramp runs client-side over the
+    instruction's declared duration and lands exactly on target, and
+    a later ``trigger`` replaces an active ramp.
+
+Moving one driver does not recompute the tree: which operations
+re-evaluate is decided by the free variables read off each parsed
+expression, so a host can wire a gauge to ``onDriverChange`` and
+drag values at frame rate. The handle also keeps the earlier
+navigation surface — assembly metadata, subtree focus and visibility,
+``setTime`` — unchanged.
 
 Embedding in Sphinx documentation
 =================================
@@ -109,9 +170,14 @@ Options:
 
 The exports are generated ahead of the documentation build and
 committed (or produced by a CI step) — the Sphinx build itself never
-runs OpenSCAD. A missing or invalid export directory fails the build
-with a message saying which ``solid export`` invocation would create
-it.
+runs the CAD stack. A missing or invalid export directory fails the
+build with a message saying which ``solid export`` invocation would
+create it.
+
+The directive's options are ``:height:``, ``:t:`` and ``:autoplay:``
+only — like the URL surface, it cannot yet preset a driver or
+suppress the control chrome, so a driven model embeds with its
+controls showing at their defaults.
 
 Exports referenced by the directive may be made with ``--no-widget``:
 the extension completes them with the viewer files from the installed

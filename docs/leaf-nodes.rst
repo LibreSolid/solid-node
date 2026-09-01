@@ -33,7 +33,9 @@ There is also one leaf kind that is not a modelling technology but a way
 of making:
 
 * **Build123dSheetNode** A part cut from sheet stock, authored as a 2D
-  profile plus a thickness
+  profile plus a thickness. It is the first concrete backend of the
+  **SheetLeafNode** base, which owns the sheet contract — other sheet
+  backends can slot in beside it.
 
 And one whose part is not modelled here at all, but imported:
 
@@ -43,7 +45,9 @@ And one whose part is not modelled here at all, but imported:
 And one whose part does not hold still:
 
 * **MolejoNode** A flexible part — a spring, a belt, a cable — whose
-  shape follows the machine's state instead of being fixed
+  shape follows the machine's state instead of being fixed. It is the
+  first adapter of the **FlexibleNode** base, which owns the flexible
+  contract.
 
 The :doc:`Quickstart <quickstart>` starts with a Solid2Node example showing
 a box with a hole. Below are the codes for the same model in each modelling
@@ -163,7 +167,7 @@ failing later in the STL export.
 **NOTE**: `Build123dNode` and `CadQueryNode` are both OCCT front ends
 and both produce exact geometry, so they mix freely — a fusion may take
 children from either, and the parts fuse exactly. Neither needs OpenScad
-installed. See :doc:`Combining parts <assemblies>`.
+installed. See :doc:`Fusing parts <fusion>`.
 
 Build123dSheetNode
 ==================
@@ -372,6 +376,8 @@ And the same model once more, rendered by JScad:
 .. solid-node:: _exports/demo_jscad
    :height: 360px
 
+.. _stl-import:
+
 StlNode
 =======
 
@@ -513,7 +519,7 @@ What importing a mesh costs
 Be clear-eyed about this: **an StlNode is faceted, and it makes any
 fusion containing it faceted.** A fusion of exact parts is computed by
 the OCCT kernel; add an imported mesh and the fusion falls back to the
-OpenScad/CGAL mesh path (see :doc:`Combining parts <assemblies>`), which
+OpenScad/CGAL mesh path (see :doc:`Fusing parts <fusion>`), which
 on a dense downloaded mesh can be slow — minutes, not seconds, and it
 needs the `openscad` binary. That is the price of designing a piece that
 fits a part someone else published, and it is usually worth paying.
@@ -533,6 +539,8 @@ in a class attribute. And it does not take an STL set apart into an
 assembly: import each part you need and assemble them with the nodes and
 operations you already have.
 
+.. _flexible-parts:
+
 MolejoNode
 ==========
 
@@ -546,7 +554,7 @@ placement, is a function of where the machine is.
 A **MolejoNode** is that kind of part. It is a **flexible** leaf: instead
 of returning a finished solid, `render()` returns a swept shape —  a
 closed profile carried along a path — described analytically with
-`molejo <https://github.com/LibreSolid/molejo>`_, with the moving
+`molejo <https://molejo.readthedocs.io>`_, with the moving
 dimensions left as *parameters*:
 
 .. code-block:: python
@@ -628,8 +636,11 @@ A flexible part travels into the viewer as its **shape spec**, not as a
 mesh, and the browser evaluates it. Move the driver that feeds a port —
 with the slider the viewer builds for it, or from your own host code —
 and the spring re-computes its geometry on the frames the value actually
-changed, in the buffers it already has. See
-:doc:`Animating with time <animation>`.
+changed, in the buffers it already has. See :doc:`Driving a machine
+<driving>`, where ports and drivers are introduced. A document holding
+a flexible part declares schema version 3 rather than 2, which is what
+tells a viewer it must evaluate shape specs — see
+:doc:`Embedding models <embedding>`.
 
 OpenScad has no equivalent, so it gets a snapshot: the part is evaluated
 at its current state and written as an ordinary STL that the assembled
@@ -662,19 +673,15 @@ spring, you do not print it. And it has no `time` of its own, like every
 other leaf: its shape follows the values its parent binds, and nothing
 else.
 
-Installing molejo
------------------
+Where molejo comes from
+-----------------------
 
-**molejo is not published yet.** Until it is, it is not installed with
-solid-node and a `MolejoNode` will not import; install it from its own
-checkout alongside solid-node:
-
-.. code-block:: bash
-
-    pip install -e /path/to/molejo[brep]
-
-The `brep` extra is what provides the exact geometry above. When molejo
-is released this becomes an ordinary dependency and the step disappears.
+`molejo <https://molejo.readthedocs.io>`_ is an ordinary dependency of
+solid-node — installed with it from `PyPI
+<https://pypi.org/project/molejo/>`_, with the ``brep`` extra that
+provides the exact geometry above. The two are pinned by minor
+version, because a molejo minor carries the shape-spec version it
+implements and the documents this framework writes name that version.
 
 .. _fn-property:
 
@@ -696,8 +703,9 @@ Set the `fn` property on the node to raise the resolution:
 
         fn = 256
 
-CadQuery is not affected — it exports STL files with high precision on
-its own.
+The OCCT-backed leaves — `CadQueryNode`, `Build123dNode`, the sheet
+leaves and `MolejoNode` — are not affected: they export STL files with
+high precision on their own.
 
 This is mostly invisible while modeling, but it matters for fits: a
 hexagonal "hole" is tighter than the circle it approximates. It comes

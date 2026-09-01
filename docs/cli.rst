@@ -96,8 +96,10 @@ solid test
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion
-test file, if one exists. See :doc:`Test-driven CAD <testing>` for how
-to write tests.
+test file, if one exists. A companion ``ScenarioTest`` runs here like
+any other test class, and the same class runs under plain ``pytest``
+unmodified. See :doc:`Test-driven CAD <testing>` and
+:doc:`Simulating and testing scenarios <scenarios>`.
 
 ``--failfast``
     Stop the test run on the first failure.
@@ -130,7 +132,9 @@ channel for compositing.
     Output file path. Default: derived from the resolved node.
 
 ``--time``
-    Animation time to render, between 0.0 and 1.0. Default: 0.0.
+    Animation time to render, between 0.0 and 1.0. Default: 0.0. This
+    poses the model through ``$t`` only; a driven machine renders at
+    its declared driver defaults.
 
 ``--camera``
     Camera specification in OpenSCAD format. Either gimbal
@@ -179,9 +183,11 @@ solid export
     solid export [reference] [options]
 
 Builds the node's STL meshes and writes a static, self-contained
-directory that renders the model — animations included — in any
-browser, with no server-side code. See :doc:`embedding` for what the
-output contains and how to use it.
+directory that renders the model — animations and driver controls
+included — in any browser, with no server-side code. The manifest
+carries the document schema version and the machine's driver and
+instruction tables. See :doc:`embedding` for what the output contains
+and how to use it.
 
 .. code-block:: bash
 
@@ -196,7 +202,9 @@ output contains and how to use it.
 
 ``--frames``
     Frames per animation cycle. Together with ``--fps`` this sets the
-    cycle duration (default: 360 frames at 30 fps = 12 seconds).
+    cycle duration (default: 360 frames at 30 fps = 12 seconds). Both
+    govern the ``$t`` timeline only — drivers have no frame grid, and
+    a simulation's ``dt`` is unrelated.
 
 ``--no-widget``
     Export only ``manifest.json`` and ``models/``, without the viewer
@@ -207,5 +215,15 @@ Environment variables
 =====================
 
 ``SOLID_BUILD_DIR``
-    Directory where generated ``.scad`` and ``.stl`` files are placed,
-    relative to the project root. Default: ``_build``.
+    Directory where generated build artifacts are placed, relative to
+    the project root. Default: ``_build``.
+
+``SOLID_NODE_PORT``
+    Port of the ``solid develop`` web viewer. Default: 8000.
+
+``SOLID_NODE_FRONTEND_PORT``
+    Port of the npm dev server behind ``solid develop --web-dev``.
+    Default: 3000.
+
+The ``solid`` command loads a ``.env`` file from the working directory
+at startup, so a project can pin its ports there.

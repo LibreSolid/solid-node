@@ -5,6 +5,126 @@
 Changelog
 =========
 
+v0.6.0
+------
+
+Released on 30/Aug/2026
+
+The release that makes a model a *machine*. Until now a solid-node model
+moved as a function of one looping ``$t``; it can now declare named
+inputs, be stepped deterministically in Python, and be driven by hand in
+the viewer. Alongside that, three new kinds of part — laser-cut sheets,
+imported STL meshes, and flexible parts whose shape is a function of
+machine state — and an assembly assertion that knows about gravity. The
+narrative announcement is at `docs/releases/release-0.6.md
+<https://github.com/LibreSolid/solid-node/blob/main/docs/releases/release-0.6.md>`_.
+
+**Breaking changes**
+
+* **Reinstall required.** ``cadquery`` moves from 2.5 to 2.7 and
+  ``build123d`` 0.10 joins it, so the shared ``cadquery-ocp`` binding
+  moves from 7.7 to 7.8. The two versions of that large binary wheel
+  cannot coexist: upgrade by reinstalling the environment rather than in
+  place. No project source changes.
+* The published document schema moves from version 1 to version 2 (a
+  ``drivers`` table; operation expressions may name qualified driver ids
+  as well as ``$t``), and a document containing a flexible part declares
+  version 3. The producer emits the lowest version its content needs, and
+  the bundled viewer renders versions 1, 2 and 3 — but a 0.5.x viewer has
+  no version gate at all, so pointed at a 0.6 document it silently
+  renders only the part of the machine it can evaluate. Hosts pinning
+  their own copy of the bundle must upgrade it with the framework. The
+  declared viewer API version is 5, and this release's viewer refuses an
+  unreadable schema version by name.
+* ``export_node`` now leaves the node in symbolic time rather than in
+  whatever pose the caller left it. ``solid export`` and the build and
+  snapshot paths produce byte-identical output; only a host calling
+  ``export_node`` itself and reusing the node sees the difference.
+
+**New features**
+
+* **Named drivers.** An assembly declares its inputs as class attributes
+  — ``x = Driver(default=0, range=(0, 200), unit='mm')`` — and reads
+  them back as attributes. Assigning to one raises and names
+  ``set_state``, reading an unbound one raises and names the driver, and
+  a declaration that would shadow a node member fails at class-definition
+  time. ``time`` is now one driver among several.
+* **Instance-qualified driver ids.** Two instances of one class publish
+  their same-named driver distinctly — ``set_state(**{'x_axis.motor':
+  12.5})`` — with one dotted id used in the document, the simulation and
+  instruction targets alike; an unqualifiable tree fails loudly.
+* **Domain-typed ports.** ``Port`` with ``RotationalPort``,
+  ``TranslationalPort`` and ``SignalPort``: unit-tagged value slots
+  re-bound every render, with declared unit conversion and a causal
+  ``connect()``.
+* **A stepped simulation layer**, ``solid_node.simulation``: ``Driver``
+  declarations and ``RampProgram``; ``Instruction`` targets in design
+  units plus a duration; ``Sim``, a fixed-``dt`` loop with integer
+  ticks, events, deferred ``at(t)`` actions, an ``every(period, fn)``
+  cadence, per-tick snapshot binding and trajectory recording; and
+  ``ScenarioTest``, one class running under plain pytest and under
+  ``solid test`` alike. Integer-typed drivers ramp integer-exactly and
+  land on target.
+* **A driveable viewer with on-screen controls.** The widget evaluates
+  driver expressions and shows one button per instruction and one slider
+  (with numeric readout, in design units) per driver declared at the
+  focused assembly layer, with a breadcrumb to move focus. Triggers ramp
+  client-side over the declared duration, landing exactly on target.
+  Only expressions whose free variables changed re-evaluate. Hosts get
+  ``drivers()``, ``instructions()``, ``driver(id)``, ``setDriver(id,
+  value)``, ``onDriverChange(fn)`` and ``trigger(name)`` on the mount
+  handle, and ``driverControls: 'none'`` to suppress the chrome.
+* ``Build123dNode``, a fifth leaf adapter backed by build123d — exact
+  OCCT geometry, a ``.brep`` beside its STL, no OpenSCAD binary — and
+  exact fusion across backends: CadQuery and build123d children fuse
+  exactly together.
+* **Sheet parts.** ``SheetLeafNode`` with ``Build123dSheetNode`` as its
+  first backend: a laser-cut part authored as a 2D ``profile()`` plus a
+  declared ``thickness``, writing a nominal kerf-free ``.dxf`` beside
+  its STL and BREP under the same freshness guard.
+* **Imported meshes.** ``StlNode`` wraps a committed ``.stl``; a
+  non-watertight mesh fails at build (``require_watertight = False``
+  admits one knowingly), a multi-body file is selected by ``body`` with
+  a per-body inventory on omission, and ``adjust(self, mesh)`` corrects
+  the mesh in code. An ``StlNode`` in a fusion routes that fusion
+  through the faceted OpenSCAD/CGAL path.
+* **Flexible parts.** ``FlexibleNode`` with ``MolejoNode`` as its first
+  adapter: a spring, belt, loom or filament whose geometry is a pure
+  function of its declared ports' bound values, travelling as a `molejo
+  <https://molejo.readthedocs.io>`_ shape spec plus one expression per
+  parameter rather than a mesh, evaluated in the browser only on frames
+  its inputs changed. Exact geometry from molejo's OCCT evaluator; the
+  OpenSCAD path gets per-binding snapshot meshes.
+* **Assemblies are checked against gravity.**
+  ``assertAssemblySupported`` proves support reachability (every solid,
+  dropped along gravity, lands on something that leads to ground) and
+  static equilibrium (push-only contact forces balance every solid's
+  gravity wrench, force and torque, via one deterministic linear
+  program), naming the unbalanced solids on failure. ``ground``,
+  ``supports`` and ``stability_margin`` refine it; friction, adhesion
+  and dynamics stay out of scope.
+
+**Fixes**
+
+* Artifact freshness no longer goes through floating-point mtimes:
+  source times are read as integer nanoseconds and artifacts stamped
+  with the exact value read, fixing spurious full rebuilds on
+  millisecond-resolution filesystems. Freshness stays exact equality.
+* ``manifold3d`` became a conditional dependency of the faceted mesh
+  path, so an all-exact project runs its geometric assertions without
+  the compiled wheel — including on platforms with no wheel at all.
+* ``clear_keyframe()`` joins ``set_keyframe(time)`` as its explicit
+  inverse, returning a subtree to symbolic ``$t``.
+* The viewer's driver readout holds still under a drag: fixed decimal
+  places, fixed-width figures, the unit in its own segment.
+
+**Packaging**
+
+* solid-node now depends on `molejo <https://pypi.org/project/molejo/>`_
+  with its ``brep`` extra, and the bundled viewer on the ``molejo`` npm
+  package, both pinned to molejo's minor — a molejo minor carries the
+  shape-spec version it implements.
+
 v0.5.1
 ------
 

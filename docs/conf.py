@@ -36,6 +36,10 @@ autodoc_mock_imports = [
     'cadquery',
     'solid2',
     'manifold3d',
+    'build123d',
+    'molejo',
+    'scipy',
+    'rtree',
 ]
 
 templates_path = ['_templates']

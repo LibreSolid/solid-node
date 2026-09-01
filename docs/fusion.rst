@@ -9,7 +9,7 @@ Sometimes several nodes describe one piece. A knob, for example, can be
 modeled as a shaft plus a grip: two simple solids, easier to write and
 read separately — but in reality it's a single rigid part, printed in
 one go. That's what a **FusionNode** is for: its children are fused
-into one mesh.
+into one solid.
 
 Let's build that knob. Create `myproject/knob_shaft.py`:
 
@@ -69,18 +69,47 @@ And the fusion, at `myproject/knob.py`:
         def render(self):
             return [KnobShaft(), KnobGrip()]
 
-The shaft and grip are fused into one rigid mesh:
+The shaft and grip are fused into one rigid solid:
 
 .. solid-node:: _exports/knob
    :height: 360px
 
-Unlike an assembly, a fusion consumes its children into a single mesh —
+Unlike an assembly, a fusion consumes its children into a single solid —
 they don't need to keep their identity across renders, so creating them
 directly in `render()` is fine.
 
 Since the result of a fusion is rigid, a FusionNode cannot use
 `self.time` (it raises an exception) — animate it from the AssemblyNode
-that contains it instead.
+that contains it instead. For the same reason, a fusion refuses a
+:ref:`flexible <flexible-parts>` child outright, naming both nodes: a
+part whose shape follows machine state cannot be baked into one rigid
+piece.
+
+What a fusion is made of
+========================
+
+A fusion is computed on the strongest representation its children
+share.
+
+**Exact children fuse exactly.** When every child is OCCT-backed
+(`CadQueryNode`, `Build123dNode`, the sheet leaves), the fusion is
+performed by the OCCT kernel on true solids: the result is itself an
+exact node, persisting a `.brep` beside its STL, and geometric
+assertions against it are answered by the kernel. Exact fusion does
+not require one backend — a fusion may mix CadQuery and build123d
+children and still fuse exactly into a single solid.
+
+**One faceted child makes the fusion faceted.** The knob above is
+built from two `Solid2Node` children, so it takes the mesh path: the
+children are compiled through OpenSCAD and fused by CGAL, which needs
+the ``openscad`` binary and answers questions on tessellated
+geometry. The same applies to an :ref:`imported STL <stl-import>`
+child — an `StlNode` in a fusion routes the whole fusion through
+OpenSCAD/CGAL, which is the documented price of designing a part that
+fits a downloaded mesh, and can take minutes on a dense one.
+
+Choose children accordingly: when a fused part matters to exact
+assertions, author its children on an OCCT backend.
 
 Fusions in assemblies
 =====================

@@ -7,7 +7,8 @@ Combining parts
 
 Parts become a project when they are combined by **internal nodes**.
 An internal node's `render()` does not return a solid — it returns a
-list of child node instances.
+list of child node instances, after saying where each one sits and,
+in a driven machine, wiring values between them.
 
 There are two types of internal nodes:
 
@@ -116,3 +117,41 @@ constructor, and children held in a list get indexed names
 (``planets-0``, ``planets-1``, ...). The full naming rules — and how
 node identity relates to build caching — are in
 :doc:`Names, the node tree and caching <node-tree>`.
+
+Assemblies declare the machine's inputs
+=======================================
+
+The assembly is also where a machine's named inputs live. A **driver**
+is a class attribute, read back as an ordinary attribute in
+``render()``:
+
+.. code-block:: python
+
+    from solid_node.simulation import Driver
+
+    class Axis(AssemblyNode):
+
+        position = Driver(default=20.0, range=(0.0, 160.0), unit='mm')
+
+        def render(self):
+            self.carriage.translate([self.position, 0, 0])
+            return [self.rail, self.carriage]
+
+The viewer turns drivers into sliders and declared instructions into
+buttons, scoped to the assembly layer that declares them: an
+assembly's controls appear when *it* is focused, so declare each input
+on the assembly the input belongs to — an axis's travel on the axis,
+the whole machine's ``Home`` on the machine. An assembly also wires
+values between its children with ``connect()``, binding an expression
+over its drivers to a child's port. Drivers, qualified ids, ports and
+instructions are the subject of :doc:`Driving a machine <driving>`.
+
+Assemblies are testable
+=======================
+
+Because an assembly knows its parts and their placements, the
+:doc:`test framework <testing>` can interrogate it as a whole: that
+parts do not interfere, that they form the connections the design
+intends — and, with ``assertAssemblySupported``, that the assembly
+actually rests on the ground and balances under gravity instead of
+floating where the code put it.

@@ -1,10 +1,79 @@
 Why Solid Node
 ==============
 
-When designing a mechanical project with Open Source, there are some technologies available that allow parametric design, using source code to create solid structures. There's OpenScad, which uses its own scripting language, and on top of it there is Solid Python, which allows modelling for OpenScad using Python language. Python also has CadQuery, which is more powerful and flexible for complex designs, but has a steeper learning curve. There's also JScad, which uses Javascript. When picking which technology to use, one should consider the libraries available, and a complex project might need to assemble pieces that come from different libraries. Openscad has a native animation system that allows developing projects with moving parts, but it soon gets very slow as project grows.
+A machine, not a mesh
+---------------------
 
-Solid Node is a framework to join all these underlying technologies together and solve performance bottlenecks. It's inspired by a web development culture, which uses frameworks like Django, React and Angular, that monitors filesystem for changes and shows results automatically. Solid Node proposes an architecture that allows building of pieces as they change, being able to handle a lot of moving parts.
+Most code-CAD tools answer one question: what shape is this part? A
+machine raises more. Where does the carriage sit when the axis is
+homed? How tall is the valve spring at full lift? Does the assembly
+stand up under gravity, and does anything collide along a move? Solid
+Node is built around those questions. A model is a tree of nodes whose
+root is a *machine*: it declares its inputs as named **drivers**
+(``x = Driver(default=0, range=(0, 200), unit='mm')``), reads them in
+ordinary Python expressions, and publishes them — so the browser
+viewer grows sliders and buttons a reader can drive, a simulation can
+step the machine deterministically, and a test can assert what happens
+along the way. Parts do not have to be rigid, either: a spring, a belt
+or a filament path is a flexible part whose shape is a function of the
+machine's state, not only of its placement.
 
-Solid Node also provides testing capabilities. Prototyping can take a lot of time and generate a lot of garbage, and this can be substantially reduced by being able to logically test connections between components before producing anything.
+The backend that suits each part
+--------------------------------
 
-Solid Node is Open Source, released under the Apache License 2.0. You are free to build any project with it and license your own designs however you choose. As digital manufacturing technologies, like 3D printing, become popular, distribution of source code can greatly increase goods lifetime and reduce waste generation. We encourage you to publish the source of your models — Open Source modeling and source code distribution should become an industry standard, and this project is one more step towards that.
+Open Source parametric CAD is several ecosystems, not one. OpenSCAD
+has its own language and an enormous library culture; SolidPython
+writes OpenSCAD from Python; CadQuery and build123d drive the OCCT
+kernel from Python with exact boundary representation; JSCAD does
+code-CAD in JavaScript. Each has libraries and strengths the others
+lack, and a real project may want a gear from one and an enclosure
+from another. In Solid Node every leaf part is written against the
+backend that suits it, and the tree composes them: one assembly, one
+viewer, one test suite. Beyond the modelling backends, a leaf can also
+be a laser-cut sheet authored as a 2D profile plus a thickness (with
+its cut file derived from the same source), an imported STL mesh a new
+part is designed to fit, or a flexible part.
+
+Exact where it matters
+----------------------
+
+OCCT-backed parts are **exact**: geometric questions between exact
+parts are answered by the kernel on true solids, not on tessellated
+approximations, so a sub-facet interference fails and a nominally
+exact fit passes without epsilon tuning. Exact parts fuse exactly —
+even mixing CadQuery and build123d children — and persist their exact
+geometry beside the meshes. Where a mesh is the honest representation
+(an imported STL, an OpenSCAD part), the framework says so and takes
+the faceted path knowingly.
+
+Fast feedback at any size
+-------------------------
+
+Solid Node is inspired by web-development culture: a dev server
+watches the filesystem, rebuilds only the pieces that changed, and the
+browser reflects each edit as you save. That incremental discipline is
+what keeps a project moving past the point where a monolithic render
+becomes too slow — and in the viewer, dragging one driver re-evaluates
+only the expressions that read it, not the world.
+
+Tests instead of prototypes
+---------------------------
+
+Prototyping takes time and generates waste. Much of both can be
+avoided by asserting properties before producing anything: that parts
+do not interfere, that they stay connected, that an assembly is
+supported against gravity and statically balanced, that a moving
+scenario — homing an axis, running a full cycle — holds its
+invariants at every step. Solid Node's test framework makes those
+assertions ordinary test cases, run by its own runner or by pytest.
+
+Open Source
+-----------
+
+Solid Node is released under the Apache License 2.0. You are free to
+build any project with it and license your own designs however you
+choose. As digital manufacturing becomes popular, distributing a
+design's *source* — not just its meshes — lengthens the life of the
+goods built from it and reduces waste. We encourage you to publish the
+source of your models: Open Source modelling should become an industry
+standard, and this project is one more step towards that.
