@@ -100,7 +100,7 @@ last in `__init__`, in declaration order, into its instance dict under
 the declaring attribute, so naming, qualification and the serialized
 document see the tree they always saw; a literal list declares
 enumerated children and `repeat(count)` count-many identical ones,
-named `<attr>-<index>` without renumbering. Tokens pass to children by
+named `<attr>-<index>` without renumbering. Tokens, a `Flag` among them, pass to children by
 reference and resolve top-down from the root's values, so
 `Engine(bore=32.0)` moves the whole machine and `--set bore=32.0` on any
 node-loading command does the same from the shell. A parameter is a
@@ -108,7 +108,9 @@ data descriptor: the token on the class, a plain `float`, `int` or
 `bool` on the instance, assignment refused, base attributes protected
 from shadowing; a declaration without a default fails at
 instantiation, never at class definition, when neither the parent nor
-the caller supplies it. A formula's dimension is a mapping from axis to
+the caller supplies it. A guard over several parameters at once is the
+node's `check()`, called once its parameters are resolved and before any
+child is realized; an exception refuses the instance (ADR-065). A formula's dimension is a mapping from axis to
 exponent — products add, quotients subtract, sums require equality,
 `Angle` its own axis, `Count` and `Ratio` dimensionless — checked on
 `import`, with `solid_node.math`'s functions carrying their own rules

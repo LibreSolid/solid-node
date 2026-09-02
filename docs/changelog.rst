@@ -29,6 +29,17 @@ class, its artifacts re-key once if it used to omit a keyword from
 resolves; the next build rebuilds them. A node class carrying its own
 metaclass must now derive it from ``solid_node.node.declarative.NodeMeta``.
 
+**Follow-ups from the first project migrations** (OpenSpec change
+``declarative-node-api-fixes``). A list comprehension in a class body
+over module-level values now declares children — it used to build
+shared instances silently under Python 3.12's inlined comprehensions. A
+``Flag`` passed to a declared child now resolves to the parent's
+boolean, so a structural choice can live on the root and be set with
+``--set``. A declarative node may define ``check()`` for guards over
+several parameters at once; the framework calls it once the parameters
+are resolved and before any child is realized. The declaring page says
+where a once-only placement goes.
+
 v0.6.0
 ------
 

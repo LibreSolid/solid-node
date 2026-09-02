@@ -213,8 +213,11 @@ from the root: ``Engine()`` realizes with defaults, ``Engine(bore=32.0)``
 rebinds the root and every derived value and child follows. One number
 moves the whole machine. Set ``count`` to 6 and the cylinders and the
 block agree by construction — which is the point of declaring a shared
-parameter on the common ancestor and passing it down. Siblings do not
-reach into each other: ``ConRod(pin_bore=piston.pin_bore)`` in a class
+parameter on the common ancestor and passing it down. A ``Flag`` passes
+down the same way: ``supply = PowerSupply(fitted=power_supply_fitted)``
+hands the child this class's boolean, so a structural choice can be
+declared on the root and reached with ``--set``. Siblings do not reach
+into each other: ``ConRod(pin_bore=piston.pin_bore)`` in a class
 body raises, with the advice to declare ``pin_bore`` on the parent.
 
 A child's class need not itself be declarative. A legacy class with an
@@ -272,8 +275,11 @@ Two things to know about lists:
   silently re-identify every later unit.
 * A **list comprehension in a class body cannot see class-level
   names**. ``[Unit(bore=bore) for _ in range(8)]`` raises ``NameError``
-  for ``bore`` — a comprehension has its own scope, and the framework
-  never gets a chance to say so. Use a literal list or ``repeat``.
+  for ``bore`` — that is Python's class scoping, and the framework never
+  gets a chance to say so. Identical units are ``repeat``. A
+  comprehension over what it *can* see does declare: ``[Clip(kind=k)
+  for k in KINDS]`` over a module-level table is an enumerated list
+  like a literal one, named ``clips-0``, ``clips-1``, ...
 * A driver declared on a repeated or list-held child cannot be
   qualified, because ``units-3`` is not a legal expression identifier
   (see :doc:`Names, the node tree and caching <node-tree>`). Identical
@@ -350,6 +356,65 @@ keyed by their values, so switching back is a cache hit; a child whose
 parameters do not depend on the changed value keeps its key and is not
 rebuilt.
 
+Checking parameters together
+============================
+
+``min=`` and ``max=`` bound one value. A rule between two — the valve
+stop must clear the stem, the cap must be tall enough for the frame
+clearance plus the head — is ``check()``:
+
+.. code-block:: python
+
+    class Valve(CadQueryNode):
+
+        stem_diameter = Length(4.0, min=0)
+        stop_diameter = Length(6.0, min=0)
+
+        def check(self):
+            if self.stop_diameter <= self.stem_diameter:
+                raise ValueError(
+                    f'{self.name}: stop {self.stop_diameter} must exceed '
+                    f'stem {self.stem_diameter}')
+
+The framework calls ``check()`` on a declarative node as soon as its
+parameters are resolved — each reads as a plain value — and before any
+child is realized, so a refused root builds nothing. Whatever it raises
+propagates unchanged; ``ValueError`` is the convention. The base
+``check()`` does nothing, so a subclass chains ``super().check()``. A
+class that declares nothing is not called: its attributes do not exist
+yet when the base constructor runs, and it keeps its guards where it
+has them.
+
+Where placement goes
+====================
+
+``render()`` runs every frame, and the animator sweeps and re-applies
+the operations it adds. That is right for a part that moves. A part
+that never moves — a bearing cap on its saddle, a clamp on its rail —
+is placed once. A declarative class may still define ``__init__`` for
+exactly that:
+
+.. code-block:: python
+
+    class Block(AssemblyNode):
+
+        clearance = Length(0.3, min=0)
+
+        frame = BlockFrame(clearance=clearance)
+        caps  = MainBearingCap(clearance=clearance).repeat(5)
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            for cap, x in zip(self.caps, BEARING_CENTERS):
+                cap.translate([x, 0, 0])
+
+After ``super().__init__(**kwargs)`` the parameters read as values and
+the children are realized, and an operation applied there survives
+every render untouched. Moving parts stay in ``render()``. This is the
+recommendation for now: the split between a once-only placement and a
+per-frame one is on the pilot's list to revisit together with the
+naming of ``render()`` itself.
+
 Migrating a class
 =================
 
@@ -370,6 +435,10 @@ When you do migrate a class, know that:
   what they are: a per-class constant or a constructor argument.
 * A parameter cannot be assigned on an instance; ``self.bore = 5``
   raises. Pass the value to the constructor.
+* Guards over several parameters at once go in ``check()``; a
+  once-only placement goes in ``__init__`` after
+  ``super().__init__(**kwargs)``. Neither needs the constructor form
+  back.
 * If a node class carries its own metaclass, derive it from
   ``solid_node.node.declarative.NodeMeta``, the way ``CadQueryNode``'s
   does.

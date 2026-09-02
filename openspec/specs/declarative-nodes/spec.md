@@ -168,12 +168,18 @@ declaration of a child, never as an instance: the class-body expression
 arguments, and each parent instance realizes its own child at construction.
 Arguments to a declaration MAY be tokens and formulas, resolved against the
 parent instance's values at realization, or plain values passed through;
-`name=` passes through. A literal list of declarations SHALL declare
-enumerated children named `<attr>-<index>`. `.repeat(count)` on a
-declaration, where `count` is an integer or a `Count` token, SHALL declare
-count-many identical children named `<attr>-<index>`. Realization SHALL
-proceed top-down from the root's bound values in declaration order, and by
-the time any `render()` runs every parameter SHALL be a plain value.
+`name=` passes through. A `Flag` token passed to a declaration SHALL resolve
+to the parent instance's boolean at realization, exactly as a numeric token
+does. A literal list of declarations SHALL declare enumerated children named
+`<attr>-<index>`. A list comprehension in the class body over values the
+comprehension can see — module-level names and literals — SHALL declare an
+enumerated list exactly as a literal list does; the body is recognized while
+the comprehension runs, and class-level names remain invisible to it as
+Python defines. `.repeat(count)` on a declaration, where `count` is an
+integer or a `Count` token, SHALL declare count-many identical children
+named `<attr>-<index>`. Realization SHALL proceed top-down from the root's
+bound values in declaration order, and by the time any `render()` runs
+every parameter SHALL be a plain value.
 
 Two parent instances SHALL never share a realized child. A declared child
 whose class is a non-declarative node SHALL be realized by calling its
@@ -195,6 +201,21 @@ SHALL be enumerable off the class without instantiating it.
   `piston = Piston(diameter=bore - 0.6)`, and a parent realizes
   `CylinderUnit(bore=32.0)`
 - **THEN** the realized piston's `diameter` reads `31.4`
+
+#### Scenario: A flag flows to a child
+
+- **WHEN** a parent declares `fitted = Flag(False)` and
+  `supply = PowerSupply(fitted=fitted)`, and is realized with `fitted=True`
+- **THEN** the realized supply's `fitted` reads `True`, and realized with
+  the default it reads `False`
+
+#### Scenario: A comprehension declares
+
+- **WHEN** a class body assigns `boxes = [Box() for _ in TABLE]` over a
+  module-level `TABLE` of two entries
+- **THEN** the class declares two children `boxes-0` and `boxes-1`, two
+  instances of the class realize distinct boxes, and a `render()` returning
+  `None` yields both
 
 #### Scenario: Identical units repeat
 
@@ -263,6 +284,35 @@ or with none, and bind declared driver defaults exactly as it does today.
 - **WHEN** eight identical units are realized through `repeat(8)` and built
 - **THEN** exactly one artifact set is produced for them and each of the
   eight carries its own placement
+
+### Requirement: Instance checks
+
+The system SHALL call `check()` on a declarative node instance once its
+parameters are resolved and before any of its children is realized. An
+exception raised by `check()` SHALL refuse the instance and propagate
+unchanged, and the refused instance SHALL have realized no child. The base
+implementation SHALL do nothing, so a subclass MAY chain `super().check()`.
+The framework SHALL NOT call `check()` on a non-declarative instance.
+
+#### Scenario: A cross-parameter guard refuses an instance
+
+- **WHEN** a leaf declares `stem = Length(4.0)` and `stop = Length(6.0)` and
+  a `check()` raising `ValueError` when `stop <= stem`, and is constructed
+  with `stop=3.0`
+- **THEN** construction raises that `ValueError`, and constructing with the
+  defaults succeeds
+
+#### Scenario: A refused parent realizes nothing
+
+- **WHEN** an assembly declaring a child and a `check()` that raises is
+  constructed
+- **THEN** the child's class is never instantiated
+
+#### Scenario: Checks chain
+
+- **WHEN** a subclass defines `check()` calling `super().check()` and its
+  base's `check()` raises for the supplied values
+- **THEN** construction raises the base's error
 
 ### Requirement: An internal render that returns nothing
 

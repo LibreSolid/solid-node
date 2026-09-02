@@ -15,6 +15,12 @@ Unreleased
   migrated class re-keys its artifacts once if it used to omit a keyword
   or pass an integer where a float kind now resolves. A node metaclass
   must derive from ``solid_node.node.declarative.NodeMeta``.
+* Follow-ups from the first project migrations: a class-body list
+  comprehension over module-level values declares children instead of
+  silently building shared instances; a ``Flag`` flows to a declared
+  child; a declarative node may define ``check()`` for guards over
+  several parameters, called once they are resolved and before any child
+  is realized; the declaring page says where a once-only placement goes.
 
 0.6.0 (2026-09-01)
 ------------------

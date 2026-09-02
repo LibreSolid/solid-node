@@ -435,6 +435,10 @@ class AbstractBaseNode(metaclass=NodeMeta):
             # keeps _attr_name_for's scan of __dict__ seeing what it saw.
             self.__dict__['_parameters'] = resolve_parameters(
                 type(self), kwargs)
+            # The author's guards over several parameters at once, now
+            # that each reads as a plain value and before anything is
+            # built or realized on their strength.
+            self.check()
             # Identity is the class plus the resolved declared values:
             # the same function and the same serialization the
             # constructor form hashes, fed the COMPLETE map rather than
@@ -523,6 +527,18 @@ class AbstractBaseNode(metaclass=NodeMeta):
         # constructor form, where children are built before super().
         if declarative:
             realize_children(self)
+
+    def check(self):
+        """Refuse this instance by raising.
+
+        Called by the framework on a declarative node once its
+        parameters are resolved and before any child is realized, so a
+        guard over several parameters at once -- `stop` must exceed
+        `stem` -- has one place to live and a refused root builds no
+        subtree. The base does nothing, so `super().check()` chains.
+        A class that declares nothing is not called: its attributes do
+        not exist yet when this constructor runs.
+        """
 
     def omit(self):
         """Leave this node out of the machine for the render in progress.

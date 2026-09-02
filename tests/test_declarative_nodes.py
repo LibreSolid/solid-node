@@ -39,6 +39,17 @@ class Box(Solid2Node):
         return cube(self.size, center=True)
 
 
+class Supply(Solid2Node):
+
+    fitted = Flag(False)
+
+    def render(self):
+        return cube(1)
+
+
+TABLE = (1, 2)
+
+
 class ParameterDeclarationTest(BaseNodeTest):
 
     def test_defaults_realize_and_read_as_plain_values(self):
@@ -323,6 +334,133 @@ class ChildDeclarationTest(BaseNodeTest):
                 self.extra = self.box.size * 2
 
         self.assertEqual(Hybrid(size=3.0).extra, 6.0)
+
+    def test_a_comprehension_over_module_values_declares(self):
+        class Rack(AssemblyNode):
+            boxes = [Box() for _ in TABLE]
+
+        declared = declared_children(Rack)
+        self.assertEqual(list(declared), ['boxes'])
+        self.assertEqual(len(declared['boxes']), 2)
+        self.assertTrue(all(isinstance(item, ChildDeclaration)
+                            for item in declared['boxes']))
+        first, second = Rack(), Rack()
+        self.assertEqual([box.name for box in first.boxes],
+                         ['boxes-0', 'boxes-1'])
+        self.assertIsNot(first.boxes[0], second.boxes[0])
+        self.assertEqual([child.name for child in first.render()],
+                         ['boxes-0', 'boxes-1'])
+
+    def test_a_comprehension_cannot_see_class_level_names(self):
+        with self.assertRaises(NameError):
+            class Rack(AssemblyNode):
+                size = Length(2.0)
+                boxes = [Box(size=size) for _ in TABLE]
+
+    def test_a_flag_flows_to_a_child(self):
+        class Cabinet(AssemblyNode):
+            fitted = Flag(False)
+            supply = Supply(fitted=fitted)
+
+        self.assertIs(Cabinet().supply.fitted, False)
+        self.assertIs(Cabinet(fitted=True).supply.fitted, True)
+
+    def test_an_inline_flag_is_a_constant(self):
+        class Cabinet(AssemblyNode):
+            supply = Supply(fitted=Flag(True))
+
+        self.assertIs(Cabinet().supply.fitted, True)
+
+    def test_a_flag_declared_elsewhere_is_refused(self):
+        class Other(AssemblyNode):
+            fitted = Flag(True)
+
+        class Cabinet(AssemblyNode):
+            supply = Supply(fitted=Other.fitted)
+
+        with self.assertRaisesRegex(ParameterError,
+                                    "'fitted' is not declared"):
+            Cabinet()
+
+
+class InstanceCheckTest(BaseNodeTest):
+
+    def test_a_cross_parameter_guard_refuses_an_instance(self):
+        class Valve(Solid2Node):
+            stem = Length(4.0, min=0)
+            stop = Length(6.0, min=0)
+
+            def check(self):
+                if self.stop <= self.stem:
+                    raise ValueError(
+                        f'{self.name}: stop {self.stop} must exceed '
+                        f'stem {self.stem}')
+
+            def render(self):
+                return cube(self.stem)
+
+        Valve()
+        with self.assertRaisesRegex(ValueError,
+                                    'Valve: stop 3.0 must exceed stem 4.0'):
+            Valve(stop=3.0)
+
+    def test_a_refused_parent_realizes_nothing(self):
+        built = []
+
+        class Probe(Solid2Node):
+            def __init__(self, **kwargs):
+                built.append(self)
+                super().__init__(**kwargs)
+
+            def render(self):
+                return cube(1)
+
+        class Bad(AssemblyNode):
+            size = Length(1.0)
+            probe = Probe()
+
+            def check(self):
+                raise ValueError('never')
+
+        with self.assertRaisesRegex(ValueError, 'never'):
+            Bad()
+        self.assertEqual(built, [])
+
+    def test_checks_chain(self):
+        class Base(Solid2Node):
+            size = Length(1.0, min=0)
+
+            def check(self):
+                if self.size > 10:
+                    raise ValueError('too big')
+
+            def render(self):
+                return cube(self.size)
+
+        class Derived(Base):
+            def check(self):
+                super().check()
+
+        Derived(size=5.0)
+        with self.assertRaisesRegex(ValueError, 'too big'):
+            Derived(size=11.0)
+
+    def test_a_class_that_declares_nothing_is_not_checked(self):
+        calls = []
+
+        class Legacy(Solid2Node):
+            def __init__(self, size=1.0, name=None):
+                self.size = size
+                super().__init__(size=size, name=name)
+
+            def check(self):
+                calls.append(self.size)
+
+            def render(self):
+                return cube(self.size)
+
+        Legacy()
+        self.assertEqual(calls, [])
 
 
 class RealizationTest(BaseNodeTest):

@@ -58,6 +58,17 @@ stick (which is what rejected option 2: `__new__` never runs for an aborted
 body, and a counter would stay incremented forever). The walk costs a few
 `isinstance` checks per construction.
 
+One refinement, from the Metamaquina2 migration (change
+`declarative-node-api-fixes`): CPython 3.12 inlines a comprehension into the
+body's frame (PEP 709) and, while the comprehension's hidden loop variable is
+live, `frame.f_locals` is a plain `dict` *copy* of the namespace rather than
+the namespace itself. The walk looked for the type alone, so a comprehension
+over a module-level table built real, shared instances and the class declared
+nothing. The namespace now carries a private mark that the copy inherits; the
+walk accepts either form, and `NodeMeta.__new__` removes the mark before the
+class exists. A registry of live namespaces keyed by frame was rejected for
+the same reason as the counter: a body that raises would leave a stale entry.
+
 The same namespace names each declaration as it is assigned, so a dimension
 error in the next line of the body can say `bore` and `pressure_angle` rather
 than describe two anonymous tokens; `__set_name__` confirms the name when the
@@ -94,8 +105,9 @@ for enumeration.
   instance; it now holds a per-instance child. The old behaviour was the bug the
   reference's probe found.
 - A class body list comprehension cannot see class-level names (its own
-  scope); Python raises `NameError` before the framework can help. Documented,
-  with the literal list and `repeat()` as the forms that work.
+  scope); Python raises `NameError` before the framework can help. One over
+  module-level values declares an enumerated list, exactly as a literal list
+  does. Documented, with `repeat()` as the form for identical units.
 - Reading a parameter off a sibling declaration in a class body raises with
   the advice to declare it on the parent: siblings do not reach into each
   other, by the pilot's decision.

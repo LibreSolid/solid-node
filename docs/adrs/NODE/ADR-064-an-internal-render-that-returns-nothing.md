@@ -94,6 +94,12 @@ realized list, not from the rendered subset.
   (`units-3` is not an identifier, ADR-056's stage 3a rule); identical units
   are driven through ports, fed from the parent's `render()`, which may now
   bind a port by assignment.
+- Placement applied in `render()` is swept and re-applied every frame with
+  the animator's operations. A stationary part is placed once in `__init__`
+  after `super().__init__(**kwargs)`, by which point the children are
+  realized; the declaring page recommends that split for now (change
+  `declarative-node-api-fixes`), and the pilot will revisit it together with
+  the deferred rename.
 - The structure check needs a first render to record against; the first render
   is also the one every build, test and serializer pass performs first, so a
   time-conditioned omission is caught on the second instant at the latest.

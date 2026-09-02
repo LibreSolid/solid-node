@@ -111,7 +111,10 @@ def _is_number(value):
 
 
 def _evaluate(operand, values):
-    if isinstance(operand, Expression):
+    # A token or formula resolves against the realizing instance's
+    # values; so does a Flag, which is outside the algebra but flows to
+    # a child like any other declaration. Anything else passes through.
+    if isinstance(operand, (Expression, Flag)):
         return operand.evaluate(values)
     return operand
 
@@ -578,6 +581,19 @@ class Flag(Declaration):
                 f"{owner}: '{self._name}' cannot take {value!r}: "
                 f"{failure}") from None
 
+    def evaluate(self, values):
+        """The parent's resolved boolean, when this flag is passed to a
+        declared child; an inline `Flag(True)` is a constant."""
+        if self._name is None:
+            return self.resolve(self.default, '<inline>')
+        try:
+            return values[self._name]
+        except KeyError:
+            raise ParameterError(
+                f"'{self._name}' is not declared on the class realizing "
+                f"this child; a flag passed to a child may only be this "
+                f"class's own") from None
+
     parse = Quantity.parse
 
     def __repr__(self):
@@ -687,13 +703,28 @@ def _is_child_list(value):
 ##############################################
 # The metaclass and the class-body question
 
+# The mark a node class body carries while it runs. CPython 3.12 inlines
+# a comprehension into the body's frame (PEP 709) and, while the
+# comprehension's hidden loop variable is live, `frame.f_locals` is a
+# plain dict COPY of the namespace rather than the namespace itself; the
+# copy still holds this entry, so the body is recognized in either form.
+# The metaclass removes it before the class exists.
+_BODY_KEY = '__solid_node_body__'
+_BODY = object()
+
+
 class _DeclaringNamespace(dict):
     """The namespace a node class body executes in.
 
-    Its type is the mark a node constructor looks for on the stack, and
+    Its type -- or, during an inlined comprehension, the mark it
+    carries -- is what a node constructor looks for on the stack, and
     its `__setitem__` names each declaration as it is assigned, so the
     rest of the body can talk about it by name.
     """
+
+    def __init__(self):
+        super().__init__()
+        super().__setitem__(_BODY_KEY, _BODY)
 
     def __setitem__(self, key, value):
         if isinstance(value, (Declaration, ChildDeclaration,
@@ -710,11 +741,15 @@ def in_class_body():
 
     The class statement runs its body as a frame whose locals are the
     namespace `NodeMeta.__prepare__` returned, so that namespace on the
-    stack is the body, and a body that raised is not on the stack.
+    stack is the body, and a body that raised is not on the stack. Inside
+    an inlined comprehension the frame reports a copy of the namespace
+    instead (see `_BODY_KEY`); the copy carries the mark.
     """
     frame = sys._getframe(1)
     while frame is not None:
-        if isinstance(frame.f_locals, _DeclaringNamespace):
+        found = frame.f_locals
+        if (isinstance(found, _DeclaringNamespace)
+                or (type(found) is dict and found.get(_BODY_KEY) is _BODY)):
             return True
         frame = frame.f_back
     return False
@@ -724,8 +759,9 @@ class NodeMeta(type):
     """The metaclass of every node class.
 
     It does two things and nothing else: hands the class statement the
-    namespace that marks a body as executing (see `in_class_body`), and
-    names the declarations that body assigns. A project that gives a
+    namespace that marks a body as executing (see `in_class_body`) and
+    takes the mark back when the body is done, and names the
+    declarations that body assigns. A project that gives a
     node its own metaclass derives it from this one, as `CheckCQEditor`
     does.
     """
@@ -733,6 +769,12 @@ class NodeMeta(type):
     @classmethod
     def __prepare__(mcs, name, bases, **kwargs):
         return _DeclaringNamespace()
+
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        # The body has finished running: the mark has done its job and
+        # is not an attribute of the class.
+        namespace.pop(_BODY_KEY, None)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
 ##############################################

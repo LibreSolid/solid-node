@@ -92,6 +92,10 @@ formula layer.
   nothing.
 - A `Choice` kind was in the reference but never ratified; `Flag` is the only
   selector until a project shows the case.
+- A `Flag` flows to a declared child like a numeric token, resolved to the
+  parent's boolean at realization (change `declarative-node-api-fixes`); it
+  still takes part in no formula and has no `.value`. Guards over several
+  parameters at once are `check()` (ADR-065), not declarations.
 - Trig in a declaration is degree trig, the same convention as `$t`
   expressions (ADR-022): there is one angle unit in the framework.
 
