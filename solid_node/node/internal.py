@@ -21,7 +21,8 @@ def _declarative_render(render):
     propagation -- calls render() and treats a non-list as "no
     children", so this is the one place that turns None into the list
     before any of them see it. On an assembly it sits INSIDE the
-    animator sweep (`_idempotent_render`), which runs first.
+    lifecycle wrapper (`_lifecycle_render`), which sweeps first and
+    runs simulate() after.
 
     Omission marks are cleared before the author's render() and read
     after it, so presence is decided afresh each render; the omitted set
@@ -88,13 +89,16 @@ class InternalNode(AbstractBaseNode):
         sink's declared scale.
 
         Causal and immediate: this is sugar over an assignment, run
-        while the owning render() runs, so a re-render under a new
-        driver snapshot rebinds every port absolutely. There is no
-        registry, no connection graph and no deferred resolution --
-        the wiring is re-executed because the render code that states
-        it runs again. Acausal connection (equations, solver
-        orientation) is a separate, later design; nothing here should
-        be read as a down payment on it.
+        in the owning simulate(), so a run under a new driver snapshot
+        rebinds every port absolutely. There is no registry, no
+        connection graph and no deferred resolution -- the wiring is
+        re-executed because the simulate() that states it runs again.
+        A parent's simulate() runs before any child's, so a child may
+        read in its own simulate() what its parent bound. Called from
+        a render() it binds once -- render() runs once -- and is
+        reported as the deprecated form. Acausal connection
+        (equations, solver orientation) is a separate, later design;
+        nothing here should be read as a down payment on it.
 
         `source` is a bound port or a plain value; the value may be a
         symbolic animation expression, which flows through unresolved

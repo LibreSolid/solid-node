@@ -7,8 +7,10 @@ Combining parts
 
 Parts become a project when they are combined by **internal nodes**.
 An internal node's `render()` does not return a solid — it returns a
-list of child node instances, after saying where each one sits and,
-in a driven machine, wiring values between them.
+list of child node instances, after saying where each one sits at
+rest. What moves, and the values wired between parts in a driven
+machine, belong to the assembly's `simulate()`; see :doc:`Animating
+with time <animation>`.
 
 There are two types of internal nodes:
 
@@ -129,7 +131,7 @@ Assemblies declare the machine's inputs
 
 The assembly is also where a machine's named inputs live. A **driver**
 is a class attribute, read back as an ordinary attribute in
-``render()``:
+``simulate()``:
 
 .. code-block:: python
 
@@ -140,8 +142,10 @@ is a class attribute, read back as an ordinary attribute in
         position = Driver(default=20.0, range=(0.0, 160.0), unit='mm')
 
         def render(self):
-            self.carriage.translate([self.position, 0, 0])
             return [self.rail, self.carriage]
+
+        def simulate(self):
+            self.carriage.translate([self.position, 0, 0])
 
 The viewer turns drivers into sliders and declared instructions into
 buttons, scoped to the assembly layer that declares them: an

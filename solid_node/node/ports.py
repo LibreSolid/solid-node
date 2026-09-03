@@ -27,20 +27,33 @@ is a future spec change, and code written against a port that has no
 flow slot cannot quietly come to depend on a wrong one.
 """
 
+from .phase import note_read
+
 
 class BoundPort:
     """The per-instance value slot of one declared port.
 
-    Holds no history: every render rebinds it absolutely, exactly as an
-    assembly re-render expresses absolute kinematics. `value` is None
-    until something binds it -- an unbound port is a wiring mistake to
-    be seen, not a zero to be silently assumed.
+    Holds no history: every simulate() rebinds it absolutely, exactly as
+    an assembly's re-simulation expresses absolute kinematics. `value`
+    is None until something binds it -- an unbound port is a wiring
+    mistake to be seen, not a zero to be silently assumed. A read is
+    reported to the lifecycle phase, so a render() that reads a port is
+    known for the legacy render it is.
     """
 
     def __init__(self, declaration, node):
         self.declaration = declaration
         self.node = node
-        self.value = None
+        self._value = None
+
+    @property
+    def value(self):
+        note_read('read port', self.declaration.name)
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
 
     @property
     def name(self):
@@ -124,8 +137,11 @@ def bind(sink, source):
 
     `source` is a bound port or a plain value; the value may be a
     symbolic animation expression, which flows through unresolved
-    exactly as an operation value does.
+    exactly as an operation value does. Binding belongs in simulate():
+    done in render() it is reported to the phase like a read, because
+    a once-only render() would bind once and never rebind.
     """
+    note_read('bound port', sink.name)
     if isinstance(source, BoundPort):
         if source.value is None:
             # An unbound source is a wiring order mistake -- the

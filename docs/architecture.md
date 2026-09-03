@@ -25,7 +25,7 @@ place it. From that single tree, the framework derives everything else:
                            │  load_node()                (BUILD)
                            ▼
                       node tree                          (NODE)
-              render() → validate() → as_scad()
+         render() → simulate() → validate() → as_scad()
                            │
            ┌───────────────┼──────────────────┐
            ▼               ▼                  ▼
@@ -120,18 +120,18 @@ value; backends, `uniq_id` and the serializer never see a token. Reading
 a parameter off a sibling declaration is refused: shared values are
 declared on the ancestor and passed down.
 
-On a declarative internal node `render()` positions and selects and may
-return nothing, in which case the framework's render wrapper — the same
-`__init_subclass__` hook that installs the animator sweep — substitutes
-the realized declared children in declaration order minus those
-`omit()` marked; a returned list keeps its contract untouched, and a
-class with nothing to position needs no `render()` at all (ADR-064).
-An omitted child is not linked, built, exported, fused or serialized.
-Structure varies with parameters, never with time: the wrapper records
-the omitted set of an instance's first render and raises on a later
-render whose set differs. The reference's rename of `render()`,
-`assemble()` and `shape()` into workshop verbs is deferred, since the
-latter two are public today with other meanings.
+On a declarative internal node `render()` places at rest and selects
+and may return nothing, in which case the framework's render wrapper —
+the same `__init_subclass__` hook that installs the lifecycle —
+substitutes the realized declared children in declaration order minus
+those `omit()` marked; a returned list keeps its contract untouched,
+and a class with nothing to position needs no `render()` at all
+(ADR-064). An omitted child is not linked, built, exported, fused or
+serialized. Structure varies with parameters, never with time: `omit()`
+raises in `simulate()`, and on the legacy path the wrapper records the
+omitted set of an instance's first render and raises on a later render
+whose set differs. The reference's rename of `render()` is dropped
+(ADR-066): *render* also means *to make*.
 
 Two concrete internal nodes encode the **rigid/non-rigid** axis
 (ADR-003): `FusionNode` (rigid union, no `time`) and `AssemblyNode`
@@ -321,12 +321,29 @@ declaration and the data descriptor that hands its bound value back
 the same shape `Port` already had. What a driver *means* stays in the
 simulation layer, which subclasses it.
 
-Assembly `render()`s are wrapped for **animator-tagged idempotency**
-(ADR-023; tag renamed from "driver" so that word can mean a simulation
-input): operations applied during a render are tagged with the
-animating assembly, and each re-render sweeps only its own tags before
-re-expressing pose absolutely. Static placements (untagged) survive;
-independent animators of one node don't disturb each other.
+An assembly's lifecycle is **`render()` at rest, `simulate()` per
+instant** (ADR-066). `render()` declares structure and places what does
+not move, reads no driver, time or port, and runs once per instance;
+`simulate()` — a no-op in the base — is run by the framework after it
+on every enumeration of the children, under the current binding, and
+is where drivers, `self.time` and ports are read. Both run inside the
+wrapper `__init_subclass__` installs (`_lifecycle_render`), so every
+walker still calls `render()` and gets a tree posed for the binding.
+Operations applied in `simulate()` are **motion**: inserted at the head
+of the node's single `operations` list, before every rest placement, so
+composition in list order puts motion inside placement; they are tagged
+with the simulating assembly (**animator-tagged idempotency**, ADR-023;
+tag renamed from "driver" so that word can mean a simulation input) and
+each run sweeps only its own tags before re-expressing pose absolutely.
+Rest placement (untagged) survives; independent animators of one node
+don't disturb each other. The phase stack lives in
+`solid_node/node/phase.py`; `DriverDeclaration.__get__`,
+`AssemblyNode.time` and `BoundPort.value` report a read to the innermost
+render phase, and a `render()` whose first run read one keeps the
+previous behaviour — re-run, tagged, swept — and warns once per class
+with a `FutureWarning`. `omit()` in `simulate()` raises. Leaves never
+simulate; a flexible leaf renders from its bound ports when the tree is
+walked.
 
 **Ports** (spec `ports`) are domain-typed connection points declared
 as class attributes (`RotationalPort`, `TranslationalPort`,

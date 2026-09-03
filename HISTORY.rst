@@ -21,6 +21,12 @@ Unreleased
   child; a declarative node may define ``check()`` for guards over
   several parameters, called once they are resolved and before any child
   is realized; the declaring page says where a once-only placement goes.
+* ``render()`` builds the machine at rest and runs once per instance; a
+  new ``AssemblyNode.simulate()`` runs after it on every instant, reads
+  drivers, time and ports, and its operations compose inside the rest
+  placement and are swept before the next run. A ``render()`` that
+  reads a driver keeps working and warns once per class. ``omit()`` in
+  ``simulate()`` raises. The ``render()`` rename is dropped.
 
 0.6.0 (2026-09-01)
 ------------------

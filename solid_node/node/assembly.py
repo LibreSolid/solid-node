@@ -4,17 +4,16 @@
 
 import functools
 from solid2 import get_animation_time
-from .base import _render_stack
+from . import phase as _phase
 from .internal import InternalNode
 from .qualified import declared_drivers_of, driver_id
 
 
-def _idempotent_render(render):
-    """Wraps an AssemblyNode subclass render(): before rendering, sweep
-    every node this assembly has ever animated and drop only the
-    operations IT tagged (operation._animator is self), so each render
-    expresses absolute kinematics for its instant instead of
-    accumulating across re-renders.
+def _sweep(assembly):
+    """Drop every operation this assembly tagged on the nodes it has
+    ever animated, and only those (operation._animator is assembly), so
+    the run that follows expresses absolute kinematics for its instant
+    instead of accumulating across runs.
 
     Sweeping by tag rather than removing by object identity matters:
     the test runner's per-instant checkpoint restore copies back
@@ -23,26 +22,72 @@ def _idempotent_render(render):
     had discarded. A tag-based sweep drops them anyway, by animator
     identity, regardless of which operation OBJECT currently sits in
     the list. It also means two independent assemblies animating the
-    SAME node (e.g. a wheel spun by its axle and steered by the
-    steering assembly) never disturb each other's operations: each
-    only ever removes what it tagged."""
+    SAME node (a wheel spun by its axle and steered by the steering
+    assembly) never disturb each other's operations: each only ever
+    removes what it tagged."""
+    for node in getattr(assembly, '_animated_nodes', ()):
+        node.operations[:] = [
+            operation for operation in node.operations
+            if getattr(operation, '_animator', None) is not assembly
+        ]
+
+
+def _rest(assembly, render):
+    """The children at rest: the author's render(), run once.
+
+    The first run decides what the render is. One that read no driver,
+    no time and no port built the machine at rest: its operations are
+    untagged so the sweep never touches them, and its result is kept,
+    so later calls never run the author's code again -- structure and
+    rest placement are the instance's, exactly as its parameters are.
+    One that did read is a legacy render, written when render() was
+    the only method there was: the instance keeps re-running it under
+    every binding with its operations tagged and swept, as it always
+    did, and the class is named once in a FutureWarning."""
+    if '_rest' in assembly.__dict__:
+        return assembly.__dict__['_rest']
+    phase = _phase.push(assembly, _phase.RENDER)
+    try:
+        rendered = render(assembly)
+    finally:
+        _phase.pop()
+    if assembly.__dict__.get('_legacy_render'):
+        return rendered
+    if phase.read is None:
+        for operation in phase.applied:
+            del operation._animator
+        assembly.__dict__['_rest'] = rendered
+        return rendered
+    assembly.__dict__['_legacy_render'] = True
+    _phase.warn_legacy_render(assembly, phase.read)
+    return rendered
+
+
+def _lifecycle_render(render):
+    """Wraps an AssemblyNode subclass render() into the lifecycle every
+    tree walker sees as one call: sweep the operations this assembly
+    applied last time, produce the children at rest (`_rest`), then run
+    the author's simulate() under the current binding with this
+    assembly in the simulate phase, so the operations it applies are
+    motion -- innermost, tagged, swept next time. The walkers call
+    render() and get a tree whose pose is current for the binding,
+    which is what they always got."""
 
     @functools.wraps(render)
     def wrapped(self):
-        if _render_stack and _render_stack[-1] is self:
+        phase = _phase.current()
+        if phase is not None and phase.assembly is self:
             # Re-entrant call (a subclass render delegating to super):
-            # the outer call already swept and is recording.
+            # the outer call owns the phase.
             return render(self)
-        for node in getattr(self, '_animated_nodes', ()):
-            node.operations[:] = [
-                operation for operation in node.operations
-                if getattr(operation, '_animator', None) is not self
-            ]
-        _render_stack.append(self)
+        _sweep(self)
+        children = _rest(self, render)
+        _phase.push(self, _phase.SIMULATE)
         try:
-            return render(self)
+            self.simulate()
         finally:
-            _render_stack.pop()
+            _phase.pop()
+        return children
 
     wrapped._idempotent = True
     return wrapped
@@ -124,9 +169,9 @@ class AssemblyNode(InternalNode):
     rigid = False
 
     # A methodless assembly renders its declared children through the
-    # same sweep a subclass render() gets, so nothing is special about
-    # having nothing to position.
-    render = _idempotent_render(InternalNode.render)
+    # same lifecycle a subclass render() gets, so nothing is special
+    # about having nothing to position.
+    render = _lifecycle_render(InternalNode.render)
 
     def __init__(self, *args, **kwargs):
         # The bound driver snapshot: the named numeric values render()
@@ -138,12 +183,29 @@ class AssemblyNode(InternalNode):
 
     def __init_subclass__(cls, **kwargs):
         # InternalNode's hook runs first and wraps a subclass render()
-        # for the declarative substitution; the sweep goes outside it, so
-        # the order is sweep, clear omissions, author's render().
+        # for the declarative substitution; the lifecycle goes outside
+        # it, so the order is sweep, clear omissions, author's render(),
+        # author's simulate().
         super().__init_subclass__(**kwargs)
         render = cls.__dict__.get('render')
         if render is not None and not getattr(render, '_idempotent', False):
-            cls.render = _idempotent_render(render)
+            cls.render = _lifecycle_render(render)
+
+    def simulate(self):
+        """Move the machine for the current instant.
+
+        Run by the framework after render() on every enumeration of
+        this assembly's children, under whatever binding is current:
+        symbolic `$t` when nothing is bound, plain numbers under
+        set_state, set_keyframe, the test runner, the snapshot tool and
+        the simulator. This is where drivers, `self.time` and ports are
+        read and bound, and every operation applied here is motion:
+        innermost on the part's chain, before the rest placement
+        render() gave it, and swept before the next run so the pose is
+        absolute. The base does nothing, so `super().simulate()`
+        chains; a part that does not move needs no simulate() at all.
+        Structure is not decided here: omit() raises.
+        """
 
     def set_state(self, **states):
         """Bind named driver values for this instant, propagating them
@@ -337,6 +399,7 @@ class AssemblyNode(InternalNode):
         simulation binds the stepped clock in seconds -- and this
         property just reports whatever was bound.
         """
+        _phase.note_read('read time', 'time')
         try:
             return self._states['time']
         except KeyError:

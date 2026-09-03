@@ -97,9 +97,11 @@ And at `myproject/myproject.py`, assemble the pin together:
             super().__init__()
 
         def render(self):
+            return [self.base, self.pointer, self.pin]
+
+        def simulate(self):
             angle = -360 * self.time
             self.pointer.rotate(angle, [0, 0, 1])
-            return [self.base, self.pointer, self.pin]
 
 Rendered — the full clock with the pin fitted (press play):
 
@@ -133,9 +135,11 @@ class will extend it, and we'll add two tests to `myproject/myproject.py`:
             super().__init__()
 
         def render(self):
+            return [self.base, self.pointer, self.pin]
+
+        def simulate(self):
             angle = -360 * self.time
             self.pointer.rotate(angle, [0, 0, 1])
-            return [self.base, self.pointer, self.pin]
 
         def test_pin_runs_free_in_base(self):
             self.assertNotIntersecting(self.base, self.pin)

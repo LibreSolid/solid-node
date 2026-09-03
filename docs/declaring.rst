@@ -283,14 +283,14 @@ Two things to know about lists:
 * A driver declared on a repeated or list-held child cannot be
   qualified, because ``units-3`` is not a legal expression identifier
   (see :doc:`Names, the node tree and caching <node-tree>`). Identical
-  units are driven through ports, fed from the parent's ``render()``.
+  units are driven through ports, fed from the parent's ``simulate()``.
 
 render() that returns nothing
 =============================
 
-On a declarative internal node, ``render()`` positions and selects, and
-returns nothing. The children are then the declared children, in
-declaration order, minus any it omitted:
+On a declarative internal node, ``render()`` places the parts at rest,
+selects, and returns nothing. The children are then the declared
+children, in declaration order, minus any it omitted:
 
 .. code-block:: python
 
@@ -324,10 +324,9 @@ complete at import time — and ``render()`` selects presence.
 
 **Structure varies with parameters, never with time.** A machine does
 not gain and lose parts per frame, and the children a fusion holds are
-its build identity. Decide ``omit()`` from declared parameters only. A
-condition on a time-derived value already fails under symbolic time,
-and under a bound keyframe the framework compares each render's omitted
-set with the instance's first render and raises when they differ.
+its build identity. Decide ``omit()`` from declared parameters only, in
+``render()``: calling it from ``simulate()`` raises, and a ``render()``
+that reads time to decide it is the deprecated form described next.
 
 .. _root-overrides:
 
@@ -385,14 +384,29 @@ class that declares nothing is not called: its attributes do not exist
 yet when the base constructor runs, and it keeps its guards where it
 has them.
 
-Where placement goes
-====================
+.. _rest-and-motion:
 
-``render()`` runs every frame, and the animator sweeps and re-applies
-the operations it adds. That is right for a part that moves. A part
-that never moves — a bearing cap on its saddle, a clamp on its rail —
-is placed once. A declarative class may still define ``__init__`` for
-exactly that:
+Rest and motion: render() and simulate()
+========================================
+
+An assembly has two lifecycle methods, and the split between them is
+what the framework knows about your machine.
+
+``render()`` builds the machine **at rest**. It declares presence with
+``omit()`` and places every part that does not move — a bearing cap on
+its saddle, a clamp on its rail, a motor bolted to a frame. It reads no
+driver, no ``self.time`` and no port, and the framework runs it **once
+per instance**: the children it returns and the operations it applies
+are the instance's, kept for good.
+
+``simulate()`` **moves** it. The framework runs it after ``render()`` on
+every instant — under symbolic ``$t`` in the build and the viewer, under
+plain numbers in tests, snapshots and a stepped simulation — and it is
+the one place drivers, time and ports are read and bound. Every
+operation it applies is motion: stated absolutely for its instant,
+dropped before the next run, and composed **inside** the part's rest
+placement, so a part rotated in ``simulate()`` and translated in
+``render()`` spins about its own axis and is then carried to its seat.
 
 .. code-block:: python
 
@@ -402,18 +416,94 @@ exactly that:
 
         frame = BlockFrame(clearance=clearance)
         caps  = MainBearingCap(clearance=clearance).repeat(5)
+        crank = Crankshaft()
 
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
+        angle = Driver(default=0.0, range=(0.0, 720.0), unit='deg')
+
+        def render(self):
             for cap, x in zip(self.caps, BEARING_CENTERS):
                 cap.translate([x, 0, 0])
+            self.crank.translate([0, 0, CRANK_HEIGHT])
 
-After ``super().__init__(**kwargs)`` the parameters read as values and
-the children are realized, and an operation applied there survives
-every render untouched. Moving parts stay in ``render()``. This is the
-recommendation for now: the split between a once-only placement and a
-per-frame one is on the pilot's list to revisit together with the
-naming of ``render()`` itself.
+        def simulate(self):
+            self.crank.rotate(self.angle, [1, 0, 0])
+
+The crank turns about its own axis at rest height: the rotation from
+``simulate()`` is applied first, the translation from ``render()``
+carries it. A part that does not move needs no ``simulate()``; a pure
+grouping node needs neither method. ``super().simulate()`` chains as
+``super().render()`` does.
+
+Ports are bound in ``simulate()`` too — ``connect()`` and port
+assignment alike — because a binding made in ``render()`` would be made
+once and never follow the drivers. The framework runs a parent's
+``simulate()`` before it descends into the children, so a child reads in
+its own ``simulate()`` what its parent bound:
+
+.. code-block:: python
+
+    class Cylinders(AssemblyNode):
+
+        crank = Driver(default=0.0, range=(0.0, 720.0), unit='deg')
+
+        units = CylinderUnit().repeat(8)
+
+        def render(self):
+            for unit, x in zip(self.units, STATIONS):
+                unit.translate([x, 0, 0])
+
+        def simulate(self):
+            for unit, phase in zip(self.units, PHASES):
+                unit.angle = self.crank + phase      # binds the unit's port
+
+    class CylinderUnit(AssemblyNode):
+
+        angle = RotationalPort(unit='deg')
+
+        def simulate(self):
+            self.con_rod.rotate(rod_angle(self.angle.value), [1, 0, 0])
+
+The rule is enforced by what a method reads, not by its name. A
+``render()`` that reads a driver, ``self.time`` or a port keeps working
+exactly as it did before this split — it re-runs on every instant and
+its operations are swept — and the build prints once per class::
+
+    FutureWarning: SimpleClock.render() read time 'time'. Reading
+    drivers, time or ports in render(), or binding a port there, is
+    deprecated: render() builds the machine at rest and the framework
+    runs it once per instance. Move the read or binding and the
+    operations it feeds into simulate(), which runs on every instant.
+    Until then SimpleClock re-renders per binding as before.
+
+The class it names is migrated by moving the read and the operations it
+feeds:
+
+.. code-block:: python
+
+    class SimpleClock(AssemblyNode):      # before
+
+        def render(self):
+            self.pointer.rotate(-360 * self.time, [0, 0, 1])
+            return [self.base, self.pointer]
+
+    class SimpleClock(AssemblyNode):      # after
+
+        def render(self):
+            return [self.base, self.pointer]
+
+        def simulate(self):
+            self.pointer.rotate(-360 * self.time, [0, 0, 1])
+
+The framework decides on the first run of an instance's ``render()``, so
+a ``render()`` that reads a driver only under some condition is judged
+by what that first run did; a read through solid2's
+``get_animation_time()`` directly is not seen at all. Read ``self.time``.
+Binding a port in ``render()`` is reported the same way. The warning is
+printed once per class per process, so when auditing several roots,
+render each in its own process.
+Placement applied in ``__init__`` still works and still composes after
+the motion; it is no longer needed, and ``render()`` is where a rest
+placement reads best.
 
 Migrating a class
 =================
@@ -435,10 +525,9 @@ When you do migrate a class, know that:
   what they are: a per-class constant or a constructor argument.
 * A parameter cannot be assigned on an instance; ``self.bore = 5``
   raises. Pass the value to the constructor.
-* Guards over several parameters at once go in ``check()``; a
-  once-only placement goes in ``__init__`` after
-  ``super().__init__(**kwargs)``. Neither needs the constructor form
-  back.
+* Guards over several parameters at once go in ``check()``; rest
+  placement goes in ``render()`` and motion in ``simulate()``. Neither
+  needs the constructor form back.
 * If a node class carries its own metaclass, derive it from
   ``solid_node.node.declarative.NodeMeta``, the way ``CadQueryNode``'s
   does.

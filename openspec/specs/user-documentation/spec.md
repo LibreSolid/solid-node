@@ -154,16 +154,19 @@ derived formulas, class-body child declarations, literal lists and
 `repeat`, a class-body list comprehension over module-level values, an
 internal `render()` that positions and returns nothing, `omit()`, root
 overrides from Python and from `--set` on the command line, a parameter
-without a default, `check()` for guards over several parameters, where
-placement goes — stationary parts once in `__init__` after
-`super().__init__(**kwargs)`, moving parts in `render()`, stated as the
-recommendation for now — and the two pitfalls: class-level names are
-invisible to a class-body comprehension, and structure that depends on
-time. It SHALL state that a driver cannot be qualified on a repeated or
-list-held child and that ports are the drive path for identical units. The
-node-tree, assemblies, leaf-node and CLI pages SHALL cross-reference it,
-and the changelog SHALL record the capability with the one-time artifact
-re-keying note for migrated classes.
+without a default, `check()` for guards over several parameters, the
+lifecycle split — `render()` builds the machine at rest and places what
+does not move, `simulate()` reads drivers, time and ports and moves what
+does, motion composing innermost — the deprecation of driver reads in
+`render()` with the warning a reader will see, and the two pitfalls:
+class-level names are invisible to a class-body comprehension, and
+structure that depends on time. It SHALL NOT recommend placement in
+`__init__`. It SHALL state that a driver cannot be qualified on a repeated
+or list-held child and that ports are the drive path for identical units.
+The animation, driving, assemblies, testing and API pages SHALL read
+drivers and time in `simulate()`, the node-tree, assemblies, leaf-node and
+CLI pages SHALL cross-reference the declaring page, and the changelog SHALL
+record the lifecycle with the deprecation.
 
 #### Scenario: A reader replaces an `__init__`
 
@@ -191,14 +194,20 @@ re-keying note for migrated classes.
 
 #### Scenario: A reader places a stationary part
 
-- **WHEN** a reader migrating a class asks where a once-only placement goes
-- **THEN** the page shows `__init__(self, **kwargs)` calling
-  `super().__init__(**kwargs)` and then placing, states that the children
-  are realized by then, keeps `render()` for what moves, and marks the
-  arrangement as the recommendation for now
+- **WHEN** a reader asks where a once-only placement goes
+- **THEN** the page shows it in `render()`, shows the moving part's
+  operation in `simulate()`, states that the framework runs `render()`
+  once and `simulate()` per instant, and that motion composes inside the
+  rest placement
 
 #### Scenario: A reader varies a design from the shell
 
 - **WHEN** a reader wants to build the model at another size
 - **THEN** the CLI page shows `--set name=value`, how a value is parsed by
   its kind, and what happens for a parameter with no default
+
+#### Scenario: A reader migrates a render that reads time
+
+- **WHEN** a reader's build prints the deprecation warning
+- **THEN** the page shows the warning, the `render()` that caused it, and
+  the same class with the read and its operations moved to `simulate()`

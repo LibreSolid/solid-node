@@ -29,7 +29,7 @@ what makes a scenario deterministic — the same program over the same
 machine takes the same ticks and lands on the same values, every run,
 on every platform.
 
-Inside a simulation, ``self.time`` in your ``render()`` reads this
+Inside a simulation, ``self.time`` in your ``simulate()`` reads this
 stepped clock, in seconds. The normalized 0..1 ``$t`` of the
 :doc:`animation timeline <animation>` is untouched outside
 simulations; the two are different clocks for different jobs.

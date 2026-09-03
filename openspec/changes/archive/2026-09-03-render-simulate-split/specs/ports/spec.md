@@ -27,6 +27,13 @@ binding and the framework warns once per class.
   the converted position in millimetres and the derived translation
   places the carriage there absolutely
 
+#### Scenario: A port bound in render warns
+
+- **WHEN** an assembly's `render()` binds a child's port from a constant
+  and reads nothing
+- **THEN** a `FutureWarning` names the class and the port, and the render
+  keeps re-running per binding
+
 #### Scenario: Rebinding is absolute across simulations
 
 - **WHEN** the same assembly simulates under two successive state

@@ -53,6 +53,8 @@ import re
 
 from solid2.core.object_base import OpenSCADConstant
 
+from .phase import note_read
+
 
 class DriverIdError(ValueError):
     """A driver's qualified id cannot be computed, or would not be a
@@ -107,6 +109,7 @@ class DriverDeclaration:
     def __get__(self, instance, owner=None):
         if instance is None:
             return self
+        note_read('read driver', self._name)
         try:
             return instance._states[self._name]
         except (AttributeError, KeyError):

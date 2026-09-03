@@ -29,6 +29,21 @@ class, its artifacts re-key once if it used to omit a keyword from
 resolves; the next build rebuilds them. A node class carrying its own
 metaclass must now derive it from ``solid_node.node.declarative.NodeMeta``.
 
+**render() builds the machine at rest; simulate() moves it.** An
+assembly's ``render()`` declares structure and places what does not
+move, reads no driver, time or port, and runs once per instance. The
+new ``AssemblyNode.simulate()`` runs after it on every instant, under
+symbolic ``$t`` or the bound state, reads drivers, ``self.time`` and
+ports, and every operation it applies composes *inside* the part's
+rest placement and is swept before the next run. ``omit()`` in
+``simulate()`` raises. Nothing that worked stops working: a
+``render()`` that reads a driver keeps re-running per instant as before,
+and the build prints one ``FutureWarning`` per class naming the read and
+``simulate()``. Placement in ``__init__`` is no longer recommended; it
+still works. The rename of ``render()`` proposed by the design reference
+is dropped: *render* also means *to make*. See :ref:`Rest and motion
+<rest-and-motion>`. (OpenSpec change ``render-simulate-split``.)
+
 **Follow-ups from the first project migrations** (OpenSpec change
 ``declarative-node-api-fixes``). A list comprehension in a class body
 over module-level values now declares children — it used to build

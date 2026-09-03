@@ -38,10 +38,14 @@ ordinary attribute:
             super().__init__(*args, **kwargs)
 
         def render(self):
-            self.carriage.translate([self.position - TRAVEL / 2, 0, 11])
             return [self.rail, self.carriage]
 
-`self.position` is used in expressions exactly as `self.time` is: the
+        def simulate(self):
+            self.carriage.translate([self.position - TRAVEL / 2, 0, 11])
+
+`self.position` is read in `simulate()`, the method the framework runs
+on every instant after `render()` has built the axis at rest, and it is
+used in expressions exactly as `self.time` is: the
 expression is carried into the published document unevaluated and
 resolved in the viewer, so dragging the driver moves the carriage
 without re-running any Python.
@@ -153,7 +157,7 @@ Ports: how parts talk
 
 A driver is an *input to the machine*. A **port** is a connection
 point *between parts*: a unit-tagged value slot a node declares, that
-its parent binds on every render with `connect()`:
+its parent binds on every `simulate()` with `connect()`:
 
 .. code-block:: python
 
@@ -164,7 +168,7 @@ its parent binds on every render with `connect()`:
                        scale=MM_PER_USTEP)
         position = TranslationalPort(unit='mm', scale=MM_PER_USTEP)
 
-        def render(self):
+        def simulate(self):
             self.connect(self.motor, self.position)
             self.carriage.translate([self.position.value, 0, 0])
             ...
@@ -174,7 +178,7 @@ Ports are domain-typed — `RotationalPort`, `TranslationalPort`,
 conversion from a source's units to the sink's is declared once
 instead of sprinkled through expressions. `connect(source, sink)` is
 causal: the source expression flows into the sink, immediately, every
-render. Ports are also how a :ref:`flexible part <flexible-parts>`
+`simulate()`. Ports are also how a :ref:`flexible part <flexible-parts>`
 gets its shape — the chain is *driver → port → geometry* — and a
 port-bound value is deliberately **not** part of a part's build
 identity, so driving a machine never mints new cached artifacts.

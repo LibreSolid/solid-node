@@ -104,6 +104,12 @@ realized list, not from the rendered subset.
   is also the one every build, test and serializer pass performs first, so a
   time-conditioned omission is caught on the second instant at the latest.
 
+> **Note (2026-09-03, ADR-066):** the rename deferred here is dropped for
+> good — *render* also means *to make*. Positioning is split by
+> lifecycle instead: `render()` places at rest and selects, once;
+> `simulate()` moves per instant and may not `omit()`. The recorded-set
+> check below remains for a legacy `render()` that reads a driver.
+
 ## References
 
 - `solid_node/node/internal.py` — `_declarative_render`, `InternalNode.render`

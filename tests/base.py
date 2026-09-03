@@ -15,6 +15,12 @@ BUILD_DIR = os.path.join(BASEDIR, '_build')
 
 os.environ['SOLID_BUILD_DIR'] = BUILD_DIR
 
+def _forget_assembly(node):
+    node._assembled = False
+    for child in node.children:
+        _forget_assembly(child)
+
+
 class BaseNodeTest(TestCase):
 
     def setUp(self):
@@ -55,7 +61,11 @@ class BaseNodeTest(TestCase):
             except StlRenderStart as job:
                 job.wait()
 
-        self.solid._assembled = False
+        # Re-assemble the same tree. An assembly keeps its rest render,
+        # so the children are the same instances and each must forget
+        # its memoized assembly too, or the leaves would answer from
+        # memory instead of importing the STLs just built.
+        _forget_assembly(self.solid)
         self.solid.assemble()
 
         return self.solid
