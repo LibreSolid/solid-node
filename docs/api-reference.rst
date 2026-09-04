@@ -8,7 +8,8 @@ API Reference
 Nodes
 =====
 
-All node classes are importable from ``solid_node.node``. A project is a
+All node classes are importable from ``solid_node.node``; the parameters
+they declare come from ``solid_node.parameters``. A project is a
 tree of nodes: leaf nodes generate solids with an underlying modelling
 library, internal nodes combine their children.
 
@@ -166,6 +167,35 @@ Internal nodes
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time
+
+Parameters
+==========
+
+The knobs that decide what machine gets built, importable from
+``solid_node.parameters`` and from nowhere else. A parameter is declared
+as a class attribute, is fixed for the life of an instance, enters the
+node's build identity, and reads back inside ``render()`` as a plain
+number. Contrast :class:`~solid_node.simulation.Driver`, which is a
+runtime input and changes every instant. See :doc:`Declaring a machine
+<declaring>`.
+
+.. autoclass:: solid_node.parameters.Length
+
+.. autoclass:: solid_node.parameters.Angle
+
+.. autoclass:: solid_node.parameters.Count
+
+.. autoclass:: solid_node.parameters.Ratio
+
+.. autoclass:: solid_node.parameters.Scalar
+
+.. autoclass:: solid_node.parameters.Flag
+
+.. autoclass:: solid_node.parameters.Quantity
+
+.. autofunction:: solid_node.parameters.declared_parameters
+
+.. autofunction:: solid_node.node.declared_children
 
 Ports
 =====

@@ -17,9 +17,9 @@ Everything here is symbolic: tokens and formulas, no node instances.
 from unittest import TestCase
 
 from solid_node.math import acos, asin, atan, atan2, cos, sin, sqrt, tan
-from solid_node.node import (Angle, AssemblyNode, Count, Flag, Length,
-                             Quantity, Ratio, Scalar, Solid2Node)
-from solid_node.node.declarative import DimensionError
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.parameters import (Angle, Count, DimensionError, Flag, Length,
+                                   Quantity, Ratio, Scalar)
 
 
 class Torque(Quantity):

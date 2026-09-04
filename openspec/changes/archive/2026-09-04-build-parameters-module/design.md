@@ -122,8 +122,9 @@ errors.
 ### D5. No shim, and the removal is enforced by a test
 
 `solid_node/node/__init__.py`'s `_EXPORTS` map loses its eight parameter
-entries, so `from solid_node.node import Length` raises `AttributeError`
-through the existing unknown-name path. `test_node_lazy_exports` pins that
+entries, so reading one off the package raises `AttributeError` through
+the existing unknown-name path, and `from solid_node.node import Length`
+therefore fails at the import. `test_node_lazy_exports` pins that
 map against the module each name resolves from; it gains an explicit case
 that the parameter names are gone, so a later re-export cannot be
 reintroduced silently.

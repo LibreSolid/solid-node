@@ -5,7 +5,8 @@
 """A windmill-shaped root: a ratio-derived radius, a flag gating a
 guard, a legacy child, and a child whose height has no default."""
 
-from solid_node.node import AssemblyNode, Flag, Length, Ratio
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Flag, Length, Ratio
 from .parts import Guard, Rotor, Tower
 
 

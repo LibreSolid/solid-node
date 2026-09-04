@@ -44,6 +44,20 @@ still works. The rename of ``render()`` proposed by the design reference
 is dropped: *render* also means *to make*. See :ref:`Rest and motion
 <rest-and-motion>`. (OpenSpec change ``render-simulate-split``.)
 
+**Build parameters have a module of their own.** ``Length``, ``Angle``,
+``Count``, ``Ratio``, ``Scalar``, ``Flag``, ``Quantity`` and
+``declared_parameters`` are imported from ``solid_node.parameters``, a
+top-level peer of ``solid_node.simulation`` and ``solid_node.test``, and
+are **no longer exported by** ``solid_node.node``. An import line now says
+which of its names is a node kind and which is a knob on the machine:
+parameters build the machine, drivers drive it. There is no re-export and
+no deprecation path — the declarative parameter surface has never been
+released, so the only code to update is code written against an unreleased
+branch, and a second working path would defeat the point. Change
+``from solid_node.node import CadQueryNode, Length`` to two lines. See
+:doc:`Declaring a machine <declaring>`. (OpenSpec change
+``build-parameters-module``.)
+
 **Follow-ups from the first project migrations** (OpenSpec change
 ``declarative-node-api-fixes``). A list comprehension in a class body
 over module-level values now declares children — it used to build

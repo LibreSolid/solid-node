@@ -7,7 +7,8 @@ the block they sit on."""
 
 from solid2 import cube
 
-from solid_node.node import AssemblyNode, Count, Length, Solid2Node
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.parameters import Count, Length
 from .parts import Piston
 
 STATION_PITCH = 44.0

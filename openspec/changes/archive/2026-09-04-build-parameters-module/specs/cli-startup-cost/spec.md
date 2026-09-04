@@ -46,9 +46,10 @@ A name that is not exported SHALL raise `AttributeError`, as it does today.
 
 #### Scenario: A parameter kind is not a node export
 
-- **WHEN** a consumer runs `from solid_node.node import Length`
-- **THEN** `AttributeError` is raised, and the package's export map lists no
-  build-parameter name
+- **WHEN** a consumer reads a build-parameter name off `solid_node.node`
+- **THEN** `AttributeError` is raised naming it, so
+  `from solid_node.node import Length` fails at the import, and the
+  package's export list carries no build-parameter name
 
 ## ADDED Requirements
 

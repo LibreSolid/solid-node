@@ -54,17 +54,19 @@ EXPECTED_EXPORTS = {
     'JScadNode': 'solid_node.node.adapters.jscad',
     'StlNode': 'solid_node.node.adapters.stl',
     'property_as_number': 'solid_node.node.decorators',
-    # Added by the declarative node API, lazily like the rest.
-    'Quantity': 'solid_node.node.declarative',
-    'Length': 'solid_node.node.declarative',
-    'Angle': 'solid_node.node.declarative',
-    'Count': 'solid_node.node.declarative',
-    'Ratio': 'solid_node.node.declarative',
-    'Flag': 'solid_node.node.declarative',
-    'Scalar': 'solid_node.node.declarative',
-    'declared_parameters': 'solid_node.node.declarative',
+    # Added by the declarative node API, lazily like the rest. Only the
+    # STRUCTURE half: the parameter kinds this package also exported for
+    # one unreleased cycle now live in `solid_node.parameters` and are
+    # pinned out of here by ParameterModuleSurface below.
     'declared_children': 'solid_node.node.declarative',
 }
+
+# What the node package must NOT answer for. A build parameter is imported
+# from `solid_node.parameters`, and one import line saying which of its
+# names is a node kind and which is a knob is the whole point of the split;
+# a re-export here would quietly restore the ambiguity.
+PARAMETER_NAMES = ('Quantity', 'Length', 'Angle', 'Count', 'Ratio', 'Scalar',
+                   'Flag', 'declared_parameters')
 
 # The exports whose submodule reaches `solid_node.exact` -> `cadquery`.
 EXACT_EXPORTS = ('FusionNode', 'CadQueryNode', 'Build123dNode',
@@ -309,3 +311,84 @@ class NodePackageBrokenBackend(TestCase):
         reported = result.stdout.strip()
         self.assertTrue(reported.startswith('IMPORT_ERROR'), reported)
         self.assertIn('CadQueryNode', reported)
+
+
+class ParameterModuleSurface(TestCase):
+    """Build parameters come from `solid_node.parameters`, and only there.
+
+    Two properties, and the second is the one that decays: a module can
+    be created without anyone noticing that the old path still works, and
+    then every import line is ambiguous again for no reason a reader can
+    see. So the absence is pinned as hard as the presence.
+
+    The import cost is pinned too. This module sits at the top of every
+    node module in every project, and it holds nothing but declarations
+    and arithmetic over exponents, so it must reach no framework module
+    and no CAD backend at all -- which is also why it needs no lazy
+    accessor of its own.
+    """
+
+    # Everything a project or the framework may name. The kinds and the
+    # `Quantity` base a project subclasses to extend the ontology, the
+    # algebra types a formula is built from, the enumerator, and the two
+    # errors a bad declaration raises.
+    EXPECTED = ('Quantity', 'Length', 'Angle', 'Count', 'Ratio', 'Scalar',
+                'Flag', 'Expression', 'Formula', 'declared_parameters',
+                'DimensionError', 'ParameterError')
+
+    def test_the_module_exports_the_parameter_vocabulary(self):
+        import solid_node.parameters as parameters
+
+        self.assertEqual(sorted(parameters.__all__), sorted(self.EXPECTED))
+
+    def test_the_node_package_does_not_export_a_parameter(self):
+        for name in PARAMETER_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, solid_node.node.__all__)
+                with self.assertRaises(AttributeError) as raised:
+                    getattr(solid_node.node, name)
+                self.assertIn(name, str(raised.exception))
+
+    def test_importing_parameters_imports_nothing_else(self):
+        result = probe('import solid_node.parameters\n'
+                       "print('DONE')\n")
+        self.assertEqual(result.stdout.strip(), 'DONE', result.stderr)
+        self.assertFalse(result.imported('cadquery'),
+                         'importing solid_node.parameters imported cadquery')
+        self.assertEqual(
+            result.imported_under('solid_node'),
+            {'solid_node', 'solid_node.parameters'},
+            'importing solid_node.parameters reached another framework '
+            'module')
+
+    def test_the_names_are_bound_eagerly(self):
+        # No `__getattr__` accessor here: there is nothing expensive to
+        # defer, and deferral would be indirection a reader has to unpick
+        # for no gain. Read out of the module dict, which an accessor
+        # would not have populated.
+        import solid_node.parameters as parameters
+
+        for name in self.EXPECTED:
+            with self.subTest(name=name):
+                self.assertIn(name, vars(parameters))
+
+    def test_a_declaration_module_defines_no_parameter_kind(self):
+        # The other half of the cut. `declarative` keeps the structure
+        # declarations, so no kind is DEFINED there any more and a
+        # caller reaching for one is reaching into the wrong module. It
+        # does borrow three names -- the declaration base the declaring
+        # namespace tests against, the operand evaluator a child
+        # declaration resolves its arguments with, and the enumerator
+        # construction reads -- and those are imports, pinned here to
+        # come from the parameter module and nowhere else.
+        from solid_node.node import declarative
+
+        for name in ('Length', 'Angle', 'Count', 'Ratio', 'Scalar',
+                     'Quantity', 'Flag', 'Expression', 'Formula'):
+            with self.subTest(name=name):
+                self.assertNotIn(name, vars(declarative))
+
+        for name in ('Declaration', 'evaluate', 'declared_parameters'):
+            with self.subTest(name=name):
+                self.assertEqual(getattr(declarative, name).__module__,
+                                 'solid_node.parameters')

@@ -24,7 +24,7 @@ from solid_node.cli import manage
 from solid_node.core.loader import load_node, parse_overrides
 from solid_node.manager.build import Build
 from solid_node.manager.develop import Develop
-from solid_node.node.declarative import ParameterError
+from solid_node.parameters import ParameterError
 
 from .base import BASEDIR, BaseNodeTest
 from .declarative_project.engine import Engine

@@ -32,6 +32,8 @@ import math as _math
 
 from solid2.core.object_base import OpenSCADConstant
 
+from solid_node.parameters import Expression, function_formula
+
 
 def _is_symbolic(value):
     return isinstance(value, OpenSCADConstant)
@@ -44,17 +46,19 @@ def _is_formula(value):
     through these same names (windmill's gear layer takes an `atan`, a
     `sqrt` and a `cos`), and the result is a formula carrying the
     function's dimension rule, evaluated numerically -- through the
-    numeric branch below -- when the node is constructed. Imported on
-    use so this module stays as light as it is on every other path.
+    numeric branch below -- when the node is constructed.
+
+    The parameter layer is imported at module scope: it reaches nothing
+    else in the framework, so naming it costs this module nothing on any
+    path. It used to be imported on use, when the algebra lived inside
+    the node package and reaching it dragged that package in.
     """
     if isinstance(value, (int, float)) or _is_symbolic(value):
         return False
-    from solid_node.node.declarative import Expression
     return isinstance(value, Expression)
 
 
 def _formula(name, numeric, *args):
-    from solid_node.node.declarative import function_formula
     return function_formula(name, numeric, *args)
 
 

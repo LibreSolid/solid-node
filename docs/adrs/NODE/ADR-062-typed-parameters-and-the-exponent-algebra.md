@@ -2,9 +2,60 @@
 
 **Status:** Accepted
 **Date:** 2026-09-01
+**Amended:** 2026-09-04 — the parameter vocabulary moved to its own
+top-level module, `solid_node.parameters`
 **Depends on:**
 - [ADR-061: A Call in a Node Class Body Is a Declaration](./ADR-061-a-call-in-a-class-body-is-a-declaration.md)
 - [ADR-022: Cross-Runtime Degree Trig Parity for $t Expressions](../MATH/ADR-022-cross-runtime-degree-trig-parity-for-t-expressions.md) — the degree-trig discipline the `Angle` kind makes a type fact
+
+## Amendment (2026-09-04)
+
+**Where these names are imported from is part of the decision, and it was
+not stated.** The kinds shipped as exports of `solid_node.node`, beside
+every node base class, so `from solid_node.node import CadQueryNode,
+Length` gave a reader no way to tell that one of those names is a kind of
+part and the other a knob on the machine. That distinction is the whole
+content of the layer this ADR defines: a parameter is fixed for the life
+of an instance, enters the build identity and may decide structure,
+which is precisely what a driver is not.
+
+So the vocabulary moves to **`solid_node/parameters.py`**, a top-level
+module: `Quantity`, `Length`, `Angle`, `Count`, `Ratio`, `Scalar`,
+`Flag`, `Expression`, `Formula`, `declared_parameters`, `DimensionError`
+and `ParameterError`, together with the `Declaration` descriptor the
+other declarations follow. `solid_node.node` no longer exports any of
+them, with no re-export and no deprecation path — the surface had not
+been released, and a second working path restores the ambiguity the move
+exists to remove.
+
+The module is chosen top-level, not `solid_node/node/parameters.py`,
+because the framework's public surface is already split by concern above
+the node package: `solid_node.simulation` holds drivers and instructions,
+`solid_node.test` the test case. A parameter is a peer of those, and only
+at that level does an import block state the contrast it is there to
+state — parameters build the machine, drivers drive it:
+
+    from solid_node.node import AssemblyNode, CadQueryNode
+    from solid_node.parameters import Length, Flag
+    from solid_node.simulation import Driver
+
+The cut follows the existing dependencies rather than the topic. Three
+names cross the boundary and all in one direction, structure importing
+parameters: `Declaration`, which the declaring namespace tests against;
+`evaluate`, which a child declaration resolves its arguments with; and
+`declared_parameters`, which construction reads. Nothing in the
+parameter half needs a name from the structure half, so the new module
+imports nothing at all — not the framework, not a third party — which is
+what makes it free to sit at the top of every node module in every
+project, and why its names are bound eagerly where the node and
+simulation packages defer theirs. `solid_node/node/declarative.py` keeps
+the structural half: the child and repeat declarations, `NodeMeta`, the
+declaring namespace, realization, and the structure errors.
+
+The consequence recorded below about `solid_node/math.py` importing the
+declaration layer *on use* is superseded: it now imports
+`solid_node.parameters` at module scope, sideways rather than down into
+the node package, because there is no longer a cost to defer.
 
 ## Context and Problem Statement
 
@@ -101,8 +152,11 @@ formula layer.
 
 ## References
 
-- `solid_node/node/declarative.py` — `Expression`, `Formula`, `Quantity`,
-  the kinds, `function_formula`, `resolve_parameters`
+- `solid_node/parameters.py` — `Declaration`, `Expression`, `Formula`,
+  `Quantity`, the kinds, `function_formula`, `declared_parameters`
+- `solid_node/node/declarative.py` — `resolve_parameters` and the
+  structural declarations that borrow this layer
 - `solid_node/math.py` — the formula face of each function
 - `tests/test_declarative_algebra.py`
-- OpenSpec change `declarative-node-api`, capability `declarative-nodes`
+- OpenSpec changes `declarative-node-api` and `build-parameters-module`,
+  capability `declarative-nodes`

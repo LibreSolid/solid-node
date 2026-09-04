@@ -16,15 +16,20 @@ the `node-model` capability specifies.
 
 Code: `solid_node/node/declarative.py`, `solid_node/node/base.py`,
 `solid_node/node/internal.py`, `solid_node/math.py`.
-
 ## Requirements
-
 ### Requirement: Typed parameter declarations
 
 The system SHALL let a node class declare its parameters as class attributes
 of typed kinds: `Length` (a linear dimension), `Angle` (in degrees), `Count`
 (an integer), `Ratio` (a dimensionless fraction), `Flag` (a boolean) and
-`Scalar` (an unchecked number). A declaration SHALL carry an optional
+`Scalar` (an unchecked number). Those kinds, the `Quantity` base a project
+subclasses to extend the ontology, the enumerator over a class's
+declarations, and the errors a bad declaration raises SHALL be imported from
+one dedicated module for build parameters, separate from the module that
+exports node classes. A build parameter SHALL NOT be reachable from the node
+package: reading one there SHALL raise as any unexported name does.
+
+A declaration SHALL carry an optional
 default and optional value constraints (`min=` and `max=` on numeric kinds).
 A declaration without a default SHALL be supplied by the parent's
 declaration or by the caller; instantiating without a value for it SHALL
@@ -38,6 +43,19 @@ instance SHALL raise. A declaration whose name would shadow a
 non-declaration attribute of a base class SHALL be rejected at class
 definition. Declared parameters SHALL be enumerable off the class without
 instantiating it, base-first, a subclass redeclaration winning.
+
+#### Scenario: A parameter is imported from the parameter module
+
+- **WHEN** a node module declares `bore = Length(30.0, min=0)`
+- **THEN** `Length` was imported from the build-parameter module, and the
+  same import line does not carry a node class
+
+#### Scenario: The node package does not answer for a parameter
+
+- **WHEN** a module reads a parameter kind, the `Quantity` base or the
+  parameter enumerator off the node package
+- **THEN** `AttributeError` is raised naming the requested name, exactly as
+  for any name that package does not export
 
 #### Scenario: Defaults realize and read as plain values
 
@@ -404,3 +422,4 @@ indices and identities unchanged.
   assembly is simulated under three bindings
 - **THEN** every enumeration returns the same children without the omitted
   one
+

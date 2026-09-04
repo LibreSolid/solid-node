@@ -77,7 +77,8 @@ automatically.
     <declaring>`); repeat the flag for several. The value is parsed by the
     parameter's kind — a float for ``Length``, ``Angle``, ``Ratio`` and
     ``Scalar``, an integer for ``Count``, ``true`` or ``false`` for
-    ``Flag`` — and checked by its declared constraints. An unknown name
+    ``Flag``, the kinds declared from ``solid_node.parameters`` — and
+    checked by its declared constraints. An unknown name
     fails listing the settable parameters; a derived parameter cannot be
     set; a root that declares nothing refuses the flag. A parameter
     declared without a default must be set this way when its node is

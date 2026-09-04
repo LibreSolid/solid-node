@@ -163,10 +163,33 @@ class-level names are invisible to a class-body comprehension, and
 structure that depends on time. It SHALL NOT recommend placement in
 `__init__`. It SHALL state that a driver cannot be qualified on a repeated
 or list-held child and that ports are the drive path for identical units.
-The animation, driving, assemblies, testing and API pages SHALL read
+
+Every example that declares a parameter SHALL import the kinds from the
+dedicated build-parameter module, and the page SHALL state that build
+parameters come from that module while node classes come from the node
+package and drivers from the simulation package. The animation, driving,
+assemblies, testing and API pages SHALL read
 drivers and time in `simulate()`, the node-tree, assemblies, leaf-node and
 CLI pages SHALL cross-reference the declaring page, and the changelog SHALL
 record the lifecycle with the deprecation.
+
+The API reference SHALL document the build-parameter module: the kinds, the
+`Quantity` base a project subclasses, and the enumerator over a class's
+declarations, in a section of its own beside the node, port, simulation and
+testing sections.
+
+#### Scenario: A reader learns where a kind comes from
+
+- **WHEN** a reader looks up how to declare a parameter
+- **THEN** the import line in the example names the build-parameter module,
+  and the page says which module answers for parameters, for node classes
+  and for drivers
+
+#### Scenario: A reader looks up a kind in the reference
+
+- **WHEN** a reader opens the API reference for `Length` or `Flag`
+- **THEN** the reference documents it under the build-parameter module, with
+  the module's import path stated in the section
 
 #### Scenario: A reader replaces an `__init__`
 
@@ -211,3 +234,4 @@ record the lifecycle with the deprecation.
 - **WHEN** a reader's build prints the deprecation warning
 - **THEN** the page shows the warning, the `render()` that caused it, and
   the same class with the read and its operations moved to `simulate()`
+

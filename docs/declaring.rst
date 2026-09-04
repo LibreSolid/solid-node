@@ -14,7 +14,8 @@ that way keeps working. This page is the other way: the class body
 
 .. code-block:: python
 
-    from solid_node.node import CadQueryNode, Length
+    from solid_node.node import CadQueryNode
+    from solid_node.parameters import Length
 
     class Piston(CadQueryNode):
 
@@ -107,6 +108,18 @@ A parameter is declared with a typed kind:
 
 ``Scalar``
     The escape hatch: a number the algebra does not check.
+
+Every kind, the ``Quantity`` base below and the errors a bad declaration
+raises come from ``solid_node.parameters``, and nothing else does. Node
+classes come from ``solid_node.node``, drivers from
+``solid_node.simulation``, so a module's import block says which of its
+names build the machine and which drive it:
+
+.. code-block:: python
+
+    from solid_node.node import AssemblyNode, CadQueryNode
+    from solid_node.parameters import Count, Flag, Length
+    from solid_node.simulation import Driver
 
 Every kind takes an optional default and, for the numeric ones, ``min=``
 and ``max=``. Constraints are checked when the node is constructed, and a

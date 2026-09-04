@@ -120,6 +120,20 @@ value; backends, `uniq_id` and the serializer never see a token. Reading
 a parameter off a sibling declaration is refused: shared values are
 declared on the ancestor and passed down.
 
+The public surface is split by concern above the node package, so an
+import line says what each name is for: build parameters come from
+`solid_node/parameters.py`, node classes from `solid_node/node/`,
+runtime inputs from `solid_node/simulation/`, the test case from
+`solid_node/test.py` (ADR-062, amended). The parameter module holds the
+declaration descriptor every other declaration follows, the exponent
+algebra, the kinds and the parameter enumerator, and imports nothing at
+all — not the framework, not a third party — because it is on the
+import path of every node module in every project.
+`solid_node/node/declarative.py` keeps the structural half, the child
+declarations and `NodeMeta`, and imports the parameter module; the node
+package exports no parameter kind, and `solid_node/math.py` reaches the
+formula algebra sideways rather than down into the node package.
+
 On a declarative internal node `render()` places at rest and selects
 and may return nothing, in which case the framework's render wrapper —
 the same `__init_subclass__` hook that installs the lifecycle —
@@ -955,6 +969,7 @@ The short list that changes must not silently break:
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057 |
+| Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |

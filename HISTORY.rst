@@ -21,6 +21,11 @@ Unreleased
   child; a declarative node may define ``check()`` for guards over
   several parameters, called once they are resolved and before any child
   is realized; the declaring page says where a once-only placement goes.
+* Build parameters are imported from ``solid_node.parameters`` and are no
+  longer exported by ``solid_node.node``: the kinds, the ``Quantity`` base
+  and ``declared_parameters`` moved, with no re-export and no deprecation
+  path, so an import line says which name builds the machine and which
+  drives it. The surface was never released.
 * ``render()`` builds the machine at rest and runs once per instance; a
   new ``AssemblyNode.simulate()`` runs after it on every instant, reads
   drivers, time and ports, and its operations compose inside the rest

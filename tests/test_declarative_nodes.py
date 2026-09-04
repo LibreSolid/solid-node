@@ -19,11 +19,11 @@ import os
 
 from solid2 import cube
 
-from solid_node.node import (AssemblyNode, Count, Flag, Length, Ratio,
-                             Scalar, Solid2Node, declared_children,
-                             declared_parameters)
+from solid_node.node import AssemblyNode, Solid2Node, declared_children
 from solid_node.node.base import _build_uniq_id
-from solid_node.node.declarative import ChildDeclaration, ParameterError
+from solid_node.node.declarative import ChildDeclaration
+from solid_node.parameters import (Count, Flag, Length, ParameterError, Ratio,
+                                   Scalar, declared_parameters)
 
 from .base import BaseNodeTest
 from .declarative_project.engine import CylinderUnit, Cylinders, Engine

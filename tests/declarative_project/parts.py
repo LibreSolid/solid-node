@@ -9,7 +9,8 @@ that is a plain legacy class."""
 
 from solid2 import cube, cylinder
 
-from solid_node.node import Length, Solid2Node
+from solid_node.node import Solid2Node
+from solid_node.parameters import Length
 
 
 class Piston(Solid2Node):

@@ -54,7 +54,7 @@ that way.
 - [ADR-058](NODE/ADR-058-indexed-package-lookup-for-source-closures.md) — Indexed package lookup for source closures — **Accepted**
 - [ADR-060](NODE/ADR-060-content-verified-currency-beneath-the-mtime-rule.md) — Content-verified currency beneath the mtime rule — **Accepted**, amends 006
 - [ADR-061](NODE/ADR-061-a-call-in-a-class-body-is-a-declaration.md) — A call in a node class body is a declaration — **Accepted**, extends 001
-- [ADR-062](NODE/ADR-062-typed-parameters-and-the-exponent-algebra.md) — Typed parameters and the exponent algebra — **Accepted**
+- [ADR-062](NODE/ADR-062-typed-parameters-and-the-exponent-algebra.md) — Typed parameters and the exponent algebra — **Accepted** *(amended 2026-09-04: the vocabulary lives in `solid_node.parameters`)*
 - [ADR-063](NODE/ADR-063-identity-from-resolved-declared-values.md) — Identity from resolved declared values — **Accepted**, extends 026
 - [ADR-064](NODE/ADR-064-an-internal-render-that-returns-nothing.md) — An internal render() that returns nothing, and structural omission — **Accepted**, extends 002
 - [ADR-065](NODE/ADR-065-instance-checks-after-resolution.md) — Instance checks after resolution: `check()` on a declarative node — **Accepted**, extends 062

@@ -21,6 +21,14 @@ with `issubclass` and `isinstance`.
 `StlRenderStart` stays eager. `base` is on every path that matters and
 costs about 0.11 s, so deferring it would complicate this module for no
 measurable gain.
+
+Build parameters are deliberately NOT here. `Length`, `Angle`, `Count`,
+`Ratio`, `Scalar`, `Flag`, `Quantity` and `declared_parameters` are
+exported by `solid_node.parameters`, so that an import line says which of
+its names is a node kind and which is a knob on the machine. Only the
+structural half of the declaration layer -- `declared_children` -- is a
+node export. Do not re-export a parameter kind here: a second working
+path restores exactly the ambiguity the split removed.
 """
 
 __author__ = """Luis Fagundes"""
@@ -43,14 +51,6 @@ _EXPORTS = {
     'TranslationalPort': 'ports',
     'SignalPort': 'ports',
     'declared_ports': 'ports',
-    'Quantity': 'declarative',
-    'Length': 'declarative',
-    'Angle': 'declarative',
-    'Count': 'declarative',
-    'Ratio': 'declarative',
-    'Flag': 'declarative',
-    'Scalar': 'declarative',
-    'declared_parameters': 'declarative',
     'declared_children': 'declarative',
     'FusionNode': 'fusion',
     'CadQueryNode': 'adapters.cadquery',
