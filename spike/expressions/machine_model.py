@@ -19,7 +19,11 @@ built to exercise is the shape of the EXPRESSIONS, not the mechanism:
 - a sum whose LEADING TERM IS NEGATIVE (the front rail), because a
   unary minus binds tighter than the arithmetic beside it and a
   reader that gets that backwards flips the sign of the driver's
-  coefficient while still agreeing at one point.
+  coefficient while still agreeing at one point, and
+- values the producer writes in EXPONENT NOTATION (the back rail): a
+  driver term whose scale is below 1e-4, floating-point noise at
+  1e-15, and a literal at or above 1e16, all three of which Python's
+  str() -- the only formatter on the wire -- prints with an `e`.
 
 `label` is a constructor argument only so the two axes get distinct
 uniq_ids; a node's artifact key is class + constructor parameters, so
@@ -39,6 +43,14 @@ MM_PER_USTEP = MM_PER_REV / USTEPS_PER_REV      # 0.0125 mm
 DEG_PER_USTEP = 360.0 / USTEPS_PER_REV          # 0.1125 deg
 HOME_USTEPS = 8000                              # 100 mm
 REST_OFFSET = -25.0                             # a rest on the far side of 0
+
+# A fine lead screw driven in microsteps: 0.5 mm of pitch over 8192
+# steps. Small enough that Python writes it as 6.103515625e-05.
+FINE_MM_PER_USTEP = 0.5 / 8192
+# What a placement computed through a rotation lands on instead of zero.
+FLOAT_NOISE = 1.592040838891559e-15
+# The other end of the same rule: str() uses an exponent from 1e16 up.
+LARGE_LITERAL = 2.5e16
 
 
 class Rail(Solid2Node):
@@ -142,6 +154,22 @@ class Axis(AssemblyNode):
         #    travel while agreeing at one point, which is how it
         #    survives a spot check.
         self.rail_front.translate([REST_OFFSET + self.position.value, 0, 0])
+
+        # 7. a term whose SCALE, and two literals whose MAGNITUDE, the
+        #    producer prints in exponent notation. Python's str() --
+        #    which is how every value reaches the wire -- switches to
+        #    exponent form below 1e-4 and at or above 1e16, and a
+        #    reader whose number rule is "digits, separator, digits"
+        #    stops dead at the `e`. Nothing exotic reaches this either:
+        #    a fine screw driven in microsteps has a scale this small
+        #    (the OpenFlexure Microscope's is 6.103515625e-05 mm per
+        #    step), and ordinary floating-point noise lands a placement
+        #    on 1e-15 instead of zero.
+        self.rail_back.translate([
+            usteps * FINE_MM_PER_USTEP,
+            FLOAT_NOISE,
+            LARGE_LITERAL,
+        ])
 
         return [self.rail_front, self.rail_back, self.carriage,
                 self.pulley, self.cover]

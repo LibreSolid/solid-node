@@ -394,6 +394,14 @@ negative term plus the rest and never to the negation of the whole; and
 `^` SHALL bind tighter than a unary minus, as the producer's own
 language does.
 
+Agreement SHALL also include the form of the numbers themselves. The
+client SHALL read every numeric literal the producer can write, in
+particular a literal in exponent notation — which the producer emits
+for any magnitude its language prints that way — and SHALL resolve it to
+the value those digits name, at any magnitude and without loss from a
+floating-point round-trip. A name that merely begins with or contains
+the exponent marker SHALL remain a name.
+
 #### Scenario: The parity corpus pins the shipped evaluator
 
 - **WHEN** the widget test suite runs the producer-generated parity
@@ -409,6 +417,21 @@ language does.
 - **THEN** the client value matches the producer value at every one of
   them, and a reader that bound the unary minus to the whole sum instead
   would agree at no more than one
+
+#### Scenario: A driver scaled by an exponent-printed factor
+
+- **WHEN** the corpus carries a driver term whose scale is small enough
+  that the producer prints it in exponent notation, together with a bare
+  tiny literal and a bare large one
+- **THEN** the client resolves each to the producer's value, and a reader
+  that could not read an exponent literal would fail to parse them at all
+
+#### Scenario: An identifier is not a literal
+
+- **WHEN** an expression names a driver whose id begins with the exponent
+  marker, or calls a function whose name contains it
+- **THEN** the evaluator reads it as that name and resolves it through
+  the driver map or the math context, unchanged
 
 ### Requirement: A maker drives the focused layer's drivers and instructions on screen
 

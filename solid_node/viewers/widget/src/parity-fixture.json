@@ -201,6 +201,54 @@
       "expected": 2.0
     },
     {
+      "key": "0|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.0
+    },
+    {
+      "key": "0|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "0|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "0|Machine/x_axis/rail_front#0.0",
       "expression": "(-25.0 + (x_axis.motor * 0.0125))",
       "scope": {
@@ -489,6 +537,54 @@
       "expected": 1.786057109949175
     },
     {
+      "key": "0|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.48828125
+    },
+    {
+      "key": "0|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "0|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.0,
+        "drivers": {
+          "x_axis": {
+            "motor": 0
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "0|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -711,6 +807,54 @@
         }
       },
       "expected": 1.9951760873103408
+    },
+    {
+      "key": "1|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.0753173828125
+    },
+    {
+      "key": "1|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "1|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "1|Machine/x_axis/rail_front#0.0",
@@ -1001,6 +1145,54 @@
       "expected": 1.8596169477458926
     },
     {
+      "key": "1|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 0.39935302734375
+    },
+    {
+      "key": "1|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "1|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.125,
+        "drivers": {
+          "x_axis": {
+            "motor": 1234
+          },
+          "y_axis": {
+            "motor": 6543
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "1|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -1223,6 +1415,54 @@
         }
       },
       "expected": 1.9487175269905077
+    },
+    {
+      "key": "2|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.244140625
+    },
+    {
+      "key": "2|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "2|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "2|Machine/x_axis/rail_front#0.0",
@@ -1513,6 +1753,54 @@
       "expected": 1.999493685911511
     },
     {
+      "key": "2|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 0.0244140625
+    },
+    {
+      "key": "2|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "2|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.25,
+        "drivers": {
+          "x_axis": {
+            "motor": 4000
+          },
+          "y_axis": {
+            "motor": 400
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "2|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -1735,6 +2023,54 @@
         }
       },
       "expected": 1.786057109949175
+    },
+    {
+      "key": "3|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.48828125
+    },
+    {
+      "key": "3|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "3|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "3|Machine/x_axis/rail_front#0.0",
@@ -2025,6 +2361,54 @@
       "expected": 1.9673332203772702
     },
     {
+      "key": "3|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 0.1953125
+    },
+    {
+      "key": "3|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "3|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.37,
+        "drivers": {
+          "x_axis": {
+            "motor": 8000
+          },
+          "y_axis": {
+            "motor": 3200
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "3|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -2247,6 +2631,54 @@
         }
       },
       "expected": 1.999493685911511
+    },
+    {
+      "key": "4|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": -0.0244140625
+    },
+    {
+      "key": "4|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "4|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "4|Machine/x_axis/rail_front#0.0",
@@ -2537,6 +2969,54 @@
       "expected": 1.9999610152059841
     },
     {
+      "key": "4|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 0.00677490234375
+    },
+    {
+      "key": "4|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "4|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.5,
+        "drivers": {
+          "x_axis": {
+            "motor": -400
+          },
+          "y_axis": {
+            "motor": 111
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "4|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -2759,6 +3239,54 @@
         }
       },
       "expected": 1.8596169477458926
+    },
+    {
+      "key": "5|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.39935302734375
+    },
+    {
+      "key": "5|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "5|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "5|Machine/x_axis/rail_front#0.0",
@@ -3049,6 +3577,54 @@
       "expected": 1.9951760873103408
     },
     {
+      "key": "5|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 0.0753173828125
+    },
+    {
+      "key": "5|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "5|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.75,
+        "drivers": {
+          "x_axis": {
+            "motor": 6543
+          },
+          "y_axis": {
+            "motor": 1234
+          }
+        }
+      },
+      "expected": 2.5e+16
+    },
+    {
       "key": "5|Machine/y_axis/rail_front#0.0",
       "expression": "(-25.0 + (y_axis.motor * 0.0125))",
       "scope": {
@@ -3271,6 +3847,54 @@
         }
       },
       "expected": 1.9673332203772702
+    },
+    {
+      "key": "6|Machine/x_axis/rail_back#0.0",
+      "expression": "(x_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.1953125
+    },
+    {
+      "key": "6|Machine/x_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "6|Machine/x_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "6|Machine/x_axis/rail_front#0.0",
@@ -3559,6 +4183,54 @@
         }
       },
       "expected": 1.786057109949175
+    },
+    {
+      "key": "6|Machine/y_axis/rail_back#0.0",
+      "expression": "(y_axis.motor * 6.103515625e-05)",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 0.48828125
+    },
+    {
+      "key": "6|Machine/y_axis/rail_back#0.1",
+      "expression": "1.592040838891559e-15",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 1.592040838891559e-15
+    },
+    {
+      "key": "6|Machine/y_axis/rail_back#0.2",
+      "expression": "2.5e+16",
+      "scope": {
+        "time": 0.9,
+        "drivers": {
+          "x_axis": {
+            "motor": 3200
+          },
+          "y_axis": {
+            "motor": 8000
+          }
+        }
+      },
+      "expected": 2.5e+16
     },
     {
       "key": "6|Machine/y_axis/rail_front#0.0",

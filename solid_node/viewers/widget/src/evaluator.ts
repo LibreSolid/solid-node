@@ -183,11 +183,52 @@ function dottedName(node: any): string | null {
   return null;
 }
 
+// Python's str() is the only formatter between the producer and this
+// reader, and it prints a float in exponent notation below 1e-4 and at
+// or above 1e16 -- so `6.103515625e-05` (a fine screw's millimetres per
+// microstep) and `1.59e-15` (a placement that missed zero) are ordinary
+// document content. jokenizer's number rule is digits, separator,
+// digits, and it throws at the `e`, refusing the whole expression and
+// with it the model. Rewrite such a literal to plain decimal before
+// tokenizing.
+//
+// The rewrite shifts the decimal point through the digit string rather
+// than reconstructing the number: exact at any magnitude, where a
+// Number() round-trip could round the tail and toFixed() returns
+// exponent form itself above 1e21, which would put the bug back for
+// large values.
+//
+// Only a literal is matched. A digit must precede the `e` and a digit
+// must follow the optional sign, and the character before must not be
+// one a name can contain -- so `1e-5` is rewritten while a driver named
+// `e5`, a member `stage.e10` and the function `exp` are left alone. The
+// preceding character is matched rather than looked behind, because a
+// lookbehind is a parse error in a browser too old for it and would
+// take the whole bundle down with it.
+const EXPONENT_LITERAL = /(^|[^\w.$])(\d+)(?:\.(\d+))?[eE]([-+]?\d+)/g;
+
+function plainLiterals(expression: string): string {
+  return expression.replace(
+    EXPONENT_LITERAL,
+    (_match, before: string, whole: string, fraction = '', exponent: string) => {
+      const digits = whole + fraction;
+      const point = whole.length + Number(exponent);
+      if (point <= 0) return `${before}0.${'0'.repeat(-point)}${digits}`;
+      if (point >= digits.length) {
+        return `${before}${digits}${'0'.repeat(point - digits.length)}`;
+      }
+      return `${before}${digits.slice(0, point)}.${digits.slice(point)}`;
+    },
+  );
+}
+
 function tokensFor(expression: string): ReturnType<typeof tokenize> {
   const cached = tokenCache.get(expression);
   if (cached !== undefined) return cached;
 
-  const tokens = powify(tokenize(expression)) as ReturnType<typeof tokenize>;
+  const tokens = powify(
+    tokenize(plainLiterals(expression)),
+  ) as ReturnType<typeof tokenize>;
   tokenCache.set(expression, tokens);
   return tokens;
 }

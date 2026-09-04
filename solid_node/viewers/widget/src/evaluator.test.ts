@@ -153,6 +153,44 @@ describe('freeVariables', () => {
       .toEqual(['x_axis.motor']);
   });
 
+  // The producer writes every value into the document through Python's
+  // str(), which prints exponent notation below 1e-4 and at or above
+  // 1e16. The OpenFlexure Microscope's steppers advance
+  // 6.103515625e-05 mm of lead screw per step, so every one of its
+  // placement expressions carries such a literal -- and the tokenizer
+  // used to stop at the `e`, refusing the whole document.
+  it('reads a numeric literal in exponent notation', () => {
+    expect(evalExpr('6.103515625e-05', at(0))).toBe(6.103515625e-05);
+    expect(evalExpr('1.592040838891559e-15', at(0))).toBe(1.592040838891559e-15);
+    expect(evalExpr('2e3', at(0))).toBe(2000);
+    expect(evalExpr('1.5E+2', at(0))).toBe(150);
+    expect(evalExpr('1e21', at(0))).toBe(1e21);
+  });
+
+  it('reads an exponent literal inside an expression', () => {
+    const drivers = { x_motor: -8192 };
+    expect(evalExpr('((-x_motor) * 6.103515625e-05)', { time: 0, drivers }))
+      .toBeCloseTo(0.5, 12);
+    expect(evalExpr('(1.0 - 1.592040838891559e-15)', at(0)))
+      .toBe(1.0 - 1.592040838891559e-15);
+    expect(evalExpr('sqrt(4e0)', at(0))).toBeCloseTo(2);
+  });
+
+  it('keeps every digit rather than round-tripping through a float', () => {
+    // A rewrite that reconstructed the number and printed it back could
+    // lose the tail; these are the digits the producer wrote.
+    expect(evalExpr('1.2345678901234567e-7', at(0)))
+      .toBe(1.2345678901234567e-7);
+  });
+
+  it('leaves a name that merely carries the exponent marker alone', () => {
+    expect(evalExpr('(e5 * 2)', { time: 0, drivers: { e5: 3 } })).toBe(6);
+    expect(evalExpr('(stage.e10 * 2)', { time: 0, drivers: { stage: { e10: 4 } } }))
+      .toBe(8);
+    expect(evalExpr('exp(0)', at(0))).toBe(1);
+    expect([...freeVariables('(e5 * 2)')]).toEqual(['e5']);
+  });
+
   it('separates a mixed expression into both of its free variables', () => {
     const found = freeVariables(
       '((5.0 * cos((360.0 * $t))) + ((x_axis.motor * 0.0125) * 0.1))',
