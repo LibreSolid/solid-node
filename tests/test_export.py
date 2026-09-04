@@ -113,6 +113,8 @@ class ListAndTupleNameAssembly(AssemblyNode):
 
 
 class ChildrenOnlyNameAssembly(AssemblyNode):
+    """`children` is the framework's own linked list, never a naming
+    attribute: a child held only there keeps the class-name fallback."""
 
     def __init__(self, build_dir):
         self._fixture_build_dir = build_dir
@@ -226,7 +228,7 @@ class ExportBuildSnapshotParityTest(TestCase):
             (AttributeNameAssembly, ['input_gear', 'output_gear']),
             (ListAndTupleNameAssembly,
              ['gears-0', 'gears-1', 'posts-0', 'posts-1']),
-            (ChildrenOnlyNameAssembly, ['children-0']),
+            (ChildrenOnlyNameAssembly, ['Cube']),
             (ClassNameFallbackAssembly, ['Cube']),
         )
         for factory, expected in boundaries:

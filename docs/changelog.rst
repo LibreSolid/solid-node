@@ -5,6 +5,70 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+**The declarative node API.** A node class body can now *declare* its
+parameters (``Length``, ``Angle``, ``Count``, ``Ratio``, ``Flag``,
+``Scalar``), derive others as bare formulas over them, and declare its
+children by constructing them in the class body — with literal lists and
+``repeat(count)`` for identical units. A formula's dimensions are checked
+on ``import``; ``sqrt`` and the degree trigonometry of ``solid_node.math``
+take part. Each parent instance realizes its own children, top-down from
+the root's values, so ``Engine(bore=32.0)`` moves the whole machine, and
+``--set name=value`` on every node-loading command does the same from the
+shell. An internal node's ``render()`` may return nothing, in which case
+the children are the declared ones minus any it ``omit()``\ s; a pure
+grouping node needs no ``render()`` at all. Ports bind by assignment.
+See :doc:`Declaring a machine <declaring>`. (OpenSpec change
+``declarative-node-api``.)
+
+Nothing changes for a class that declares nothing. When migrating a
+class, its artifacts re-key once if it used to omit a keyword from
+``super().__init__()`` or passed an integer where a float kind now
+resolves; the next build rebuilds them. A node class carrying its own
+metaclass must now derive it from ``solid_node.node.declarative.NodeMeta``.
+
+**render() builds the machine at rest; simulate() moves it.** An
+assembly's ``render()`` declares structure and places what does not
+move, reads no driver, time or port, and runs once per instance. The
+new ``AssemblyNode.simulate()`` runs after it on every instant, under
+symbolic ``$t`` or the bound state, reads drivers, ``self.time`` and
+ports, and every operation it applies composes *inside* the part's
+rest placement and is swept before the next run. ``omit()`` in
+``simulate()`` raises. Nothing that worked stops working: a
+``render()`` that reads a driver keeps re-running per instant as before,
+and the build prints one ``FutureWarning`` per class naming the read and
+``simulate()``. Placement in ``__init__`` is no longer recommended; it
+still works. The rename of ``render()`` proposed by the design reference
+is dropped: *render* also means *to make*. See :ref:`Rest and motion
+<rest-and-motion>`. (OpenSpec change ``render-simulate-split``.)
+
+**Build parameters have a module of their own.** ``Length``, ``Angle``,
+``Count``, ``Ratio``, ``Scalar``, ``Flag``, ``Quantity`` and
+``declared_parameters`` are imported from ``solid_node.parameters``, a
+top-level peer of ``solid_node.simulation`` and ``solid_node.test``, and
+are **no longer exported by** ``solid_node.node``. An import line now says
+which of its names is a node kind and which is a knob on the machine:
+parameters build the machine, drivers drive it. There is no re-export and
+no deprecation path — the declarative parameter surface has never been
+released, so the only code to update is code written against an unreleased
+branch, and a second working path would defeat the point. Change
+``from solid_node.node import CadQueryNode, Length`` to two lines. See
+:doc:`Declaring a machine <declaring>`. (OpenSpec change
+``build-parameters-module``.)
+
+**Follow-ups from the first project migrations** (OpenSpec change
+``declarative-node-api-fixes``). A list comprehension in a class body
+over module-level values now declares children — it used to build
+shared instances silently under Python 3.12's inlined comprehensions. A
+``Flag`` passed to a declared child now resolves to the parent's
+boolean, so a structural choice can live on the root and be set with
+``--set``. A declarative node may define ``check()`` for guards over
+several parameters at once; the framework calls it once the parameters
+are resolved and before any child is realized. The declaring page says
+where a once-only placement goes.
+
 v0.6.0
 ------
 

@@ -9,16 +9,20 @@ and node identity/naming. Encodes ADR-001 (composite pattern), ADR-002
 backend adapters), and ADR-026 (parameter-hashed artifact keys vs tree names).
 
 Code: `solid_node/node/` (`base.py`, `internal.py`, `leaf.py`, `fusion.py`,
-`assembly.py`, `adapters/`).
+`assembly.py`, `declarative.py`, `adapters/`).
 ## Requirements
 ### Requirement: Composite node tree
 
 The system SHALL model a project as a tree of nodes rooted in
 `AbstractBaseNode`, where `InternalNode` subclasses compose children and
 `LeafNode` subclasses generate geometry. An `InternalNode.render()` SHALL
-return a list or tuple of node instances; a `LeafNode.render()` SHALL return a
-single geometry object, never a list. Validation runs on every `assemble()`
-and enforces these contracts before any SCAD generation.
+return a list or tuple of node instances, or `None` on a class with
+declared children under the `declarative-nodes` capability, in which case
+the framework substitutes the realized declared children minus the omitted
+ones before any consumer sees the result. A `LeafNode.render()` SHALL
+return a single geometry object, never a list and never `None`. Validation
+runs on every `assemble()` and enforces these contracts before any SCAD
+generation.
 
 #### Scenario: Internal node returns children
 
@@ -27,28 +31,34 @@ and enforces these contracts before any SCAD generation.
 - **THEN** `assemble()` links each child, assembles it, and unions the
   results (union applied only when there is more than one child)
 
+#### Scenario: Internal node returns nothing
+
+- **WHEN** an `InternalNode` subclass with declared children defines a
+  `render()` that positions them and returns nothing
+- **THEN** `assemble()` links, assembles and unions the declared children
+  exactly as if `render()` had returned them in declaration order
+
 #### Scenario: Structural contract violations are rejected
 
-- **WHEN** an `InternalNode.render()` returns a non-list, returns an element
-  that is not an `AbstractBaseNode`, or returns an instance of its own type
+- **WHEN** an `InternalNode.render()` returns a non-list that is not the
+  declarative `None`, returns an element that is not an `AbstractBaseNode`,
+  or returns an instance of its own type
 - **THEN** validation raises an error during `assemble()`
-- **WHEN** a `LeafNode.render()` returns a list, or returns an object whose
-  module does not start with the adapter's declared `namespace`
+- **WHEN** a `LeafNode.render()` returns a list, returns `None`, or returns
+  an object whose module does not start with the adapter's declared
+  `namespace`
 - **THEN** validation raises an error during `assemble()`
 
 ### Requirement: Template-method render lifecycle
 
 The system SHALL control the node lifecycle through `assemble()`, which users
-do not override: render → validate → `as_scad` → `generate_scad` → optional
-optimized STL import → apply queued operations. `assemble()` SHALL be
-idempotent — the result is memoized and `render()` is called at most once per
-instance.
-
-When a leaf node is rigid, has `optimize = True`, and its artifact is up to
-date, `assemble()` SHALL import that artifact without rendering it: `render()`
-and `as_scad()` SHALL NOT run. Queued operations SHALL still be applied, and
-the assembled result SHALL be the same as if the node had been rendered. A node
-whose artifact is absent or stale SHALL follow the full lifecycle above.
+do not override: render → simulate (assemblies only) → validate → `as_scad` →
+`generate_scad` → optional optimized STL import → apply queued operations.
+`assemble()` SHALL be idempotent — the result is memoized and `render()` is
+called at most once per instance. On an assembly the framework SHALL run
+`simulate()` after `render()` on every call that enumerates its children,
+under the current binding; users override `render()` and `simulate()`, never
+`assemble()`.
 
 #### Scenario: Assemble is memoized
 
@@ -70,6 +80,13 @@ whose artifact is absent or stale SHALL follow the full lifecycle above.
 
 - **WHEN** any file tracked for that leaf has changed since its artifact was written
 - **THEN** `assemble()` renders the node and regenerates the artifact
+
+#### Scenario: Simulate follows render
+
+- **WHEN** an assembly defining both `render()` and `simulate()` is
+  assembled
+- **THEN** `render()` has run before `simulate()`, and the queued
+  operations applied include those `simulate()` produced
 
 ### Requirement: Rigid vs non-rigid distinction
 
@@ -309,11 +326,16 @@ exact question is unaffected.
 
 The system SHALL give each node instance a `uniq_id` of the form
 `<readable-prefix>-<12-hex-sha256>`, hashed over a canonical serialization of
-the class `__qualname__`, positional args in order, and kwargs sorted by key.
-The readable prefix is sanitized and truncated to 60 characters; the hash is
-computed over the full untruncated serialization. Build artifact basenames are
-always `<script-name>-<uniq_id>`. The `name=` kwarg SHALL never influence
-`uniq_id`.
+the class `__qualname__` and the node's parameters. For a class that declares
+no parameters and no children under the `declarative-nodes` capability, the
+parameters are the positional args in order and the kwargs sorted by key that
+reach `AbstractBaseNode.__init__`, exactly as before. For a declarative
+class, the parameters are the resolved, coerced values of its declared
+parameters sorted by name, derived by the framework and never forwarded by
+hand. The readable prefix is sanitized and truncated to 60 characters; the
+hash is computed over the full untruncated serialization. Build artifact
+basenames are always `<script-name>-<uniq_id>`. The `name=` kwarg SHALL
+never influence `uniq_id`.
 
 #### Scenario: Parameter change invalidates artifact key
 
@@ -333,20 +355,43 @@ always `<script-name>-<uniq_id>`. The `name=` kwarg SHALL never influence
 - **THEN** their `uniq_id`s differ because the class qualname is part of the
   serialization
 
+#### Scenario: A declarative class cannot forget a parameter
+
+- **WHEN** a class declares six parameters and is realized twice with one
+  value differing
+- **THEN** the two `uniq_id`s differ without the class forwarding anything
+  to `super().__init__()`
+
+#### Scenario: A migrated class keeps its key
+
+- **WHEN** a class that forwarded all of its kwargs to `super().__init__()`
+  with float defaults is rewritten to declare exactly those parameters with
+  the same defaults
+- **THEN** an instance realized with defaults has the same `uniq_id` as
+  before the rewrite
+
 ### Requirement: Tree naming from parent attributes
 
 The system SHALL derive a child's tree name when it is linked: an explicit
 `name=` always wins; otherwise the parent attribute holding the child is used
 (a plain attribute wins over list membership; list members become
-`<attr>-<index>`; `_`-prefixed attributes are skipped; class name is the
-fallback). Naming SHALL be idempotent and used consistently by the test
-runner, the web NodeAPI, and STL child linking.
+`<attr>-<index>`; `_`-prefixed attributes and `children`, the framework's
+own linked list, are skipped; class name is the fallback). Naming SHALL be
+idempotent and used consistently by the test runner, the web NodeAPI, and
+STL child linking.
 
 #### Scenario: Attribute-derived name
 
 - **WHEN** a parent stores a child as `self.wheel` and returns it from
   `render()`
 - **THEN** the child's tree name is `wheel`
+
+#### Scenario: The linked list never names
+
+- **WHEN** an assembly's once-only `render()` returns fresh unnamed
+  children and the tree is linked, assembled and serialized more than once
+- **THEN** every link derives the same class-name fallback, never
+  `children-<index>` from the list `as_scad` keeps
 
 ### Requirement: Color declaration
 
@@ -389,4 +434,3 @@ the public interface.
   method resolution order for adapter class names
 - **THEN** an exact adapter resolves to no mesh-rendering backend, as it did
   before any base was shared, and never launches OpenSCAD
-

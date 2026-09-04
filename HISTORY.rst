@@ -2,6 +2,37 @@
 History
 =======
 
+Unreleased
+----------
+
+* The declarative node API: typed parameter declarations with a
+  dimension algebra checked on import, derived formulas, children declared
+  in the class body with ``repeat(count)`` for identical units,
+  realization top-down from the root, identity derived by the framework,
+  ``--set name=value`` on every node-loading command, an internal
+  ``render()`` that may return nothing, ``omit()``, and ports bound by
+  assignment. Additive: a class that declares nothing is unchanged. A
+  migrated class re-keys its artifacts once if it used to omit a keyword
+  or pass an integer where a float kind now resolves. A node metaclass
+  must derive from ``solid_node.node.declarative.NodeMeta``.
+* Follow-ups from the first project migrations: a class-body list
+  comprehension over module-level values declares children instead of
+  silently building shared instances; a ``Flag`` flows to a declared
+  child; a declarative node may define ``check()`` for guards over
+  several parameters, called once they are resolved and before any child
+  is realized; the declaring page says where a once-only placement goes.
+* Build parameters are imported from ``solid_node.parameters`` and are no
+  longer exported by ``solid_node.node``: the kinds, the ``Quantity`` base
+  and ``declared_parameters`` moved, with no re-export and no deprecation
+  path, so an import line says which name builds the machine and which
+  drives it. The surface was never released.
+* ``render()`` builds the machine at rest and runs once per instance; a
+  new ``AssemblyNode.simulate()`` runs after it on every instant, reads
+  drivers, time and ports, and its operations compose inside the rest
+  placement and are swept before the next run. A ``render()`` that
+  reads a driver keeps working and warns once per class. ``omit()`` in
+  ``simulate()`` raises. The ``render()`` rename is dropped.
+
 0.6.0 (2026-09-01)
 ------------------
 

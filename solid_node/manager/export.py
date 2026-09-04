@@ -47,7 +47,8 @@ class Export:
 
     def handle(self, args):
         try:
-            node = load_node(args.path)
+            node = load_node(args.path,
+                             overrides=getattr(args, 'set', None))
         except Exception as e:
             sys.stderr.write(f'Error loading node: {e}\n')
             sys.exit(1)

@@ -11,7 +11,10 @@ import tomllib
 from importlib import import_module
 
 from solid_node.node.base import AbstractBaseNode
+from solid_node.node.declarative import parse_overrides
 from solid_node.simulation.enumeration import bind_declared_defaults
+
+__all__ = ['load_node', 'parse_overrides']
 
 
 class ProjectManifestError(Exception):
@@ -172,9 +175,13 @@ def resolve_node(reference=None, origin=None):
     return klass, path, root
 
 
-def load_node(reference=None):
+def load_node(reference=None, overrides=None):
+    """The root node `reference` names, realized with its defaults --
+    or, for a root that declares parameters, with `overrides`: the
+    `name=value` words of `--set`, each parsed by the declared kind and
+    checked as a Python caller's value would be."""
     klass, referenced_path, _ = resolve_node(reference)
-    node = klass()
+    node = klass(**parse_overrides(klass, overrides))
     # The named file is part of the selected entry point even when it is a
     # package facade; the implementation source is already in node.files.
     node.files.add(referenced_path)

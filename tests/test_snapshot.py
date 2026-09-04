@@ -360,7 +360,8 @@ class SnapshotNodePreparationTest(TestCase):
 
             self.snapshot._load_and_prepare_node()
 
-            mock_load.assert_called_once_with('/test/path/node.py')
+            mock_load.assert_called_once_with('/test/path/node.py',
+                                              overrides=None)
 
     def test_set_keyframe_is_called(self):
         """Test that set_keyframe is called with correct time"""

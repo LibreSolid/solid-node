@@ -119,6 +119,7 @@ class Snapshot:
     def handle(self, args):
         """Main entry point for the snapshot command."""
         self.path = args.path
+        self.overrides = list(getattr(args, 'set', None) or [])
         self.output = args.output
         self.time = args.time
         renderer = getattr(args, 'renderer', 'openscad')
@@ -210,7 +211,8 @@ class Snapshot:
     def _load_and_prepare_node(self):
         """Load the node and prepare it for rendering."""
         with project_build_lock():
-            node = load_node(self.path)
+            node = load_node(self.path,
+                             overrides=getattr(self, 'overrides', None))
             # set_keyframe is a no-op for non-animated nodes
             node.set_keyframe(self.time)
             node.assemble()

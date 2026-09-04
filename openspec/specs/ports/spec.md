@@ -44,24 +44,24 @@ extension per ADR-056; introducing it is a future spec change.
 
 ### Requirement: Per-render causal port binding
 
-The system SHALL let the assembly that owns the render bind port
-values causally each render: an emitting node SHALL set its output
-port's value during `render()`, and `connect(source, sink)` on an
-internal node SHALL bind a sink port to a source — a port or a plain
-numeric value — applying the sink's declared linear scale when one is
-present. Bindings SHALL be re-evaluated on every render, so a
-re-render under a new state snapshot rebinds every port absolutely;
-port binding SHALL NOT accumulate history or interact with the
-operation sweep.
-
-Connection is one-directional in this version: value flows from source
-to sink. Acausal connection semantics (equation generation, solver
-orientation) are explicitly out of scope and MUST NOT be implied by
-this surface.
+The system SHALL let the assembly that owns the simulation bind port values
+causally each `simulate()`: an emitting node SHALL set its output port's
+value during `simulate()`, and `connect(source, sink)` on an internal node
+SHALL bind a sink port to a source — a port or a plain numeric value —
+applying the sink's declared linear scale when one is present. Assigning a
+value to a port attribute of a node (`unit.crank = expression`) SHALL
+perform the same binding as `connect(expression, unit.crank)`, scale
+applied; a port declaration is a data descriptor, so such an assignment
+SHALL never shadow the declaration with a raw instance attribute. Bindings
+SHALL be re-evaluated on every `simulate()`, so a run under a new state
+snapshot rebinds every port absolutely; port binding SHALL NOT accumulate
+history or interact with the operation sweep. Binding or reading a port in
+`render()` SHALL keep working as the deprecated form: the render re-runs per
+binding and the framework warns once per class.
 
 #### Scenario: Stepper microsteps drive a carriage in design units
 
-- **WHEN** an axis assembly's `render()` binds a motor's rotational
+- **WHEN** an axis assembly's `simulate()` binds a motor's rotational
   output from its declared driver read as `self.motor` and
   `connect()`s it to a carriage input port whose scale declares
   millimetres per microstep
@@ -69,11 +69,24 @@ this surface.
   the converted position in millimetres and the derived translation
   places the carriage there absolutely
 
-#### Scenario: Rebinding is absolute across renders
+#### Scenario: Assignment binds with scale
 
-- **WHEN** the same assembly renders under two successive state
+- **WHEN** a hook executes `unit.crank = angle + 90.0` on a child whose
+  `crank` port declares a scale
+- **THEN** the port's bound value is the expression multiplied by the scale
+  and reading `unit.crank` still yields the bound port, not the raw
+  expression
+
+#### Scenario: A port bound in render warns
+
+- **WHEN** an assembly's `render()` binds a child's port from a constant
+  and reads nothing
+- **THEN** a `FutureWarning` names the class and the port, and the render
+  keeps re-running per binding
+
+#### Scenario: Rebinding is absolute across simulations
+
+- **WHEN** the same assembly simulates under two successive state
   snapshots
-- **THEN** each render leaves every bound port holding exactly the
-  value derived from the current snapshot, with no residue of the
-  previous one
-
+- **THEN** each run leaves every bound port holding exactly the value
+  derived from that snapshot

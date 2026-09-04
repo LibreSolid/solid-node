@@ -2,49 +2,109 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
+
 from .base import AbstractBaseNode
-from .ports import BoundPort
+from .declarative import StructureError, declared_child_nodes
+from .ports import bind
 from solid2 import union
+
+
+def _declarative_render(render):
+    """Wraps an InternalNode subclass render(): when it returns None,
+    the children are the realized declared children in declaration
+    order minus those it omitted, so on a declarative class render()
+    only positions and selects. A returned list is the author's and
+    keeps its contract to the letter.
+
+    Every tree walker -- as_scad, the serializer, the driver walk, state
+    propagation -- calls render() and treats a non-list as "no
+    children", so this is the one place that turns None into the list
+    before any of them see it. On an assembly it sits INSIDE the
+    lifecycle wrapper (`_lifecycle_render`), which sweeps first and
+    runs simulate() after.
+
+    Omission marks are cleared before the author's render() and read
+    after it, so presence is decided afresh each render; the omitted set
+    of the instance's first render is recorded and a later render that
+    differs raises. An instance's parameters cannot change, so a
+    difference can only come from time -- which structure must never
+    depend on -- or from a bug. Re-entrant calls (a subclass render
+    delegating to super) run the wrapped function bare: the outermost
+    call owns the marks."""
+
+    @functools.wraps(render)
+    def wrapped(self):
+        if self.__dict__.get('_rendering'):
+            return render(self)
+        declared = declared_child_nodes(self)
+        for child in declared:
+            child._omitted = False
+        self.__dict__['_rendering'] = True
+        try:
+            rendered = render(self)
+        finally:
+            self.__dict__['_rendering'] = False
+        if rendered is not None or not declared:
+            return rendered
+        omitted = frozenset(child.name for child in declared
+                            if child._omitted)
+        recorded = self.__dict__.get('_omitted_record')
+        if recorded is None:
+            self.__dict__['_omitted_record'] = omitted
+        elif recorded != omitted:
+            raise StructureError(
+                f"{type(self).__name__} '{self.name}' changed its structure "
+                f"between renders: it first omitted "
+                f"{sorted(recorded) or 'nothing'} and now omits "
+                f"{sorted(omitted) or 'nothing'}. Structure may vary with "
+                f"parameters, never with time; decide omit() from declared "
+                f"parameters only.")
+        return [child for child in declared if not child._omitted]
+
+    wrapped._declarative = True
+    return wrapped
+
+
+def _render_declared(self):
+    """The render() of a class that positions nothing: its declared
+    children, exactly as declared."""
+    return None
 
 
 class InternalNode(AbstractBaseNode):
     """Internal nodes combine its children nodes in some way to make
     a node with several solids."""
 
+    render = _declarative_render(_render_declared)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        render = cls.__dict__.get('render')
+        if render is not None and not getattr(render, '_declarative', False):
+            cls.render = _declarative_render(render)
+
     def connect(self, source, sink):
         """Bind `sink`'s value from `source`, converting through the
         sink's declared scale.
 
         Causal and immediate: this is sugar over an assignment, run
-        while the owning render() runs, so a re-render under a new
-        driver snapshot rebinds every port absolutely. There is no
-        registry, no connection graph and no deferred resolution --
-        the wiring is re-executed because the render code that states
-        it runs again. Acausal connection (equations, solver
-        orientation) is a separate, later design; nothing here should
-        be read as a down payment on it.
+        in the owning simulate(), so a run under a new driver snapshot
+        rebinds every port absolutely. There is no registry, no
+        connection graph and no deferred resolution -- the wiring is
+        re-executed because the simulate() that states it runs again.
+        A parent's simulate() runs before any child's, so a child may
+        read in its own simulate() what its parent bound. Called from
+        a render() it binds once -- render() runs once -- and is
+        reported as the deprecated form. Acausal connection
+        (equations, solver orientation) is a separate, later design;
+        nothing here should be read as a down payment on it.
 
         `source` is a bound port or a plain value; the value may be a
         symbolic animation expression, which flows through unresolved
         exactly as an operation value does.
         """
-        if isinstance(source, BoundPort):
-            if source.value is None:
-                # An unbound source is a wiring order mistake -- the
-                # emitting node has not run yet -- and silently
-                # propagating None would surface it much later, as a
-                # broken operation value.
-                raise ValueError(
-                    f'cannot connect {source.name} of '
-                    f'{getattr(source.node, "name", source.node)}: it has '
-                    'no value bound yet')
-            value = source.value
-        else:
-            value = source
-        if sink.scale is not None:
-            value = value * sink.scale
-        sink.value = value
-        return sink
+        return bind(sink, source)
 
     @property
     def time(self):

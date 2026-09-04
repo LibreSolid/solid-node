@@ -41,6 +41,7 @@ class Test:
 
     def handle(self, args):
         self.failfast = args.failfast
+        self.overrides = list(getattr(args, 'set', None) or [])
         path = self.resolve_path(args.path) if args.path else args.path
         try:
             klass, node_path, root = resolve_node(path)
@@ -108,7 +109,7 @@ class Test:
 
     def build_node(self, path, time=0):
         try:
-            node = load_node(path)
+            node = load_node(path, overrides=getattr(self, 'overrides', None))
         except Exception as error:
             self.fail(str(error))
         node.set_keyframe(time)

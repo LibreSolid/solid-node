@@ -8,7 +8,8 @@ API Reference
 Nodes
 =====
 
-All node classes are importable from ``solid_node.node``. A project is a
+All node classes are importable from ``solid_node.node``; the parameters
+they declare come from ``solid_node.parameters``. A project is a
 tree of nodes: leaf nodes generate solids with an underlying modelling
 library, internal nodes combine their children.
 
@@ -19,19 +20,25 @@ Common node API
 
    .. method:: render()
 
-      Every node must implement ``render()``. Leaf nodes return an object
-      of the underlying modelling library; internal nodes return a list of
-      child node instances.
+      Every node must implement ``render()``: it builds the node at rest.
+      Leaf nodes return an object of the underlying modelling library;
+      internal nodes return a list of child node instances (or, on a
+      declarative class, nothing), after placing the parts that do not
+      move. It reads no driver, no time and no port — an assembly's
+      ``render()`` that read none runs once per instance; one that does
+      read keeps re-running per binding and warns once per class. What
+      moves belongs to :meth:`AssemblyNode.simulate`.
 
    .. method:: rotate(angle, axis)
 
       Rotate this node by ``angle`` degrees around the vector ``axis``
-      (a list of three numbers, e.g. ``[0, 0, 1]``). Operations chain
-      within one render — each ``render()`` states absolute placement
-      for its instant, and an assembly drops the operations it applied
-      in previous renders before re-rendering — and apply both in the
-      viewer and to the mesh used by tests. Returns the node itself, so
-      calls can be chained. ``angle`` may be an expression involving
+      (a list of three numbers, e.g. ``[0, 0, 1]``). Applied in
+      ``render()`` it is rest placement and persists; applied in
+      ``simulate()`` it is motion — composed inside the rest placement,
+      stated absolutely for its instant, and dropped before the assembly
+      simulates again. Both apply in the viewer and to the mesh used by
+      tests. Returns the node itself, so calls can be chained. In
+      ``simulate()``, ``angle`` may be an expression involving
       :attr:`AssemblyNode.time` or any declared driver.
 
    .. method:: translate(translation)
@@ -156,17 +163,46 @@ Internal nodes
    :members: connect
 
 .. autoclass:: solid_node.node.AssemblyNode
-   :members: set_state, set_keyframe, clear_keyframe, time
+   :members: simulate, set_state, set_keyframe, clear_keyframe, time
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time
+
+Parameters
+==========
+
+The knobs that decide what machine gets built, importable from
+``solid_node.parameters`` and from nowhere else. A parameter is declared
+as a class attribute, is fixed for the life of an instance, enters the
+node's build identity, and reads back inside ``render()`` as a plain
+number. Contrast :class:`~solid_node.simulation.Driver`, which is a
+runtime input and changes every instant. See :doc:`Declaring a machine
+<declaring>`.
+
+.. autoclass:: solid_node.parameters.Length
+
+.. autoclass:: solid_node.parameters.Angle
+
+.. autoclass:: solid_node.parameters.Count
+
+.. autoclass:: solid_node.parameters.Ratio
+
+.. autoclass:: solid_node.parameters.Scalar
+
+.. autoclass:: solid_node.parameters.Flag
+
+.. autoclass:: solid_node.parameters.Quantity
+
+.. autofunction:: solid_node.parameters.declared_parameters
+
+.. autofunction:: solid_node.node.declared_children
 
 Ports
 =====
 
 Domain-typed connection points between nodes, importable from
 ``solid_node.node``. A port is declared as a class attribute; the
-parent assembly binds it every render with
+parent assembly binds it every ``simulate()`` with
 :meth:`~solid_node.node.internal.InternalNode.connect`. See
 :doc:`Driving a machine <driving>`.
 

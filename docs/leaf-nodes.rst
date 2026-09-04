@@ -20,6 +20,13 @@ covered in :doc:`Combining parts <assemblies>`.
 Each node implements the `render()` method. Leaf nodes return an object
 of the underlying library.
 
+This page and the next build nodes the constructor way, with an
+``__init__`` that takes the part's parameters. A part can instead
+*declare* its parameters in the class body and let the framework derive
+identity, propagation and the command-line surface from the
+declaration; see :doc:`Declaring a machine <declaring>` once the
+constructor form is familiar.
+
 There are five types of LeafNodes, each supporting one underlying
 technology to create solids:
 

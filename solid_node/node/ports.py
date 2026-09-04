@@ -27,20 +27,33 @@ is a future spec change, and code written against a port that has no
 flow slot cannot quietly come to depend on a wrong one.
 """
 
+from .phase import note_read
+
 
 class BoundPort:
     """The per-instance value slot of one declared port.
 
-    Holds no history: every render rebinds it absolutely, exactly as an
-    assembly re-render expresses absolute kinematics. `value` is None
-    until something binds it -- an unbound port is a wiring mistake to
-    be seen, not a zero to be silently assumed.
+    Holds no history: every simulate() rebinds it absolutely, exactly as
+    an assembly's re-simulation expresses absolute kinematics. `value`
+    is None until something binds it -- an unbound port is a wiring
+    mistake to be seen, not a zero to be silently assumed. A read is
+    reported to the lifecycle phase, so a render() that reads a port is
+    known for the legacy render it is.
     """
 
     def __init__(self, declaration, node):
         self.declaration = declaration
         self.node = node
-        self.value = None
+        self._value = None
+
+    @property
+    def value(self):
+        note_read('read port', self.declaration.name)
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
 
     @property
     def name(self):
@@ -105,8 +118,47 @@ class Port:
             slot = slots[self.name] = BoundPort(self, instance)
         return slot
 
+    def __set__(self, instance, value):
+        # Assignment binds, exactly as connect() does, scale applied:
+        # `unit.crank = angle + phase` in a render() is the natural verb
+        # for feeding a declared port. Defining __set__ also makes this a
+        # DATA descriptor, so an assignment can never quietly replace the
+        # declaration with a raw number that a later read trips over.
+        bind(self.__get__(instance), value)
+
     def __repr__(self):
         return f'<{self.domain} port declaration {self.name}>'
+
+
+def bind(sink, source):
+    """Bind `sink`'s value from `source`, converting through the sink's
+    declared scale. The one binding path: `connect()` and port
+    assignment both come here.
+
+    `source` is a bound port or a plain value; the value may be a
+    symbolic animation expression, which flows through unresolved
+    exactly as an operation value does. Binding belongs in simulate():
+    done in render() it is reported to the phase like a read, because
+    a once-only render() would bind once and never rebind.
+    """
+    note_read('bound port', sink.name)
+    if isinstance(source, BoundPort):
+        if source.value is None:
+            # An unbound source is a wiring order mistake -- the
+            # emitting node has not run yet -- and silently propagating
+            # None would surface it much later, as a broken operation
+            # value.
+            raise ValueError(
+                f'cannot connect {source.name} of '
+                f'{getattr(source.node, "name", source.node)}: it has '
+                'no value bound yet')
+        value = source.value
+    else:
+        value = source
+    if sink.scale is not None:
+        value = value * sink.scale
+    sink.value = value
+    return sink
 
 
 class RotationalPort(Port):

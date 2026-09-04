@@ -3,16 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+from solid_node.node.declarative import NodeMeta
 from solid_node.node.exact_leaf import ExactLeafNode
 
 
-class CheckCQEditor(type):
+class CheckCQEditor(NodeMeta):
     """This metaclass will check if we are in the context of
     CQ-editor, if so, use no base classes, otherwise inherit
     ExactLeafNode.
 
     It drops whatever bases were declared rather than naming one, so it is
     unaffected by what the adapter inherits from.
+
+    Derived from `NodeMeta`, as every node metaclass must be: a derived
+    class's metaclass has to subclass the metaclass of each of its bases,
+    and `NodeMeta` is what tells a node constructor it is running inside
+    a class body.
     """
     def __new__(mcs, name, bases, namespace):
         if sys.modules.get('cq_editor.__main__', None):

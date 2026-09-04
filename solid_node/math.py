@@ -32,9 +32,34 @@ import math as _math
 
 from solid2.core.object_base import OpenSCADConstant
 
+from solid_node.parameters import Expression, function_formula
+
 
 def _is_symbolic(value):
     return isinstance(value, OpenSCADConstant)
+
+
+def _is_formula(value):
+    """A declared quantity or a formula over them: the third face.
+
+    Under the declarative node API a class body derives parameters
+    through these same names (windmill's gear layer takes an `atan`, a
+    `sqrt` and a `cos`), and the result is a formula carrying the
+    function's dimension rule, evaluated numerically -- through the
+    numeric branch below -- when the node is constructed.
+
+    The parameter layer is imported at module scope: it reaches nothing
+    else in the framework, so naming it costs this module nothing on any
+    path. It used to be imported on use, when the algebra lived inside
+    the node package and reaching it dragged that package in.
+    """
+    if isinstance(value, (int, float)) or _is_symbolic(value):
+        return False
+    return isinstance(value, Expression)
+
+
+def _formula(name, numeric, *args):
+    return function_formula(name, numeric, *args)
 
 
 def _render(value):
@@ -55,6 +80,8 @@ def sin(x):
     """sin of an angle in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('sin', x)
+    if _is_formula(x):
+        return _formula('sin', sin, x)
     return _math.sin(_math.radians(x))
 
 
@@ -62,6 +89,8 @@ def cos(x):
     """cos of an angle in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('cos', x)
+    if _is_formula(x):
+        return _formula('cos', cos, x)
     return _math.cos(_math.radians(x))
 
 
@@ -69,6 +98,8 @@ def tan(x):
     """tan of an angle in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('tan', x)
+    if _is_formula(x):
+        return _formula('tan', tan, x)
     return _math.tan(_math.radians(x))
 
 
@@ -76,6 +107,8 @@ def asin(x):
     """arcsine, returned in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('asin', x)
+    if _is_formula(x):
+        return _formula('asin', asin, x)
     return _math.degrees(_math.asin(x))
 
 
@@ -83,6 +116,8 @@ def acos(x):
     """arccosine, returned in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('acos', x)
+    if _is_formula(x):
+        return _formula('acos', acos, x)
     return _math.degrees(_math.acos(x))
 
 
@@ -90,6 +125,8 @@ def atan(x):
     """arctangent, returned in DEGREES."""
     if _is_symbolic(x):
         return _symbolic_call('atan', x)
+    if _is_formula(x):
+        return _formula('atan', atan, x)
     return _math.degrees(_math.atan(x))
 
 
@@ -97,6 +134,8 @@ def atan2(y, x):
     """Two-argument arctangent, returned in DEGREES."""
     if _is_symbolic(y) or _is_symbolic(x):
         return _symbolic_call('atan2', y, x)
+    if _is_formula(y) or _is_formula(x):
+        return _formula('atan2', atan2, y, x)
     return _math.degrees(_math.atan2(y, x))
 
 
@@ -104,6 +143,8 @@ def sqrt(x):
     """Square root (no degree semantics to speak of)."""
     if _is_symbolic(x):
         return _symbolic_call('sqrt', x)
+    if _is_formula(x):
+        return _formula('sqrt', sqrt, x)
     return _math.sqrt(x)
 
 

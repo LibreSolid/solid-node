@@ -20,7 +20,7 @@ from solid2 import cube
 
 from solid_node.node import (AssemblyNode, RotationalPort, SignalPort,
                              Solid2Node, TranslationalPort)
-from solid_node.node.ports import Port, declared_ports
+from solid_node.node.ports import BoundPort, Port, declared_ports
 from solid_node.simulation import Driver
 
 from .base import BaseNodeTest
@@ -184,3 +184,52 @@ class PortConnectionTest(BaseNodeTest):
         gantry.connect(motor.shaft, gantry.enable)
 
         self.assertEqual(gantry.enable.value, 3)
+
+
+class AssignedAxis(AssemblyNode):
+    """The same seam as Axis, bound by assignment: the sink's scale
+    applies exactly as it does through connect()."""
+
+    usteps = Driver(default=0, unit='ustep')
+
+    def __init__(self):
+        self.motor = Motor()
+        self.carriage = Carriage()
+        super().__init__()
+
+    def render(self):
+        self.motor.shaft = self.usteps
+        self.carriage.position = self.motor.shaft.value
+        self.carriage.translate([self.carriage.position.value, 0, 0])
+        return [self.motor, self.carriage]
+
+
+class PortAssignmentTest(BaseNodeTest):
+
+    def test_assignment_binds_with_scale(self):
+        carriage = Carriage()
+
+        carriage.position = 4000
+
+        self.assertIsInstance(carriage.position, BoundPort)
+        self.assertEqual(carriage.position.value, 10.0)
+
+    def test_assignment_never_shadows_the_declaration(self):
+        motor = Motor()
+
+        motor.shaft = 90
+
+        self.assertNotIn('shaft', vars(motor))
+        self.assertIsInstance(motor.shaft, BoundPort)
+        self.assertEqual(motor.shaft.value, 90)
+        self.assertIsInstance(Motor.shaft, Port)
+
+    def test_assignment_in_a_render_rebinds_absolutely(self):
+        axis = AssignedAxis()
+
+        axis.set_state(usteps=4000)
+        axis.set_state(usteps=1000)
+
+        self.assertEqual(axis.carriage.position.value, 2.5)
+        self.assertEqual(translations(axis.carriage),
+                         [['t', ['2.5', '0', '0']]])

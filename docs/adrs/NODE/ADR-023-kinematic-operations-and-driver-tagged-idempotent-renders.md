@@ -9,6 +9,7 @@
 
 **Extended by:**
 - [ADR-028: Cached Base Meshes and Single-Matrix World Composition for `.mesh`](./ADR-028-cached-base-meshes-and-single-matrix-world-composition.md) — adds `.matrix()` as a fourth operation consumer surface
+- [ADR-066: render() Builds the Machine at Rest, simulate() Moves It](./ADR-066-render-at-rest-simulate-per-instant.md) — the sweep now applies to `simulate()` operations, inserted innermost; a `render()` that read nothing runs once and its operations persist untagged
 
 **Related to:**
 - [ADR-009: Trimesh-Based Mesh Assertions for CAD Testing](../TEST-FRAMEWORK/ADR-009-trimesh-based-mesh-assertions-for-cad-testing.md)

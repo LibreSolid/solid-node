@@ -16,6 +16,10 @@ from solid2 import scad_render, import_stl, color
 from solid_node import currency
 from solid_node.openscad import require_openscad
 from .sources import source_closure
+from . import phase as _phase
+from .declarative import (ChildDeclaration, NodeMeta, StructureError,
+                          identity_values, in_class_body, is_declarative,
+                          realize_children, resolve_parameters)
 
 
 logger = logging.getLogger('node.base')
@@ -230,36 +234,55 @@ def _compose_solid_matrix(node):
     return _compose_matrix(node, lambda current: current is solid)
 
 
-# While an AssemblyNode render() runs it sits on this stack; every
-# operation applied through rotate()/translate() in that window is
-# kinematic, and gets tagged with the assembly animating it (operation
-# ._animator) plus registered on that assembly's persistent
-# _animated_nodes set. Before its next render, the assembly sweeps each
-# animated node's operations, dropping only the ones IT tagged, so
-# re-renders (one per test instant, assemble, the viewer) express
-# absolute kinematics instead of accumulating -- even when a SECOND,
-# independent assembly also animates the same node instance (e.g. a
-# wheel spun by its axle and steered by the steering assembly): each
-# animator only ever touches its own tagged operations, never the
-# other's.
+# While an AssemblyNode lifecycle method runs, the phase stack
+# (solid_node.node.phase) says which one. An operation applied through
+# rotate()/translate() during simulate() is MOTION: it goes at the head
+# of the node's operations, before every rest placement, so the part
+# moves in its own frame and is then carried by its placement; it is
+# tagged with the assembly simulating it (operation._animator) and that
+# assembly is registered on the node in its persistent _animated_nodes
+# set, so before its next simulate() the assembly sweeps each animated
+# node's operations, dropping only the ones IT tagged. Poses are
+# absolute per instant instead of accumulating -- even when a SECOND,
+# independent assembly also simulates the same node instance (a wheel
+# spun by its axle and steered by the steering assembly): each animator
+# only ever touches its own tagged operations, never the other's.
+#
+# An operation applied during render() is appended and tagged too, and
+# the lifecycle wrapper decides what it was once the render returns: a
+# render that read no driver is rest placement, run once, and its
+# operations are untagged so they persist; a render that read one is a
+# legacy render, re-run and swept per binding as it always was. An
+# operation applied outside any phase (placement in __init__, a test
+# perturbation poked into node.operations) is untagged and never swept.
 #
 # The tag is named for ANIMATION, not for driving: ADR-056 reserves
 # "driver" for a simulation input bound through set_state, and one word
 # cannot mean both without misleading every later reader.
-_render_stack = []
+_render_stack = _phase._stack
 
 
-def _tag_animator(node, operation):
-    if not _render_stack:
-        # Not applied during a render (static placement in __init__,
-        # a test perturbation poked directly into node.operations):
-        # leave it untagged, so it is never swept.
+def _place_operation(node, operation):
+    phase = _phase.current()
+    if phase is None:
+        node.operations.append(operation)
         return
-    assembly = _render_stack[-1]
+    if phase.kind == _phase.SIMULATE:
+        operation._motion = True
+        index = 0
+        for existing in node.operations:
+            if not getattr(existing, '_motion', False):
+                break
+            index += 1
+        node.operations.insert(index, operation)
+    else:
+        node.operations.append(operation)
+    assembly = phase.assembly
     operation._animator = assembly
     if not hasattr(assembly, '_animated_nodes'):
         assembly._animated_nodes = set()
     assembly._animated_nodes.add(node)
+    phase.applied.append(operation)
 
 
 # Filesystem-safe charset for the readable prefix: anything outside this
@@ -351,7 +374,7 @@ def binding_hash(values):
     return hashlib.sha256(canonical.encode()).hexdigest()[:_HASH_LEN]
 
 
-class AbstractBaseNode:
+class AbstractBaseNode(metaclass=NodeMeta):
     """A mechanical project in solid-node is represented by a
     tree, and this is the abstract base class for all nodes.
     Above this class, there are two other base classes:
@@ -385,6 +408,22 @@ class AbstractBaseNode:
     # Only works in openscad viewer
     optimize = True
 
+    # Whether the render in progress left this node out of the machine.
+    # Set by omit(), cleared by the parent's render before it runs.
+    _omitted = False
+
+    def __new__(cls, *args, **kwargs):
+        # A call in a node class body is a declaration, never an
+        # instance: a class attribute is one object shared by every
+        # parent instance, so building the node here would give eight
+        # cylinder units one piston. Returning something that is not an
+        # instance of `cls` also makes Python skip __init__, which is
+        # exactly right -- the declaration is realized, per parent, when
+        # the parent is constructed (see declarative.realize_children).
+        if in_class_body():
+            return ChildDeclaration(cls, args, kwargs)
+        return super().__new__(cls)
+
     def __init__(self, *args, name=None, **kwargs):
         # self.uniq_id is the artifact key: always derived from this
         # instance's CLASS plus its constructor parameters via
@@ -404,7 +443,31 @@ class AbstractBaseNode:
         # wins.
         self._explicit_name = name is not None
         self.name = name or self.__class__.__name__
-        self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
+        declarative = is_declarative(type(self))
+        if declarative:
+            # Declaration order is a reading order, not a call order.
+            if args:
+                raise TypeError(
+                    f'{type(self).__name__} takes no positional arguments: '
+                    f'its parameters are declared, pass them by name')
+            # Every declared parameter resolved -- coerced, checked,
+            # derived -- before anything else reads one. The private key
+            # keeps _attr_name_for's scan of __dict__ seeing what it saw.
+            self.__dict__['_parameters'] = resolve_parameters(
+                type(self), kwargs)
+            # The author's guards over several parameters at once, now
+            # that each reads as a plain value and before anything is
+            # built or realized on their strength.
+            self.check()
+            # Identity is the class plus the resolved declared values:
+            # the same function and the same serialization the
+            # constructor form hashes, fed the COMPLETE map rather than
+            # whatever an author remembered to forward.
+            self.uniq_id = _build_uniq_id(
+                self.__class__, (),
+                identity_values(type(self), self.__dict__['_parameters']))
+        else:
+            self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after
@@ -478,6 +541,45 @@ class AbstractBaseNode:
         self._assembled = False
 
         self._make_build_dirs()
+
+        # Last, so a child is constructed by a parent that already knows
+        # its own name, source and artifact paths -- the reverse of the
+        # constructor form, where children are built before super().
+        if declarative:
+            realize_children(self)
+
+    def check(self):
+        """Refuse this instance by raising.
+
+        Called by the framework on a declarative node once its
+        parameters are resolved and before any child is realized, so a
+        guard over several parameters at once -- `stop` must exceed
+        `stem` -- has one place to live and a refused root builds no
+        subtree. The base does nothing, so `super().check()` chains.
+        A class that declares nothing is not called: its attributes do
+        not exist yet when this constructor runs.
+        """
+
+    def omit(self):
+        """Leave this node out of the machine.
+
+        Called from the parent's render() on a declared child: the part
+        is not linked, built, exported, fused or serialized -- a
+        different mass, a different BOM, absent from a fused solid.
+        Structure is decided at rest: a once-only render() decides it
+        for the instance, a legacy render clears the mark before it
+        runs and records what was omitted, and simulate() -- which only
+        moves -- may not call this at all. Structure may vary with
+        parameters, never with time.
+        """
+        phase = _phase.current()
+        if phase is not None and phase.kind == _phase.SIMULATE:
+            owner = phase.assembly
+            raise StructureError(
+                f"{type(owner).__name__} '{owner.name}' called omit() on "
+                f"'{self.name}' in simulate(): structure is decided at "
+                f"rest, in render(); simulate() only moves.")
+        self._omitted = True
 
     def get_source_file(self):
         """Finds the source file of this node"""
@@ -797,15 +899,20 @@ class AbstractBaseNode:
         definition order. A plain attribute is always preferred over a
         list/tuple membership, even if the list hit comes first in
         definition order (two passes, not one). Private attributes
-        (leading underscore) are skipped. Returns None if `child`
-        isn't referenced by any (non-private) attribute at all."""
+        (leading underscore) are skipped, and so is `children`, the
+        framework's own linked list (InternalNode.as_scad): an
+        assembly's rest render is kept and returned again, so the
+        same instances are in that list on every later link and would
+        otherwise be renamed `children-<index>`. Returns None if
+        `child` isn't referenced by any (non-private) attribute at
+        all."""
         for attr, value in self.__dict__.items():
-            if attr.startswith('_'):
+            if attr.startswith('_') or attr == 'children':
                 continue
             if value is child:
                 return attr
         for attr, value in self.__dict__.items():
-            if attr.startswith('_'):
+            if attr.startswith('_') or attr == 'children':
                 continue
             if isinstance(value, (list, tuple)):
                 for index, item in enumerate(value):
@@ -822,16 +929,12 @@ class AbstractBaseNode:
         # scope, so importing it from here at module scope would import the
         # mesh library through the back door and undo the deferral above.
         from .operations import Rotation
-        operation = Rotation(angle, axis, self)
-        self.operations.append(operation)
-        _tag_animator(self, operation)
+        _place_operation(self, Rotation(angle, axis, self))
         return self
 
     def translate(self, translation):
         from .operations import Translation
-        operation = Translation(translation, self)
-        self.operations.append(operation)
-        _tag_animator(self, operation)
+        _place_operation(self, Translation(translation, self))
         return self
 
     def base_mesh(self):

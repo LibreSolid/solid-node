@@ -30,8 +30,9 @@ solid develop
 
 ::
 
-    solid develop [reference] [--web] [--web-dev] [--no-web] [--openscad]
-                         [--debug-builder] [--debug-web] [--callback URL]
+    solid develop [reference] [--set NAME=VALUE ...] [--web] [--web-dev]
+                         [--no-web] [--openscad] [--debug-builder]
+                         [--debug-web] [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
 rebuilds the parts that changed, and serves a viewer that reloads
@@ -71,12 +72,26 @@ automatically.
     logged and never stop development. It cannot be combined with
     ``--openscad`` or ``--web-dev``.
 
+``--set NAME=VALUE``
+    Set a declared parameter of the root node (:doc:`Declaring a machine
+    <declaring>`); repeat the flag for several. The value is parsed by the
+    parameter's kind — a float for ``Length``, ``Angle``, ``Ratio`` and
+    ``Scalar``, an integer for ``Count``, ``true`` or ``false`` for
+    ``Flag``, the kinds declared from ``solid_node.parameters`` — and
+    checked by its declared constraints. An unknown name
+    fails listing the settable parameters; a derived parameter cannot be
+    set; a root that declares nothing refuses the flag. A parameter
+    declared without a default must be set this way when its node is
+    loaded directly. Every rebuild of the watch loop applies the same
+    overrides. The flag is shared by every command that loads a node:
+    ``build``, ``test``, ``snapshot`` and ``export`` take it too.
+
 solid build
 ===========
 
 ::
 
-    solid build [reference]
+    solid build [reference] [--set NAME=VALUE ...]
 
 Builds the node once using the same ordinary pipeline as ``solid develop``,
 publishes the complete current model in the normal build directory, and exits.
@@ -92,7 +107,7 @@ solid test
 
 ::
 
-    solid test [reference] [--failfast]
+    solid test [reference] [--set NAME=VALUE ...] [--failfast]
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion

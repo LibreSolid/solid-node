@@ -25,7 +25,7 @@ place it. From that single tree, the framework derives everything else:
                            │  load_node()                (BUILD)
                            ▼
                       node tree                          (NODE)
-              render() → validate() → as_scad()
+         render() → simulate() → validate() → as_scad()
                            │
            ┌───────────────┼──────────────────┐
            ▼               ▼                  ▼
@@ -86,6 +86,66 @@ assembly. Users implement `render()`; the framework owns the
 non-overridable `assemble()` pipeline — render → validate → `as_scad`
 → SCAD generation → optimized STL import → apply operations — memoized
 per instance (ADR-002).
+
+A node is authored in one of two forms, freely mixed in one tree. The
+**constructor form** builds children in `__init__` and forwards
+parameters to `super().__init__()`. The **declarative form** states
+them in the class body: typed parameters (`Length`, `Angle`, `Count`,
+`Ratio`, `Flag`, `Scalar`), derived parameters as bare formulas over
+them, and children as calls — because every node class carries
+`NodeMeta`, a call inside a node class body yields a `ChildDeclaration`
+rather than an instance, recognized by the body's marked namespace on
+the stack (ADR-061). Each parent instance realizes its own children
+last in `__init__`, in declaration order, into its instance dict under
+the declaring attribute, so naming, qualification and the serialized
+document see the tree they always saw; a literal list declares
+enumerated children and `repeat(count)` count-many identical ones,
+named `<attr>-<index>` without renumbering. Tokens, a `Flag` among them, pass to children by
+reference and resolve top-down from the root's values, so
+`Engine(bore=32.0)` moves the whole machine and `--set bore=32.0` on any
+node-loading command does the same from the shell. A parameter is a
+data descriptor: the token on the class, a plain `float`, `int` or
+`bool` on the instance, assignment refused, base attributes protected
+from shadowing; a declaration without a default fails at
+instantiation, never at class definition, when neither the parent nor
+the caller supplies it. A guard over several parameters at once is the
+node's `check()`, called once its parameters are resolved and before any
+child is realized; an exception refuses the instance (ADR-065). A formula's dimension is a mapping from axis to
+exponent — products add, quotients subtract, sums require equality,
+`Angle` its own axis, `Count` and `Ratio` dimensionless — checked on
+`import`, with `solid_node.math`'s functions carrying their own rules
+and a project free to subclass `Quantity` with new exponents
+(ADR-062). By the time any `render()` runs every parameter is a plain
+value; backends, `uniq_id` and the serializer never see a token. Reading
+a parameter off a sibling declaration is refused: shared values are
+declared on the ancestor and passed down.
+
+The public surface is split by concern above the node package, so an
+import line says what each name is for: build parameters come from
+`solid_node/parameters.py`, node classes from `solid_node/node/`,
+runtime inputs from `solid_node/simulation/`, the test case from
+`solid_node/test.py` (ADR-062, amended). The parameter module holds the
+declaration descriptor every other declaration follows, the exponent
+algebra, the kinds and the parameter enumerator, and imports nothing at
+all — not the framework, not a third party — because it is on the
+import path of every node module in every project.
+`solid_node/node/declarative.py` keeps the structural half, the child
+declarations and `NodeMeta`, and imports the parameter module; the node
+package exports no parameter kind, and `solid_node/math.py` reaches the
+formula algebra sideways rather than down into the node package.
+
+On a declarative internal node `render()` places at rest and selects
+and may return nothing, in which case the framework's render wrapper —
+the same `__init_subclass__` hook that installs the lifecycle —
+substitutes the realized declared children in declaration order minus
+those `omit()` marked; a returned list keeps its contract untouched,
+and a class with nothing to position needs no `render()` at all
+(ADR-064). An omitted child is not linked, built, exported, fused or
+serialized. Structure varies with parameters, never with time: `omit()`
+raises in `simulate()`, and on the legacy path the wrapper records the
+omitted set of an instance's first render and raises on a later render
+whose set differs. The reference's rename of `render()` is dropped
+(ADR-066): *render* also means *to make*.
 
 Two concrete internal nodes encode the **rigid/non-rigid** axis
 (ADR-003): `FusionNode` (rigid union, no `time`) and `AssemblyNode`
@@ -208,7 +268,12 @@ Identity is split three ways. `uniq_id` (class qualname + canonicalized
 params, 12-hex sha256, readable prefix) keys build artifacts —
 parameters change, artifacts change; `name` (explicit or derived from
 the parent attribute holding the child) addresses the tree for tests
-and the viewer, and never touches geometry (ADR-026). A **piece** id
+and the viewer, and never touches geometry (ADR-026). On a declarative
+class the params are the resolved, coerced declared values sorted by
+name, computed by the framework through the same serialization, so a
+class that forwarded everything keeps its key and no keyword can be
+forgotten; repeated identical units share one key and one artifact
+(ADR-063). A **piece** id
 (12-hex sha256 of the built STL's bytes) identifies one thing to print,
 so solids factored into different classes but building identical geometry
 are one piece, while handed variants are two (ADR-043). Each answers a
@@ -270,12 +335,29 @@ declaration and the data descriptor that hands its bound value back
 the same shape `Port` already had. What a driver *means* stays in the
 simulation layer, which subclasses it.
 
-Assembly `render()`s are wrapped for **animator-tagged idempotency**
-(ADR-023; tag renamed from "driver" so that word can mean a simulation
-input): operations applied during a render are tagged with the
-animating assembly, and each re-render sweeps only its own tags before
-re-expressing pose absolutely. Static placements (untagged) survive;
-independent animators of one node don't disturb each other.
+An assembly's lifecycle is **`render()` at rest, `simulate()` per
+instant** (ADR-066). `render()` declares structure and places what does
+not move, reads no driver, time or port, and runs once per instance;
+`simulate()` — a no-op in the base — is run by the framework after it
+on every enumeration of the children, under the current binding, and
+is where drivers, `self.time` and ports are read. Both run inside the
+wrapper `__init_subclass__` installs (`_lifecycle_render`), so every
+walker still calls `render()` and gets a tree posed for the binding.
+Operations applied in `simulate()` are **motion**: inserted at the head
+of the node's single `operations` list, before every rest placement, so
+composition in list order puts motion inside placement; they are tagged
+with the simulating assembly (**animator-tagged idempotency**, ADR-023;
+tag renamed from "driver" so that word can mean a simulation input) and
+each run sweeps only its own tags before re-expressing pose absolutely.
+Rest placement (untagged) survives; independent animators of one node
+don't disturb each other. The phase stack lives in
+`solid_node/node/phase.py`; `DriverDeclaration.__get__`,
+`AssemblyNode.time` and `BoundPort.value` report a read to the innermost
+render phase, and a `render()` whose first run read one keeps the
+previous behaviour — re-run, tagged, swept — and warns once per class
+with a `FutureWarning`. `omit()` in `simulate()` raises. Leaves never
+simulate; a flexible leaf renders from its bound ports when the tree is
+walked.
 
 **Ports** (spec `ports`) are domain-typed connection points declared
 as class attributes (`RotationalPort`, `TranslationalPort`,
@@ -470,7 +552,12 @@ of any geometric test (ADR-039, amended 2026-08-10).
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
 duck-typed registry naming where each lives: `build`, `develop`, `test`,
-`snapshot`, `new` (offline scaffold), `export`, `viewer`. Only the invoked
+`snapshot`, `new` (offline scaffold), `export`, `viewer`. Every command
+that loads a node takes `--set name=value`, registered once beside the
+shared reference positional: the loader parses each value by the root's
+declared kind and constructs the root with the overrides, the develop
+loop carries them into every builder it starts, and an unknown or derived
+name fails listing what is settable (ADR-062). Only the invoked
 command's module is imported, and the node and simulation packages resolve
 their exports on first access, so a command pays for the backends it uses and
 not for the rest (ADR-059) — `solid viewer` answers from the installed bundle
@@ -827,7 +914,10 @@ The short list that changes must not silently break:
   names, so building a closure does not scale with what the interpreter has
   imported and cannot answer from a superseded module set (ADR-058).
 - `name=` never influences geometry or `uniq_id`; any parameter change
-  changes the artifact key (ADR-026). Piece identity is the converse: it
+  changes the artifact key (ADR-026), and on a declarative class the
+  framework computes the key from every declared value, so none can be
+  left out (ADR-063). A declaration is realized per parent instance;
+  a class body never holds a node instance (ADR-061). Piece identity is the converse: it
   derives from built content only, never from a class, its parameters, or
   its artifact path — an artifact that cannot be read gets no piece id
   rather than borrowing one (ADR-043).
@@ -851,7 +941,9 @@ The short list that changes must not silently break:
 - A `range` is presentation metadata. Nothing in the framework, the
   simulation, or the viewer clamps a driver to it (ADR-056).
 - Users never override `assemble()`; rigid geometry is time-invariant
-  (ADR-002/003). A part whose shape follows machine state is therefore
+  (ADR-002/003). Structure varies with parameters, never with time: a
+  render that omits a different set of declared children than the
+  instance's first render raises (ADR-064). A part whose shape follows machine state is therefore
   not rigid — the one non-rigid leaf kind — and it is fused by nothing,
   cached as nothing, and printed as nothing (ADR-057).
 - A topmost rigid node is the boundary of one printed solid, not a guarantee
@@ -877,6 +969,7 @@ The short list that changes must not silently break:
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057 |
+| Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
