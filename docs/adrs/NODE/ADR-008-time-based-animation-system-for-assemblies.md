@@ -4,7 +4,9 @@
 **Date:** 2023-07-09
 **Depends on:** [ADR-003: Rigid vs Non-Rigid Node Distinction](./ADR-003-rigid-vs-non-rigid-node-distinction.md)
 **Used by:** [ADR-011: Animation Testing Decorators for Time-Based Validation](../TEST-FRAMEWORK/ADR-011-animation-testing-decorators.md)
-**Extended by:** [ADR-023: Kinematic Operations Model and Driver-Tagged Idempotent Renders](./ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md)
+**Extended by:**
+- [ADR-023: Kinematic Operations Model and Driver-Tagged Idempotent Renders](./ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md)
+- [ADR-072: A Declared Time Base](./ADR-072-a-declared-time-base.md)
 
 ## Context and Problem Statement
 

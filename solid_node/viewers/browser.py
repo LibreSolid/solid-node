@@ -22,7 +22,7 @@ from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
 from solid_node.core.pieces import PieceInventory
 from solid_node.core.serializer import (
-    DOCUMENT_FORMAT, document_version, serialize_node,
+    DOCUMENT_FORMAT, animation_block, document_version, serialize_node,
 )
 from solid_node.viewers import bundle as viewer_bundle
 
@@ -89,7 +89,7 @@ class BrowserRenderer:
             # Empty for the same reason, and necessarily: an instruction
             # moves a driver, and this document names none.
             "instructions": {},
-            "animation": {"fps": 30, "frames": 360},
+            "animation": animation_block(node),
             "root": root,
             "pieces": inventory.pieces(),
         }

@@ -42,6 +42,7 @@ EXPECTED_EXPORTS = {
     'TranslationalPort': 'solid_node.node.ports',
     'SignalPort': 'solid_node.node.ports',
     'declared_ports': 'solid_node.node.ports',
+    'Time': 'solid_node.node.timebase',
     'FusionNode': 'solid_node.node.fusion',
     'CadQueryNode': 'solid_node.node.adapters.cadquery',
     'Build123dNode': 'solid_node.node.adapters.build123d',

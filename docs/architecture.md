@@ -306,7 +306,24 @@ carries fails at class-definition time. Every bound name must name a
 declared driver, bare or qualified, because nothing could read an
 entry with no declaration behind it; `time` is the exception, one
 snapshot entry with the ADR-008 fallback to symbolic OpenSCAD `$t`
-(0..1) when unbound, read through the `time` property. `set_keyframe(t)`/`clear_keyframe()` are the preserved
+(0..1) when unbound, read through the `time` property. **What that
+entry means is the root's to declare** (ADR-072): a root class may
+carry `time = Time(loop=<seconds>)` — a frozen data descriptor bound to
+the name `time`, refused under any other name or on a non-assembly,
+readable off the class as `Root.time.loop` — and then `self.time` reads
+seconds on every path: unbound, the symbolic product `$t * loop`, so
+`$t` stays the 0..1 slider and published expressions carry the
+multiplication; bound, whatever the binder stated in seconds
+(`set_keyframe`, the testing decorators, `Sim`'s `k*dt`). One reader in
+`solid_node/node/assembly.py` (`read_time`) serves the base property and
+the descriptor: bound entry first, else walk `_parent` to the root of the
+linked tree and scale by its declaration — a descendant reads what its
+root reads with no state propagated, and a declaration on a node strictly
+below the root is refused at the read naming both nodes. The walk relies
+on the link every walker makes before recursing; a bare `render()` links
+nothing, by contract, so a child rendered by hand before any walker
+reached it is its own root for that read. An undeclared root is
+unchanged. `set_keyframe(t)`/`clear_keyframe()` are the preserved
 time-only surface — exactly `set_state(time=t)`/`clear_state('time')`.
 Clearing is reversible by re-render: an operation records whatever
 value `render()` computed, so a bound tree has no symbolic form left
@@ -866,6 +883,18 @@ already refuses loudly — no consumer can misread it. Targets stay in
 design units: the conversion to native state belongs to the driver
 declaration, and the client performs it exactly once, exactly as
 `Driver.native` does.
+
+**`animation.loop` is the third additive key** (ADR-072). Every producer
+builds its `animation` object through one helper (`animation_block`) that
+reads `declared_time(type(root))` and adds `loop` — the declared seconds
+one turn of `$t` covers — beside `fps` and `frames` when the root declares
+a time base, and omits it otherwise, so an undeclared root's document is
+byte-identical to before. The key needs no version: the tree shape and the
+operation serialization do not change, the expressions already carry
+`$t * loop`, and a consumer ignoring it plays `frames / fps` as it always
+did. `solid snapshot --time` keeps its 0..1 meaning and keyframes
+`fraction * loop` in Python when a base is declared; the renderers' `$t`
+is untouched.
 
 **Schema version 3 adds a third node shape** (ADR-057). Beside a `model`
 reference and a list of `children`, a node may carry `flexible`: the

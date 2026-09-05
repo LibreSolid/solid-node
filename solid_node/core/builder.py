@@ -19,6 +19,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root
 from .serializer import (
+    animation_block,
     DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
     serialize_node, symbolic_document,
 )
@@ -387,7 +388,7 @@ class Builder(FileSystemEventHandler):
                         # a project with no flexible part publishes the
                         # document it always did.
                         'version': document_version(root),
-                        'animation': {'fps': 30, 'frames': 360},
+                        'animation': animation_block(self.node),
                         'drivers': drivers_table(declarations),
                         'instructions': instructions_table(instructions),
                         'root': root}

@@ -96,8 +96,11 @@ untouched (an expression is never bound).
 *Why resolve off the root rather than propagate at link time?* Children are
 linked before they render (the scad, serializer and state walks all link
 first), and `simulate()` — the one place time is read — runs during those
-walks. The walk up is a few pointer hops per unbound read; unbound reads
-happen once per render, not per frame.
+walks. A bare `render()` links nothing, by the declarative-nodes contract,
+so a child rendered by hand before any walker reached it is its own root
+for that read, as a component loaded alone is. The walk up is a few
+pointer hops per unbound read; unbound reads happen once per render, not
+per frame.
 
 ### D3. A declaration below the root is refused at the read
 

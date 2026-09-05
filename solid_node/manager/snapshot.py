@@ -6,6 +6,7 @@ import sys
 import logging
 from subprocess import run, CalledProcessError
 from solid_node.core.loader import load_node
+from solid_node.node.timebase import declared_time
 from solid_node.core.builder import project_build_lock
 from solid_node.viewers.openscad import OpenScadRenderer
 from solid_node.openscad import OpenScadUnavailable
@@ -213,8 +214,12 @@ class Snapshot:
         with project_build_lock():
             node = load_node(self.path,
                              overrides=getattr(self, 'overrides', None))
-            # set_keyframe is a no-op for non-animated nodes
-            node.set_keyframe(self.time)
+            # set_keyframe is a no-op for non-animated nodes. --time is a
+            # position on the 0..1 timeline under either renderer; a root
+            # declaring a time base is keyframed at the seconds that
+            # position means, so the image shows what the slider shows.
+            base = declared_time(type(node))
+            node.set_keyframe(self.time * base.loop if base else self.time)
             node.assemble()
 
         return node

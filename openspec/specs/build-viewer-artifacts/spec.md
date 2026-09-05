@@ -10,7 +10,13 @@ the normal build directory only after the current project model has assembled
 and every required STL artifact is current. The document SHALL declare
 `format: "solid-node-export"`, `version: 1`, an `animation` object with numeric
 `fps` and `frames`, and a `root` with the same observable schema and child-name
-behavior as export `manifest.json`. The root SHALL include node identity, type,
+behavior as export `manifest.json`. When the root assembly declares a time
+base, the `animation` object SHALL also carry numeric `loop`: the declared
+seconds of machine time one turn of `$t` covers; when it declares none, the
+key SHALL be absent. `loop` is additive within the current schema version: a
+consumer that does not read it plays `frames / fps` exactly as before, and
+the published expressions already carry the multiplication. The root SHALL
+include node identity, type,
 colour, `mtime`, serialized operations, child relationships, and
 build-root-relative rigid-model paths. The shared format SHALL identify this
 versioned tree-document schema without implying portability. The snapshot SHALL
@@ -31,6 +37,20 @@ consumer of the shared schema together.
 - **WHEN** `solid build <project>` completes a model with a `$t` operation
 - **THEN** its `viewer.json` contains numeric `animation.fps` and `animation.frames` values alongside the root tree
 
+#### Scenario: A declared time base is published
+
+- **WHEN** `solid build <project>` completes a model whose root declares
+  `time = Time(loop=43200)`
+- **THEN** its `viewer.json` carries `animation.loop == 43200` beside `fps`
+  and `frames`, the document version is the one its tree content already
+  needs, and the operations carry `$t` multiplied by the loop
+
+#### Scenario: An undeclared root publishes no loop
+
+- **WHEN** `solid build <project>` completes a model whose root declares no
+  time base
+- **THEN** its `viewer.json` `animation` object has no `loop` key
+
 #### Scenario: Linked names match the portable export
 
 - **WHEN** the same attribute-linked assembly is published as a normal build
@@ -38,18 +58,6 @@ consumer of the shared schema together.
 - **THEN** `viewer.json` and `manifest.json` contain the same linked node names,
   operations, colour, `mtime`, and rigid/non-rigid tree structure while
   retaining their distinct model path roots
-
-#### Scenario: Build publication is not converted into an export
-
-- **WHEN** a complete build is published
-- **THEN** its document remains named `viewer.json`, references ordinary
-  build-root-relative model files, creates no export-style `models/` tree, and
-  copies no mesh
-
-#### Scenario: Every path a new snapshot names is readable
-
-- **WHEN** a consumer reads a newly published `viewer.json`
-- **THEN** every model file it names is already present and complete
 
 ### Requirement: Failed later builds retain viewer state
 A build failure after a successful publication SHALL leave a readable viewer

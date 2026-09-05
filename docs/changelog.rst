@@ -8,6 +8,26 @@ Changelog
 Unreleased
 ----------
 
+**A declared time base.** A root assembly can declare what one turn of
+the animation timeline *is*: ``time = Time(loop=12 * 3600)`` says a turn
+is twelve hours, and from then on ``self.time`` reads seconds everywhere
+— ``$t * loop`` on the symbolic build path, so ``$t`` stays the 0..1
+slider and the multiplication travels inside the published expressions;
+the bound number under ``set_keyframe``, the testing decorators and a
+stepped simulation, all of which state seconds. Every assembly below the
+root reads the root's time base, and a declaration on a linked descendant
+is refused when read. The documents ``solid build``, ``solid export`` and
+the web snapshot publish carry ``animation.loop`` beside ``fps`` and
+``frames`` (additive; an older viewer keeps playing ``frames / fps``),
+and ``solid snapshot --time`` keeps its 0..1 meaning, landing on the
+seconds that slider position means. A root that declares nothing is
+unchanged. See :ref:`Declaring the time base <time-base>`. (OpenSpec
+change ``declared-time-base``; ADR-072.)
+
+Migrating a model to ``Time`` changes the meaning of every instant it
+states: ``simulate()`` stops multiplying the fraction by a project
+constant, tests stop dividing by it, and ``set_keyframe`` callers state
+seconds.
 **Several node classes in one file rebuild independently.** The
 content-verified currency check beneath the mtime rule is now scoped to
 the node: a source file that defines more than one node class contributes

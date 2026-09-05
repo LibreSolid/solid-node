@@ -165,6 +165,8 @@ Internal nodes
 .. autoclass:: solid_node.node.AssemblyNode
    :members: simulate, set_state, set_keyframe, clear_keyframe, time
 
+.. autoclass:: solid_node.node.Time
+
 .. autoclass:: solid_node.node.FusionNode
    :members: time
 

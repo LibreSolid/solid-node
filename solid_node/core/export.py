@@ -23,8 +23,8 @@ import os
 import shutil
 
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, document_version, drivers_table,
-    instructions_table, serialize_node, symbolic_document,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, animation_block, document_version,
+    drivers_table, instructions_table, serialize_node, symbolic_document,
 )
 from .builder import project_build_lock
 from .pieces import PieceInventory
@@ -103,7 +103,7 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     manifest = {
         'format': MANIFEST_FORMAT,
         'version': document_version(root),
-        'animation': {'fps': fps, 'frames': frames},
+        'animation': animation_block(node, fps, frames),
         'drivers': drivers,
         'instructions': events,
         'root': root,

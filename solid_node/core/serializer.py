@@ -54,6 +54,7 @@ from contextlib import contextmanager
 from solid_node.node.qualified import (
     DriverToken, declared_drivers_of, driver_id, drive_tree,
 )
+from solid_node.node.timebase import declared_time
 from solid_node.simulation.enumeration import tree_declares_drivers
 
 
@@ -192,6 +193,27 @@ def instructions_table(instructions):
         }
         for name, (path, instruction) in sorted(instructions.items())
     }
+
+
+def animation_block(root, fps=30, frames=360):
+    """The document's ``animation`` object: ``fps`` and ``frames`` as the
+    producer chose them, plus ``loop`` when the root declares a time
+    base.
+
+    ``loop`` is the seconds of machine time one turn of ``$t`` covers,
+    read off the root's class exactly as the driver table is read off
+    declarations.  It is additive within the current schema version: the
+    tree shape and the operation serialization -- the two things the
+    version guards -- do not change, the published expressions already
+    carry ``$t * loop``, and a consumer that does not read the key plays
+    ``frames / fps`` exactly as before.  An undeclared root publishes the
+    object it always did, byte for byte.
+    """
+    block = {'fps': fps, 'frames': frames}
+    base = declared_time(type(root))
+    if base is not None:
+        block['loop'] = base.loop
+    return block
 
 
 def document_version(root):

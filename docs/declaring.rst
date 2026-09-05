@@ -81,6 +81,11 @@ Ports are the third layer and are unchanged from :doc:`Driving a machine
 ``unit.crank = angle + phase`` binds exactly as ``self.connect(angle +
 phase, unit.crank)`` does, scale applied.
 
+One more declaration belongs to the root alone: its time base,
+``time = Time(loop=<seconds>)``, which says what one turn of the animation
+timeline is and makes ``self.time`` read seconds everywhere below it. See
+:ref:`Declaring the time base <time-base>`.
+
 Kinds
 =====
 

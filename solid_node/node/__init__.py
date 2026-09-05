@@ -51,6 +51,7 @@ _EXPORTS = {
     'TranslationalPort': 'ports',
     'SignalPort': 'ports',
     'declared_ports': 'ports',
+    'Time': 'timebase',
     'declared_children': 'declarative',
     'FusionNode': 'fusion',
     'CadQueryNode': 'adapters.cadquery',

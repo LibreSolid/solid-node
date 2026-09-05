@@ -1743,7 +1743,12 @@ class TestCaseMixin(TestCase):
 
 def testing_instant(instant):
     """Use this decorator on a test to define a specific instant
-    of the animation that should be used to run the test
+    of the animation that should be used to run the test.
+
+    The instant is handed to `set_keyframe` unchanged, so it means what
+    the tested root's time base says: a fraction of the 0..1 timeline
+    for a root declaring none, seconds for a root declaring
+    `time = Time(loop=...)`.
     """
     def decorator(method):
         method.testing_instants = [instant]
@@ -1756,6 +1761,12 @@ def testing_steps(steps, start=0, end=1):
     """Use this decorator to run the test in several steps
     of the animation. Use start and end to define the range
     in that will be divided in those steps.
+
+    Instants are handed to `set_keyframe` unchanged: fractions of the
+    0..1 timeline for a root declaring no time base, seconds for a root
+    declaring `time = Time(loop=...)` -- so a sweep over such a root
+    states the span it covers in seconds (`end=1.5` for one beat of a
+    1.5 s pendulum); the defaults do not follow the declaration.
     """
     if steps < 2:
         raise AssertionError("Expected at least 2 steps, "

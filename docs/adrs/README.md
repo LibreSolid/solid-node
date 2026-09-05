@@ -35,7 +35,7 @@ that way.
 - [ADR-003](NODE/ADR-003-rigid-vs-non-rigid-node-distinction.md) — Rigid vs non-rigid distinction — **Accepted**, amended by 039, third case added by 057
 - [ADR-004](NODE/ADR-004-multi-cad-backend-adapter-pattern.md) — Multi-CAD backend adapters — **Accepted**, universal target superseded by 046
 - [ADR-006](NODE/ADR-006-mtime-based-stl-caching-strategy.md) — Mtime-based STL caching — **Accepted**, extended by 026/028/033, amended by 050/060
-- [ADR-008](NODE/ADR-008-time-based-animation-system-for-assemblies.md) — Time-based animation — **Accepted**, extended by 023, deferred leaf geometry resolved by 057
+- [ADR-008](NODE/ADR-008-time-based-animation-system-for-assemblies.md) — Time-based animation — **Accepted**, extended by 023/072, deferred leaf geometry resolved by 057
 - [ADR-023](NODE/ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md) — Kinematic operations, driver-tagged idempotent renders — **Accepted**, extended by 027/028
 - [ADR-026](NODE/ADR-026-node-identity-parameter-hashed-artifact-keys-vs-tree-names.md) — Parameter-hashed artifact keys vs tree names — **Accepted**, extended by 043/063
 - [ADR-028](NODE/ADR-028-cached-base-meshes-and-single-matrix-world-composition.md) — Cached base meshes, single-matrix world composition — **Accepted** (characterization)
@@ -60,6 +60,7 @@ that way.
 - [ADR-065](NODE/ADR-065-instance-checks-after-resolution.md) — Instance checks after resolution: `check()` on a declarative node — **Accepted**, extends 062
 - [ADR-066](NODE/ADR-066-render-at-rest-simulate-per-instant.md) — render() builds the machine at rest, simulate() moves it — **Accepted**, extends 002, 023
 - [ADR-071](NODE/ADR-071-node-scoped-content-currency.md) — Node-scoped content currency — **Accepted**, amends 060, 033
+- [ADR-072](NODE/ADR-072-a-declared-time-base.md) — A declared time base: `time = Time(loop=…)`, seconds on every path — **Accepted**, extends 008
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**

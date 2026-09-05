@@ -105,6 +105,50 @@ plain number (see :ref:`testing_steps <testing-steps>`). Python's
 `math.sin` would crash on symbolic time — and it works in radians,
 while all angles in Solid Node are degrees.
 
+.. _time-base:
+
+Declaring the time base
+=======================
+
+The timeline is a loop from 0 to 1, and nothing above says how long a
+turn of it *is*. A machine modelled in real time declares that on its
+root:
+
+.. code-block:: python
+
+    from solid_node.node import AssemblyNode, Time
+
+    class WallClock(AssemblyNode):
+
+        time = Time(loop=12 * 3600)   # one turn of the slider is twelve hours
+
+        def simulate(self):
+            self.movement.seconds = self.time
+
+`loop` is the span of machine time, in seconds, that one turn of the
+timeline covers. From then on `self.time` reads **seconds** everywhere:
+here in `simulate()`, in every assembly below the root, in tests, under a
+:doc:`stepped simulation <scenarios>`, and in `solid snapshot`. On the
+build and viewer path the value is the symbolic product ``$t * loop``, so
+the slider is still ``$t`` from 0 to 1 and the multiplication travels
+inside the published expressions; nothing about the viewer's evaluation
+changes. `set_keyframe(2700)` and ``@testing_steps(48, end=1.5)`` state
+seconds — the decorators' defaults do not follow the declaration, so a
+sweep over a declared root says the span it covers.
+
+The time base is the root's: every assembly below it reads the root's
+declaration, whether or not it declares one itself, and a declaration on
+a linked descendant is refused when read, naming both nodes. A
+sub-assembly loaded on its own, or under test, uses its own. A root that
+declares nothing keeps the 0..1 fraction it always had.
+
+The documents `solid build`, `solid export` and the web snapshot publish
+carry the loop as ``animation.loop`` beside ``fps`` and ``frames``. The
+viewer plays such a loop at real time by default and offers a speed
+control to watch it faster — a twelve-hour clock at ×720 turns its hour
+hand once a minute; an older viewer that does not read the key keeps
+playing ``frames / fps`` seconds a turn, at the right pose throughout.
+
 Beyond the timeline: drivers
 ============================
 

@@ -7,6 +7,7 @@ from solid2 import get_animation_time
 from . import phase as _phase
 from .internal import InternalNode
 from .qualified import declared_drivers_of, driver_id
+from .timebase import declared_time
 
 
 def _sweep(assembly):
@@ -399,8 +400,57 @@ class AssemblyNode(InternalNode):
         simulation binds the stepped clock in seconds -- and this
         property just reports whatever was bound.
         """
-        _phase.note_read('read time', 'time')
-        try:
-            return self._states['time']
-        except KeyError:
-            return get_animation_time()
+        return read_time(self)
+
+
+def read_time(node):
+    """What `node.time` reads: the one reader behind the base property
+    and a `Time` declaration's descriptor (OpenSpec `declared-time-base`).
+
+    Bound, the snapshot entry -- whatever the binder stated, which is
+    seconds under a declared time base and the 0..1 fraction otherwise.
+    Unbound, the symbolic timeline scaled by the ROOT's time base:
+    `$t * loop` when the root of the linked tree declares one, bare `$t`
+    when it does not, so a descendant reads exactly what its root reads
+    without any state being propagated to make it so.
+
+    The walk up is where a stray declaration is caught: a node strictly
+    below the root whose class declares a `Time` would scale its own
+    subtree differently, and the read refuses naming both nodes.  An
+    assembly that IS the root of the tree it is read in -- a component
+    under test, or loaded alone -- uses its own declaration.
+
+    The walk relies on the link every tree walker makes before it
+    recurses (`_link_child` from the scad, serializer and state passes);
+    a bare `render()` links nothing, by contract, so a child rendered by
+    hand before any walker reached it is its own root for that read.
+    """
+    _phase.note_read('read time', 'time')
+    try:
+        return node._states['time']
+    except KeyError:
+        pass
+    root = node
+    parent = getattr(root, '_parent', None)
+    while parent is not None:
+        if declared_time(type(root)) is not None:
+            raise TypeError(
+                f"'{root.name}' ({type(root).__name__}) declares a time "
+                f"base below the root '{top_of(root).name}' "
+                f"({type(top_of(root)).__name__}): the time base is the "
+                f"root's to declare, and every assembly below it reads "
+                f"the root's. Declare Time on the root, or drop it from "
+                f"the component.")
+        root = parent
+        parent = getattr(root, '_parent', None)
+    base = declared_time(type(root))
+    if base is None:
+        return get_animation_time()
+    return get_animation_time() * base.loop
+
+
+def top_of(node):
+    """The root of the linked tree `node` hangs in."""
+    while getattr(node, '_parent', None) is not None:
+        node = node._parent
+    return node
