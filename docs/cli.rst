@@ -9,9 +9,11 @@ The ``solid`` command follows the grammar::
 
     solid <command> [reference] [options]
 
-where ``reference`` is a qualifier (``package.module:Class``), a Python
-file path, or a file path plus class. When omitted, the project model in
-``[tool.solid-node]`` of the nearest ancestor ``pyproject.toml`` is used.
+where ``reference`` is a model name the project declares, a qualifier
+(``package.module:Class``), a Python file path, or a file path plus
+class. When omitted, the project's default model is used: the ``model``
+key of ``[tool.solid-node]`` in the nearest ancestor ``pyproject.toml``.
+See :ref:`several-models` for a project that declares more than one.
 
 Run ``solid <command> -h`` to see the options of each command.
 
@@ -98,9 +100,14 @@ solid build
 ::
 
     solid build [reference] [--set NAME=VALUE ...]
+    solid build --all
 
 Builds the node once using the same ordinary pipeline as ``solid develop``,
-publishes the complete current model in the normal build directory, and exits.
+publishes the complete current model in its build directory, and exits.
+``--all`` builds every model the project declares (see
+:ref:`several-models`), in declaration order, each into its own build
+directory; a model that fails does not stop the walk, each outcome is
+reported, and the exit status is nonzero when any model failed.
 It starts neither a viewer nor a filesystem watcher. A missing resolved model
 prints a diagnostic and exits with status 66 (``MODEL_NOT_FOUND``); other
 build errors use a generic non-zero status. Each artifact is published whole
@@ -115,6 +122,7 @@ solid test
 
     solid test [reference] [--set NAME=VALUE ...] [--failfast]
               [--exact | --faceted] [--volume-epsilon MM3]
+    solid test --all [--failfast]
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion
@@ -138,6 +146,11 @@ unmodified. See :doc:`Test-driven CAD <testing>` and
     Under ``--faceted``, report an intersection of at most this volume as
     empty for the whole run. Default ``SOLID_TEST_VOLUME_EPSILON``, else 0.
     Refused with the exact kernel, which has nothing to absorb.
+
+``--all``
+    Run the tests of every model the project declares as one run, each
+    model built in its own build directory. A model that fails to load
+    or build counts as one failure and the run goes on.
 
 solid snapshot
 ==============
@@ -250,12 +263,53 @@ and how to use it.
     the only way to export in an installation without ``solid-node-viewer``,
     since the widget files are copied from that package.
 
+solid models
+============
+
+::
+
+    solid models [--json]
+
+Lists the project's models: name, state, reference, and which is the
+default. The state is read from each model's build directory and nothing
+else — ``unbuilt``, ``published`` when it holds ``viewer.json``, ``failed``
+when it holds ``errors.json`` — so the command never imports project
+code and costs nothing to call. ``--json`` prints one object with the
+project root, the build root, the default's name and the models, each
+with its ``build_dir``; a project that declares a single ``model`` lists
+one entry whose name is null.
+
+.. _several-models:
+
+Several models in one project
+=============================
+
+A project that holds a family of machines — one repository, one shared
+library, one model per machine — declares them by name::
+
+    [tool.solid-node]
+    model = "wall_clock_01"
+
+    [tool.solid-node.models]
+    wall_clock_01 = "design.wall_clock_01.clock:WallClock01"
+    wall_clock_02 = "design.wall_clock_02.clock:WallClock02"
+
+Beside the table, ``model`` names the default by its key; leave it out and
+a command given no reference lists the names instead of guessing. A name
+is one word of letters, digits, underscores and hyphens, and may not be
+the name of a directory at the project root. Each declared model is a
+reference — ``solid build wall_clock_02``, ``solid develop wall_clock_01``
+— and owns its own build directory, ``_build/<name>/``, with its own
+``viewer.json``, ``errors.json`` and build lock, so building one never
+touches another. A reference that is not a declared name — a sub-assembly
+by qualifier or path — builds in ``_build/`` itself, as it always did.
+
 Environment variables
 =====================
 
 ``SOLID_BUILD_DIR``
-    Directory where generated build artifacts are placed, relative to
-    the project root. Default: ``_build``.
+    The build root, relative to the project root. Default: ``_build``. A
+    declared model builds in ``<build root>/<name>``.
 
 ``SOLID_NODE_PORT``
     Port of the ``solid develop`` browser viewer. Default: 8000. Read by

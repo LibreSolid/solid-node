@@ -6,6 +6,7 @@ import sys
 import logging
 from subprocess import Popen
 from solid_node.core.builder import Builder, BuildOutcome, get_build_dir
+from solid_node.core.loader import ProjectManifestError, select_model
 from solid_node.core.processes import Process
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.bundle import (
@@ -86,7 +87,16 @@ class Develop:
         return Popen(web_viewer_command(self.path, self.web_dev))
 
     def handle(self, args):
-        self.path = args.path
+        # A declared model name, or the default, selects what to load and
+        # the build directory to serve; the builders this loop starts and
+        # the viewer it serves inherit that selection.
+        try:
+            selection = select_model(args.path)
+        except ProjectManifestError as error:
+            sys.stderr.write(f'Error: {error}\n')
+            raise SystemExit(1)
+        selection.anchor()
+        self.path = selection.reference
         # Every builder this loop starts, first run and each reload,
         # loads the root with the same parameters the session asked for.
         self.overrides = list(getattr(args, 'set', None) or [])

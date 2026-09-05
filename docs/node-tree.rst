@@ -61,7 +61,9 @@ a file path, or a file path plus class (`path/to/file.py:Class`). With
 no reference, a node-scoped command like `solid develop` operates on
 the project's model, declared as `model = "package.module:Class"` under
 `[tool.solid-node]` in `pyproject.toml` — what `solid new` writes for
-you.
+you. A project holding several machines declares them by name in
+`[tool.solid-node.models]`, and each name is then a reference of its
+own; see :ref:`several-models`.
 
 A bare path resolves to the single node class defined in that file.
 When a file defines several — like the panel-plus-assembly file in

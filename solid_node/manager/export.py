@@ -4,7 +4,7 @@
 
 import sys
 import logging
-from solid_node.core.loader import load_node
+from solid_node.core.loader import ProjectManifestError, load_node, select_model
 from solid_node.core.export import export_node, WidgetBundleMissing
 
 
@@ -47,7 +47,9 @@ class Export:
 
     def handle(self, args):
         try:
-            node = load_node(args.path,
+            selection = select_model(args.path)
+            selection.anchor()
+            node = load_node(selection.reference,
                              overrides=getattr(args, 'set', None))
         except Exception as e:
             sys.stderr.write(f'Error loading node: {e}\n')

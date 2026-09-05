@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from .loader import ProjectManifestError, load_node, project_root
+from .loader import ProjectManifestError, load_node, project_root, read_project
 from .serializer import (
     animation_block,
     DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
@@ -90,17 +90,38 @@ class BuildOutcome(Enum):
     FAILED = 1
 
 
-def get_build_dir(origin=None):
-    """The project's build directory, anchored on the project root.
+#: The build directory a command selected for this process, as
+#: `(build root, build dir)`, or None. See `anchor_build_dir`.
+_anchor = None
+
+
+def _anchored():
+    """The selection, while the environment still carries it.
+
+    The environment is the anchor -- it is what a fresh interpreter inherits
+    -- and this record only remembers the root it was derived from. When
+    something restores the environment, as every test that runs a command
+    in-process does, the record no longer describes the process and is
+    ignored rather than left to point at a directory that is gone.
+    """
+    if _anchor is not None and os.environ.get('SOLID_BUILD_DIR') == _anchor[1]:
+        return _anchor
+    return None
+
+
+def project_build_root(origin=None):
+    """The project's build root, anchored on the project root.
 
     A relative `SOLID_BUILD_DIR` -- and the `_build` default -- resolves
     against the discovered project root, never the working directory. A
-    project has one build tree and one build lock (the lock path is derived
-    from this directory), so resolving it against the caller's cwd would give
-    a command run from a subdirectory a private build tree and a private lock:
-    artifacts the floor never sees, and mutual exclusion that silently holds
-    per-directory instead of per-project.
+    project has one build root, so resolving it against the caller's cwd
+    would give a command run from a subdirectory a private build tree and
+    a private lock: artifacts the floor never sees, and mutual exclusion
+    that silently holds per-directory instead of per-project.
     """
+    anchored = _anchored()
+    if anchored is not None:
+        return anchored[0]
     configured = os.environ.get('SOLID_BUILD_DIR', '_build')
     if os.path.isabs(configured):
         return configured
@@ -110,6 +131,40 @@ def get_build_dir(origin=None):
         # Nothing to anchor on. The caller is about to fail resolving its own
         # reference; do not pre-empt that with a less useful error here.
         return configured
+
+
+def get_build_dir(origin=None):
+    """The build directory this process writes into.
+
+    The build root, unless a command selected a project model: a declared
+    model owns `<build root>/<name>`, and everything per build directory --
+    the published document, the errors file, the lock, the sweep -- then
+    happens there.
+    """
+    anchored = _anchored()
+    if anchored is not None:
+        return anchored[1]
+    return project_build_root(origin)
+
+
+def anchor_build_dir(build_root, build_dir):
+    """Select `build_dir` for this process and, through the environment,
+    for every fresh interpreter it starts (ADR-067).
+
+    The root is remembered beside it so a later selection in the same
+    process -- `solid test --all` walking the models -- starts from the
+    project's root again rather than nesting under the directory anchored
+    last.
+    """
+    global _anchor
+    _anchor = (os.path.abspath(build_root), os.path.abspath(build_dir))
+    os.environ['SOLID_BUILD_DIR'] = _anchor[1]
+
+
+def unanchor_build_dir():
+    """Forget the selection. For tests, which share one process."""
+    global _anchor
+    _anchor = None
 
 
 def get_errors_file(build_dir=None):
@@ -147,8 +202,14 @@ def prepare_build_dir(build_dir=None):
         if os.path.exists(target):
             os.replace(target, build_dir)
     os.makedirs(build_dir, exist_ok=True)
+    lock = get_build_lock_path(build_dir)
     for sibling in os.listdir(parent):
         path = os.path.join(parent, sibling)
+        # The lock is `<build dir>.lock`, spelled like a versioned sibling,
+        # and the caller holds it: unlinking its path would let the next
+        # builder open a fresh inode and lock nothing.
+        if path == lock:
+            continue
         if path != build_dir and sibling.startswith(
                 f'{os.path.basename(build_dir)}.'):
             if os.path.isdir(path):
@@ -465,13 +526,27 @@ class Builder(FileSystemEventHandler):
                 collect_snapshots(child)
 
         def kept(relative, filename):
+            # `.lock` spares a declared model's build lock, which lies inside
+            # the build root: unlinking a held lock's path would let the next
+            # acquirer open a fresh inode and lock nothing.
             return (relative in referenced or
                     filename in ('viewer.json', 'errors.json') or
-                    filename.endswith(('.scad', '.brep', '.stl.lock', '.tmp')))
+                    filename.endswith(('.scad', '.brep', '.stl.lock',
+                                       '.lock', '.tmp')))
 
         collect(snapshot['root'])
         collect_snapshots(self.node)
-        for root, _, files in os.walk(self.build_dir):
+        # A declared model's directory is its own to sweep: the build root's
+        # walk does not descend into one.
+        try:
+            model_names = set(read_project(self.build_dir).names)
+        except ProjectManifestError:
+            # A build directory with no project above it declares nothing.
+            model_names = set()
+        for root, directories, files in os.walk(self.build_dir):
+            if root == self.build_dir:
+                directories[:] = [name for name in directories
+                                  if name not in model_names]
             for filename in files:
                 path = os.path.join(root, filename)
                 relative = os.path.normpath(os.path.relpath(path,

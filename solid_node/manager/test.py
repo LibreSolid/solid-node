@@ -9,7 +9,9 @@ import time
 import traceback
 from termcolor import colored
 from solid_node.core.loader import (
-    load_tests, load_node, resolve_node, import_module_from_path, find_class,
+    ProjectManifestError, load_tests, load_node, read_project, resolve_node,
+    select_model,
+    import_module_from_path, find_class,
     AmbiguousNodeError, project_root, _defined_classes,
 )
 from solid_node.core.builder import project_build_lock
@@ -56,6 +58,9 @@ class Test:
             help='Under --faceted, report an intersection of at most this '
                  'volume as empty (default SOLID_TEST_VOLUME_EPSILON, else '
                  '0). The exact kernel refuses it.')
+        parser.add_argument('--all', action='store_true',
+                            help='Test every model the project declares, '
+                                 'as one run.')
 
     def handle(self, args):
         try:
@@ -72,25 +77,47 @@ class Test:
                 'tessellation precision, not exact.\n')
         self.failfast = args.failfast
         self.overrides = list(getattr(args, 'set', None) or [])
-        path = self.resolve_path(args.path) if args.path else args.path
-        try:
-            klass, node_path, root = resolve_node(path)
-            selections = [(klass, node_path, path)]
-        except AmbiguousNodeError:
-            # A bare file is the one reference deliberately allowed to name
-            # every node it defines when testing.
-            root = project_root(path)
-            node_path = os.path.realpath(path)
-            module = import_module_from_path(node_path, root)
-            selections = [(klass, node_path, f'{node_path}:{name}')
-                          for name, klass in _defined_classes(
-                              node_path, module, AbstractBaseNode)]
+        if getattr(args, 'all', False):
+            selections = self.select_all(args.path)
+        else:
+            path = self.resolve_path(args.path) if args.path else args.path
+            try:
+                selection = select_model(path)
+            except ProjectManifestError as error:
+                self.fail(str(error))
+            selection.anchor()
+            path = selection.reference
+            try:
+                klass, node_path, root = resolve_node(path)
+                selections = [(klass, node_path, path, None)]
+            except AmbiguousNodeError:
+                # A bare file is the one reference deliberately allowed to
+                # name every node it defines when testing.
+                root = project_root(path)
+                node_path = os.path.realpath(path)
+                module = import_module_from_path(node_path, root)
+                selections = [(klass, node_path, f'{node_path}:{name}', None)
+                              for name, klass in _defined_classes(
+                                  node_path, module, AbstractBaseNode)]
         # One run covers every selected node, and reports once: a file
         # reference naming several nodes is still a single test run, not one
-        # run per node.
+        # run per node -- and neither is a walk over every declared model.
         start_time = time.time()
         try:
-            for klass, node_path, reference in selections:
+            for klass, node_path, reference, model in selections:
+                if model is not None:
+                    select_model(model.name).anchor()
+                    root = read_project().root
+                    if klass is None:
+                        # The model did not resolve; that is its failure,
+                        # counted once, and the walk goes on.
+                        self.num_tests += 1
+                        self.num_failed += 1
+                        sys.stderr.write(
+                            f"Error: model {model.name}: {node_path}\n")
+                        if self.failfast:
+                            raise StopTestRun
+                        continue
                 self.node = self.build_node(reference)
                 self.test_case = None
                 self.test_cases = []
@@ -113,6 +140,30 @@ class Test:
         self.report(time.time() - start_time)
         if self.num_failed:
             sys.exit(1)
+
+    def select_all(self, path):
+        """Every declared model as a selection. A model whose reference does
+        not resolve is carried as `(None, <error>, reference, model)`, so
+        the run can count it as a failure without stopping."""
+        if path:
+            self.fail('--all takes no reference')
+        try:
+            project = read_project()
+        except ProjectManifestError as error:
+            self.fail(str(error))
+        if not project.named:
+            self.fail(f'{project.manifest} declares no models; --all walks '
+                      f'a [tool.solid-node.models] table')
+        selections = []
+        for model in project.models:
+            select_model(model.name).anchor()
+            try:
+                klass, node_path, _ = resolve_node(model.reference)
+            except Exception as error:
+                selections.append((None, str(error), model.reference, model))
+                continue
+            selections.append((klass, node_path, model.reference, model))
+        return selections
 
     def resolve_path(self, path):
         """Users and agents routinely hand `solid test` the TEST file

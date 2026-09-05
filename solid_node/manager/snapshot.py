@@ -5,7 +5,7 @@
 import sys
 import logging
 from subprocess import run, CalledProcessError
-from solid_node.core.loader import load_node
+from solid_node.core.loader import ProjectManifestError, load_node, select_model
 from solid_node.node.timebase import declared_time
 from solid_node.core.builder import project_build_lock
 from solid_node.viewers.openscad import OpenScadRenderer
@@ -119,7 +119,13 @@ class Snapshot:
 
     def handle(self, args):
         """Main entry point for the snapshot command."""
-        self.path = args.path
+        try:
+            selection = select_model(args.path)
+        except ProjectManifestError as error:
+            sys.stderr.write(f'Error: {error}\n')
+            raise SystemExit(1)
+        selection.anchor()
+        self.path = selection.reference
         self.overrides = list(getattr(args, 'set', None) or [])
         self.output = args.output
         self.time = args.time

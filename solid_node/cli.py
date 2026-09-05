@@ -29,6 +29,7 @@ COMMANDS = {
     'new': ('solid_node.manager.new', 'New'),
     'export': ('solid_node.manager.export', 'Export'),
     'viewer': ('solid_node.manager.viewer', 'Viewer'),
+    'models': ('solid_node.manager.models', 'Models'),
 }
 
 #: The tokens that make the top-level parser print its own help. That is the
@@ -77,7 +78,7 @@ def add_command_parser(subparsers, name, command):
             'path', nargs='?',
             type=str,
             metavar='reference',
-            help='Node reference: package.module:Class, path/to/file.py, or path/to/file.py:Class',
+            help='Node reference: a declared model name, package.module:Class, path/to/file.py, or path/to/file.py:Class',
         )
         # Registered once, here, beside the reference it applies to: every
         # command that loads a node takes the root's parameters the same
@@ -153,6 +154,6 @@ def manage():
     command = resolved[args.command]
 
     if getattr(command, 'needs_node', True) and args.path and os.path.isdir(args.path):
-        parser.error('A directory is not a node reference; use package.module:Class, path/to/file.py, or path/to/file.py:Class')
+        parser.error('A directory is not a node reference; use a declared model name, package.module:Class, path/to/file.py, or path/to/file.py:Class')
 
     command.handle(args)

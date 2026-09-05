@@ -8,6 +8,19 @@ Changelog
 Unreleased
 ----------
 
+**Several models in one project.** A manifest may declare its models by
+name in ``[tool.solid-node.models]``, with ``model`` naming the default
+among them; a manifest without the table is unchanged. A declared name
+is a node reference — ``solid build wall_clock_02`` — and each declared
+model owns its own build directory, ``_build/<name>/``, with its own
+``viewer.json``, ``errors.json`` and lock, so publishing one model never
+sweeps another. ``solid models`` lists them with their state, as text or
+``--json``, without importing project code; ``solid build --all`` and
+``solid test --all`` walk every declared model and never stop at a
+failing one. Born of ``3DPrintedClocks``: one repository, one shared
+library, one model per clock. (OpenSpec change ``named-project-models``;
+ADR-073.)
+
 **A test run chooses its comparison kernel.** ``solid test`` compares on
 the exact boundary-representation kernel by default, exactly as before,
 or on the parts' meshes with ``--faceted`` — selected for a checkout by

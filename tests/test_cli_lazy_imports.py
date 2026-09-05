@@ -50,12 +50,13 @@ COMMAND_MODULES = {
     'solid_node.manager.new',
     'solid_node.manager.export',
     'solid_node.manager.viewer',
+    'solid_node.manager.models',
 }
 
 #: The order `solid -h` lists commands in, and has listed them in since
 #: the command-first flip (ADR-024).
 COMMAND_ORDER = ['build', 'develop', 'test', 'snapshot', 'new', 'export',
-                 'viewer']
+                 'viewer', 'models']
 
 MIGRATION_HINT = ('The CLI grammar changed in 0.4: commands come first. '
                   'Try: solid {command} {path} [options]\n')
@@ -74,13 +75,14 @@ def reference_parser():
     from solid_node.manager.build import Build
     from solid_node.manager.develop import Develop
     from solid_node.manager.export import Export
+    from solid_node.manager.models import Models
     from solid_node.manager.new import New
     from solid_node.manager.snapshot import Snapshot
     from solid_node.manager.test import Test
     from solid_node.manager.viewer import Viewer
 
     commands = [Build(), Develop(), Test(), Snapshot(), New(), Export(),
-                Viewer()]
+                Viewer(), Models()]
 
     # argparse derives `prog` from argv[0], and `manage()` lets it: the
     # reference has to be built under the same argv the comparison runs
@@ -104,7 +106,7 @@ def reference_parser():
                 'path', nargs='?',
                 type=str,
                 metavar='reference',
-                help='Node reference: package.module:Class, path/to/file.py, or path/to/file.py:Class',
+                help='Node reference: a declared model name, package.module:Class, path/to/file.py, or path/to/file.py:Class',
             )
             # The root-parameter flag every node-scoped command shares
             # (spec `cli`, root parameter overrides), part of the shape.

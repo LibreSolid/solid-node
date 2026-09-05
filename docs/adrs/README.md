@@ -63,18 +63,19 @@ that way.
 - [ADR-072](NODE/ADR-072-a-declared-time-base.md) — A declared time base: `time = Time(loop=…)`, seconds on every path — **Accepted**, extends 008
 
 ### BUILD — loading, watching, CLI
-- [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**
+- [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073
 - [ADR-007](BUILD/ADR-007-watchdog-library-filesystem-monitoring.md) — Watchdog filesystem monitoring — **Accepted**
 - [ADR-021](BUILD/ADR-021-snapshot-cli-command-for-agent-autonomy.md) — Snapshot CLI command — **Accepted**, amended by 041
-- [ADR-024](BUILD/ADR-024-command-first-cli-grammar-and-duck-typed-command-registry.md) — Command-first CLI grammar — **Accepted**
+- [ADR-024](BUILD/ADR-024-command-first-cli-grammar-and-duck-typed-command-registry.md) — Command-first CLI grammar — **Accepted**, amended by 073
 - [ADR-030](BUILD/ADR-030-complete-build-publication-boundary.md) — Complete-build publication boundary — **Reversed** by 038
 - [ADR-031](BUILD/ADR-031-published-viewer-snapshot.md) — Published viewer snapshot — **Accepted**, amended by 034
 - [ADR-032](BUILD/ADR-032-symlink-swap-build-publication.md) — Symlink-swap build publication — **Superseded** by 038
-- [ADR-038](BUILD/ADR-038-per-artifact-atomic-build-publication.md) — Per-artifact atomic build publication — **Accepted**
+- [ADR-038](BUILD/ADR-038-per-artifact-atomic-build-publication.md) — Per-artifact atomic build publication — **Accepted**, amended by 073
 - [ADR-041](BUILD/ADR-041-browser-rendered-transparent-snapshots.md) — Browser-rendered transparent snapshots — **Accepted**
 - [ADR-059](BUILD/ADR-059-import-at-the-point-of-use.md) — Import at the point of use — **Accepted**, extends 024, extended by 069
 - [ADR-067](BUILD/ADR-067-fresh-interpreter-build-subprocesses.md) — Fresh-interpreter build subprocesses — **Accepted**
 - [ADR-069](BUILD/ADR-069-deferred-callables-for-a-modules-own-call-sites.md) — Deferred callables for a module's own call sites — **Accepted**, extends 059
+- [ADR-073](BUILD/ADR-073-named-project-models-and-per-model-build-directories.md) — Named project models and per-model build directories — **Accepted**, amends 005, 024, 038
 
 ### IPC — inter-process communication
 - [ADR-015](IPC/ADR-015-fastapi-unified-stack-for-http-services.md) — FastAPI + Uvicorn HTTP stack — **Accepted, amended** (broker consumer removed)

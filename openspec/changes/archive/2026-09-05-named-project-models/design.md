@@ -157,8 +157,11 @@ table (`cli-startup-cost`).
 
 `solid build --all` runs the existing one-model loop once per declared
 model, in table order, each with its own directory; a failure is reported
-and the walk continues, so one broken clock does not hide the others. Exit
-is nonzero if any failed. `solid test --all` extends the runner's existing
+and the walk continues, so one broken clock does not hide the others. That
+includes a model whose module does not import: the single-model command
+lets such an error keep its traceback, but in a walk it is one model's
+failure, written to that model's `errors.json` so `solid models` reports
+it `failed`. Exit is nonzero if any failed. `solid test --all` extends the runner's existing
 "several selections, one run" shape (a multi-node file already tests every
 node in one reported run), anchoring the directory per selection; a model
 that will not load or build is a failure of that model, and `--failfast`
@@ -186,6 +189,12 @@ model, so the flag means what it says.
   one is.
 - [Sequential `--all` on the clocks is minutes per model] → accepted for
   this cycle; per-model locks leave the door open to `--jobs`.
+- [Found during verification: `prepare_build_dir` removed the held lock
+  file on every build, since `<build dir>.lock` spells like the versioned
+  siblings the ADR-032 migration sweeps away] → the cleanup now skips the
+  lock path. This was true of the flat `_build.lock` before this change and
+  is fixed for every build directory; a red test in `test_build_lock`
+  guards it.
 
 ## Migration Plan
 

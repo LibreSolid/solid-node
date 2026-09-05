@@ -333,3 +333,19 @@ class PublishedModelFollowsSourceTest(TestCase):
                          os.path.getmtime(self.source))
         self.assertTrue(os.path.isfile(os.path.join(self.build_dir,
                                                     'viewer.json')))
+
+
+class LockSurvivesBuildDirectoryPreparationTest(TestCase):
+    """The lock is `<build dir>.lock`, and `prepare_build_dir` removes the
+    versioned siblings an older layout left as `<build dir>.<suffix>`. The
+    lock file matches that pattern, and it is held while the directory is
+    prepared: unlinking its path lets the next builder open a fresh inode
+    and lock nothing."""
+
+    def test_the_held_lock_file_is_not_removed(self):
+        from solid_node.core.builder import prepare_build_dir
+        with tempfile.TemporaryDirectory() as root:
+            build_dir = os.path.join(root, '_build')
+            with project_build_lock(build_dir):
+                prepare_build_dir(build_dir)
+                self.assertTrue(os.path.isfile(get_build_lock_path(build_dir)))

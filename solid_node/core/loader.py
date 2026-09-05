@@ -6,15 +6,17 @@
 
 import inspect
 import os
+import re
 import sys
 import tomllib
+from dataclasses import dataclass
 from importlib import import_module
 
 from solid_node.node.base import AbstractBaseNode
 from solid_node.node.declarative import parse_overrides
 from solid_node.simulation.enumeration import bind_declared_defaults
 
-__all__ = ['load_node', 'parse_overrides']
+__all__ = ['load_node', 'parse_overrides', 'read_project', 'select_model']
 
 
 class ProjectManifestError(Exception):
@@ -25,8 +27,50 @@ class AmbiguousNodeError(Exception):
     pass
 
 
-def discover_project(origin=None):
-    """Return ``(root, model_reference)`` for the nearest Solid project."""
+#: A declared model name: one word, so it can never be read as a qualifier
+#: (which carries a `.` or a `:`) or as a path.
+MODEL_NAME = re.compile(r'^[A-Za-z_][A-Za-z0-9_-]*$')
+
+
+@dataclass(frozen=True)
+class Model:
+    """One model a project declares.
+
+    `name` is None for the single model of a manifest without a `models`
+    table; `build_dir` is where that model publishes -- the build root
+    itself for a single model, `<build root>/<name>` for a declared one.
+    """
+
+    name: str | None
+    reference: str
+    build_dir: str
+
+
+@dataclass(frozen=True)
+class Project:
+    """What a manifest says about a project: its root and its models."""
+
+    root: str
+    manifest: str
+    build_root: str
+    models: tuple
+    default: Model | None
+    #: Whether the manifest declares its models by name.
+    named: bool
+
+    def model(self, name):
+        """The declared model called `name`, or None."""
+        for model in self.models:
+            if model.name is not None and model.name == name:
+                return model
+        return None
+
+    @property
+    def names(self):
+        return [model.name for model in self.models if model.name]
+
+
+def _find_manifest(origin=None):
     origin = os.path.realpath(origin or os.getcwd())
     directory = origin if os.path.isdir(origin) else os.path.dirname(origin)
     while True:
@@ -36,11 +80,7 @@ def discover_project(origin=None):
                 config = tomllib.load(stream)
             solid = config.get('tool', {}).get('solid-node')
             if solid is not None:
-                model = solid.get('model')
-                if not isinstance(model, str) or not model:
-                    raise ProjectManifestError(
-                        f"{manifest} has [tool.solid-node] but no model reference")
-                return directory, model
+                return directory, manifest, solid
         except FileNotFoundError:
             pass
         parent = os.path.dirname(directory)
@@ -50,8 +90,67 @@ def discover_project(origin=None):
         directory = parent
 
 
+def read_project(origin=None):
+    """The nearest Solid project above `origin`, as a `Project`.
+
+    Reads the manifest and looks at the project root's directories; never
+    imports project code, so a host may call it as often as it likes.
+    """
+    root, manifest, solid = _find_manifest(origin)
+    # Local import: builder imports this module at load time.
+    from solid_node.core.builder import project_build_root
+    build_root = project_build_root(root)
+    table = solid.get('models')
+    model = solid.get('model')
+    if table is None:
+        if not isinstance(model, str) or not model:
+            raise ProjectManifestError(
+                f"{manifest} has [tool.solid-node] but no model reference")
+        only = Model(None, model, build_root)
+        return Project(root, manifest, build_root, (only,), only, False)
+
+    if not isinstance(table, dict) or not table:
+        raise ProjectManifestError(
+            f"{manifest} declares [tool.solid-node.models] with no models")
+    models = []
+    for name, reference in table.items():
+        if not MODEL_NAME.match(name):
+            raise ProjectManifestError(
+                f"{manifest} declares the model name {name!r}; a name is one "
+                f"word of letters, digits, underscores and hyphens")
+        if not isinstance(reference, str) or ':' not in reference:
+            raise ProjectManifestError(
+                f"{manifest} declares model {name!r} as {reference!r}; a "
+                f"model is a reference of the form package.module:Class")
+        if os.path.isdir(os.path.join(root, name)):
+            raise ProjectManifestError(
+                f"{manifest} declares a model named {name!r}, but {name}/ is "
+                f"a directory at the project root and its artifacts would "
+                f"mirror into the model's build directory; rename the model")
+        models.append(Model(name, reference, os.path.join(build_root, name)))
+    default = None
+    if model is not None:
+        default = next((m for m in models if m.name == model), None)
+        if default is None:
+            raise ProjectManifestError(
+                f"{manifest} sets model = {model!r}, which must name one of "
+                f"the declared models: {', '.join(m.name for m in models)}")
+    return Project(root, manifest, build_root, tuple(models), default, True)
+
+
+def discover_project(origin=None):
+    """Return ``(root, model_reference)`` for the nearest Solid project.
+
+    The reference is the default model's; None when the project declares
+    models and no default.
+    """
+    project = read_project(origin)
+    return project.root, (project.default.reference if project.default
+                          else None)
+
+
 def project_root(origin=None):
-    return discover_project(origin)[0]
+    return _find_manifest(origin)[0]
 
 
 def _within(path, root):
@@ -120,6 +219,65 @@ def _reference_parts(reference):
     return target, (name if separator else None), is_path
 
 
+def _default_reference(project):
+    if project.default is None:
+        raise ProjectManifestError(
+            f"{project.manifest} declares models {', '.join(project.names)} "
+            f"and no default; name one, or set model = \"<name>\"")
+    return project.default.reference
+
+
+def _named_reference(reference, origin=None):
+    """A bare word that a project declares as a model name is that
+    model's reference; anything else is left for the other spellings."""
+    target, class_name, is_path = _reference_parts(reference)
+    if is_path or class_name is not None or not MODEL_NAME.match(target):
+        return reference
+    model = read_project(origin).model(target)
+    return model.reference if model else reference
+
+
+@dataclass(frozen=True)
+class Selection:
+    """What a command is about to work on: the concrete reference to load
+    and, for a project model, the build directory it owns."""
+
+    reference: str | None
+    build_dir: str | None
+    model: Model | None
+
+    def anchor(self):
+        """Make `build_dir` this process's build directory -- and its
+        children's, through the environment -- before any node is loaded.
+        A selection that is not a project model leaves the directory as it
+        is: a sub-node builds in the build root, as it always did."""
+        if self.build_dir is None:
+            return
+        from solid_node.core.builder import anchor_build_dir
+        anchor_build_dir(os.path.dirname(self.build_dir)
+                         if self.model and self.model.name else self.build_dir,
+                         self.build_dir)
+
+
+def select_model(reference=None, origin=None):
+    """Turn a reference, or none, into the thing to load and where it
+    builds. No reference selects the default model; a declared name its
+    model; anything else passes through untouched, to be read by the
+    loader's other spellings."""
+    if reference is None:
+        project = read_project(origin)
+        model = project.default
+        if model is None:
+            _default_reference(project)
+        return Selection(model.reference, model.build_dir, model)
+    target, class_name, is_path = _reference_parts(reference)
+    if not is_path and class_name is None and MODEL_NAME.match(target):
+        model = read_project(origin).model(target)
+        if model is not None:
+            return Selection(model.reference, model.build_dir, model)
+    return Selection(reference, None, None)
+
+
 def resolve_node(reference=None, origin=None):
     """Resolve a manifest, qualifier, path, or hybrid reference to a class.
 
@@ -129,9 +287,11 @@ def resolve_node(reference=None, origin=None):
     if reference is None:
         # Only the manifest can say what the project's model is, so the
         # working directory is what identifies the project.
-        root, reference = discover_project(origin)
+        project = read_project(origin)
+        root, reference = project.root, _default_reference(project)
         target, class_name, is_path = _reference_parts(reference)
     else:
+        reference = _named_reference(reference, origin)
         target, class_name, is_path = _reference_parts(reference)
         # A path identifies the project as surely as it identifies the file:
         # discover from the file itself, not from wherever the caller happens

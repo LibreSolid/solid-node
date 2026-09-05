@@ -457,7 +457,7 @@ layer, and determinism belongs to `Sim`, not to the client animation.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
-Nodes are addressed by **reference** — a qualifier
+Nodes are addressed by **reference** — a declared model name, a qualifier
 (`package.module:Class`), a filesystem path, or a path plus class —
 dynamically imported and resolved against a project root discovered
 from the nearest ancestor `pyproject.toml` carrying `[tool.solid-node]`
@@ -467,9 +467,22 @@ reference; implicit discovery remains limited to classes defined in the
 loaded file. Artifacts remain keyed to the selected class's real
 implementation source. The source set tracks that implementation/import
 closure, so an edit to it invalidates and reloads the active node.
-Artifacts land under `$SOLID_BUILD_DIR` (default `_build`, resolved
-against the discovered project root rather than the working directory),
-mirroring the source layout, basename `<script>-<uniq_id>`.
+
+A project has one model, `model = "package.module:Class"`, or several
+declared by name in `[tool.solid-node.models]`, with `model` then naming
+the default by its key (ADR-073). A name is one word, so it is never
+mistaken for a qualifier or a path, and it may not equal a directory at
+the project root. The **build root** is `$SOLID_BUILD_DIR` (default
+`_build`, resolved against the discovered project root rather than the
+working directory). A single model builds in the root itself; a declared
+model owns `<build root>/<name>/`, with its own published document,
+errors file, lock and sweep, so publishing one model never disturbs
+another. A sub-node reference builds in the root, whose sweep does not
+descend into a model's directory. Every command selects before it loads:
+the selection turns a name, or the default, into the concrete reference
+and the directory it owns, anchored for the process and inherited by the
+fresh interpreters it starts. Within a build directory artifacts mirror
+the source layout, basename `<script>-<uniq_id>`.
 
 Loading a node also **binds its declared driver defaults** across the
 tree by qualified id, before the first render (ADR-056 stage 3a), so a
@@ -580,7 +593,12 @@ of any geometric test (ADR-039, amended 2026-08-10).
 `solid <command> <path>` — command-first grammar since 0.4, with an
 exit-2 migration guard for the old order (ADR-024). Commands are a
 duck-typed registry naming where each lives: `build`, `develop`, `test`,
-`snapshot`, `new` (offline scaffold), `export`, `viewer`. Every command
+`snapshot`, `new` (offline scaffold), `export`, `viewer`, `models`.
+`models` lists a project's models from the manifest and their build
+directories alone — `unbuilt`, `published` or `failed` — as text or
+`--json`, importing no project code; `build --all` and `test --all` walk
+every declared model in order and never stop at a failing one (ADR-073).
+Every command
 that loads a node takes `--set name=value`, registered once beside the
 shared reference positional: the loader parses each value by the root's
 declared kind and constructs the root with the overrides, the develop

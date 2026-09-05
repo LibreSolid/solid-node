@@ -118,6 +118,13 @@ error saying so.
   its `errors.json`, the report names both outcomes, and the command exits
   nonzero
 
+#### Scenario: A model whose module does not import
+
+- **WHEN** `solid build --all` runs and `wall_clock_01`'s module raises on
+  import while `wall_clock_02` builds
+- **THEN** the failure is recorded in `wall_clock_01`'s `errors.json`, the
+  walk goes on to publish `wall_clock_02`, and the command exits nonzero
+
 #### Scenario: All in a single-model project
 
 - **WHEN** a user runs `solid build --all` in a project that declares no

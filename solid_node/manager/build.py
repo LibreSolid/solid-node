@@ -4,10 +4,12 @@
 
 import os
 import sys
+import traceback
 
-from solid_node.core.builder import Builder, BuildOutcome
+from solid_node.core.builder import Builder, BuildOutcome, write_error
 from solid_node.core.loader import (
-    AmbiguousNodeError, ProjectManifestError, resolve_node,
+    AmbiguousNodeError, ProjectManifestError, read_project, resolve_node,
+    select_model,
 )
 from solid_node.core.processes import Process
 
@@ -36,11 +38,65 @@ class Build:
     needs_node = True
 
     def add_arguments(self, parser):
-        pass
+        parser.add_argument(
+            '--all', action='store_true',
+            help='Build every model the project declares, each into its '
+                 'own build directory')
 
     def handle(self, args):
-        self.path = args.path
         self.overrides = list(getattr(args, 'set', None) or [])
+        if getattr(args, 'all', False):
+            return self.build_all(args.path)
+        try:
+            selection = select_model(args.path)
+        except ProjectManifestError as error:
+            sys.stderr.write(f'Model not found: {error}\n')
+            sys.exit(MODEL_NOT_FOUND)
+        selection.anchor()
+        code = self.build(selection.reference)
+        if code:
+            sys.exit(code)
+
+    def build_all(self, path):
+        """Every declared model, in declaration order, each reported as it
+        settles. One model's failure does not stop the walk."""
+        if path:
+            sys.stderr.write('Error: --all takes no reference\n')
+            sys.exit(2)
+        try:
+            project = read_project()
+        except ProjectManifestError as error:
+            sys.stderr.write(f'Model not found: {error}\n')
+            sys.exit(MODEL_NOT_FOUND)
+        if not project.named:
+            sys.stderr.write(
+                f'Error: {project.manifest} declares no models; --all walks '
+                f'a [tool.solid-node.models] table\n')
+            sys.exit(1)
+        failed = []
+        for model in project.models:
+            select_model(model.name).anchor()
+            try:
+                code = self.build(model.reference)
+            except Exception:
+                # The single-model command lets a project's own import error
+                # keep its traceback; here it is one model's failure among
+                # several, recorded where `solid models` will find it, and
+                # the walk goes on.
+                message = traceback.format_exc()
+                sys.stderr.write(message)
+                write_error(message, model.build_dir)
+                code = BuildOutcome.FAILED.value
+            if code:
+                failed.append(model.name)
+            sys.stderr.write(
+                f'{model.name}: {"current" if not code else f"failed ({code})"}\n')
+        sys.exit(1 if failed else 0)
+
+    def build(self, path):
+        """One model to completion. Returns 0 when it is current, else
+        the exit status the failure deserves."""
+        self.path = path
         try:
             resolve_node(self.path)
         except (ProjectManifestError, AmbiguousNodeError) as error:
@@ -49,7 +105,7 @@ class Build:
             # different problems, and "Model not found" describes only one of
             # them. Anything else is a bug and keeps its traceback.
             sys.stderr.write(f'Model not found: {error}\n')
-            sys.exit(MODEL_NOT_FOUND)
+            return MODEL_NOT_FOUND
 
         while True:
             proc = Process(target=build_once,
@@ -60,5 +116,5 @@ class Build:
                                  BuildOutcome.SOURCE_CHANGED.value):
                 continue
             if proc.exitcode == BuildOutcome.CURRENT.value:
-                return
-            sys.exit(proc.exitcode or BuildOutcome.FAILED.value)
+                return 0
+            return proc.exitcode or BuildOutcome.FAILED.value
