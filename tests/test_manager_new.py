@@ -77,6 +77,9 @@ class NewCommandTest(TestCase):
         # a versioned directory; `_build*` covers both.
         self.assertIn('_build*', gitignore_content.split())
         self.assertIn('__pycache__/', gitignore_content.split())
+        # The checkout-local `.env` is where a developer records the
+        # faceted test kernel; it must never travel to CI.
+        self.assertIn('.env', gitignore_content.split())
 
     def test_generated_init_is_valid_python_matching_template(self):
         target = os.path.join(self.tmpdir.name, 'myproj2')

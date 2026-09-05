@@ -28,6 +28,7 @@ from solid_node.exact import (_placement_cache, _shape_cache,
                               cached_shape, placed_shape,
                               solid_count, solid_volume, write_brep)
 from solid_node.node.base import StlRenderStart
+import solid_node.test as test_module
 from solid_node.test import TestCase as GeometryTestCase, _intersection_stats
 from solid_node.core.builder import Builder
 
@@ -514,3 +515,222 @@ class ExactConnectivityAndEpsilonTest(TestCase):
 
         self.assertTrue(any('assertNoPairwiseIntersections ignored' in
                             str(item.message) for item in caught))
+
+
+class StlShapeNode(ShapeNode):
+    """An exact node that also has a built STL -- what a real exact leaf
+    looks like to the test framework, so a faceted run has a mesh to
+    compare while `shape()` stays available to refuse."""
+
+    def __init__(self, shape, stl_file, name, *, matrix_parent=None):
+        super().__init__(shape, name, matrix_parent=matrix_parent)
+        self.stl_file = stl_file
+
+    def base_mesh(self):
+        from solid_node.node.base import AbstractBaseNode
+        return AbstractBaseNode.base_mesh(self)
+
+    @property
+    def mesh(self):
+        from solid_node.node.base import AbstractBaseNode
+        return AbstractBaseNode.mesh.fget(self)
+
+
+def _refuse_shape(node):
+    return patch.object(node, 'shape', side_effect=AssertionError(
+        f'{node.name}.shape() must not be read under the faceted kernel'))
+
+
+class FacetedKernelTest(TestCase):
+    """Under the faceted comparison kernel an exact node is compared like
+    one that is not: on its mesh, never through its shape, with the run's
+    epsilon applied to every engine verdict."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.addCleanup(test_module.set_comparison_policy, None)
+        test_module._verdict_cache.clear()
+        self.unit_box = cq.Workplane('XY').box(1, 1, 1).val()
+
+    def faceted(self, epsilon=0.0):
+        test_module.set_comparison_policy(
+            test_module.ComparisonPolicy('faceted', epsilon))
+
+    def stl(self, name, mesh):
+        path = os.path.join(self.directory.name, f'{name}.stl')
+        mesh.export(path)
+        return path
+
+    def box_node(self, name, translation=None, size=(1, 1, 1)):
+        node = StlShapeNode(
+            cq.Workplane('XY').box(*size).val(),
+            self.stl(name, trimesh.creation.box(size)), name)
+        if translation is not None:
+            from solid_node.node.operations import Translation
+            node.operations.append(Translation(translation, node))
+        return node
+
+    def test_two_exact_nodes_are_compared_on_their_meshes(self):
+        self.faceted()
+        left = self.box_node('left')
+        right = self.box_node('right', [0.5, 0, 0])
+
+        with _refuse_shape(left), _refuse_shape(right):
+            stats = _intersection_stats(left, right)
+
+        self.assertFalse(stats.exact)
+        self.assertFalse(stats.is_empty)
+        self.assertAlmostEqual(stats.volume, 0.5, places=6)
+
+    def test_no_kernel_name_is_resolved(self):
+        # The deferred kernel names are what would import the exact stack
+        # through the test framework; a faceted run never reaches one.
+        self.faceted()
+        left = self.box_node('left')
+        right = self.box_node('right', [0.5, 0, 0])
+        refused = {name: patch.object(
+            test_module, name, side_effect=AssertionError(name))
+            for name in ('intersect_shapes', 'placed_shape', 'fuse_shapes',
+                         'solid_count', 'solid_volume', 'shape_identity',
+                         'cached_bounding_box')}
+        for refusal in refused.values():
+            refusal.start()
+            self.addCleanup(refusal.stop)
+
+        stats = _intersection_stats(left, right)
+        self.assertFalse(stats.is_empty)
+        asserter.assertIntersecting(left, right)
+
+    def test_the_model_still_reports_its_exactness(self):
+        self.faceted()
+        self.assertTrue(self.box_node('left').exact)
+
+    def test_disconnected_exact_solid_is_counted_from_its_stl(self):
+        self.faceted()
+        two = trimesh.util.concatenate([
+            trimesh.creation.box((1, 1, 1)),
+            trimesh.creation.box((1, 1, 1)).apply_translation([3, 0, 0])])
+        node = StlShapeNode(self.unit_box, self.stl('broken', two), 'broken')
+
+        with _refuse_shape(node):
+            with self.assertRaisesRegex(AssertionError, 'broken.*STL.*2'):
+                asserter.assertNoDisconnectedSolids(node)
+
+    def test_exact_features_are_welded_on_their_meshes(self):
+        self.faceted()
+        solid = SimpleNamespace(rigid=True, _parent=None, operations=[])
+        left = StlShapeNode(self.unit_box,
+                            self.stl('left', trimesh.creation.box((2, 2, 2))),
+                            'left', matrix_parent=solid)
+        overlapping = StlShapeNode(
+            self.unit_box, self.stl('over', trimesh.creation.box((2, 2, 2))),
+            'overlapping', matrix_parent=solid)
+        from solid_node.node.operations import Translation
+        overlapping.operations.append(Translation([1, 0, 0], overlapping))
+
+        with _refuse_shape(left), _refuse_shape(overlapping), patch.object(
+                test_module, 'fuse_shapes',
+                side_effect=AssertionError('no fuse on the faceted kernel')):
+            asserter.assertJoined(left, overlapping, min_weld_volume=3.9)
+
+    def test_an_exact_assembly_is_verified_on_manifolds(self):
+        self.faceted()
+        apart = self.box_node('apart', [5, 0, 0])
+        near = self.box_node('near')
+        root = SimpleNamespace(rigid=False, children=(apart, near),
+                               operations=[], _parent=None)
+        apart._parent = near._parent = root
+
+        with _refuse_shape(apart), _refuse_shape(near):
+            asserter.assertNoSolidInterference(root)
+
+        overlapping = self.box_node('overlapping', [0.5, 0, 0])
+        root.children = (overlapping, near)
+        overlapping._parent = root
+        with _refuse_shape(overlapping), _refuse_shape(near):
+            with self.assertRaisesRegex(AssertionError,
+                                        'intersection volume 0.5'):
+                asserter.assertNoSolidInterference(root)
+
+    def test_the_run_epsilon_absorbs_a_sliver(self):
+        self.faceted(epsilon=0.5)
+        left = self.box_node('left')
+        right = self.box_node('right', [0.8, 0, 0])
+
+        stats = _intersection_stats(left, right)
+
+        self.assertTrue(stats.is_empty)
+        self.assertEqual(stats.volume, 0.0)
+        asserter.assertNotIntersecting(left, right)
+
+    def test_a_real_overlap_survives_the_run_epsilon(self):
+        self.faceted(epsilon=0.5)
+        left = self.box_node('left', size=(4, 4, 4))
+        right = self.box_node('right', [3.25, 0, 0], size=(4, 4, 4))
+
+        stats = _intersection_stats(left, right)
+
+        self.assertFalse(stats.is_empty)
+        self.assertAlmostEqual(stats.volume, 12.0, places=6)
+        with self.assertRaisesRegex(AssertionError, 'left.*right'):
+            asserter.assertNotIntersecting(left, right)
+
+    def test_the_run_epsilon_reaches_the_assembly_assertion(self):
+        self.faceted(epsilon=0.5)
+        left = self.box_node('left')
+        right = self.box_node('right', [0.8, 0, 0])
+        root = SimpleNamespace(rigid=False, children=(left, right),
+                               operations=[], _parent=None)
+        left._parent = right._parent = root
+
+        asserter.assertNoSolidInterference(root)
+
+    def test_a_strict_faceted_run_keeps_flush_contact_fouling(self):
+        # Epsilon 0.0 changes nothing: the non-empty zero-volume flush
+        # contact of ADR-025/029 still fouls, as it does today.
+        self.faceted(epsilon=0.0)
+        left = self.box_node('left')
+        right = self.box_node('right', [1.0, 0, 0])
+
+        stats = _intersection_stats(left, right)
+
+        self.assertEqual(stats.volume, 0.0)
+        self.assertFalse(stats.is_empty)
+
+    def test_a_perturbation_epsilon_stays_live_without_a_warning(self):
+        self.faceted(epsilon=0.25)
+        left = self.box_node('left')
+        right = self.box_node('right', [10, 0, 0])
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            asserter.assertFreeWithin(
+                left, 1, right, along=[0, 1, 0], directions='forward',
+                volume_epsilon=1e-6)
+
+        self.assertFalse(any('ignored volume_epsilon' in str(item.message)
+                             for item in caught))
+
+    def test_the_verdict_cache_holds_the_raw_verdict(self):
+        self.faceted(epsilon=0.5)
+        left = self.box_node('left')
+        right = self.box_node('right', [0.8, 0, 0])
+        self.assertTrue(_intersection_stats(left, right).is_empty)
+
+        self.faceted(epsilon=0.0)
+        stats = _intersection_stats(left, right)
+
+        self.assertFalse(stats.is_empty)
+        self.assertAlmostEqual(stats.volume, 0.2, places=6)
+
+    def test_the_exact_kernel_is_untouched(self):
+        test_module.set_comparison_policy(
+            test_module.ComparisonPolicy('exact', 0.0))
+        left = self.box_node('left')
+        right = self.box_node('right', [0.5, 0, 0])
+
+        stats = _intersection_stats(left, right)
+
+        self.assertTrue(stats.exact)
+        self.assertAlmostEqual(stats.volume, 0.5, places=6)

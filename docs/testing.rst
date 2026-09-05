@@ -401,8 +401,11 @@ a keyframe.
 
 Empty intersections and exact zero-volume boundary contact pass. Every
 positive intersection volume reported by the geometry kernel fails, and the
-diagnostic names an offending pair. There is deliberately no public overlap
-epsilon. A volume waiver can hide a real narrow penetration and is not a
+diagnostic names an offending pair. The assertion has deliberately no
+overlap epsilon of its own; under the :ref:`faceted kernel
+<comparison-kernel>` it reads verdicts the run's epsilon has already been
+applied to, like every other volume question in that run, and adds nothing.
+A volume waiver can hide a real narrow penetration and is not a
 production allowance. Where parts must run free, encode physical clearance in
 the model and add a pair-specific distance or fit contract with a
 manufacturing margin expressed in length.
@@ -558,6 +561,63 @@ compatibility but deprecated. It visits every leaf pair and preserves its
 historical ``volume_epsilon`` behavior. New tests should use
 ``assertNoSolidInterference`` and account for the deliberate scope change:
 topmost rigid printed solids instead of every leaf, with no overlap epsilon.
+
+.. _comparison-kernel:
+
+Choosing the comparison kernel
+==============================
+
+Every intersection, containment, connectivity and weld question above is
+decided by one of two kernels, and which one is a property of the *run*,
+not of the model:
+
+* The **exact** kernel compares two exact parts (CadQuery, build123d,
+  molejo) on their boundary-representation solids. Boundary contact is
+  exactly empty, a nominally exact fit is not interference, and there is
+  no tolerance anywhere. This is the default, and the kernel a release or
+  CI run uses.
+* The **faceted** kernel compares every pair on the parts' meshes — the
+  path a part without exact geometry always takes — at tessellation
+  precision. It is the fast development loop: a flexible part such as a
+  valve spring costs about 14 ms per comparison on meshes against about
+  430 ms on the exact kernel, and on the v8-engine root suite the whole
+  run went from 28 minutes to a minute and a half with the same verdict on
+  every comparison.
+
+Select the kernel with ``solid test --exact`` or ``solid test --faceted``.
+Without a flag the ``SOLID_TEST_KERNEL`` environment variable decides
+(``exact`` or ``faceted``), and without that the run is exact. The
+``solid`` command loads the project's ``.env`` at startup, so a developer
+records the fast loop once, in that ignored checkout-local file::
+
+    SOLID_TEST_KERNEL=faceted
+
+A CI runner has no such file and needs no configuration: its runs are
+exact. Keep ``.env`` out of the repository (``solid new`` ignores it) so
+the choice never travels.
+
+A faceted run says what it is — a line before the first build names the
+kernel, and the summary line ends with ``(faceted kernel, volume epsilon
+E mm³)`` — so a green fast run is never mistaken for an exact one in a
+log or a commit message. A faceted verdict is at the precision of the
+STL tessellation (a chord may deviate from the true surface by up to
+0.1 mm): a clearance thinner than that can read as slight overlap, and
+interference thinner than that can be missed. Commit evidence and release
+checks come from the exact run.
+
+Where solids meet exactly — a boss seated on a plate, a shaft at zero
+nominal clearance in its bore — their meshes overlap by slivers the exact
+kernel never sees. The **volume epsilon** is the developer's stated size
+for that noise: ``solid test --faceted --volume-epsilon 0.5`` (or
+``SOLID_TEST_VOLUME_EPSILON=0.5`` beside the kernel line in ``.env``)
+reports every intersection of at most 0.5 mm³ as empty for the whole run,
+before any assertion reads it. The default is 0, and a project whose
+clearances exceed the tessellation deviation needs none — the v8-engine
+suite runs faceted at 0. The epsilon exists only for the faceted kernel:
+the exact kernel refuses it, because it has nothing to absorb. An
+assertion's own ``volume_epsilon`` still filters on top of it, and the
+warning that an epsilon was ignored never fires under the faceted kernel,
+where no comparison routes exact.
 
 Testing motion: scenarios
 =========================

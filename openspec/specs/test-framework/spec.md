@@ -8,8 +8,9 @@ assertions, and the animation-instant decorators. Encodes ADR-009 (trimesh mesh 
 ADR-010 (TestCaseMixin embedded tests), ADR-011 (animation testing
 decorators), ADR-025 (perturbation-based kinematic fit assertions), and
 ADR-029 (Manifold cache and AABB broad-phase for intersection assertions),
-ADR-039 (topmost-rigid solid integrity), and ADR-040 (topmost-rigid assembly
-integrity certificate).
+ADR-039 (topmost-rigid solid integrity), ADR-040 (topmost-rigid assembly
+integrity certificate), and ADR-073 (the comparison kernel as a property of
+the test run).
 
 Code: `solid_node/test.py`, `solid_node/manager/test.py`. The framework's own
 regression net is `tests/test_meta.py` over fixtures in `tests/meta_project/`
@@ -70,7 +71,11 @@ Each method runs once per declared testing instant (default `[0]`), with the
 keyframe set per instant, a colored pass/fail dot printed per instant, and each
 child's operations checkpoint restored between instants and between tests. The
 run SHALL print `Ran N tests in X seconds: P passed, F failed` and exit 1 if any
-failed; `--failfast` stops at the first failure.
+failed; `--failfast` stops at the first failure. Under the faceted comparison
+kernel that summary line SHALL continue with ` (faceted kernel, volume epsilon
+E mm³)`, and the run SHALL announce the kernel and epsilon on a line of its
+own before the first node is built; under the exact kernel the run's output is
+unchanged.
 
 #### Scenario: Failing contract fails the run
 
@@ -89,6 +94,20 @@ failed; `--failfast` stops at the first failure.
   node classes, each with a companion test case
 - **THEN** both nodes are built and the test methods of both test cases are
   counted in the summary
+
+#### Scenario: A faceted run is labelled as one
+
+- **WHEN** `solid test --faceted --volume-epsilon 0.5` runs a project
+- **THEN** a line before the first build names the faceted kernel and the
+  epsilon, and the summary line ends with `(faceted kernel, volume epsilon
+  0.5 mm³)`
+
+#### Scenario: An exact run reads as it always did
+
+- **WHEN** `solid test` runs without a kernel selection and without
+  `SOLID_TEST_KERNEL` in the environment
+- **THEN** no kernel line is printed and the summary line is exactly
+  `Ran N tests in X seconds: P passed, F failed`
 
 ### Requirement: Mesh assertions
 
@@ -155,7 +174,10 @@ supplied and EVERY comparison the call performed routed exact, the assertion
 SHALL emit a warning naming the assertion, so a test does not silently keep
 recording a tolerance it no longer applies. When any comparison routed
 faceted, the epsilon remains live for those comparisons and no warning is
-emitted.
+emitted. Under the faceted comparison kernel no comparison routes exact, so
+`volume_epsilon` is live for every comparison and the warning never fires;
+the run's own volume epsilon has already been applied to each verdict the
+assertion reads, so the two compose as a floor and a filter.
 
 Fit SHALL be certified by the paired contract — Blocked beyond the play
 limit AND Free within it; `assertBlockedBeyond` alone is insufficient
@@ -195,6 +217,12 @@ limit AND Free within it; `assertBlockedBeyond` alone is insufficient
   comparison routes faceted
 - **THEN** the epsilon filters the verdict as before and no warning is emitted
 
+#### Scenario: A faceted run keeps every epsilon live
+
+- **WHEN** a perturbation assertion is given `volume_epsilon=1e-6` on two
+  exact nodes and the run's kernel is faceted
+- **THEN** the epsilon filters the faceted verdict and no warning is emitted
+
 ### Requirement: Accelerated intersection evaluation
 
 All intersection-volume assertions (`assertNotIntersecting`,
@@ -202,9 +230,11 @@ All intersection-volume assertions (`assertNotIntersecting`,
 `assertIntersectVolumeBelow`, the perturbation assertions, and the pairwise
 sweep) SHALL route through one shared `(is_empty, volume)` helper.
 
-The helper SHALL select its evaluation path from the compared nodes:
+The helper SHALL select its evaluation path from the compared nodes and from
+the run's comparison kernel:
 
-- When BOTH nodes are exact, it SHALL use the EXACT path: each node's
+- When the run's kernel is exact and BOTH nodes are exact, it SHALL use the
+  EXACT path: each node's
   `shape()` is placed by its composed matrix and the two are intersected by
   the boundary-representation kernel. The result is empty when it contains no
   solid — boundary contact between coincident faces yields no solid and is
@@ -212,7 +242,9 @@ The helper SHALL select its evaluation path from the compared nodes:
   summed volume of the solids it contains. A kernel failure raises under the
   `exact-geometry` capability rather than falling back.
 - Otherwise, when both nodes expose an `stl_file`, it SHALL use the faceted
-  fast path, unchanged.
+  fast path, unchanged. Under the faceted kernel this is the path every pair
+  of built solids takes, exact or not: a node's `shape()` is never read, and
+  the exact-geometry stack is not imported by the test framework.
 - Otherwise (e.g. test doubles implementing only `.mesh`) it falls back to a
   plain trimesh boolean over `.mesh` with identical verdict semantics.
 
@@ -242,6 +274,11 @@ The faceted fast path SHALL then place the cached Manifolds with a lazy
 `transform()` and intersect them directly, reading `is_empty()` and `volume()`
 off the result with no conversion back to trimesh, reading `volume` only when
 non-empty.
+
+Under the faceted kernel the helper SHALL apply the run's volume epsilon to
+every verdict it returns, on either faceted path: a result whose volume does
+not exceed the epsilon is reported as empty with zero volume. At the default
+epsilon of 0.0 this changes nothing.
 
 Verdict semantics on the FACETED path SHALL be preserved exactly: `is_empty`
 is the boolean engine's own emptiness — a non-empty result with exactly
@@ -304,6 +341,27 @@ emits SHALL NOT depend on whether its solids carry exact geometry.
 - **THEN** a Manifold is built for each solid a faceted comparison reads, once
   each, and for no other solid
 
+#### Scenario: A faceted run compares exact parts on their meshes
+
+- **WHEN** the run's kernel is faceted and both compared nodes are exact
+- **THEN** the helper uses the faceted fast path over the nodes' built STLs,
+  reads neither node's `shape()`, and the verdict semantics are those of the
+  faceted path
+
+#### Scenario: The run's epsilon absorbs tessellation contact
+
+- **WHEN** the run's kernel is faceted with a volume epsilon of 0.5 mm³ and
+  two parts' meshes share 0.2 mm³ where their exact solids only touch
+- **THEN** the helper reports the pair empty with zero volume, and
+  `assertNotIntersecting` passes
+
+#### Scenario: A real overlap survives the run's epsilon
+
+- **WHEN** the run's kernel is faceted with a volume epsilon of 0.5 mm³ and
+  two parts share 12 mm³
+- **THEN** the helper reports the measured volume and the assertion fails as
+  it does on the exact kernel
+
 ### Requirement: Whole-assembly solid interference assertion
 
 The system SHALL provide `TestCase.assertNoSolidInterference(node)` as an
@@ -319,9 +377,11 @@ or one solid. With multiple solids, a spatial index over conservative world
 bounds SHALL be the sole verification path: it emits every potentially
 interacting solid pair without first materializing every pairwise combination,
 and each emitted pair is evaluated by exact Boolean intersection of the two
-solids placed by their composed world transforms. A pair of exact solids SHALL
-be evaluated by the boundary-representation kernel; any other pair SHALL be
-evaluated by the cached Manifolds as before. The assertion SHALL NOT compute an
+solids placed by their composed world transforms. Under the exact comparison
+kernel a pair of exact solids SHALL be evaluated by the boundary-representation
+kernel and any other pair by the cached Manifolds as before; under the faceted
+kernel every pair SHALL be evaluated by the cached Manifolds and no solid's
+exact geometry is read. The assertion SHALL NOT compute an
 aggregate volume, Boolean union, or other whole-assembly measurement of the
 selected solids.
 
@@ -334,7 +394,10 @@ every selected solid is exact SHALL require no mesh engine at all — see the
 Positive-volume overlap SHALL fail. Empty intersection and non-empty
 zero-volume boundary contact SHALL pass. The assertion SHALL expose no overlap
 epsilon and SHALL apply no numerical tolerance of its own: every positive
-intersection volume reported by the kernel is interference.
+intersection volume reported by the kernel is interference. Under the faceted
+kernel the verdicts it reads have already had the run's volume epsilon
+applied, like every other volume question in that run; the assertion adds
+nothing to it.
 
 When an offending candidate is found, the assertion SHALL raise
 `AssertionError` naming both topmost rigid solids and their measured
@@ -428,6 +491,13 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 - **THEN** pairs of exact solids are evaluated exactly, pairs involving a
   faceted solid are evaluated by the cached Manifolds, and one assertion
   reports over both
+
+#### Scenario: A faceted run verifies an exact assembly on its meshes
+
+- **WHEN** every selected solid is exact and the run's kernel is faceted
+- **THEN** each candidate pair is evaluated by the cached Manifolds, no
+  solid's `shape()` is read, and a pair whose meshes share no more than the
+  run's volume epsilon passes
 
 ### Requirement: Whole-assembly gravity support assertion
 
@@ -688,9 +758,10 @@ The system SHALL provide `assertNoDisconnectedSolids(node)` as an ordinary
 
 Starting from `node`, the assertion SHALL descend through non-rigid nodes and
 SHALL stop at the first rigid node on each branch, so each selected node is one
-printed solid. For an exact solid the assertion SHALL count the solids in that
-node's exact geometry and require exactly one. For a solid that is not exact it
-SHALL read that node's own built STL, split it without filtering to watertight
+printed solid. Under the exact comparison kernel, for an exact solid the
+assertion SHALL count the solids in that node's exact geometry and require
+exactly one. For a solid that is not exact, or for every solid under the
+faceted kernel, it SHALL read that node's own built STL, split it without filtering to watertight
 components, and require exactly one connected component. A rigid node passed
 directly SHALL be its own only selected solid, and rigid ingredients inside a
 selected solid SHALL NOT be checked independently.
@@ -753,15 +824,23 @@ mixin, decorator, or registry SHALL cause it to run.
 - **THEN** it fails naming that solid and two bodies, established from the
   exact geometry rather than from a mesh split
 
+#### Scenario: A faceted run counts bodies on the STL
+
+- **WHEN** the assertion runs on an exact solid and the run's kernel is
+  faceted
+- **THEN** the bodies are counted by splitting that solid's own STL and the
+  exact geometry is not read
+
 ### Requirement: Connectivity assertions
 
 The system SHALL provide two connectivity assertions:
 
 - `assertJoined(node1, node2, min_weld_volume=0.0)` — the two nodes are
   exactly one body, so the two features are genuinely the same printed part.
-  For two exact nodes this SHALL be established by fusing their shapes and
-  requiring the fuse to yield exactly one solid; otherwise by requiring the
-  union of their meshes to be exactly one connected component.
+  Under the exact comparison kernel, for two exact nodes this SHALL be
+  established by fusing their shapes and requiring the fuse to yield exactly
+  one solid; otherwise, and for every pair under the faceted kernel, by
+  requiring the union of their meshes to be exactly one connected component.
   `min_weld_volume` (mm³) additionally requires the volume they share to reach
   that value. Solids that only touch tangentially SHALL NOT count as joined.
 
@@ -848,6 +927,13 @@ express a required weld volume.
 - **WHEN** `assertJoined` runs on two overlapping exact features of one solid
 - **THEN** the verdict comes from fusing their shapes and finding one solid,
   and the weld volume from their exact intersection
+
+#### Scenario: A faceted run welds on meshes
+
+- **WHEN** `assertJoined` is called on two exact features and the run's
+  kernel is faceted
+- **THEN** the verdict comes from the union of their meshes and neither
+  shape is fused
 
 ### Requirement: Animation-instant decorators
 
@@ -997,3 +1083,85 @@ placement built from the old one.
 - **WHEN** the same solid is placed by a different matrix
 - **THEN** a placement for that matrix is constructed and used
 
+### Requirement: Run-level comparison kernel
+
+The test framework SHALL hold one comparison kernel per run, `exact` or
+`faceted`, and one volume epsilon in mm³, together the run's comparison
+policy. The kernel is a property of the run, never of the model: a node's
+`exact` attribute SHALL keep reporting whether its geometry is exact, and
+neither the build nor any artifact SHALL depend on the kernel a test run
+selects.
+
+`solid test` SHALL resolve the kernel from the mutually exclusive `--exact` /
+`--faceted` flags, else from the `SOLID_TEST_KERNEL` environment variable
+(`exact` or `faceted`; any other value is an error naming the variable), else
+`exact`. It SHALL resolve the epsilon from `--volume-epsilon`, else from
+`SOLID_TEST_VOLUME_EPSILON`, else `0.0`; a negative value is an error. The
+epsilon exists only for the faceted kernel: `--volume-epsilon` together with
+an exact run is an error saying the exact kernel has nothing to absorb, and
+`SOLID_TEST_VOLUME_EPSILON` is not read under the exact kernel. The
+environment is the project's, loaded through the CLI's `.env` rule, so a
+setting in an ignored checkout-local `.env` selects the kernel for every run
+in that checkout and nowhere else.
+
+Outside `solid test` — a `ScenarioTest` under pytest, an assertion driven
+directly — the framework SHALL resolve the same policy from the environment
+at the first comparison of the process, with the same defaults and the same
+errors.
+
+Under the exact kernel every assertion behaves as specified elsewhere in
+this capability. Under the faceted kernel every intersection, containment,
+connectivity and weld question SHALL be answered from the compared nodes'
+meshes exactly as it is answered today for a node that is not exact, and the
+verdicts of the shared intersection helper SHALL have the run's epsilon
+applied before any assertion reads them.
+
+#### Scenario: The default run is the exact run
+
+- **WHEN** `solid test` runs with no kernel flag and no `SOLID_TEST_KERNEL`
+- **THEN** every comparison of two exact nodes uses the boundary-representation
+  kernel and the run's output is unchanged
+
+#### Scenario: A checkout selects the faceted kernel once
+
+- **WHEN** the project's `.env` contains `SOLID_TEST_KERNEL=faceted` and
+  `solid test` runs without a kernel flag
+- **THEN** every comparison uses the faceted path and the run says so
+
+#### Scenario: A flag overrides the environment
+
+- **WHEN** `SOLID_TEST_KERNEL=faceted` is set and `solid test --exact` runs
+- **THEN** the run uses the exact kernel and prints no kernel line
+
+#### Scenario: An epsilon offered to the exact kernel is refused
+
+- **WHEN** `solid test --exact --volume-epsilon 0.5` or
+  `solid test --volume-epsilon 0.5` with no faceted selection is run
+- **THEN** the command exits with an error saying the exact kernel has nothing
+  for an epsilon to absorb, before any node is built
+
+#### Scenario: An unknown kernel name is refused
+
+- **WHEN** `SOLID_TEST_KERNEL=fast` is set
+- **THEN** `solid test` exits with an error naming the variable and the two
+  accepted values
+
+#### Scenario: A faceted run of an exact project never reaches the exact stack
+
+- **WHEN** an all-exact project is tested under the faceted kernel in a fresh
+  interpreter and its build is current
+- **THEN** the test framework imports no `cadquery` and reads no node's
+  `shape()`, and the verdicts are those of the faceted path
+
+#### Scenario: The model is unaware of the kernel
+
+- **WHEN** a test reads `node.exact` under the faceted kernel
+- **THEN** it reports the geometry's exactness as it does under the exact
+  kernel
+
+#### Scenario: A scenario test under pytest reads the environment
+
+- **WHEN** a `ScenarioTest` runs under plain pytest with
+  `SOLID_TEST_KERNEL=faceted` in the environment
+- **THEN** its geometric assertions use the faceted path with the
+  environment's epsilon

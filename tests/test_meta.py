@@ -81,9 +81,9 @@ def run_solid_test_path(path):
     return run_solid('test', path)
 
 
-def run_solid(*arguments):
+def run_solid(*arguments, env=None):
     """Run any `solid` command against the meta fixtures."""
-    env = dict(os.environ, SOLID_BUILD_DIR=BUILD_DIR)
+    env = dict(os.environ, SOLID_BUILD_DIR=BUILD_DIR, **(env or {}))
     return subprocess.run(
         [sys.executable, '-c',
          'from solid_node.cli import manage; manage()',
@@ -754,3 +754,71 @@ class DriverDefaultsMetaTest(TestCase):
             'test_each_scenario_starts_from_the_declared_defaults': 'passed',
         })
         self.assertEqual(run.returncode, 0)
+
+
+class FacetedKernelMetaTest(TestCase):
+    """A faceted run decides on meshes, says so, and the exact run is
+    byte-for-byte what it was."""
+
+    FACETED_LINE = 'Comparing on the faceted kernel'
+
+    def faceted(self, fixture, *arguments, env=None):
+        return SolidTestRun(run_solid(
+            'test', f'tests/meta_project/{fixture}.py', *arguments, env=env))
+
+    def test_a_zero_clearance_fit_is_interference_on_meshes(self):
+        run = self.faceted('exact_tight_fit', '--faceted')
+        self.assertEqual(run.results, {
+            'test_zero_clearance_round_fit_has_no_solid_interference':
+                'failed',
+        })
+        self.assertIn('intersection volume', run.stdout)
+        self.assertIn(self.FACETED_LINE, run.stdout)
+        self.assertIn('(faceted kernel, volume epsilon 0 mm³)', run.stdout)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_an_epsilon_absorbs_the_tessellation_slivers(self):
+        run = self.faceted('exact_tight_fit', '--faceted',
+                           '--volume-epsilon', '100')
+        self.assertEqual(run.results, {
+            'test_zero_clearance_round_fit_has_no_solid_interference':
+                'passed',
+        })
+        self.assertIn('(faceted kernel, volume epsilon 100 mm³)', run.stdout)
+        self.assertEqual(run.returncode, 0)
+
+    def test_the_exact_run_reads_as_it_always_did(self):
+        run = solid_test('exact_tight_fit')
+        self.assertNotIn(self.FACETED_LINE, run.stdout)
+        summary = [line for line in run.stdout.splitlines()
+                   if line.startswith('Ran ')]
+        self.assertEqual(len(summary), 1)
+        self.assertTrue(summary[0].endswith(' failed'), summary[0])
+
+    def test_the_environment_selects_the_faceted_kernel(self):
+        run = self.faceted('exact_clearance',
+                           env={'SOLID_TEST_KERNEL': 'faceted'})
+        self.assertEqual(run.results, {
+            'test_cleared_round_fit_has_no_solid_interference': 'passed',
+        })
+        self.assertIn(self.FACETED_LINE, run.stdout)
+        self.assertEqual(run.returncode, 0)
+
+    def test_a_flag_overrides_the_environment(self):
+        run = self.faceted('exact_clearance', '--exact',
+                           env={'SOLID_TEST_KERNEL': 'faceted'})
+        self.assertNotIn(self.FACETED_LINE, run.stdout)
+        self.assertEqual(run.returncode, 0)
+
+    def test_an_epsilon_for_the_exact_kernel_is_refused_before_building(self):
+        proc = run_solid('test', 'tests/meta_project/exact_clearance.py',
+                         '--volume-epsilon', '1')
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn('nothing', proc.stderr)
+        self.assertNotIn('Running', proc.stdout)
+
+    def test_an_unknown_kernel_is_refused(self):
+        proc = run_solid('test', 'tests/meta_project/exact_clearance.py',
+                         env={'SOLID_TEST_KERNEL': 'fast'})
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn('SOLID_TEST_KERNEL', proc.stderr)

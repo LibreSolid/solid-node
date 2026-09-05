@@ -114,6 +114,7 @@ solid test
 ::
 
     solid test [reference] [--set NAME=VALUE ...] [--failfast]
+              [--exact | --faceted] [--volume-epsilon MM3]
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
 methods of the node itself (via ``TestCaseMixin``) and of its companion
@@ -124,6 +125,19 @@ unmodified. See :doc:`Test-driven CAD <testing>` and
 
 ``--failfast``
     Stop the test run on the first failure.
+
+``--exact`` / ``--faceted``
+    The kernel every geometric assertion decides on: exact parts on their
+    boundary-representation solids (the default), or every pair on the
+    parts' meshes at tessellation precision — the fast development loop.
+    Without a flag ``SOLID_TEST_KERNEL`` decides, else the run is exact.
+    A faceted run names itself before the first build and on its summary
+    line. See :ref:`Choosing the comparison kernel <comparison-kernel>`.
+
+``--volume-epsilon MM3``
+    Under ``--faceted``, report an intersection of at most this volume as
+    empty for the whole run. Default ``SOLID_TEST_VOLUME_EPSILON``, else 0.
+    Refused with the exact kernel, which has nothing to absorb.
 
 solid snapshot
 ==============
@@ -251,5 +265,17 @@ Environment variables
     Port of the viewer's npm dev server behind ``solid develop --web-dev``.
     Default: 3000.
 
+``SOLID_TEST_KERNEL``
+    The comparison kernel of ``solid test`` when no ``--exact`` /
+    ``--faceted`` flag is given: ``exact`` (the default) or ``faceted``.
+    Any other value is refused by name.
+
+``SOLID_TEST_VOLUME_EPSILON``
+    The volume epsilon (mm³) of a faceted ``solid test`` run when no
+    ``--volume-epsilon`` is given. Default: 0. Not read by the exact
+    kernel.
+
 The ``solid`` command loads a ``.env`` file from the working directory
-at startup, so a project can pin its ports there.
+at startup, so a project can pin its ports there — and a developer can
+select the faceted test kernel for one checkout without the choice
+reaching CI, which has no such file. ``solid new`` ignores ``.env``.

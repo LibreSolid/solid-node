@@ -616,10 +616,18 @@ builds first, then runs `test_` methods per declared animation instant
 (`@testing_instant` / `@testing_steps`, ADR-011) with operation
 checkpoints restored between instants.
 
-Collision assertions (ADR-009/044) select the strongest shared representation:
-intersection-volume and connectivity questions use placed OCCT shapes when
-both operands are exact and retain trimesh/Manifold for mixed or faceted
-pairs. That selection reaches the placement step too (ADR-052): a solid is
+Collision assertions (ADR-009/044) select the strongest shared representation
+the run allows: intersection-volume and connectivity questions use placed
+OCCT shapes when both operands are exact and retain trimesh/Manifold for
+mixed or faceted pairs. Which kernel a run compares on is the run's property,
+not the model's (ADR-073): `solid test` resolves one comparison policy —
+`--exact`/`--faceted`, else `SOLID_TEST_KERNEL` from the project's ignored
+`.env`, else exact — and a faceted run answers every one of those questions
+on meshes, reads no `shape()`, applies one run-wide volume epsilon to every
+engine verdict after the memo is read, and labels itself before the first
+build and on its summary line. The exact run is unchanged, `node.exact`
+still reports the geometry's capability, and the build does not depend on
+the kernel. That selection reaches the placement step too (ADR-052): a solid is
 placed into the spatial index from its cached bounds alone, and its Manifold
 is built only when a comparison really reads it, so an all-exact assembly
 builds none and needs no mesh engine. Distance and containment assertions
@@ -1053,7 +1061,7 @@ The short list that changes must not silently break:
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068 |
-| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048 |
+| Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
 | Export | `core/export.py`, `core/serializer.py` | `export` | 020, 034, 051, 057, 068 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

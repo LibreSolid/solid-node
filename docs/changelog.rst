@@ -8,6 +8,22 @@ Changelog
 Unreleased
 ----------
 
+**A test run chooses its comparison kernel.** ``solid test`` compares on
+the exact boundary-representation kernel by default, exactly as before,
+or on the parts' meshes with ``--faceted`` — selected for a checkout by
+``SOLID_TEST_KERNEL=faceted`` in its ignored ``.env``, so CI keeps the
+exact kernel with no configuration. A faceted run answers every
+intersection, containment, connectivity and weld question at
+tessellation precision, carries one run-wide volume epsilon
+(``--volume-epsilon``, ``SOLID_TEST_VOLUME_EPSILON``; refused by the
+exact kernel), and names itself before the first build and on its
+summary line. Nothing about the model, the build or ``node.exact``
+changes between the two runs. On the v8-engine root suite, whose springs
+made every comparison an OCCT Boolean, the faceted run takes 90 s where
+the exact run took 28 minutes and reaches the same verdict on every
+comparison at epsilon 0. ``solid new`` now ignores ``.env``. (OpenSpec
+change ``faceted-test-kernel``.)
+
 **A declared time base.** A root assembly can declare what one turn of
 the animation timeline *is*: ``time = Time(loop=12 * 3600)`` says a turn
 is twelve hours, and from then on ``self.time`` reads seconds everywhere

@@ -14,6 +14,8 @@ from solid_node.core.loader import (
 )
 from solid_node.core.builder import project_build_lock
 from solid_node.node.base import AbstractBaseNode
+from solid_node.test import (ComparisonPolicy, resolve_comparison_policy,
+                             set_comparison_policy)
 
 
 class StopTestRun(Exception):
@@ -38,8 +40,36 @@ class Test:
         parser.add_argument('--failfast',
                             action='store_true',
                             help='Stop the test run on the first error.')
+        kernel = parser.add_mutually_exclusive_group()
+        kernel.add_argument(
+            '--exact', dest='kernel', action='store_const', const='exact',
+            help='Compare exact parts on the boundary-representation '
+                 'kernel (the default, and what SOLID_TEST_KERNEL=exact '
+                 'selects).')
+        kernel.add_argument(
+            '--faceted', dest='kernel', action='store_const', const='faceted',
+            help='Compare every pair on the parts\' meshes, at tessellation '
+                 'precision: the fast development loop, selected for a '
+                 'checkout by SOLID_TEST_KERNEL=faceted in its .env.')
+        parser.add_argument(
+            '--volume-epsilon', type=float, default=None, metavar='MM3',
+            help='Under --faceted, report an intersection of at most this '
+                 'volume as empty (default SOLID_TEST_VOLUME_EPSILON, else '
+                 '0). The exact kernel refuses it.')
 
     def handle(self, args):
+        try:
+            self.policy = resolve_comparison_policy(
+                getattr(args, 'kernel', None),
+                getattr(args, 'volume_epsilon', None))
+        except ValueError as error:
+            self.fail(str(error))
+        set_comparison_policy(self.policy)
+        if self.policy.kernel == 'faceted':
+            sys.stdout.write(
+                'Comparing on the faceted kernel (volume epsilon '
+                f'{self.policy.volume_epsilon:g} mm³): verdicts are at '
+                'tessellation precision, not exact.\n')
         self.failfast = args.failfast
         self.overrides = list(getattr(args, 'set', None) or [])
         path = self.resolve_path(args.path) if args.path else args.path
@@ -151,7 +181,14 @@ class Test:
             self.run_class_tests(test_case, self.node)
 
     def report(self, total_time):
-        sys.stdout.write(f"\nRan {self.num_tests} tests in {total_time:.2f} seconds: {self.num_passed} passed, {self.num_failed} failed\n")
+        summary = (f"Ran {self.num_tests} tests in {total_time:.2f} seconds: "
+                   f"{self.num_passed} passed, {self.num_failed} failed")
+        policy = getattr(self, 'policy', ComparisonPolicy('exact', 0.0))
+        if policy.kernel == 'faceted':
+            # A green fast run must never read as an exact one in a log.
+            summary += (f" (faceted kernel, volume epsilon "
+                        f"{policy.volume_epsilon:g} mm³)")
+        sys.stdout.write(f"\n{summary}\n")
 
     def run_tests(self):
         start_time = time.time()

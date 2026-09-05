@@ -11,6 +11,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from trimesh.creation import box
 from solid_node.manager.test import Test as Runner, StopTestRun
+from solid_node import test as framework
 from solid_node.node.base import AbstractBaseNode
 from solid_node.node.operations import Translation
 
@@ -559,3 +560,155 @@ class UndeclaredTestCaseBesideSingleNodeModuleTest(MultiTestCaseFixture):
         self.assertIn('MastTest.test_mast_builds', stdout)
         self.assertIn('Ran 1 tests', stdout)
         self.assertIn('1 passed, 0 failed', stdout)
+
+
+class ComparisonKernelSelectionTest(TestCase):
+    """The kernel a run compares on is a property of the run, resolved
+    once from the flags, then the environment, then the exact default --
+    and refused loudly when the pieces do not fit together."""
+
+    def tearDown(self):
+        framework.set_comparison_policy(None)
+
+    def parser(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        Runner().add_arguments(parser)
+        return parser
+
+    def test_exact_and_faceted_are_mutually_exclusive(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                self.parser().parse_args(['--exact', '--faceted'])
+
+    def test_flags_parse_into_a_kernel_and_an_epsilon(self):
+        args = self.parser().parse_args(['--faceted', '--volume-epsilon', '0.5'])
+        self.assertEqual((args.kernel, args.volume_epsilon), ('faceted', 0.5))
+        args = self.parser().parse_args([])
+        self.assertEqual((args.kernel, args.volume_epsilon), (None, None))
+
+    def test_the_default_is_the_exact_kernel(self):
+        policy = framework.resolve_comparison_policy(environ={})
+        self.assertEqual(policy, ('exact', 0.0))
+
+    def test_faceted_without_an_epsilon_is_strict(self):
+        policy = framework.resolve_comparison_policy('faceted', environ={})
+        self.assertEqual(policy, ('faceted', 0.0))
+
+    def test_the_environment_selects_the_faceted_kernel(self):
+        policy = framework.resolve_comparison_policy(
+            environ={'SOLID_TEST_KERNEL': 'faceted',
+                     'SOLID_TEST_VOLUME_EPSILON': '0.25'})
+        self.assertEqual(policy, ('faceted', 0.25))
+
+    def test_a_flag_beats_the_environment(self):
+        policy = framework.resolve_comparison_policy(
+            'exact', environ={'SOLID_TEST_KERNEL': 'faceted',
+                              'SOLID_TEST_VOLUME_EPSILON': '0.25'})
+        self.assertEqual(policy, ('exact', 0.0))
+
+    def test_an_unknown_kernel_name_is_refused_naming_the_variable(self):
+        with self.assertRaisesRegex(
+                ValueError, r"SOLID_TEST_KERNEL.*'exact'.*'faceted'.*fast"):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_KERNEL': 'fast'})
+
+    def test_a_negative_epsilon_is_refused(self):
+        with self.assertRaisesRegex(ValueError, 'negative'):
+            framework.resolve_comparison_policy(
+                'faceted', -1.0, environ={})
+        with self.assertRaisesRegex(ValueError, 'negative'):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_KERNEL': 'faceted',
+                         'SOLID_TEST_VOLUME_EPSILON': '-2'})
+
+    def test_a_non_numeric_environment_epsilon_is_refused(self):
+        with self.assertRaisesRegex(ValueError, 'SOLID_TEST_VOLUME_EPSILON'):
+            framework.resolve_comparison_policy(
+                'faceted', environ={'SOLID_TEST_VOLUME_EPSILON': 'tiny'})
+
+    def test_an_epsilon_offered_to_the_exact_kernel_is_refused(self):
+        with self.assertRaisesRegex(ValueError, 'nothing.*absorb'):
+            framework.resolve_comparison_policy('exact', 0.5, environ={})
+        with self.assertRaisesRegex(ValueError, 'nothing.*absorb'):
+            framework.resolve_comparison_policy(None, 0.5, environ={})
+
+    def test_the_environment_epsilon_is_not_read_by_the_exact_kernel(self):
+        policy = framework.resolve_comparison_policy(
+            environ={'SOLID_TEST_VOLUME_EPSILON': 'tiny'})
+        self.assertEqual(policy, ('exact', 0.0))
+
+    def test_the_runner_refuses_before_building_anything(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        args = Namespace(path='whatever.py', failfast=False,
+                         kernel=None, volume_epsilon=0.5)
+        with patch.object(Runner, 'build_node',
+                          side_effect=AssertionError('must not build')):
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as stop:
+                    Runner().handle(args)
+        self.assertEqual(stop.exception.code, 1)
+        self.assertIn('nothing', stderr.getvalue())
+        self.assertIn('absorb', stderr.getvalue())
+
+    def test_the_framework_resolves_lazily_from_the_environment(self):
+        framework.set_comparison_policy(None)
+        with patch.dict(os.environ, {'SOLID_TEST_KERNEL': 'faceted',
+                                     'SOLID_TEST_VOLUME_EPSILON': '0.5'}):
+            self.assertEqual(framework.comparison_policy(),
+                             ('faceted', 0.5))
+        # Resolved once: the environment changing afterwards does not
+        # move a run that has already chosen.
+        with patch.dict(os.environ, {'SOLID_TEST_KERNEL': 'exact'}):
+            self.assertEqual(framework.comparison_policy().kernel, 'faceted')
+
+    def test_the_runner_sets_the_policy_it_resolved(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        args = Namespace(path='whatever.py', failfast=False,
+                         kernel='faceted', volume_epsilon=0.5)
+        seen = {}
+
+        def record(path):
+            seen['policy'] = framework.comparison_policy()
+            raise SystemExit(0)
+
+        # The reference is resolved before any build; stopping there is
+        # enough to see the policy already in force and announced.
+        with patch('solid_node.manager.test.resolve_node', record):
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                with self.assertRaises(SystemExit):
+                    Runner().handle(args)
+        self.assertEqual(seen['policy'], ('faceted', 0.5))
+        self.assertIn('faceted kernel', stdout.getvalue())
+        self.assertIn('0.5', stdout.getvalue())
+
+    def test_an_exact_run_announces_nothing(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        args = Namespace(path='whatever.py', failfast=False,
+                         kernel=None, volume_epsilon=None)
+        with patch('solid_node.manager.test.resolve_node',
+                   side_effect=SystemExit(0)):
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                with self.assertRaises(SystemExit):
+                    Runner().handle(args)
+        self.assertEqual(stdout.getvalue(), '')
+
+    def test_the_summary_line_names_a_faceted_run(self):
+        runner = Runner()
+        runner.policy = framework.ComparisonPolicy('faceted', 0.5)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            runner.report(1.0)
+        self.assertRegex(
+            stdout.getvalue(),
+            r'Ran 0 tests in 1\.00 seconds: 0 passed, 0 failed '
+            r'\(faceted kernel, volume epsilon 0\.5 mm³\)')
+
+    def test_the_summary_line_of_an_exact_run_is_unchanged(self):
+        runner = Runner()
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            runner.report(1.0)
+        self.assertEqual(
+            stdout.getvalue(),
+            '\nRan 0 tests in 1.00 seconds: 0 passed, 0 failed\n')

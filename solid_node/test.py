@@ -7,6 +7,7 @@ import math
 import os
 import re
 import warnings
+from collections import namedtuple
 from dataclasses import dataclass
 import numpy as np
 import trimesh
@@ -79,6 +80,116 @@ class IntersectionStats:
         # exposing which representation supplied the verdict.
         yield self.is_empty
         yield self.volume
+
+
+########################################
+# Comparison policy
+#
+# The kernel a run compares on is a property of the RUN, never of the
+# model. A node's `exact` keeps reporting what its geometry can do; the
+# policy says whether this run asks it to. Exact is the default and is
+# today's run untouched. Faceted answers every geometric question on the
+# parts' meshes -- the path a non-exact node already takes -- at
+# tessellation precision, roughly 30x cheaper on a flexible part
+# (spike/interference/FINDINGS.md, finding 6), and carries the one
+# volume epsilon that exists only for it: meshes touch where solids
+# only meet, and the epsilon is the developer's stated size for that.
+#
+# `solid test` resolves the policy from its flags and the environment
+# and sets it before the first build; any other entry (a ScenarioTest
+# under pytest, an assertion driven directly) resolves it from the
+# environment at the first comparison. Resolved once per process: a run
+# does not change kernel halfway.
+
+ComparisonPolicy = namedtuple('ComparisonPolicy', 'kernel volume_epsilon')
+
+KERNELS = ('exact', 'faceted')
+
+_policy = None
+
+
+def resolve_comparison_policy(kernel=None, volume_epsilon=None, environ=None):
+    """The run's comparison policy from explicit values, then the
+    environment, then the defaults.
+
+    An explicit `kernel` (a flag) beats `SOLID_TEST_KERNEL`; an explicit
+    `volume_epsilon` beats `SOLID_TEST_VOLUME_EPSILON`. The epsilon exists
+    only for the faceted kernel: offered explicitly to the exact kernel it
+    is refused, and the environment's value is not even read there, so a
+    checkout's `.env` may carry both lines while CI overrides the kernel
+    alone.
+    """
+    environ = os.environ if environ is None else environ
+    if kernel is None:
+        kernel = environ.get('SOLID_TEST_KERNEL') or 'exact'
+        if kernel not in KERNELS:
+            raise ValueError(
+                f"SOLID_TEST_KERNEL must be 'exact' or 'faceted', not "
+                f"{kernel!r}")
+    elif kernel not in KERNELS:
+        raise ValueError(f"unknown comparison kernel {kernel!r}")
+    if kernel == 'exact':
+        if volume_epsilon is not None:
+            raise ValueError(
+                'the exact kernel has nothing for a volume epsilon to '
+                'absorb: drop --volume-epsilon or select --faceted')
+        return ComparisonPolicy('exact', 0.0)
+    if volume_epsilon is None:
+        raw = environ.get('SOLID_TEST_VOLUME_EPSILON') or '0'
+        try:
+            volume_epsilon = float(raw)
+        except ValueError:
+            raise ValueError(
+                f'SOLID_TEST_VOLUME_EPSILON must be a volume in mm³, not '
+                f'{raw!r}') from None
+    volume_epsilon = float(volume_epsilon)
+    if volume_epsilon < 0:
+        raise ValueError(
+            f'the volume epsilon must not be negative ({volume_epsilon})')
+    return ComparisonPolicy('faceted', volume_epsilon)
+
+
+def set_comparison_policy(policy):
+    """Fix the run's policy (the runner), or None to resolve again."""
+    global _policy
+    _policy = policy
+
+
+def comparison_policy():
+    """The run's policy, resolved from the environment on first use."""
+    global _policy
+    if _policy is None:
+        _policy = resolve_comparison_policy()
+    return _policy
+
+
+def _routes_exact(node):
+    """Whether this run compares `node` through its exact geometry."""
+    return (comparison_policy().kernel == 'exact'
+            and getattr(node, 'exact', False))
+
+
+def _engine_reason(reason):
+    """Why the mesh engine is needed: the caller's reason under the exact
+    kernel, the run's choice under the faceted one."""
+    if comparison_policy().kernel == 'faceted':
+        return 'the run compares on the faceted kernel'
+    return reason
+
+
+def _settled(stats):
+    """An engine verdict with the run's volume epsilon applied.
+
+    Applied AFTER the verdict memo reads, so the cache holds raw verdicts
+    and a policy change in one process never serves a filtered verdict as
+    a raw one. At the default epsilon of 0.0 this changes nothing: the
+    non-empty zero-volume flush contact of ADR-025/029 still fouls, and
+    only a positive epsilon may call it clear.
+    """
+    epsilon = comparison_policy().volume_epsilon
+    if epsilon > 0 and not stats.is_empty and abs(stats.volume) <= epsilon:
+        return IntersectionStats(True, 0.0, stats.exact)
+    return stats
 
 
 # Module-level cache of one manifold3d.Manifold per (stl_file, mtime)
@@ -158,7 +269,8 @@ def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
     key = (stl_file, mtime)
     cached = _manifold_cache.get(key)
     if cached is None:
-        Manifold, Mesh = require_mesh_engine(needed_by, reason)
+        Manifold, Mesh = require_mesh_engine(
+            needed_by, _engine_reason(reason))
         for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
             del _manifold_cache[stale_key]
         bounds = _cached_local_bounds(stl_file)
@@ -182,7 +294,8 @@ def _flexible_manifold(node, needed_by=_FACETED_NEEDED_BY,
     key = (node.uniq_id, binding_hash(values))
     cached = _flexible_manifold_cache.get(key)
     if cached is None:
-        Manifold, Mesh = require_mesh_engine(needed_by, reason)
+        Manifold, Mesh = require_mesh_engine(
+            needed_by, _engine_reason(reason))
         for stale_key in [k for k in _flexible_manifold_cache
                           if k[0] == node.uniq_id]:
             del _flexible_manifold_cache[stale_key]
@@ -331,7 +444,7 @@ def _solid_geometry(solid):
     carries exact geometry.
     """
     local_bounds = _cached_local_bounds(solid.stl_file)
-    shape = solid.shape() if getattr(solid, 'exact', False) else None
+    shape = solid.shape() if _routes_exact(solid) else None
     return solid.stl_file, local_bounds, shape
 
 
@@ -403,7 +516,8 @@ def _dropped_assembly_solids(solids, offset):
 
 def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
                          reason=_FACETED_REASON):
-    """Engine-native emptiness and volume for two placed solid records.
+    """Engine-native emptiness and volume for two placed solid records,
+    with the run's volume epsilon applied.
 
     A pair of exact records is read by the boundary-representation kernel;
     any other pair (faceted, or one of each) by the placed Manifolds.
@@ -422,7 +536,8 @@ def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
             count = solid_count(result)
             return IntersectionStats(count == 0, solid_volume(result), True)
 
-        return _memoized(_record_key(first, second, 5, 'exact'), exact)
+        return _settled(
+            _memoized(_record_key(first, second, 5, 'exact'), exact))
 
     def faceted():
         result = (_placed_manifold(first, needed_by, reason)
@@ -431,7 +546,8 @@ def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
         return IntersectionStats(
             is_empty, 0.0 if is_empty else result.volume(), False)
 
-    return _memoized(_record_key(first, second, 4, 'faceted'), faceted)
+    return _settled(
+        _memoized(_record_key(first, second, 4, 'faceted'), faceted))
 
 
 def _candidate_intersection(solids, first, second,
@@ -1010,7 +1126,15 @@ def _faceted_verdict(manifold1, bounds1, matrix1,
 
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
     """(is_empty, volume) for node1 ∩ node2 -- the shared helper the
-    intersection-based assertions below route through. When BOTH
+    intersection-based assertions below route through -- with the run's
+    volume epsilon applied to the engine's verdict (see _settled).
+    """
+    return _settled(_engine_intersection_stats(node1, node2, compose_matrix))
+
+
+def _engine_intersection_stats(node1, node2, compose_matrix):
+    """The engine's own (is_empty, volume) for node1 ∩ node2. Two exact
+    nodes take the exact path when the run's kernel is exact. When BOTH
     nodes expose the fast-path attributes (see _fast_geometry):
 
     - An AABB broad-phase runs first (fix 2): if the parts' world
@@ -1043,7 +1167,7 @@ def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
     lacks the fast-path attributes at all (e.g. the FakeNode test
     doubles in tests/test_assertions.py).
     """
-    if getattr(node1, 'exact', False) and getattr(node2, 'exact', False):
+    if _routes_exact(node1) and _routes_exact(node2):
         shape1 = node1.shape()
         shape2 = node2.shape()
         matrix1 = compose_matrix(node1)
@@ -1368,7 +1492,7 @@ class TestCase(BaseTestCase):
         than independent parts.
         """
         for solid in _topmost_rigid_nodes(node):
-            if getattr(solid, 'exact', False):
+            if _routes_exact(solid):
                 bodies = solid_count(solid.shape())
                 source = 'exact geometry'
             else:
@@ -1644,8 +1768,7 @@ class TestCase(BaseTestCase):
             )
         _, weld_volume = _intersection_stats(
             node1, node2, compose_matrix=_compose_solid_matrix)
-        if (getattr(node1, 'exact', False)
-                and getattr(node2, 'exact', False)):
+        if _routes_exact(node1) and _routes_exact(node2):
             shape1 = placed_shape(
                 node1.shape(), _compose_solid_matrix(node1))
             shape2 = placed_shape(
