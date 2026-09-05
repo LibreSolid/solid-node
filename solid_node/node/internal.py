@@ -129,6 +129,8 @@ class InternalNode(AbstractBaseNode):
             self._link_child(child)
             scads.append(child.assemble(self.root))
             self.files.update(child.files)
+            for path, names in child.scope.items():
+                self.scope[path] = self.scope.get(path, frozenset()) | names
 
         # Assigned only AFTER the loop above: self.children is a plain
         # (non-private) list attribute, so setting it before deriving

@@ -8,6 +8,19 @@ Changelog
 Unreleased
 ----------
 
+**Several node classes in one file rebuild independently.** The
+content-verified currency check beneath the mtime rule is now scoped to
+the node: a source file that defines more than one node class contributes
+to each node's digest only the text that node can see — the file minus
+the other node classes' bodies, unless the rest of the file names them —
+so editing one class re-derives that node and the fusions above it, and
+merely restamps its neighbours. Shared module-level code still rebuilds
+every node in the file. Nothing is required of a project's layout any
+more: one node per file is no longer a premise of the cache. A file that
+defines one node class digests exactly as before, so no existing build
+directory rebuilds on upgrade; the nodes of a multi-node file rebuild
+once. (OpenSpec change ``node-scoped-currency``; ADR-071.)
+
 **The declarative node API.** A node class body can now *declare* its
 parameters (``Length``, ``Angle``, ``Count``, ``Ratio``, ``Flag``,
 ``Scalar``), derive others as bare formulas over them, and declare its

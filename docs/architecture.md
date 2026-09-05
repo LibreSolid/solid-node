@@ -66,7 +66,11 @@ Three architectural commitments shape almost every subsystem:
    invalidation concept the whole system shares. The source set behind
    that clock is a node's own file plus the project-local modules it
    imports, transitively (ADR-033), so a contributing module edit
-   invalidates the nodes that read it — and only those.
+   invalidates the nodes that read it — and only those. Beneath the
+   clock, content decides: when the stamp moved, a digest of what the
+   node can see of its sources — its own file minus the sibling node
+   classes it never names (ADR-071) — is what says whether the artifact
+   is still the one those sources produce.
 3. **One kinematic truth, recomputed absolutely, consumed everywhere**
    (ADR-023/027/028). A node's placement is its operation list. Every
    consumer — SCAD output, world-space meshes for assertions, the two
@@ -936,7 +940,16 @@ The short list that changes must not silently break:
   rebuild instead of a full one (ADR-060). The fallback reads nothing on
   the fresh path and is strictly stricter than the rule it stands behind
   — byte equality rather than timestamp equality — so it cannot report a
-  changed source current.
+  changed source current. The digest is scoped to the node (ADR-071): a
+  file that defines several node classes contributes to each node's digest
+  the file minus the other node classes' bodies, except any the retained
+  text names as an identifier or a string, and an internal node's digest
+  covers the union of its children's scopes. Two nodes sharing a file
+  therefore rebuild independently, an edit to code they share rebuilds
+  both, and a single-class file digests byte for byte as before. One node
+  per file is not a premise of the cache; what remains true of a
+  multi-node file is a property of node references (a bare path to it is
+  ambiguous), not of currency.
 - A node's source set is its own file plus the project-local modules it
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file

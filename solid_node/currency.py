@@ -40,6 +40,7 @@ reported as fresh is the one failure the system cannot survive, and every
 uncertain path here resolves toward rebuilding.
 """
 
+import ast
 import hashlib
 import logging
 import os
@@ -81,12 +82,133 @@ def _file_digest(path):
     return cached
 
 
-def source_digest(files, root):
+# Per-file structure for scoping, keyed like _file_digests: the file's
+# lines, and for each top-level statement the node-class span it defines
+# (if it is one) and every name and string the statement mentions. None
+# when the file cannot be scoped -- unparseable, or the interpreter cannot
+# say which of its classes are nodes -- so it is digested whole.
+_analyses = {}
+
+# Digests of retained text, keyed on the file key plus the classes kept.
+# A tree asks for the same (file, scope) once per node that shares it, so
+# without this an internal node's digest re-reads its children's files.
+_scoped_digests = {}
+
+
+def _analysis(path):
+    stat = os.stat(path)
+    key = (path, stat.st_mtime_ns, stat.st_size)
+    if key not in _analyses:
+        for stale in [k for k in _analyses if k[0] == path]:
+            del _analyses[stale]
+        with open(path, 'rb') as stream:
+            _analyses[key] = _analyse(path, stream.read())
+    return _analyses[key]
+
+
+def _analyse(path, data):
+    # Local import avoids the node.base -> currency -> sources cycle.
+    from solid_node.node.sources import node_classes_in
+
+    try:
+        tree = ast.parse(data, filename=path)
+    except (SyntaxError, ValueError):
+        return None
+    node_classes = node_classes_in(path)
+    if not node_classes:
+        return None
+
+    statements = []
+    for statement in tree.body:
+        mentions = set()
+        for inner in ast.walk(statement):
+            if isinstance(inner, ast.Name):
+                mentions.add(inner.id)
+            elif (isinstance(inner, ast.Constant)
+                    and isinstance(inner.value, str)):
+                mentions.add(inner.value)
+        span = None
+        if (isinstance(statement, ast.ClassDef)
+                and statement.name in node_classes):
+            first = min([statement.lineno]
+                        + [d.lineno for d in statement.decorator_list])
+            span = (statement.name, first, statement.end_lineno)
+        statements.append((span, frozenset(mentions)))
+
+    # bytes.splitlines breaks where the tokenizer does -- \n, \r\n and a
+    # lone \r -- so line numbers from the AST index these lines.
+    return data.splitlines(keepends=True), statements
+
+
+def _removed_spans(statements, keep):
+    """The (name, first, last) spans of the node classes a node whose
+    scope is `keep` does not see.
+
+    Start from every top-level node class not in `keep`; then put back
+    any of them the retained statements mention, by identifier or as a
+    string, and repeat until the retained text refers to nothing removed.
+    A base class, a helper that instantiates a sibling, `getattr(module,
+    'Sibling')` -- all of them keep the sibling in. Only a class the rest
+    of the file never names is left out.
+    """
+    removed = {span[0] for span, _ in statements
+               if span is not None and span[0] not in keep}
+    while removed:
+        mentioned = set()
+        for span, mentions in statements:
+            if span is None or span[0] not in removed:
+                mentioned |= mentions
+        restored = removed & mentioned
+        if not restored:
+            break
+        removed -= restored
+    return [span for span, _ in statements
+            if span is not None and span[0] in removed]
+
+
+def _scoped_digest(path, keep):
+    """The digest of `path` as a node whose scope there is `keep` sees it.
+
+    Identical to `_file_digest` whenever nothing is removed, which is the
+    single-class file, the file with no node classes, and every file this
+    cannot analyse. That equality is what keeps a digest recorded before
+    scoping existed valid under it.
+    """
+    stat = os.stat(path)
+    key = (path, stat.st_mtime_ns, stat.st_size, frozenset(keep))
+    cached = _scoped_digests.get(key)
+    if cached is None:
+        for stale in [k for k in _scoped_digests if k[0] == path]:
+            del _scoped_digests[stale]
+        analysis = _analysis(path)
+        removed = _removed_spans(analysis[1], keep) if analysis else []
+        if not removed:
+            cached = _file_digest(path)
+        else:
+            lines = analysis[0]
+            skipped = set()
+            for _, first, last in removed:
+                skipped.update(range(first - 1, last))
+            digest = hashlib.sha256()
+            for number, line in enumerate(lines):
+                if number not in skipped:
+                    digest.update(line)
+            cached = digest.hexdigest()
+        _scoped_digests[key] = cached
+    return cached
+
+
+def source_digest(files, root, scope=None):
     """One digest over a node's tracked sources, or None if any is unreadable.
 
     `files` is the node's own source together with its project-local
     import closure -- the set `node.mtime_ns` is the maximum over -- and
-    `root` is the project root every path is expressed against.
+    `root` is the project root every path is expressed against. `scope`
+    maps the real path of a source that defines node classes to the names
+    of the classes this node depends on there; such a file contributes
+    only the text those classes can see (see `_scoped_digest`), so a
+    sibling class edited in the same file leaves this digest alone. A
+    file with no scope entry contributes its bytes.
 
     None is not an error to report: it is the answer "cannot vouch for
     anything", and every caller treats it as not current. A source that
@@ -97,14 +219,18 @@ def source_digest(files, root):
     source IS its geometry (an `StlNode`'s mesh, a `JScadNode`'s script)
     is bigger, but it is still bounded by the render this replaces.
     """
+    scope = scope or {}
     try:
         # Keyed on the relative path, so the same file reached under two
         # spellings -- the loader adds the reference it was given beside
         # the closure's own realpath -- is one entry and not two.
-        entries = {
-            os.path.relpath(os.path.realpath(path), root): _file_digest(path)
-            for path in files
-        }
+        entries = {}
+        for path in files:
+            real = os.path.realpath(path)
+            keep = scope.get(real)
+            entries[os.path.relpath(real, root)] = (
+                _file_digest(path) if keep is None
+                else _scoped_digest(real, keep))
     except OSError as error:
         logger.debug('No source digest: %s', error)
         return None

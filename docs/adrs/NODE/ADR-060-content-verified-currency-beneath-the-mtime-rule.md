@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-08-30
 **Amends:** [ADR-006: Mtime-Based STL Caching Strategy](./ADR-006-mtime-based-stl-caching-strategy.md)
+**Amended by:** [ADR-071: Node-Scoped Content Currency](./ADR-071-node-scoped-content-currency.md) — the digest unit is the file as one node sees it, not the file
 **Depends on:**
 - [ADR-033: Import-Closure Source Set and Up-To-Date Leaf Path](./ADR-033-import-closure-source-set-and-up-to-date-leaf-path.md)
 - [ADR-050: Nanosecond-Fidelity Artifact Freshness](./ADR-050-nanosecond-fidelity-artifact-freshness.md)

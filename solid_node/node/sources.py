@@ -126,17 +126,23 @@ def _package_of(path):
     """The package a file was imported as, needed to resolve its
     relative imports. Taken from the interpreter, which has already
     done the resolution correctly."""
+    return _loaded_as(path)[0]
+
+
+def _loaded_as(path):
+    """The (package, module name) a real path was imported as, or
+    (None, None) if no loaded module came from it."""
     stamp = frozenset(sys.modules)
     index = _package_index.get(stamp)
     if index is None:
         _package_index.clear()
         index = _package_index[stamp] = _index_loaded_modules()
-    return index.get(path)
+    return index.get(path, (None, None))
 
 
 def _index_loaded_modules():
     index = {}
-    for module in list(sys.modules.values()):
+    for name, module in list(sys.modules.items()):
         filename = getattr(module, '__file__', None)
         if not filename:
             continue
@@ -145,8 +151,45 @@ def _index_loaded_modules():
         # sys.modules offered; assigning would silently hand a file to
         # the last importer instead.
         index.setdefault(os.path.realpath(filename),
-                         getattr(module, '__package__', None) or None)
+                         (getattr(module, '__package__', None) or None, name))
     return index
+
+
+def source_scope(src, klass):
+    """What `klass`, defined in `src`, can see of its own file: the
+    entry the content-verified digest scopes that file by.
+
+    A node's own source may define other node classes. Those are not part
+    of what this node's geometry depends on -- unless the rest of the file
+    refers to them, which the digest checks -- so the scope names the one
+    class this node is, and the digest keeps everything else in the file
+    but its siblings' bodies. A source that is not Python has no classes
+    to scope by and is digested whole.
+    """
+    if not src.endswith('.py'):
+        return {}
+    return {os.path.realpath(src): frozenset({klass.__name__})}
+
+
+def node_classes_in(path):
+    """The node classes the module at real path `path` defines at its
+    top level, by name -- or None when the interpreter cannot say.
+
+    Answered from the imported module, not from the source: which bases
+    make a class a node is not reliably readable from the text, and the
+    module is already imported by the time any node asks. None is
+    'unknown', which the digest treats as 'remove nothing'.
+    """
+    # Local imports avoid the loader -> node.base -> sources cycle.
+    from solid_node.core.loader import _defined_classes
+    from solid_node.node.base import AbstractBaseNode
+    _, name = _loaded_as(path)
+    module = sys.modules.get(name) if name else None
+    if module is None:
+        return None
+    return frozenset(
+        klass_name
+        for klass_name, _ in _defined_classes(path, module, AbstractBaseNode))
 
 
 def _import_from_targets(statement, package):

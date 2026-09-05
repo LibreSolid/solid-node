@@ -15,7 +15,7 @@ from subprocess import Popen
 from solid2 import scad_render, import_stl, color
 from solid_node import currency
 from solid_node.openscad import require_openscad
-from .sources import source_closure
+from .sources import source_closure, source_scope
 from . import phase as _phase
 from .declarative import (ChildDeclaration, NodeMeta, StructureError,
                           identity_values, in_class_body, is_declarative,
@@ -532,6 +532,12 @@ class AbstractBaseNode(metaclass=NodeMeta):
         # nodes union in their children's sets while assembling.
         self.files = source_closure(self.src)
 
+        # What this node can see of its own file, for the content-verified
+        # digest: its own class, so siblings defined in the same file do
+        # not invalidate it when they change. Internal nodes union in
+        # their children's scopes beside their files.
+        self.scope = source_scope(self.src, self.__class__)
+
         # Holds the result of render()
         self.model = None
 
@@ -743,10 +749,16 @@ class AbstractBaseNode(metaclass=NodeMeta):
         artifact when it is written and consulted only when mtime
         equality has already failed (see `_up_to_date`).
 
+        Scoped to this node: a file in the set that defines other node
+        classes contributes only the text this node can depend on, so an
+        edit to a sibling class sharing the file does not change the
+        answer here (see `currency.source_digest`).
+
         None when any tracked source cannot be read -- an answer, not an
         error: nothing can be vouched for, so nothing is current.
         """
-        return currency.source_digest(self.files, self._project_root)
+        return currency.source_digest(self.files, self._project_root,
+                                      self.scope)
 
     @property
     def mtime(self):

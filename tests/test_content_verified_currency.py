@@ -32,6 +32,7 @@ import itertools
 import json
 import os
 import shutil
+import sys
 import tempfile
 import time
 from unittest import TestCase
@@ -136,10 +137,7 @@ class ScratchProjectTest(TestCase):
         with open(os.path.join(self.root, 'pyproject.toml'), 'w') as manifest:
             manifest.write('[tool.solid-node]\n'
                            f'model = "{self.package}.machine:Machine"\n')
-        for name, content in (('__init__.py', ''), ('trace.py', TRACE),
-                              ('dimensions.py', DIMENSIONS),
-                              ('block.py', BLOCK), ('pin.py', PIN),
-                              ('machine.py', MACHINE)):
+        for name, content in self.project_files():
             self.write(name, content)
 
         self.build_dir = os.path.join(self.root, '_build')
@@ -150,6 +148,14 @@ class ScratchProjectTest(TestCase):
 
     ##############################################
     # The project
+
+    def project_files(self):
+        """The project's sources, as (name, content) pairs. A fixture
+        with a different layout overrides this and nothing else."""
+        return (('__init__.py', ''), ('trace.py', TRACE),
+                ('dimensions.py', DIMENSIONS),
+                ('block.py', BLOCK), ('pin.py', PIN),
+                ('machine.py', MACHINE))
 
     def write(self, name, content):
         path = os.path.join(self.root, self.package, name)
@@ -174,7 +180,17 @@ class ScratchProjectTest(TestCase):
     ##############################################
     # Building
 
+    def forget_project(self):
+        """What a real build gets for free: a fresh interpreter (ADR-067),
+        in which an edited source is read again. In one process the loader
+        keeps a project's modules, so a rebuild here would render the
+        class as first imported and every edit would look like a no-op."""
+        for name in list(sys.modules):
+            if name == self.package or name.startswith(self.package + '.'):
+                del sys.modules[name]
+
     def build(self):
+        self.forget_project()
         node = load_node(self.reference)
         node.assemble()
         node.build_stls()
@@ -182,6 +198,7 @@ class ScratchProjectTest(TestCase):
 
     def publish(self):
         """A complete build, through the builder that publishes and sweeps."""
+        self.forget_project()
         builder = Builder(self.reference, build_dir=self.build_dir,
                           watch=False)
         outcome = asyncio.run(builder._start())

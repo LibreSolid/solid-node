@@ -212,10 +212,12 @@ class FusionHierarchyTest(TestCase):
         fusion = object.__new__(FusionNode)
         fusion.root = None
         fusion.files = set()
+        fusion.scope = {}
         fusion._link_child = Mock()
         child = SimpleNamespace(
             rigid=True,
             files=set(),
+            scope={},
             assemble=Mock(return_value=object()),
         )
 

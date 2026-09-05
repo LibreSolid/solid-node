@@ -5,6 +5,7 @@
 **Extends:** [ADR-006: Mtime-Based STL Caching Strategy](./ADR-006-mtime-based-stl-caching-strategy.md)
 **Amends:** [ADR-002: Template-Method Pattern for Node Lifecycle](./ADR-002-template-method-pattern-for-node-lifecycle.md)
 **Affects:** [ADR-004: Multi-CAD Backend Adapter Pattern](./ADR-004-multi-cad-backend-adapter-pattern.md)
+**Amended by:** [ADR-071: Node-Scoped Content Currency](./ADR-071-node-scoped-content-currency.md) — the one-node-per-file driver is withdrawn; the decision stands
 
 ## Context and Problem Statement
 
