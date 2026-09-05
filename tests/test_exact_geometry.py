@@ -11,6 +11,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 import cadquery as cq
+import numpy as np
 import trimesh
 from solid2 import cube
 
@@ -23,7 +24,8 @@ from solid_node.node import (
     OpenScadNode,
     Solid2Node,
 )
-from solid_node.exact import (_shape_cache, cached_shape, placed_shape,
+from solid_node.exact import (_placement_cache, _shape_cache,
+                              cached_shape, placed_shape,
                               solid_count, solid_volume, write_brep)
 from solid_node.node.base import StlRenderStart
 from solid_node.test import TestCase as GeometryTestCase, _intersection_stats
@@ -210,6 +212,83 @@ class ExactArtifactTest(TestCase):
         self.assertAlmostEqual(second.Volume(), 8.0)
         self.assertEqual([key for key in _shape_cache if key[0] == path],
                          [(path, 2.0)])
+
+    def test_one_placement_serves_repeated_comparisons(self):
+        """A placement is built once per (shape identity, matrix).
+
+        `placed_shape` runs `BRepBuilderAPI_Transform` over the whole
+        B-rep -- 6-19 ms on real parts -- and an animated assertion
+        places the same solid by the same matrix at every candidate pair
+        it visits. The second placement of a matrix already placed must
+        cost a lookup.
+        """
+        path = os.path.join(self.directory.name, 'placed.brep')
+        write_brep(cq.Workplane('XY').box(1, 1, 1).val(), path, 1 * 10 ** 9)
+        shape = cached_shape(path)
+        matrix = np.eye(4)
+        matrix[0, 3] = 5.0
+
+        first = placed_shape(shape, matrix)
+        second = placed_shape(shape, matrix)
+
+        self.assertIs(second, first)
+        self.assertAlmostEqual(
+            first.BoundingBox().xmin, 4.5, places=6)
+
+    def test_a_different_matrix_builds_its_own_placement(self):
+        path = os.path.join(self.directory.name, 'placed.brep')
+        write_brep(cq.Workplane('XY').box(1, 1, 1).val(), path, 1 * 10 ** 9)
+        shape = cached_shape(path)
+        near, far = np.eye(4), np.eye(4)
+        near[0, 3] = 5.0
+        far[0, 3] = 9.0
+
+        placed_near = placed_shape(shape, near)
+        placed_far = placed_shape(shape, far)
+
+        self.assertIsNot(placed_near, placed_far)
+        self.assertAlmostEqual(placed_near.BoundingBox().xmin, 4.5, places=6)
+        self.assertAlmostEqual(placed_far.BoundingBox().xmin, 8.5, places=6)
+
+    def test_a_rebuilt_shape_is_never_served_the_old_placement(self):
+        """The hazard this cache exists to avoid.
+
+        A `cq.Shape` cannot be its own cache key: `Shape.__eq__` is
+        `isSame()`, which compares the underlying TShape and ignores
+        location, so a shape and a differently placed copy of it compare
+        EQUAL. Nor can `id()` be one on its own, since CPython reuses an
+        address after collection. The key is therefore the same
+        `(file, mtime)` identity `_shape_cache` uses, and a rebuild under
+        a new mtime must not be served the old geometry's placement.
+        """
+        path = os.path.join(self.directory.name, 'rebuilt.brep')
+        matrix = np.eye(4)
+        matrix[0, 3] = 5.0
+
+        write_brep(cq.Workplane('XY').box(1, 1, 1).val(), path, 1 * 10 ** 9)
+        before = placed_shape(cached_shape(path), matrix)
+        write_brep(cq.Workplane('XY').box(2, 2, 2).val(), path, 2 * 10 ** 9)
+        after = placed_shape(cached_shape(path), matrix)
+
+        self.assertAlmostEqual(before.Volume(), 1.0)
+        self.assertAlmostEqual(after.Volume(), 8.0)
+        self.assertEqual(
+            {key[0] for key in _placement_cache if key[0][0] == path},
+            {(path, 2.0)},
+            'a placement built from the evicted geometry survived')
+
+    def test_a_shape_without_file_identity_is_not_cached(self):
+        # A shape built on the fly -- a fusion composed for this
+        # comparison, a node whose BREP is not current -- has no identity
+        # to key on, so it is placed exactly as it is today.
+        shape = cq.Workplane('XY').box(1, 1, 1).val()
+        matrix = np.eye(4)
+
+        first = placed_shape(shape, matrix)
+        second = placed_shape(shape, matrix)
+
+        self.assertIsNot(first, second)
+        self.assertAlmostEqual(second.Volume(), 1.0)
 
     def test_fusion_composes_and_renders_exactly_without_subprocess(self):
         fusion = ExactFusion()

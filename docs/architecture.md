@@ -569,7 +569,12 @@ command's module is imported, and the node and simulation packages resolve
 their exports on first access, so a command pays for the backends it uses and
 not for the rest (ADR-059) — `solid viewer` answers from the viewer's entry
 point alone. Top-level `-h` is the exception: it renders every command's
-docstring, so it loads them all. Snapshot has an explicit renderer choice
+docstring, so it loads them all. The test framework defers the same way by a
+different mechanism (ADR-069): a module's own call sites are global reads,
+which PEP 562 never sees, so `solid_node.test` binds its seven
+`solid_node.exact` names to deferred callables that import on first call and
+replace themselves unless patched. A faceted-only project runs its whole suite
+without importing cadquery. Snapshot has an explicit renderer choice
 (ADR-021/041/046/068): OpenSCAD remains the external-tool default with xvfb
 fallback, whether or not the browser viewer is installed, while the
 optional `web` renderer stages the node and has the installed viewer package
@@ -614,6 +619,20 @@ verdict-identical to the naive faceted path. Exact pairs share the same AABB
 broad phase, then use OCCT common and interpret “contains no solid” as empty;
 kernel failure raises and never falls back. `volume_epsilon` is ignored with a
 warning when every comparison in a call was exact.
+
+Verdicts are memoized within a run (ADR-070). The identity of an intersection
+question is `(both geometry identities, evaluation path, exact bytes of
+inv(M1) @ M2)` — relative rigid placement, so a pair carried together by a
+shared parent is the same question while a pair that moved relative to each
+other is not. The key carries no tolerance and no rounding: deciding that two
+near-identical placements are one question is the judgement `volume_epsilon`
+exists to leave with the project. Exact and faceted entries never serve one
+another, a node with no file identity is never cached, and entries are evicted
+when a geometry identity changes, on the same discipline as the Manifold cache.
+Exact placements and bounding boxes are cached alongside per
+`(shape identity, matrix bytes)`. A flexible leaf's geometry follows its
+binding, so its comparisons are uncacheable by construction and remain the
+dominant cost of a swept suite.
 
 The root-level integrity boundary is the first rigid node on every branch
 (ADR-039/040). Connectivity is deliberately solid-local.

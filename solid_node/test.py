@@ -19,8 +19,53 @@ from solid_node.node.base import (binding_hash, cached_base_mesh,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
 from solid_node.node.operations import Rotation, Translation
-from solid_node.exact import (fuse_shapes, intersect_shapes, placed_shape,
-                              solid_count, solid_volume)
+
+
+def _deferred_exact(name):
+    """Bind one `solid_node.exact` name without importing the kernel.
+
+    Importing `solid_node.exact` imports cadquery, which costs about 1.5 s
+    and pulls VTK in behind it. `solid_node.core.loader` already refuses to
+    pay that for merely loading a node (see the `cli-startup-cost`
+    capability); this is the same refusal one level in -- discovering or
+    running tests must not pay it either, because a project modelling in
+    solid2 and asserting over meshes never reaches the kernel at all.
+
+    The deferral is a self-replacing callable rather than a module
+    `__getattr__`: the names below are CALLED from this module's own
+    functions, and a global-name lookup inside a function never consults a
+    module's `__getattr__` -- it would raise NameError until something
+    outside happened to read the attribute. A wrapper resolves on first
+    call and rebinds the global, so every later call is the kernel function
+    reached by an ordinary lookup, and the five call sites read exactly as
+    they did.
+
+    The rebinding declines to overwrite a global that is no longer this
+    wrapper, so a caller that patched the name keeps its patch; and because
+    the resolved name is a plain module global, a patch applied after
+    resolution is equally honoured. An import failure surfaces here, at
+    first use, naming what failed.
+    """
+
+    def deferred(*arguments, **keywords):
+        from solid_node import exact
+        resolved = getattr(exact, name)
+        if globals().get(name) is deferred:
+            globals()[name] = resolved
+        return resolved(*arguments, **keywords)
+
+    deferred.__name__ = name
+    deferred.__qualname__ = name
+    return deferred
+
+
+cached_bounding_box = _deferred_exact('cached_bounding_box')
+shape_identity = _deferred_exact('shape_identity')
+fuse_shapes = _deferred_exact('fuse_shapes')
+intersect_shapes = _deferred_exact('intersect_shapes')
+placed_shape = _deferred_exact('placed_shape')
+solid_count = _deferred_exact('solid_count')
+solid_volume = _deferred_exact('solid_volume')
 
 
 @dataclass(frozen=True)
@@ -292,10 +337,21 @@ def _solid_geometry(solid):
 
 def _place_solid(solid, stl_file, local_bounds, matrix, shape):
     """One placed-solid record: ``(solid, deferred_placed_manifold,
-    world_bounds, placed_exact_shape_or_None)``."""
+    world_bounds, placed_exact_shape_or_None, faceted_identity,
+    exact_identity, matrix)``.
+
+    The last three carry what the verdict memo needs and nothing reads
+    otherwise: one identity per evaluation path, so a record is keyed by
+    the geometry the path it takes actually compares, and the matrix the
+    record was placed by, so a pair's RELATIVE placement can be formed
+    without re-deriving it from the node tree.
+    """
     return (solid, _DeferredManifold(stl_file, matrix),
             _world_bounds(local_bounds, matrix),
-            None if shape is None else placed_shape(shape, matrix))
+            None if shape is None else placed_shape(shape, matrix),
+            _geometry_identity(stl_file),
+            None if shape is None else shape_identity(shape),
+            matrix)
 
 
 def _placed_assembly_solids(node):
@@ -359,15 +415,23 @@ def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
     pair really is decided by the mesh boolean.
     """
     if first[3] is not None and second[3] is not None:
-        result = intersect_shapes(
-            first[3], second[3], first[0].name, second[0].name)
-        count = solid_count(result)
-        return IntersectionStats(count == 0, solid_volume(result), True)
-    result = (_placed_manifold(first, needed_by, reason)
-              ^ _placed_manifold(second, needed_by, reason))
-    is_empty = result.is_empty()
-    return IntersectionStats(
-        is_empty, 0.0 if is_empty else result.volume(), False)
+
+        def exact():
+            result = intersect_shapes(
+                first[3], second[3], first[0].name, second[0].name)
+            count = solid_count(result)
+            return IntersectionStats(count == 0, solid_volume(result), True)
+
+        return _memoized(_record_key(first, second, 5, 'exact'), exact)
+
+    def faceted():
+        result = (_placed_manifold(first, needed_by, reason)
+                  ^ _placed_manifold(second, needed_by, reason))
+        is_empty = result.is_empty()
+        return IntersectionStats(
+            is_empty, 0.0 if is_empty else result.volume(), False)
+
+    return _memoized(_record_key(first, second, 4, 'faceted'), faceted)
 
 
 def _candidate_intersection(solids, first, second,
@@ -819,6 +883,131 @@ def _unbalanced_bodies(bodies, contacts, declared, unit_gravity):
     return failures
 
 
+########################################
+# Verdict memo
+#
+# A pair's intersection verdict depends on its two geometries and their
+# RELATIVE rigid placement and on nothing else: emptiness and volume are
+# invariant under a common rigid transform. So a repeated key is provably
+# the same verdict, and the animation sweep repeats keys constantly --
+# @testing_steps(N) recompares an assembly's static structure at every
+# instant though none of it has moved relative to anything.
+#
+# Like the AABB broad phase this only ever skips work whose answer is
+# already certain. It introduces NO tolerance: the relative matrix is
+# compared by its exact bytes, so a placement difference too small to see
+# is still a different placement. A near-miss costs a miss, which costs
+# exactly what today costs.
+
+# Bounded so a long-lived process (`solid develop`) cannot grow it without
+# limit. A test run is far below this; the oldest entry goes first.
+_VERDICT_CACHE_LIMIT = 8192
+
+_verdict_cache = {}
+
+# The mtime last seen for each geometry file, so a rebuild can drop the
+# entries derived from the old content rather than leave them unreachable
+# but resident -- the same eviction discipline the mesh, Manifold and
+# placement caches follow.
+_verdict_mtimes = {}
+
+
+def _geometry_identity(path):
+    """``(path, mtime)`` for a geometry file, or None if it has none."""
+    if not path:
+        return None
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return None
+    identity = (path, mtime)
+    if _verdict_mtimes.get(path) != mtime:
+        _verdict_mtimes[path] = mtime
+        for key in [key for key in _verdict_cache
+                    if key[0][0] == path or key[1][0] == path]:
+            del _verdict_cache[key]
+    return identity
+
+
+def _verdict_key(identity1, matrix1, identity2, matrix2, path):
+    """The identity under which a verdict stays valid, or None.
+
+    None means "do not cache": one of the compared solids has no stable
+    geometry identity, so nothing about a later comparison can be known to
+    be the same question.
+    """
+    if identity1 is None or identity2 is None:
+        return None
+    relative = np.linalg.inv(matrix1) @ matrix2
+    return (identity1, identity2, path, relative.tobytes())
+
+
+def _record_key(first, second, identity_index, path):
+    """The verdict key for a pair of placement records, or None.
+
+    A record built outside ``_place_solid`` -- the virtual floor, which is
+    a Manifold with no geometry file behind it -- carries no identity and
+    is therefore never cached.
+    """
+    if len(first) <= 6 or len(second) <= 6:
+        return None
+    return _verdict_key(first[identity_index], first[6],
+                        second[identity_index], second[6], path)
+
+
+def _memoized(key, compute):
+    """``compute()``, once per key."""
+    if key is None:
+        return compute()
+    cached = _verdict_cache.get(key)
+    if cached is None:
+        cached = compute()
+        if len(_verdict_cache) >= _VERDICT_CACHE_LIMIT:
+            del _verdict_cache[next(iter(_verdict_cache))]
+        _verdict_cache[key] = cached
+    return cached
+
+
+def _exact_verdict(shape1, matrix1, shape2, matrix2, name1, name2):
+    """The exact path's verdict for one pair, broad phase included."""
+    bounds1 = cached_bounding_box(shape1)
+    bounds2 = cached_bounding_box(shape2)
+    box1 = _world_bounds(
+        (np.array([bounds1.xmin, bounds1.ymin, bounds1.zmin]),
+         np.array([bounds1.xmax, bounds1.ymax, bounds1.zmax])), matrix1)
+    box2 = _world_bounds(
+        (np.array([bounds2.xmin, bounds2.ymin, bounds2.zmin]),
+         np.array([bounds2.xmax, bounds2.ymax, bounds2.zmax])), matrix2)
+    if _boxes_disjoint(box1, box2):
+        return IntersectionStats(True, 0.0, True)
+    result = intersect_shapes(
+        placed_shape(shape1, matrix1), placed_shape(shape2, matrix2),
+        name1, name2)
+    count = solid_count(result)
+    return IntersectionStats(count == 0, solid_volume(result), True)
+
+
+def _faceted_verdict(manifold1, bounds1, matrix1,
+                     manifold2, bounds2, matrix2):
+    """The faceted path's verdict for one pair, broad phase included.
+
+    Verdict semantics are untouched: ``is_empty`` is the engine's own
+    emptiness, and ``volume`` is read only when non-empty, so a real flush
+    abutment still comes back non-empty with exactly 0.0mm^3 and still
+    fouls at the strict ``volume_epsilon=0`` default (ADR-025, ADR-029).
+    """
+    box1 = _world_bounds(bounds1, matrix1)
+    box2 = _world_bounds(bounds2, matrix2)
+    if _boxes_disjoint(box1, box2):
+        return IntersectionStats(True, 0.0, False)
+    placed1 = manifold1.transform(matrix1[:3, :4])
+    placed2 = manifold2.transform(matrix2[:3, :4])
+    result = placed1 ^ placed2
+    is_empty = result.is_empty()
+    volume = 0.0 if is_empty else result.volume()
+    return IntersectionStats(is_empty, volume, False)
+
+
 def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
     """(is_empty, volume) for node1 ∩ node2 -- the shared helper the
     intersection-based assertions below route through. When BOTH
@@ -859,37 +1048,24 @@ def _intersection_stats(node1, node2, compose_matrix=_compose_world_matrix):
         shape2 = node2.shape()
         matrix1 = compose_matrix(node1)
         matrix2 = compose_matrix(node2)
-        bounds1 = shape1.BoundingBox()
-        bounds2 = shape2.BoundingBox()
-        box1 = _world_bounds(
-            (np.array([bounds1.xmin, bounds1.ymin, bounds1.zmin]),
-             np.array([bounds1.xmax, bounds1.ymax, bounds1.zmax])), matrix1)
-        box2 = _world_bounds(
-            (np.array([bounds2.xmin, bounds2.ymin, bounds2.zmin]),
-             np.array([bounds2.xmax, bounds2.ymax, bounds2.zmax])), matrix2)
-        if _boxes_disjoint(box1, box2):
-            return IntersectionStats(True, 0.0, True)
-        result = intersect_shapes(
-            placed_shape(shape1, matrix1), placed_shape(shape2, matrix2),
-            node1.name, node2.name)
-        count = solid_count(result)
-        return IntersectionStats(count == 0, solid_volume(result), True)
+        return _memoized(
+            _verdict_key(shape_identity(shape1), matrix1,
+                         shape_identity(shape2), matrix2, 'exact'),
+            lambda: _exact_verdict(shape1, matrix1, shape2, matrix2,
+                                   node1.name, node2.name))
 
     fast1 = _fast_geometry(node1, compose_matrix)
     fast2 = _fast_geometry(node2, compose_matrix)
     if fast1 is not None and fast2 is not None:
         manifold1, bounds1, matrix1 = fast1
         manifold2, bounds2, matrix2 = fast2
-        box1 = _world_bounds(bounds1, matrix1)
-        box2 = _world_bounds(bounds2, matrix2)
-        if _boxes_disjoint(box1, box2):
-            return IntersectionStats(True, 0.0, False)
-        placed1 = manifold1.transform(matrix1[:3, :4])
-        placed2 = manifold2.transform(matrix2[:3, :4])
-        result = placed1 ^ placed2
-        is_empty = result.is_empty()
-        volume = 0.0 if is_empty else result.volume()
-        return IntersectionStats(is_empty, volume, False)
+        return _memoized(
+            _verdict_key(_geometry_identity(getattr(node1, 'stl_file', None)),
+                         matrix1,
+                         _geometry_identity(getattr(node2, 'stl_file', None)),
+                         matrix2, 'faceted'),
+            lambda: _faceted_verdict(manifold1, bounds1, matrix1,
+                                     manifold2, bounds2, matrix2))
     intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])
     volume = 0.0 if intersection.is_empty else intersection.volume
     return IntersectionStats(intersection.is_empty, volume, False)

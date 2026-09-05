@@ -20,6 +20,36 @@ from solid_node import currency
 
 _shape_cache = {}
 
+# The cache key of every shape `_shape_cache` currently holds, by object
+# address. An address is only a safe identity while something keeps the
+# object alive, and `_shape_cache` is exactly that: an entry here is added
+# and removed with the shape it names, so an address can never be reused
+# behind a surviving entry.
+#
+# A shape cannot be its own key. `Shape.__eq__` is `isSame()`, which
+# compares the underlying TShape and IGNORES location, so a shape and a
+# differently placed copy of it compare equal -- keying placements on the
+# shape would serve one part's placement for another's.
+_shape_keys = {}
+
+# One placed shape per (shape cache key, matrix), and one bounding box per
+# shape cache key. `placed_shape` runs a full `BRepBuilderAPI_Transform`
+# over the B-rep -- 6-19 ms on real parts -- and an animated assertion
+# places the same solid by the same matrix at every candidate pair it
+# visits.
+_placement_cache = {}
+_bounds_cache = {}
+
+
+def _evict(brep_file):
+    """Drop every cached artifact derived from a rebuilt file."""
+    for key in [key for key in _shape_cache if key[0] == brep_file]:
+        _shape_keys.pop(id(_shape_cache.pop(key)), None)
+        _bounds_cache.pop(key, None)
+        for placement in [placement for placement in _placement_cache
+                          if placement[0] == key]:
+            del _placement_cache[placement]
+
 
 def cached_shape(brep_file):
     """Load one immutable CadQuery shape per ``(path, mtime)``."""
@@ -27,12 +57,38 @@ def cached_shape(brep_file):
     key = (brep_file, mtime)
     cached = _shape_cache.get(key)
     if cached is None:
-        for stale_key in [key for key in _shape_cache
-                          if key[0] == brep_file]:
-            del _shape_cache[stale_key]
+        _evict(brep_file)
         cached = cq.Shape.importBrep(brep_file)
         _shape_cache[key] = cached
+        _shape_keys[id(cached)] = key
     return cached
+
+
+def shape_identity(shape):
+    """The cache key of a shape this module holds, or None.
+
+    None means "no stable identity": a shape composed for this comparison
+    or read from a node whose BREP is not current. A caller keying work on
+    geometry must not cache such a shape's results.
+    """
+    return _shape_keys.get(id(shape))
+
+
+def cached_bounding_box(shape):
+    """The shape's local bounding box, computed once per cached shape.
+
+    A shape with no cache identity -- one composed for this comparison, or
+    read from a node whose BREP is not current -- is measured directly, as
+    it is today.
+    """
+    key = _shape_keys.get(id(shape))
+    if key is None:
+        return shape.BoundingBox()
+    bounds = _bounds_cache.get(key)
+    if bounds is None:
+        bounds = shape.BoundingBox()
+        _bounds_cache[key] = bounds
+    return bounds
 
 
 def build123d_shape(rendered):
@@ -122,13 +178,33 @@ def write_stl(shape, path, mtime_ns, digest=None, *, remove_degenerate=False):
     _atomic_export(path, mtime_ns, export, digest)
 
 
-def placed_shape(shape, matrix):
-    """Place a local shape using the framework's composed 4x4 matrix."""
+def _place(shape, values):
     transform = gp_Trsf()
-    transform.SetValues(*[float(matrix[row, column])
-                          for row in range(3) for column in range(4)])
+    transform.SetValues(*values)
     return cq.Shape.cast(
         BRepBuilderAPI_Transform(shape.wrapped, transform, True).Shape())
+
+
+def placed_shape(shape, matrix):
+    """Place a local shape using the framework's composed 4x4 matrix.
+
+    Cached per ``(shape cache key, matrix)``, so a solid placed by the same
+    matrix twice is transformed once. The matrix is compared by its exact
+    values: a placement difference too small to see is still a different
+    placement, and this cache introduces no tolerance of its own. A shape
+    with no cache identity is placed uncached, exactly as before.
+    """
+    values = tuple(float(matrix[row, column])
+                   for row in range(3) for column in range(4))
+    key = _shape_keys.get(id(shape))
+    if key is None:
+        return _place(shape, values)
+    placement = (key, values)
+    placed = _placement_cache.get(placement)
+    if placed is None:
+        placed = _place(shape, values)
+        _placement_cache[placement] = placed
+    return placed
 
 
 def _boolean(operation, first, second, first_name, second_name):

@@ -367,10 +367,16 @@ class SimulationBrokenExport(TestCase):
 
     The classic PEP 562 trap: an `ImportError` raised inside
     `__getattr__` looks, to anything that treats the accessor as a
-    lookup, like the name simply not being there. `ScenarioTest` reaches
-    `solid_node.test` -> `solid_node.exact` -> `cadquery`, so a broken
-    install of the exact stack is exactly the case that must not be
-    reported as a missing attribute.
+    lookup, like the name simply not being there.
+
+    `ScenarioTest` used to reach `solid_node.test` -> `solid_node.exact`
+    -> `cadquery`, and these tests read a broken exact stack through it.
+    Now that the test framework defers the exact stack too, that chain
+    stops one step earlier: reading `ScenarioTest` no longer needs
+    cadquery at all, so the guard follows the dependency to where it
+    actually lives -- the kernel names on `solid_node.test`, whose first
+    USE is now the first thing that can fail. The trap is unchanged and
+    so is what it must not do; only the name that springs it moved.
     """
 
     def _access(self, expression):
@@ -379,6 +385,24 @@ class SimulationBrokenExport(TestCase):
             'import solid_node.simulation\n'
             'try:\n'
             f'    {expression}\n'
+            'except AttributeError as wrong:\n'
+            "    print('ATTRIBUTE_ERROR', wrong)\n"
+            'except ImportError as failure:\n'
+            "    print('IMPORT_ERROR', failure)\n"
+            'except Exception as other:\n'
+            "    print('OTHER', type(other).__name__, other)\n"
+            'else:\n'
+            "    print('NO_ERROR')\n")
+
+    def _use_kernel_name(self):
+        """Call a deferred kernel name on `solid_node.test`, exact stack
+        absent. Reading the name is not enough -- the deferred binding
+        resolves on USE, which is the point the failure must surface."""
+        return ran(
+            CADQUERY_ABSENT +
+            'import solid_node.test\n'
+            'try:\n'
+            "    solid_node.test.intersect_shapes(None, None, 'a', 'b')\n"
             'except AttributeError as wrong:\n'
             "    print('ATTRIBUTE_ERROR', wrong)\n"
             'except ImportError as failure:\n'
@@ -397,29 +421,35 @@ class SimulationBrokenExport(TestCase):
                      "print('IMPORTED')\n")
         self.assertEqual(result.stdout.strip(), 'IMPORTED', result.stderr)
 
-    def test_a_broken_export_raises_the_underlying_import_error(self):
+    def test_the_scenario_export_no_longer_needs_the_stack(self):
+        # The deferral went one step deeper than this class used to
+        # assert: the scenario export reaches the test framework, and the
+        # test framework no longer reaches cadquery.
         result = self._access('solid_node.simulation.ScenarioTest')
+        self.assertEqual(result.stdout.strip(), 'NO_ERROR', result.stderr)
+
+    def test_using_a_kernel_name_raises_the_underlying_import_error(self):
+        result = self._use_kernel_name()
         reported = result.stdout.strip()
         self.assertTrue(reported.startswith('IMPORT_ERROR'), reported)
         self.assertIn('cadquery', reported)
 
-    def test_the_reported_failure_names_the_requested_export(self):
-        result = self._access('solid_node.simulation.ScenarioTest')
-        self.assertIn('ScenarioTest', result.stdout)
-
-    def test_hasattr_does_not_turn_a_broken_export_into_a_missing_name(self):
+    def test_reading_a_kernel_name_is_not_a_missing_attribute(self):
+        # The trap itself: whatever a broken install does, it must not
+        # look like `solid_node.test` never had the name.
         result = ran(
             CADQUERY_ABSENT +
-            'import solid_node.simulation\n'
+            'import solid_node.test\n'
             'try:\n'
-            "    present = hasattr(solid_node.simulation, 'ScenarioTest')\n"
+            "    present = hasattr(solid_node.test, 'intersect_shapes')\n"
             'except ImportError as failure:\n'
             "    print('IMPORT_ERROR', failure)\n"
             'else:\n'
-            "    print('SWALLOWED', present)\n")
+            "    print('PRESENT', present)\n")
         reported = result.stdout.strip()
-        self.assertTrue(reported.startswith('IMPORT_ERROR'), reported)
-        self.assertIn('ScenarioTest', reported)
+        self.assertIn(reported.split()[0], ('IMPORT_ERROR', 'PRESENT'),
+                      reported)
+        self.assertNotIn('False', reported)
 
 
 class BuildImportCost(TestCase):
@@ -456,3 +486,119 @@ class BuildImportCost(TestCase):
         self.assertTrue(result.imported('cadquery'),
                         'building a CadQueryNode project did not import '
                         'cadquery')
+
+
+def run_tests(reference):
+    """Run a real `solid test` of a fixture, in a throwaway build tree."""
+    with tempfile.TemporaryDirectory(prefix='solid-lazy-test-') as build_dir:
+        return ran('from solid_node.cli import manage\nmanage()\n',
+                   argv=['test', reference],
+                   env={'SOLID_BUILD_DIR': build_dir},
+                   cwd=BASEDIR)
+
+
+class TestFrameworkImportCost(TestCase):
+    """Running tests is not a reason to load the exact-geometry stack.
+
+    `LoaderImportCost` above asserts this from the outside: loading a node
+    imports neither the test framework nor cadquery. That left the inside
+    unasserted -- the moment a test IS discovered, `solid_node.test`
+    imports `solid_node.exact` at module scope and every test process pays
+    2.84 s for cadquery, whether or not a single node in the project is
+    exact.
+
+    As always the absence assertions are paired with the presence ones
+    that would catch a deferral quietly becoming a removal: an exact
+    comparison must still import the stack and return the same verdict.
+    """
+
+    def test_importing_the_test_framework_does_not_import_cadquery(self):
+        result = ran('import solid_node.test\n')
+        self.assertFalse(result.imported('cadquery'),
+                         'importing solid_node.test imported cadquery')
+        self.assertFalse(result.imported('solid_node.exact'),
+                         'importing solid_node.test imported the exact stack')
+
+    def test_a_faceted_test_run_imports_no_cadquery(self):
+        # The consequence that pays for the change, against the real CLI:
+        # a project modelling in solid2 and asserting over meshes runs its
+        # tests without ever loading the boundary-representation kernel.
+        result = run_tests('meta_project/separated.py')
+        self.assertIn('test_no_pairwise_intersections', result.stdout,
+                      result.stderr)
+        self.assertFalse(result.imported('cadquery'),
+                         'a faceted test run imported cadquery')
+
+    def test_an_exact_test_run_still_imports_cadquery(self):
+        # The half that makes the half above mean something.
+        result = run_tests('meta_project/exact_tight_fit.py')
+        self.assertTrue(result.imported('cadquery'),
+                        'an exact test run did not import cadquery')
+
+
+class ExactNamesStayPatchable(TestCase):
+    """The deferred exact names remain module globals of `solid_node.test`.
+
+    Deferring the import moves WHEN the kernel loads, not where its names
+    live. A caller that patches one keeps working -- before the exact path
+    has ever run, and after it has already resolved the name -- because
+    the deferred binding is an ordinary module global that resolution
+    replaces and a patch replaces in turn.
+    """
+
+    EXACT_NAMES = ('fuse_shapes', 'intersect_shapes', 'placed_shape',
+                   'solid_count', 'solid_volume')
+
+    def test_every_deferred_name_is_readable(self):
+        import solid_node.test as test_module
+        for name in self.EXACT_NAMES:
+            with self.subTest(name=name):
+                self.assertTrue(callable(getattr(test_module, name)),
+                                f'{name} is not readable on solid_node.test')
+
+    def test_a_patch_applied_before_first_use_is_used(self):
+        result = ran(PATCH_BEFORE_USE, cwd=BASEDIR)
+        self.assertEqual(result.stdout.strip(), 'PATCHED', result.stderr)
+
+    def test_a_patch_applied_after_resolution_is_used(self):
+        result = ran(PATCH_AFTER_USE, cwd=BASEDIR)
+        self.assertEqual(result.stdout.strip(), 'RESOLVED PATCHED',
+                         result.stderr)
+
+
+# Both snippets drive the exact branch of `_placed_intersection` with every
+# kernel name patched, so they exercise the real internal call sites without
+# needing real geometry -- what is under test is whose function those sites
+# call, not what it computes.
+_PATCH = '''
+class FakeShape:
+
+    def Solids(self):
+        return []
+
+
+class FakeSolid:
+    name = 'fake'
+
+
+def patched_verdict():
+    t.intersect_shapes = lambda first, second, one, two: 'RESULT'
+    t.solid_count = lambda result: 0
+    t.solid_volume = lambda result: 0.0
+    record = (FakeSolid(), None, None, FakeShape())
+    stats = t._placed_intersection(record, record)
+    return 'PATCHED' if (stats.exact and stats.is_empty) else 'NOT PATCHED'
+'''
+
+PATCH_BEFORE_USE = 'import solid_node.test as t\n' + _PATCH + '''
+print(patched_verdict())
+'''
+
+# `solid_count` is called for real first -- on a duck-typed shape, so the
+# resolution is genuine without building geometry -- which is what makes the
+# second half an assertion about a name that has ALREADY been replaced by the
+# resolved kernel function rather than one still holding its deferred binding.
+PATCH_AFTER_USE = 'import solid_node.test as t\n' + _PATCH + '''
+resolved = 'RESOLVED' if t.solid_count(FakeShape()) == 0 else 'UNRESOLVED'
+print(resolved, patched_verdict())
+'''

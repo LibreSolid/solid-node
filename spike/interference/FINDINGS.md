@@ -131,3 +131,132 @@ total) confirms `cached_shape` is a cheap cache hit and not a cost.
    overhead once repeats are gone.
 
 Not pursued: the triangle mid-phase (finding 3), and any GPU path.
+
+
+## Finding 5: after the change -- what moved, and what the cost really is
+
+Measured 2026-09-05 on the same bench, with the change implemented.
+
+| measure | before | after |
+|---------|-------:|------:|
+| `import solid_node.test` | 2.84 s | **0.79 s** |
+| framework suite (`pytest tests`) | 269.2 s | **179.1 s** |
+| framework suite test count | 1206 | 1224 (15 added) |
+| v8-engine suite | 1687 s | **1623 s** |
+
+The framework's own suite fell by a third, as predicted: 52 `test_meta.py`
+subprocesses no longer import cadquery.
+
+The v8 suite barely moved, and the instrumented run says exactly why:
+
+| measure | value |
+|---------|------:|
+| comparisons via `_intersection_stats` | 36 347 (1609 s) |
+| pairs via `_placed_intersection` | **0** |
+| keyed evaluations | 30 227 |
+| served from cache, EXACT bytes | **6 398 (21%)** |
+| computed (keyed) | 23 829, **110 s** |
+| **uncacheable -- no geometry identity** | **6 120, ~1499 s** |
+
+### The design's first open question, answered: 21%, not 54%
+
+The spike's 54% was measured with a key of (part NAMES, relative placement
+rounded at 1e-9). That key is unsound for a flexible part: a valve spring's
+geometry is a function of the driver binding, so two instants at the same
+relative placement are NOT the same question, and the census counted them
+as repeats. The exact-byte key is 21%, and the difference is mostly the
+census having been too generous rather than exactness being too strict.
+
+### Where the time actually is: flexible parts, on the exact kernel
+
+`identity_probe.py` says the uncacheable evaluations are comparisons
+involving the 16 flexible `ValveSpring` leaves -- uncacheable BY
+CONSTRUCTION, exactly as the spec requires, since their geometry changes
+with the instant.
+
+`flexible_cost.py` splits one such comparison (spring against valve, at
+three instants):
+
+| stage | cost |
+|-------|-----:|
+| `spring.shape()` -- flexible evaluation | 48-94 ms |
+| **full comparison** | **360-443 ms** |
+| verdict | **empty**, every time |
+
+So roughly 300 ms per comparison is the exact kernel placing two shapes
+and computing a boolean that comes back EMPTY -- the AABB broad phase
+cannot cull it, because a spring's box genuinely encloses the valve stem
+it coils around.
+
+### This reopens finding 3
+
+Finding 3 rejected a triangle-level mid-phase after measuring it against
+the FACETED kernel: 27 ms of numpy against a 37 ms `manifold3d` boolean.
+Against the EXACT kernel the economics invert -- 27 ms against ~300 ms for
+an empty verdict, on the pairs that now dominate the suite.
+
+It is not a free win. A tessellated proxy is an approximation of the
+B-rep, so a mesh-level "no contact" verdict is only exact-negative for the
+solids if the proxies are separated by more than the tessellation
+deviation (the framework writes STLs at `tolerance=0.1`,
+`angularTolerance=0.1`). That margin argument is the whole design, and it
+belongs to the pilot, not to this cycle.
+
+## Finding 6: the mesh path answers the same question 30x cheaper
+
+Finding 5 left the mid-phase reopened. The pilot asked a different and
+better question: if the exact kernel is the villain, should the DEFAULT be
+the mesh path, with exact comparison an explicit developer opt-in?
+
+`mesh_default.py` measures both paths on the same pair (one valve spring
+against its valve) at four instants, separating evaluation from the
+boolean:
+
+| | evaluate the part | the boolean | verdict |
+|---|---:|---:|---|
+| exact (OCCT) | 40-84 ms | **358-418 ms** | empty |
+| mesh (molejo -> manifold3d) | 12-24 ms | **1.6-2.9 ms** | empty |
+
+About 430 ms against about 14 ms, with the same verdict at every instant.
+Neither path's broad phase could cull the pair, so the 380 ms is real
+kernel work producing "no".
+
+Two independent reasons it wins. The boolean itself is two orders of
+magnitude cheaper on `manifold3d` than on OCCT for this geometry. And
+molejo's native output is a mesh -- building an OCCT solid from the same
+spec is the optional expensive extra -- so the exact path pays twice.
+
+Projected on the v8 suite: the 6120 uncacheable flexible comparisons
+carrying ~1499 s would cost roughly 86 s, taking the suite from 1622.8 s
+to roughly 210 s.
+
+### This closes finding 3 rather than reopening it
+
+There is nothing worth culling ahead of a 2 ms boolean. The triangle
+mid-phase is rejected for good: it was only ever a way to avoid the exact
+kernel, and routing to the mesh path avoids it outright and by more.
+
+### What it costs, and why it is not this cycle's to spend
+
+The mesh path is not the exact path with the cost removed. It answers a
+slightly different question, and four matching instants are encouraging
+rather than proof:
+
+- Precision falls to the tessellation tolerance (STLs are written at
+  `tolerance=0.1`). Interference thinner than that can be missed, and
+  near-contact can read as slight overlap.
+- `assertNoSolidInterference` breaks as written. It documents
+  "intentionally no public overlap epsilon" and passes a pair only at
+  EXACTLY 0.0 mm^3 volume -- an exact-kernel property (ADR-025, ADR-029).
+  Meshes produce contact noise, not exactly 0.0, so a flush-abutting
+  assembly that passes today would start failing. That assertion needs a
+  tolerance-derived epsilon, and choosing it is a product decision.
+- `volume_epsilon` changes meaning across the API: today
+  `assertBlockedBeyond`/`assertFreeWithin` ignore it on exact pairs and
+  warn; under a mesh default it becomes live everywhere.
+- Every project suite has to be run both ways and any disagreement
+  explained rather than accepted.
+
+That is a ratified behavior change, not a semantics-preserving
+optimization, so it cannot ride inside this cycle. It is recorded here as
+evidence for the pilot's next one.

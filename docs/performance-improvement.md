@@ -364,3 +364,96 @@ These remain bounded observations, not a complexity guarantee. Dense
 assemblies whose world bounds all overlap still produce a quadratic candidate
 set, and an individual candidate boolean over intricate geometry is still
 paid in full.
+
+## Cycle `fast-test-feedback`: what a run costs before it computes geometry
+
+Measured 2026-09-05 on the same machine as the sections above (AMD Ryzen 9
+5900X, 16 threads, no GPU), against base `abcdd56`. Full spike record in
+`spike/interference/FINDINGS.md`. This cycle delivered fix 6's memoization
+item and two costs the earlier survey had not looked for.
+
+### What was measured before
+
+| cost | measurement |
+|------|-------------|
+| `import solid_node.test` | 2.84 s, of which 1.52 s is cadquery — paid by EVERY `solid test`, faceted projects included |
+| the framework's own suite | 269.2 s, roughly 150 s of it that import |
+| v8-engine suite | 1687 s, 99% inside intersection assertions |
+| repeated intersection questions | 30 227 keyed evaluations, 21% of them a key already answered |
+| exact placement and bounding box | rebuilt per solid per call, 6-19 ms each |
+
+### What changed
+
+1. **`solid_node.test` no longer imports the exact stack at module level.**
+   The seven `solid_node.exact` names are module-scope deferred callables
+   that import on first call, rebind the global unless something patched
+   it, and call through. Call sites are unchanged and patching
+   `solid_node.test.<name>` still works. A faceted-only project now runs
+   its whole suite without cadquery ever being imported.
+2. **Intersection verdicts are memoized within a run**, keyed on both
+   geometry identities, the evaluation path, and the exact bytes of
+   `inv(M1) @ M2` — the relative rigid placement, so a pair moved together
+   is the same question. No tolerance, no rounding: a placement difference
+   too small to see is a different key, because deciding otherwise would
+   decide what the assertions are contracts about. Entries are evicted when
+   a geometry identity changes, on the same discipline as the existing mesh
+   and Manifold caches.
+3. **Exact placements and bounding boxes are cached** per `(shape identity,
+   matrix bytes)` beside `_shape_cache` in `solid_node/exact.py`.
+
+### What was measured after
+
+| | before | after |
+|---|---:|---:|
+| `import solid_node.test` | 2.84 s | **0.79 s** |
+| framework suite | 269.2 s | **179.1 s** (1224 passing) |
+| v8-engine suite | 1687 s | **1622.8 s** |
+
+The framework's own suite fell by a third. The v8 suite moved 4%, far
+short of the proposal's estimate, and the reason is worth recording: the
+census that predicted a 54% repeat rate keyed on part NAMES, ignoring that
+a flexible part's geometry is a function of the driver binding. Two
+instants at the same relative placement are not the same question. The
+memo is correct at 21%; the estimate was generous. The key was not
+loosened.
+
+### Where the remaining cost is
+
+1499 s of the 1622.8 s is 6120 comparisons involving the 16 flexible
+`ValveSpring` leaves — uncacheable by construction, since their geometry
+changes with the instant. Split per comparison: ~50 ms evaluating the
+spring, ~380 ms in the exact OCCT kernel returning EMPTY on a pair whose
+world bounds genuinely overlap, so no broad phase can cull it.
+
+### Rejected: a triangle-level mid-phase
+
+A conservative numpy separating-axis test on tessellated proxies, run
+before the kernel boolean. Measured at 27 ms against a 37 ms `manifold3d`
+boolean — no win on the faceted path. It looked reopened against the
+380 ms exact boolean, until the mesh path was measured: there is nothing
+worth culling ahead of a 2 ms boolean. Rejected for good.
+
+### Rejected: the GPU
+
+Re-appraised and confirmed. The installed `manifold3d` 3.5.2 wheel carries
+zero CUDA symbols and is already TBB-parallel across all 16 threads; no
+production GPU B-rep kernel is reachable from Python; and a GPU touch /
+no-touch predicate cannot produce the `volume` the assertions contract on
+(ADR-025, ADR-029: a flush abutment is non-empty with exactly 0.0 mm^3).
+
+### Deferred to a pilot decision: mesh by default
+
+Measured on one spring-versus-valve pair at four instants: the exact path
+costs ~430 ms (40-84 ms evaluating, 358-418 ms in the boolean); the mesh
+path costs ~14 ms (12-24 ms evaluating, 1.6-2.9 ms in the boolean), with
+the same verdict every time. molejo's native output is a mesh, so the
+exact path pays twice — once building an OCCT solid it did not have to
+build, once in a kernel two orders of magnitude slower on this geometry.
+
+Routing to meshes by default, with exact comparison an explicit developer
+opt-in, projects the v8 suite to roughly 210 s. It is not a
+semantics-preserving optimization: precision falls to the tessellation
+tolerance, `assertNoSolidInterference`'s "no public overlap epsilon" stance
+becomes untenable against mesh contact noise, and `volume_epsilon` changes
+meaning across the API. That is a ratified behavior change and belongs to
+its own cycle. See `spike/interference/FINDINGS.md` finding 6.
