@@ -4,15 +4,30 @@
 
 import os
 import sys
-from multiprocessing import Process
 
 from solid_node.core.builder import Builder, BuildOutcome
 from solid_node.core.loader import (
     AmbiguousNodeError, ProjectManifestError, resolve_node,
 )
+from solid_node.core.processes import Process
 
 
 MODEL_NOT_FOUND = 66
+
+
+def build_once(path, overrides):
+    """One build pass, in its own fresh interpreter.
+
+    Module level, and taking plain values, because the subprocess this runs
+    in does not inherit this one's memory -- it is handed this function and
+    its arguments to reconstruct. See `solid_node.core.processes`.
+    """
+    Builder(
+        path,
+        watch=False,
+        lifecycle=True,
+        overrides=overrides,
+    ).start()
 
 
 class Build:
@@ -22,14 +37,6 @@ class Build:
 
     def add_arguments(self, parser):
         pass
-
-    def builder(self):
-        Builder(
-            self.path,
-            watch=False,
-            lifecycle=True,
-            overrides=self.overrides,
-        ).start()
 
     def handle(self, args):
         self.path = args.path
@@ -45,7 +52,8 @@ class Build:
             sys.exit(MODEL_NOT_FOUND)
 
         while True:
-            proc = Process(target=self.builder)
+            proc = Process(target=build_once,
+                           args=(self.path, self.overrides))
             proc.start()
             proc.join()
             if proc.exitcode in (BuildOutcome.RENDERED.value,

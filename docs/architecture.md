@@ -497,7 +497,14 @@ rather than a question mtime is asked and cannot answer (ADR-057).
 The dev loop (ADR-007) is a **single-shot builder** under watchdog:
 build, watch `node.files` per-file, exit on change, get respawned by
 `solid develop` (which also restarts the viewer process). `solid build`
-uses the same builder passes without a viewer or watch loop. Candidate
+uses the same builder passes without a viewer or watch loop. Every one of
+those subprocesses starts from a **fresh interpreter**, not a fork of the
+command process (ADR-067): a command resolves the model in its own process to
+report a missing one, that import runs geometry and leaves OCCT's OpenMP
+worker team live, and a forked child would inherit the team's bookkeeping
+without its threads and stop forever on the first parallel tessellation. A
+fresh child is handed its target instead of inheriting it, so every subprocess
+target is a module-level function taking plain values. Candidate
 builds publish `viewer.json` with the versioned `solid-node-export` tree
 schema, linked node names, per-node `mtime`, and build-root-relative model
 paths, so private NodeAPI consumers can serve a completed build without

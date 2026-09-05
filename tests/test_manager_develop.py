@@ -4,14 +4,17 @@
 
 from argparse import Namespace
 from unittest import TestCase
-from unittest.mock import patch, MagicMock, call, ANY
+from unittest.mock import patch, MagicMock, call
 from solid_node.core.builder import BuildOutcome
-from solid_node.manager.develop import Develop
+from solid_node.manager.develop import (
+    Develop, run_builder, run_openscad_viewer, run_web_viewer,
+)
 
 
 class OpenscadProcessStartedTest(TestCase):
     """Regression test for B4: `--openscad` built
-    `Process(target=self.openscad)` but never called `.start()` on it, so
+    `Process(target=...)` for the OpenSCAD viewer but never called
+    `.start()` on it, so
     the OpenSCAD viewer process was constructed and immediately discarded --
     the viewer window never opened.
     """
@@ -39,7 +42,7 @@ class OpenscadProcessStartedTest(TestCase):
             with self.assertRaises(SystemExit):
                 develop.handle(args)
 
-        self.assertEqual(mock_process.call_args_list[0], call(target=develop.openscad))
+        self.assertEqual(mock_process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
         openscad_instance.start.assert_called_once()
 
 
@@ -85,8 +88,8 @@ class StartupFailureExitsCleanlyTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list, [
-            call(target=develop.web),
-            call(target=develop.builder, args=(False, ANY, None)),
+            call(target=run_web_viewer, args=('.', False)),
+            call(target=run_builder, args=('.', [], False, None)),
         ])
         web_instance.terminate.assert_called_once()
         web_instance.join.assert_called()
@@ -111,7 +114,7 @@ class ReloadFlagPassedOnSubsequentBuildsTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list[1],
-                          call(target=develop.builder, args=(False, ANY, None)))
+                          call(target=run_builder, args=('.', [], False, None)))
 
     def test_second_builder_invocation_is_flagged_as_reload(self):
         develop = Develop()
@@ -129,9 +132,9 @@ class ReloadFlagPassedOnSubsequentBuildsTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list[1],
-                          call(target=develop.builder, args=(False, ANY, None)))
+                          call(target=run_builder, args=('.', [], False, None)))
         self.assertEqual(mock_process.call_args_list[3],
-                          call(target=develop.builder, args=(True, ANY, None)))
+                          call(target=run_builder, args=('.', [], True, None)))
 
 
 class CallbackConfigurationTest(TestCase):
@@ -150,8 +153,8 @@ class CallbackConfigurationTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(process.call_args_list[1], call(
-            target=develop.builder,
-            args=(False, ANY, 'http://listener/build-ready'),
+            target=run_builder,
+            args=('.', [], False, 'http://listener/build-ready'),
         ))
 
 
@@ -174,7 +177,7 @@ class NoWebModeTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list, [
-            call(target=develop.builder, args=(False, ANY, None)),
+            call(target=run_builder, args=('.', [], False, None)),
         ])
 
     def test_no_web_passes_the_callback_to_the_builder(self):
@@ -191,8 +194,8 @@ class NoWebModeTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list, [
-            call(target=develop.builder,
-                 args=(False, ANY, 'http://listener/build-ready')),
+            call(target=run_builder,
+                 args=('.', [], False, 'http://listener/build-ready')),
         ])
 
     def test_no_web_reload_cycle_does_not_restart_a_viewer(self):
@@ -210,6 +213,6 @@ class NoWebModeTest(TestCase):
                 develop.handle(args)
 
         self.assertEqual(mock_process.call_args_list, [
-            call(target=develop.builder, args=(False, ANY, None)),
-            call(target=develop.builder, args=(True, ANY, None)),
+            call(target=run_builder, args=('.', [], False, None)),
+            call(target=run_builder, args=('.', [], True, None)),
         ])

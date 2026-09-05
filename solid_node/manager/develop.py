@@ -4,14 +4,42 @@
 
 import sys
 import logging
-from multiprocessing import Process
 from solid_node.core.builder import Builder, BuildOutcome
+from solid_node.core.processes import Process
 from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.web import WebViewer, WebDevServer
 from solid_node.openscad import OpenScadUnavailable, require_openscad
 
 
 logger = logging.getLogger('manager.develop')
+
+
+# Every subprocess target is a module-level function taking plain values.
+# The subprocesses a develop session runs do not inherit this process's
+# memory; each is handed its target and arguments to reconstruct in a fresh
+# interpreter, and the command object -- which holds an unpicklable
+# ArgumentParser -- stays here. See `solid_node.core.processes`.
+
+def run_openscad_viewer(path, overrides):
+    OpenScadViewer(path, overrides=overrides).start()
+
+
+def run_web_viewer(path, web_dev):
+    WebViewer(path, web_dev).start()
+
+
+def run_web_dev_server(path):
+    WebDevServer(path).start()
+
+
+def run_builder(path, overrides, is_reload=False, callback=None):
+    Builder(
+        path,
+        is_reload=is_reload,
+        callback=callback,
+        lifecycle=True,
+        overrides=overrides,
+    ).start()
 
 
 class Develop:
@@ -40,24 +68,6 @@ class Develop:
         parser.add_argument('--callback', metavar='URL',
                             help='POST URL notified after each complete build')
 
-
-    def openscad(self):
-        OpenScadViewer(self.path, overrides=self.overrides).start()
-
-    def web(self):
-        WebViewer(self.path, self.web_dev).start()
-
-    def web_dev_server(self):
-        WebDevServer(self.path).start()
-
-    def builder(self, is_reload=False, build_dir=None, callback=None):
-        Builder(
-            self.path,
-            is_reload=is_reload,
-            callback=callback,
-            lifecycle=True,
-            overrides=self.overrides,
-        ).start()
 
     def handle(self, args):
         self.path = args.path
@@ -90,7 +100,8 @@ class Develop:
         openscad_proc = None
 
         if args.openscad:
-            openscad_proc = Process(target=self.openscad)
+            openscad_proc = Process(target=run_openscad_viewer,
+                                    args=(self.path, self.overrides))
             openscad_proc.start()
 
         # The web viewer runs unless something suppresses it. Two things
@@ -101,17 +112,19 @@ class Develop:
         if not (no_web or openscad_only):
             self.web_dev = args.web_dev
             if args.web_dev:
-                web_dev_proc = Process(target=self.web_dev_server)
+                web_dev_proc = Process(target=run_web_dev_server,
+                                       args=(self.path,))
                 web_dev_proc.start()
 
             if args.debug_web:
-                return self.web()
+                return run_web_viewer(self.path, self.web_dev)
 
-            web_proc = Process(target=self.web)
+            web_proc = Process(target=run_web_viewer,
+                               args=(self.path, self.web_dev))
             web_proc.start()
 
         if args.debug_builder:
-            return self.builder(callback=callback)
+            return run_builder(self.path, self.overrides, callback=callback)
 
         # Only the very first builder attempt is "startup": a project
         # that is already broken at launch exits cleanly instead of
@@ -125,11 +138,13 @@ class Develop:
                     logger.info('Restarting WEB')
                     web_proc.terminate()
                     web_proc.join()
-                    web_proc = Process(target=self.web)
+                    web_proc = Process(target=run_web_viewer,
+                                       args=(self.path, self.web_dev))
                     web_proc.start()
 
-                builder_proc = Process(target=self.builder,
-                                       args=(not first_run, None, callback))
+                builder_proc = Process(target=run_builder,
+                                       args=(self.path, self.overrides,
+                                             not first_run, callback))
                 builder_proc.start()
 
                 try:

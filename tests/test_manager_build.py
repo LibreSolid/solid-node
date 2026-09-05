@@ -9,7 +9,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 from solid_node.core.builder import BuildOutcome
-from solid_node.manager.build import Build, MODEL_NOT_FOUND
+from solid_node.manager.build import Build, MODEL_NOT_FOUND, build_once
 
 
 class BuildCommandTest(TestCase):
@@ -36,8 +36,8 @@ class BuildCommandTest(TestCase):
             command.handle(Namespace(path='model.py'))
 
         self.assertEqual(process.call_args_list, [
-            call(target=command.builder),
-            call(target=command.builder),
+            call(target=build_once, args=('model.py', [])),
+            call(target=build_once, args=('model.py', [])),
         ])
         self.assertEqual(render.start.call_count, 1)
         self.assertEqual(current.start.call_count, 1)

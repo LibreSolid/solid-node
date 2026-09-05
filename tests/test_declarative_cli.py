@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 
 from solid_node.cli import manage
 from solid_node.core.loader import load_node, parse_overrides
-from solid_node.manager.build import Build
-from solid_node.manager.develop import Develop
+from solid_node.manager.build import Build, build_once
+from solid_node.manager.develop import Develop, run_builder
 from solid_node.parameters import ParameterError
 
 from .base import BASEDIR, BaseNodeTest
@@ -156,7 +156,7 @@ class ManagerOverridesTest(TestCase):
         command.overrides = ['bore=32.0']
 
         with patch('solid_node.manager.build.Builder') as builder:
-            command.builder()
+            build_once(command.path, command.overrides)
 
         self.assertEqual(builder.call_args.kwargs['overrides'], ['bore=32.0'])
         self.assertEqual(builder.call_args.args[0], 'model.py')
@@ -176,7 +176,7 @@ class ManagerOverridesTest(TestCase):
         develop.overrides = ['bore=32.0']
 
         with patch('solid_node.manager.develop.Builder') as builder:
-            develop.builder(is_reload=True)
+            run_builder(develop.path, develop.overrides, is_reload=True)
 
         self.assertEqual(builder.call_args.kwargs['overrides'], ['bore=32.0'])
         self.assertTrue(builder.call_args.kwargs['is_reload'])
