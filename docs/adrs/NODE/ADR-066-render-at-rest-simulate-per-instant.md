@@ -6,7 +6,7 @@
 - [ADR-002: Template-Method Pattern for Node Lifecycle](./ADR-002-template-method-pattern-for-node-lifecycle.md)
 - [ADR-023: Kinematic Operations and Driver-Tagged Idempotent Renders](./ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md)
 **Depends on:**
-- [ADR-056: Multi-Driver State Binding](./ADR-056-multi-driver-state-binding.md)
+- [ADR-056: Signals, drivers, ports, and stepped simulation](./ADR-056-signals-drivers-ports-and-stepped-simulation.md)
 - [ADR-064: An Internal render() That Returns Nothing, and Structural Omission](./ADR-064-an-internal-render-that-returns-nothing.md)
 
 ## Context and Problem Statement
