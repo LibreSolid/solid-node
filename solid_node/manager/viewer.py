@@ -6,11 +6,8 @@
 
 import json
 import sys
-from pathlib import Path
 
-from solid_node.viewers.bundle import (
-    api_version, bundle_path, has_bundle, missing_bundle_remedy,
-)
+from solid_node.viewers.bundle import ViewerUnavailable, describe
 
 
 class Viewer:
@@ -22,10 +19,9 @@ class Viewer:
         pass
 
     def handle(self, args):
-        if not has_bundle():
-            sys.stderr.write(missing_bundle_remedy() + '\n')
+        try:
+            report = describe()
+        except ViewerUnavailable as error:
+            sys.stderr.write(f'{error}\n')
             sys.exit(1)
-        print(json.dumps({
-            'path': str(Path(bundle_path()).resolve()),
-            'apiVersion': api_version(),
-        }))
+        print(json.dumps(report))

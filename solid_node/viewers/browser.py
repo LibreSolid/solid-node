@@ -2,16 +2,21 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""Browser-backed transparent PNG rendering."""
+"""Transparent PNG rendering through the installed browser viewer.
+
+This side knows what a node is: it brings the artifacts up to date under
+the build lock, serializes the photographed node into a staging directory of
+its own and links the models it names there. The photograph itself is the
+viewer's -- `solid-node-viewer capture`, run on that directory as a separate
+process with the image size, the animation instant and the camera this side
+resolved from OpenSCAD's syntax. Nothing of the viewer is imported here.
+"""
 
 import json
 import os
 import shutil
 import tempfile
-import threading
-from contextlib import contextmanager
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from subprocess import run
 
 from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
@@ -21,31 +26,19 @@ from solid_node.core.serializer import (
 )
 from solid_node.viewers import bundle as viewer_bundle
 
-PLAYWRIGHT_REMEDY = (
-    "Install the browser renderer with `pip install solid-node[web-snapshot]` "
-    "and then download Chromium with `playwright install chromium`."
-)
-
 
 class BrowserSnapshotError(Exception):
     pass
 
 
-class _QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, *args):
-        pass
-
-
 class BrowserRenderer:
     def render(self, node, args, output):
-        self.assert_not_root()
         build_dir = self.build_dir(node, args)
         staging = None
         try:
             with project_build_lock(build_dir):
                 node.build_stls()
                 staging = self.stage(node, build_dir)
-            self.write_mount_page(staging, args)
             self.capture(staging, args, output)
         finally:
             if staging is not None:
@@ -116,10 +109,6 @@ class BrowserRenderer:
                 target = os.path.join(staging, relative)
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 os.link(source, target)
-            shutil.copy2(
-                viewer_bundle.bundle_path(),
-                os.path.join(staging, viewer_bundle.BUNDLE_NAME),
-            )
             return staging
         except Exception:
             self.remove_stage(staging)
@@ -137,102 +126,29 @@ class BrowserRenderer:
     def remove_stage(self, staging):
         shutil.rmtree(staging, ignore_errors=True)
 
-    def write_mount_page(self, staging, args):
-        options = {"animation": "external", "time": args.time}
+    def capture_command(self, staging, args, output):
+        """The viewer's capture, told what to photograph and how to frame it."""
+        command = viewer_bundle.viewer_command() + [
+            "capture", staging, "-o", output,
+            "--imgsize", args.imgsize, "--time", str(args.time),
+        ]
         if args.camera:
             camera = parse_camera(args.camera)
-            options.update(
-                {
-                    "view": {"camera": camera.eye, "target": camera.target},
-                    "up": camera.up,
-                    "fov": camera.fov,
-                }
-            )
-        payload = json.dumps(options)
-        page = f"""<!doctype html>
-<html><head><meta charset="utf-8"><style>
-html,body,#host{{margin:0;width:100%;height:100%;overflow:hidden;
-background:transparent}}
-canvas{{background:transparent}}
-</style></head><body><div id="host"></div>
-<script src="{viewer_bundle.BUNDLE_NAME}"></script><script>
-SolidNodeWidget.mount('#host', 'viewer.json', {payload}).then(() => {{
-  requestAnimationFrame(() => requestAnimationFrame(() => {{
-    document.body.dataset.ready = '1';
-  }}));
-}}).catch((error) => {{ document.body.dataset.error = String(error); }});
-</script></body></html>"""
-        with open(os.path.join(staging, "index.html"), "w") as output:
-            output.write(page)
-
-    @contextmanager
-    def serve(self, staging):
-        handler = partial(_QuietHandler, directory=staging)
-        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            yield f"http://127.0.0.1:{server.server_address[1]}"
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join()
+            command += [
+                "--view", ",".join(str(v) for v in (*camera.eye, *camera.target)),
+                "--up", ",".join(str(v) for v in camera.up),
+                "--fov", str(camera.fov),
+            ]
+        return command
 
     def capture(self, staging, args, output):
-        dimensions = args.imgsize.lower().split("x")
-        width, height = (int(value) for value in dimensions)
-        playwright = self.playwright()
-        with self.serve(staging) as base_url, playwright() as runtime:
-            browser = self.launch(runtime.chromium)
-            try:
-                context = browser.new_context(
-                    viewport={"width": width, "height": height},
-                    device_scale_factor=1,
-                )
-                page = context.new_page()
-                page.goto(f"{base_url}/index.html")
-                page.wait_for_function(
-                    "document.body.dataset.ready || " "document.body.dataset.error"
-                )
-                error = page.locator("body").get_attribute("data-error")
-                if error:
-                    raise BrowserSnapshotError(
-                        f"Browser viewer failed to mount: {error}"
-                    )
-                output_dir = os.path.dirname(os.path.abspath(output))
-                os.makedirs(output_dir, exist_ok=True)
-                page.locator("canvas").screenshot(
-                    path=output,
-                    omit_background=True,
-                )
-                context.close()
-            finally:
-                browser.close()
-
-    def playwright(self):
-        try:
-            from playwright.sync_api import sync_playwright
-        except ImportError as error:
-            raise BrowserSnapshotError(PLAYWRIGHT_REMEDY) from error
-        return sync_playwright
-
-    def launch(self, browser_type):
-        try:
-            return browser_type.launch(
-                args=[
-                    "--use-gl=angle",
-                    "--use-angle=swiftshader",
-                    "--enable-unsafe-swiftshader",
-                ]
+        """Photograph the staged document through the viewer's own process."""
+        result = run(
+            self.capture_command(staging, args, output),
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or (
+                f"the viewer's capture exited with status {result.returncode}"
             )
-        except Exception as error:
-            if "Executable doesn't exist" in str(error):
-                raise BrowserSnapshotError(PLAYWRIGHT_REMEDY) from error
-            raise
-
-    def assert_not_root(self):
-        if hasattr(os, "geteuid") and os.geteuid() == 0:
-            raise BrowserSnapshotError(
-                "The web renderer cannot run as root because Chromium cannot "
-                "use its sandbox. Run the command as an unprivileged user."
-            )
+            raise BrowserSnapshotError(message)

@@ -73,8 +73,15 @@ docs = [
     "sphinx",
     "sphinx_rtd_theme",
 ]
+# The browser viewer is a separate, AGPL-3.0-only package. The framework is
+# complete without it: OpenSCAD is its viewer and its snapshot renderer.
+viewer = [
+    "solid-node-viewer",
+]
+# The web snapshot renderer needs the viewer and its browser; Chromium itself
+# is a second step: `playwright install chromium`.
 web-snapshot = [
-    "playwright",
+    "solid-node-viewer[snapshot]",
 ]
 
 [project.urls]
@@ -89,10 +96,6 @@ include = ["solid_node", "solid_node.*"]
 [tool.setuptools]
 include-package-data = true
 zip-safe = false
-
-[tool.setuptools.cmdclass]
-sdist = "solid_node.packaging.BuildSourceDistribution"
-build_py = "solid_node.packaging.BuildPythonWithFrontend"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -302,16 +302,17 @@ class WidgetlessExportTest(SphinxExtBaseTest):
         with open(os.path.join(copied, 'solid-widget.js')) as fh:
             self.assertEqual(fh.read(), '// bundle')
 
-    def test_no_widget_anywhere_warns_with_npm_hint(self):
+    def test_no_widget_anywhere_warns_with_the_install_hint(self):
         self.make_export('spinner_export', widget=False)
         self.write_doc('index.rst', (
             'Test\n====\n\n'
             '.. solid-node:: spinner_export\n'
         ))
-        missing = os.path.join(self.root, 'nowhere', 'solid-widget.js')
 
-        with patch('solid_node.sphinx.viewer_bundle.bundle_path',
-                   return_value=missing):
+        with patch('solid_node.sphinx.viewer_bundle.has_bundle',
+                   return_value=False), \
+             patch('solid_node.sphinx.viewer_bundle.missing_bundle_remedy',
+                   return_value='pip install "solid-node[viewer]"'):
             warnings = self.build()
 
-        self.assertIn('npm', warnings)
+        self.assertIn('solid-node[viewer]', warnings)

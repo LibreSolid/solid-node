@@ -40,7 +40,7 @@ MANIFEST_FORMAT = DOCUMENT_FORMAT
 MANIFEST_VERSION = DOCUMENT_VERSION
 
 class WidgetBundleMissing(Exception):
-    """The prebuilt widget JS bundle is not present."""
+    """No viewer is installed to copy the widget files from."""
 
     def __init__(self):
         super().__init__(

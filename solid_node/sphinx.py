@@ -19,7 +19,7 @@ onto the widget's index.html; ``:t:`` (0..1) poses the animation and
 snapshot of one pose.
 
 Exports made with ``--no-widget`` are completed at build time from the
-installed package's widget files, so committed exports only need to
+installed solid-node-viewer package's widget files, so committed exports only need to
 carry manifest.json and models/.
 """
 
@@ -177,18 +177,19 @@ def _complete_widget(target):
     ]
     if not missing:
         return
+    if not viewer_bundle.has_bundle():
+        # A warning, which a documentation build run with -W turns into a
+        # failure naming the remedy: install the viewer extra.
+        logger.warning(
+            f'solid-node: {viewer_bundle.missing_bundle_remedy()}'
+        )
+        return
     sources = {
         'index.html': viewer_bundle.index_path(),
         'solid-widget.js': viewer_bundle.bundle_path(),
     }
     for name in missing:
-        source = sources[name]
-        if os.path.exists(source):
-            shutil.copy2(source, os.path.join(target, name))
-        else:
-            logger.warning(
-                f'solid-node: {viewer_bundle.missing_bundle_remedy()}'
-            )
+        shutil.copy2(sources[name], os.path.join(target, name))
 
 
 def purge_exports(app, env, docname):

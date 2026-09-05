@@ -1,9 +1,7 @@
-# Web Snapshot Specification
+# Web Snapshot
 
-## Purpose
+## MODIFIED Requirements
 
-Transparent PNG rendering through the packaged browser viewer.
-## Requirements
 ### Requirement: A snapshot can be rendered with a transparent background
 
 The system SHALL render a node to a PNG carrying a real alpha channel, in which
@@ -25,46 +23,6 @@ requested animation time.
 - **WHEN** the model contains a light-coloured region enclosed by the
   silhouette
 - **THEN** that region remains opaque in the PNG
-
-### Requirement: The web renderer reads the existing build without rebuilding it
-
-The web renderer SHALL obtain geometry from the project's published build,
-rendering only artifacts that are out of date, and SHALL NOT copy mesh data to
-present it to the viewer. Beyond rendering those artifacts it SHALL NOT alter
-the published build: it SHALL describe the photographed node in its own staging
-area rather than republishing the build's document, and SHALL leave artifacts
-and recorded build errors that document names untouched. It SHALL hold the
-project build lock only while bringing artifacts up to date and staging them,
-and SHALL release it before the browser starts. Staged artifacts SHALL remain
-readable for the whole capture even if the published build is republished
-meanwhile.
-
-#### Scenario: A snapshot of an already-built project
-
-- **WHEN** every artifact of the node is already current
-- **THEN** the renderer rebuilds nothing and the capture reads the existing
-  artifacts
-
-#### Scenario: A rebuild lands while the browser is capturing
-
-- **WHEN** another process republishes the build and removes artifacts the
-  previous publication referenced, after the renderer has staged them
-- **THEN** the capture still reads the staged artifacts and produces a complete
-  model
-
-#### Scenario: A snapshot of one part of a project being developed
-
-- **WHEN** a maker photographs a node other than the one the published build
-  describes
-- **THEN** the published document still describes the same model afterwards,
-  the artifacts it names are still present, and a recorded build error is still
-  recorded
-
-#### Scenario: Another producer waits for the build lock
-
-- **WHEN** another build starts while a web snapshot holds the build lock
-- **THEN** it waits, and once it acquires the lock it re-evaluates whether the
-  published build covers its loaded source rather than skipping its build
 
 ### Requirement: The renderer is selected explicitly and never substituted
 
@@ -158,6 +116,8 @@ SHALL be refused with an error naming them, rather than ignored.
 - **WHEN** no camera is specified
 - **THEN** the whole model is framed automatically
 
+## ADDED Requirements
+
 ### Requirement: The framework stages and the viewer photographs
 
 The web renderer SHALL keep every step that knows what a node is — bringing
@@ -180,4 +140,3 @@ the viewer's own message and SHALL write no image.
 
 - **WHEN** the viewer's capture exits non-zero
 - **THEN** the command fails with the viewer's message and writes no image
-

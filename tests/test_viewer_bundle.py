@@ -2,39 +2,86 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-import json
-import os
+"""The framework's one lookup of the viewer it does not carry.
+
+solid-node-viewer registers the `solid_node.viewer` entry point; the
+framework resolves it and nothing else. These tests drive the lookup with
+fake entry points so they hold whether or not the viewer is installed here.
+"""
+
 import ast
 import inspect
-import tempfile
+import sys
+from pathlib import Path
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+from solid_node.viewers import bundle
+from solid_node.viewers.bundle import ViewerUnavailable
 
 
-class ViewerBundleTest(TestCase):
+def fake_entry(result=None, error=None):
+    entry = Mock()
+    entry.name = 'bundle'
+    describe = Mock(side_effect=error) if error else Mock(return_value=result)
+    entry.load.return_value = describe
+    return entry
 
-    def test_reports_declared_api_version_without_cad_runtime(self):
-        from solid_node.viewers import bundle
 
+REPORT = {
+    'path': '/site/solid_node_viewer/widget/dist/solid-widget.js',
+    'index': '/site/solid_node_viewer/widget/index.html',
+    'apiVersion': 5,
+    'version': '0.1.0',
+}
+
+
+class LookupTest(TestCase):
+
+    def test_the_lookup_imports_only_the_standard_library(self):
         tree = ast.parse(inspect.getsource(bundle))
-        imports = [node.names[0].name for node in ast.walk(tree)
-                   if isinstance(node, ast.Import)]
-        self.assertEqual(imports, ['json'])
-        self.assertEqual(bundle.api_version(), 5)
+        imports = {node.names[0].name for node in ast.walk(tree)
+                   if isinstance(node, ast.Import)}
+        froms = {node.module for node in ast.walk(tree)
+                 if isinstance(node, ast.ImportFrom)}
+        self.assertTrue(imports <= {'sys'}, imports)
+        self.assertTrue(froms <= {'importlib.metadata', 'pathlib'}, froms)
 
-    def test_bundle_paths_and_remedy_share_one_source(self):
-        from solid_node.viewers import bundle
+    def test_without_the_entry_point_the_viewer_is_not_installed(self):
+        with patch.object(bundle, 'entry_points', return_value=[]):
+            self.assertFalse(bundle.has_bundle())
+            with self.assertRaises(ViewerUnavailable) as raised:
+                bundle.describe()
+            remedy = bundle.missing_bundle_remedy()
+        self.assertIn('pip install "solid-node[viewer]"', remedy)
+        self.assertEqual(str(raised.exception), remedy)
+        self.assertNotIn('npm', remedy)
 
-        self.assertTrue(str(bundle.bundle_path()).endswith('dist/solid-widget.js'))
-        self.assertTrue(str(bundle.index_path()).endswith('index.html'))
-        self.assertIn('npm', bundle.missing_bundle_remedy())
+    def test_the_entry_point_answers_paths_and_version(self):
+        with patch.object(bundle, 'entry_points', return_value=[fake_entry(REPORT)]):
+            self.assertTrue(bundle.has_bundle())
+            self.assertEqual(bundle.describe(), REPORT)
+            self.assertEqual(bundle.bundle_path(), Path(REPORT['path']))
+            self.assertEqual(bundle.index_path(), Path(REPORT['index']))
+            self.assertEqual(bundle.api_version(), 5)
 
-    def test_api_version_is_read_from_package_declaration(self):
-        from solid_node.viewers import bundle
+    def test_an_installed_viewer_without_a_bundle_speaks_for_itself(self):
+        entry = fake_entry(error=FileNotFoundError('Viewer bundle not found; run npm'))
+        with patch.object(bundle, 'entry_points', return_value=[entry]):
+            self.assertFalse(bundle.has_bundle())
+            self.assertEqual(bundle.missing_bundle_remedy(),
+                             'Viewer bundle not found; run npm')
 
-        with tempfile.TemporaryDirectory() as root:
-            package = os.path.join(root, 'package.json')
-            with open(package, 'w') as stream:
-                json.dump({'solidNodeViewerApi': 7}, stream)
-            with patch.object(bundle, 'PACKAGE_JSON', package):
-                self.assertEqual(bundle.api_version(), 7)
+    def test_the_lookup_asks_the_documented_group_for_the_documented_entry(self):
+        other = fake_entry(REPORT)
+        other.name = 'something-else'
+        ours = fake_entry(REPORT)
+        ours.name = 'bundle'
+        with patch.object(bundle, 'entry_points', return_value=[other, ours]) as points:
+            bundle.describe()
+        points.assert_called_once_with(group='solid_node.viewer')
+        other.load.assert_not_called()
+
+    def test_the_viewer_runs_through_this_interpreter(self):
+        self.assertEqual(bundle.viewer_command(),
+                         [sys.executable, '-m', 'solid_node_viewer'])

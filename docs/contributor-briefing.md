@@ -17,8 +17,10 @@ architectural choice, read [`docs/adrs/`](adrs/README.md).
   export.
 - `solid_node/core/loader.py` — node and test loading conventions.
 - `solid_node/test.py` — mesh-oriented test cases and assertions.
-- `solid_node/viewers/web/` — the FastAPI backend and React/three.js viewer;
-  browser tests live with the application.
+- `solid_node/viewers/` — the OpenSCAD viewer and snapshotter, the lookup of
+  the installed `solid-node-viewer` package (an entry point; nothing of the
+  viewer is imported), and the staging half of the web snapshot renderer. The
+  browser viewer itself is the separate solid-node-viewer repository.
 - `tests/` — the Python test suite. `tests/meta_project/` with
   `tests/test_meta.py` forms the end-to-end meta-project harness.
 

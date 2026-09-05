@@ -158,15 +158,19 @@ class CommandImportIsolationTest(TestCase):
             sorted(COMMAND_MODULES & result.modules),
             ['solid_node.manager.viewer'])
 
-    @skipUnless(has_bundle(), 'no built viewer bundle in this installation')
+    @skipUnless(has_bundle(), 'solid-node-viewer not installed')
     def test_dispatching_viewer_still_reports_the_bundle(self):
         """Loading less must not mean answering differently."""
         result = probe(DISPATCH, argv=['viewer'])
 
         self.assertEqual(result.status, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(sorted(report), ['apiVersion', 'path'])
+        self.assertEqual(sorted(report), ['apiVersion', 'index', 'path', 'version'])
         self.assertIsInstance(report['apiVersion'], int)
+        # The lookup is an entry point that imports only the standard
+        # library; the viewer's own server and capture never load here.
+        self.assertFalse(result.imported('solid_node_viewer.server'))
+        self.assertFalse(result.imported('solid_node_viewer.capture'))
 
     def test_dispatching_new_loads_only_the_new_command(self):
         """`new` is the non-node command, and takes the other branch of the

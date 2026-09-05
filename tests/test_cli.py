@@ -112,9 +112,6 @@ class CommandFirstGrammarTest(TestCase):
     def test_develop_rejects_no_web_with_web_dev(self):
         self._assert_no_web_conflict('--web-dev')
 
-    def test_develop_rejects_no_web_with_debug_web(self):
-        self._assert_no_web_conflict('--debug-web')
-
     def test_test_rejects_directory_reference(self):
         with patch.object(sys, 'argv', ['solid', 'test', 'tests/flat_project']):
             with self.assertRaises(SystemExit) as ctx:

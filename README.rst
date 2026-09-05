@@ -32,15 +32,25 @@ Quickstart
 
 .. code-block:: bash
 
-    $ pip install solid-node
+    $ pip install "solid-node[viewer]"
     $ solid new myproject
+
+The ``viewer`` extra installs the browser viewer, `solid-node-viewer
+<https://github.com/LibreSolid/solid-node-viewer>`_. It is a separate
+package because it is licensed differently: solid-node is **Apache-2.0**,
+the viewer is **AGPL-3.0-only**. Install ``solid-node`` without the extra and
+the framework is complete with OpenSCAD as its viewer — ``solid develop``
+opens the OpenSCAD GUI, ``solid export --no-widget`` and the default snapshot
+renderer work as before — and the commands that need the browser viewer name
+the extra. The framework never imports the viewer; it runs it as a separate
+process.
 
 Upgrading from 0.5.x requires **reinstalling the environment** rather
 than upgrading in place: the shared OCCT binding moves and its versions
 cannot coexist. See the changelog.
 
-Transparent browser-rendered snapshots are optional because they require a
-separate Chromium download:
+Transparent browser-rendered snapshots are optional because they require the
+viewer and a separate Chromium download:
 
 .. code-block:: bash
 
@@ -60,8 +70,10 @@ project, see the documentation above.
 Development environment
 -----------------------
 
-Requirements: Python >= 3.11, and Node.js >= 20 only if you intend to rebuild
-the web viewer or the embeddable widget. `OpenSCAD
+Requirements: Python >= 3.11. Node.js is not needed: the browser viewer and
+its widget live in the separate `solid-node-viewer
+<https://github.com/LibreSolid/solid-node-viewer>`_ repository, and the tests
+that need a viewer skip unless that package is installed. `OpenSCAD
 <https://openscad.org/>`_ is conditional: put it on the PATH when working on
 SolidPython2/Solid2 or raw OpenSCAD nodes, faceted fusions, symbolic Solid2
 animation values, the ``solid develop --openscad`` viewer, or the default
@@ -124,8 +136,10 @@ Notes:
   change touches behavior that direct unit tests cannot establish; see
   `docs/contributor-briefing.md <docs/contributor-briefing.md>`_ for when and
   why.
-* Browser tests for the web viewer live with the application under
-  ``solid_node/viewers/web/``.
+* The browser viewer's own tests live in the ``solid-node-viewer``
+  repository. ``tools/generate_parity_fixture.py`` produces, from this
+  framework's render results, the parity fixture that repository commits
+  beside its expression evaluator.
 
 Where things live
 -----------------
@@ -138,8 +152,9 @@ Where things live
 * ``solid_node/simulation/`` — drivers, instructions, the stepped ``Sim``
   loop, and ``ScenarioTest``
 * ``solid_node/test.py`` — mesh-oriented test cases and assertions
-* ``solid_node/viewers/`` — OpenSCAD snapshotter, web viewer
-  (FastAPI + React/three.js), embeddable widget with driver controls
+* ``solid_node/viewers/`` — the OpenSCAD viewer and snapshotter, the lookup
+  of the installed ``solid-node-viewer`` package, and the staging half of the
+  web snapshot renderer (the photograph itself is the viewer's)
 * ``tests/`` — Python test suite
 * ``docs/`` — Sphinx documentation, architecture synthesis, ADRs
 * ``openspec/`` — OpenSpec change proposals and baseline specs

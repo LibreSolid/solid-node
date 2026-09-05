@@ -24,7 +24,13 @@ What an export contains
     └── solid-widget.js   # the viewer bundle (three.js based)
 
 ``manifest.json`` and ``models/`` are the data; ``index.html`` plus
-``solid-widget.js`` are the viewer (omitted with ``--no-widget``).
+``solid-widget.js`` are the viewer (omitted with ``--no-widget``). The
+viewer files are copied from the installed `solid-node-viewer
+<https://github.com/LibreSolid/solid-node-viewer>`_ package — install it
+with ``pip install "solid-node[viewer]"`` — and an export that wants them
+in an installation without it fails saying so. The bundle is AGPL-3.0-only
+and says so in its first lines, together with the address of its source;
+publishing an export publishes that notice with it.
 Opening ``index.html`` over HTTP shows the model with orbit controls,
 play/pause and a timeline for animated nodes, and the
 :doc:`driver controls <driving>` for a machine that declares them.
@@ -181,6 +187,8 @@ controls showing at their defaults.
 
 Exports referenced by the directive may be made with ``--no-widget``:
 the extension completes them with the viewer files from the installed
-``solid_node`` package at build time, so the repository only needs to
-carry each model's ``manifest.json`` and STLs, and every embedded
-model shares one copy of the viewer source.
+``solid-node-viewer`` package at build time, so the repository only needs
+to carry each model's ``manifest.json`` and STLs, and every embedded
+model shares one copy of the viewer source. A documentation build
+therefore needs the ``viewer`` extra installed; without it the build
+warns — and fails under ``-W`` — naming the extra.

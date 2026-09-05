@@ -5,6 +5,24 @@ History
 Unreleased
 ----------
 
+* **BREAKING:** the browser viewer is no longer part of solid-node. It is
+  the separate ``solid-node-viewer`` package, licensed AGPL-3.0-only, and
+  installed through the new ``viewer`` extra: ``pip install
+  "solid-node[viewer]"``. The framework stays Apache-2.0 and complete
+  without it. ``solid develop`` opens the browser viewer when the package
+  is installed and the OpenSCAD GUI otherwise; ``--web`` and ``--openscad``
+  are explicit and never substituted. ``solid export`` (unless
+  ``--no-widget``), the Sphinx directive, ``solid viewer`` and
+  ``solid snapshot --renderer web`` need the extra and say so when it is
+  absent; the snapshot default stays OpenSCAD regardless. The framework
+  reaches the viewer through one entry point and runs it as a separate
+  process; it imports none of its code. ``solid develop --debug-web`` is
+  removed (run ``solid-node-viewer serve --build-dir _build`` under a
+  debugger instead); the ``web-snapshot`` extra now installs
+  ``solid-node-viewer[snapshot]``; ``solid viewer`` also reports the
+  export page and the viewer package version. Wheels and source
+  distributions of solid-node contain no JavaScript and building them
+  needs no npm.
 * The declarative node API: typed parameter declarations with a
   dimension algebra checked on import, derived formulas, children declared
   in the class body with ``repeat(count)`` for identical units,

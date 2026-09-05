@@ -471,13 +471,15 @@ class ExportWidgetTest(ExportBaseTest):
         self.assertFalse(
             os.path.exists(os.path.join(self.out_dir, 'solid-widget.js')))
 
-    def test_missing_bundle_raises_with_build_instructions(self):
-        os.remove(self.fake_bundle)
-
-        with self.assertRaises(WidgetBundleMissing) as ctx:
+    def test_missing_viewer_raises_with_install_instructions(self):
+        with patch('solid_node.core.export.viewer_bundle.has_bundle',
+                   return_value=False), \
+             patch('solid_node.core.export.viewer_bundle.missing_bundle_remedy',
+                   return_value='pip install "solid-node[viewer]"'), \
+             self.assertRaises(WidgetBundleMissing) as ctx:
             self.export(flat_project.SimpleCylinder(), widget=True)
 
-        self.assertIn('npm', str(ctx.exception))
+        self.assertIn('solid-node[viewer]', str(ctx.exception))
 
 
 class ExportCliTest(TestCase):

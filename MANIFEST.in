@@ -4,13 +4,6 @@ include LICENSE
 include NOTICE
 include README.rst
 
-recursive-include solid_node/viewers/web/app/ *
-prune solid_node/viewers/web/app/node_modules
-
-# Packaging builds the widget dist/ bundle before creating distributions.
-recursive-include solid_node/viewers/widget/ *
-prune solid_node/viewers/widget/node_modules
-
 recursive-include solid_node/manager/templates *
 
 recursive-include tests *

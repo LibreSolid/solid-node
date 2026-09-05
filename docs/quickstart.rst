@@ -29,7 +29,12 @@ Optional:
 
 Everything else — CadQuery, build123d, trimesh, `molejo
 <https://molejo.readthedocs.io>`_ for flexible parts — comes with
-``pip install solid-node``.
+``pip install solid-node``. The **browser viewer** is a separate package,
+`solid-node-viewer <https://github.com/LibreSolid/solid-node-viewer>`_,
+installed through the ``viewer`` extra; without it, ``solid develop`` opens
+OpenSCAD instead. The two are licensed differently — the framework under
+Apache-2.0, the viewer under AGPL-3.0-only — which is why they are separate
+packages you install separately.
 
 Installation
 ============
@@ -41,7 +46,13 @@ Start by creating a virtual environment for your project
     $ virtualenv --python=python3 myproject-env
     $ source myproject-env/bin/activate
 
-And install solid-node in your environment
+And install solid-node in your environment, with the browser viewer
+
+.. code-block:: bash
+
+    $ pip install "solid-node[viewer]"
+
+or without it, keeping OpenSCAD as your only viewer
 
 .. code-block:: bash
 
@@ -73,8 +84,9 @@ Create a new project with a starting structure
     $ solid new myproject
     $ cd myproject
 
-Start the solid process. By default, the web viewer is used. With no
-argument, `solid develop` operates on the project's model, declared as
+Start the solid process. With the ``viewer`` extra installed, the browser
+viewer opens by default; otherwise OpenSCAD does. With no argument,
+`solid develop` operates on the project's model, declared as
 `model = "myproject.myproject:Myproject"` in the `pyproject.toml`
 manifest `solid new` just wrote for you.
 
@@ -83,7 +95,8 @@ manifest `solid new` just wrote for you.
     $ solid develop
 
 Open the link http://localhost:8000 in your browser. If you prefer
-using Openscad as a viewer, use the --openscad parameter
+using Openscad as a viewer, or did not install the extra, use the
+--openscad parameter
 
 .. code-block:: bash
 

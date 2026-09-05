@@ -33,10 +33,10 @@ place it. From that single tree, the framework derives everything else:
       → openscad      (trimesh /        ($t expressions)
       → .stl cache    manifold3d)             │
       (BUILD)         (TEST-FRAMEWORK)        ▼
-           │                            web viewer / widget
-           ▼                            evaluate $t per frame
-      dev loop, OpenSCAD snapshot,      (VIEWER-WEB, EXPORT,
-      export models                      MATH)
+           │                            viewer.json / manifest.json
+           ▼                            → solid-node-viewer (separate
+      dev loop, OpenSCAD snapshot,        AGPL package, own process)
+      export models                     evaluates $t per frame
 ```
 
 Three architectural commitments shape almost every subsystem:
@@ -567,16 +567,17 @@ loop carries them into every builder it starts, and an unknown or derived
 name fails listing what is settable (ADR-062). Only the invoked
 command's module is imported, and the node and simulation packages resolve
 their exports on first access, so a command pays for the backends it uses and
-not for the rest (ADR-059) — `solid viewer` answers from the installed bundle
-alone. Top-level `-h` is the exception: it renders every command's docstring,
-so it loads them all. Snapshot has an explicit renderer choice
-(ADR-021/041/046): OpenSCAD remains the external-tool default with xvfb
-fallback, while the
-optional `web` renderer captures the packaged viewer in sandboxed headless
-Chromium to produce a true-alpha PNG. Unsupported renderer-specific options
-are rejected rather than ignored or substituted. If the default OpenSCAD
-renderer is unavailable, the command names `--renderer web` but does not
-select it silently. `./.env` is read with
+not for the rest (ADR-059) — `solid viewer` answers from the viewer's entry
+point alone. Top-level `-h` is the exception: it renders every command's
+docstring, so it loads them all. Snapshot has an explicit renderer choice
+(ADR-021/041/046/068): OpenSCAD remains the external-tool default with xvfb
+fallback, whether or not the browser viewer is installed, while the
+optional `web` renderer stages the node and has the installed viewer package
+photograph it in sandboxed headless Chromium to produce a true-alpha PNG.
+Unsupported renderer-specific options are rejected rather than ignored or
+substituted. If the default OpenSCAD renderer is unavailable, the command
+names `--renderer web` but does not select it silently; if the viewer is
+not installed, `--renderer web` names the `viewer` extra. `./.env` is read with
 `setdefault` semantics (real environment wins), carrying
 `SOLID_NODE_PORT` / `SOLID_NODE_FRONTEND_PORT` / `SOLID_BUILD_DIR`.
 
@@ -685,38 +686,46 @@ ancestor. That frame is meaningful only within one part, so the assertion
 refuses a pair drawn from two different solids instead of comparing them at
 their own origins. Collision remains world-framed and time-dependent.
 
-### Viewers (VIEWER-WEB · spec `web-viewer`)
+### Viewers (VIEWER-WEB · specs `viewer-distribution`, `cli`)
 
-`solid develop` serves a FastAPI + Uvicorn app (ADR-015, post-018 the
-only HTTP service): static React build by default, npm-proxy under
-`--web-dev`. It serves the current atomically published build directory
-under `/build/` and the installed shared viewer bundle under `/_viewer`.
-The server does not import project source; an absent build or bundle leaves
-the reload socket and build-error endpoint available, with a bundle remedy
-for the browser shell to display.
+The browser viewer is not in this repository. It is `solid-node-viewer`, an
+independent AGPL-3.0-only package installed through the `viewer` extra
+(ADR-068); the framework is Apache-2.0 and complete without it, with the
+OpenSCAD GUI as its viewer and the OpenSCAD CLI as its snapshot renderer.
+The framework touches the viewer in exactly two ways. `solid_node/viewers/
+bundle.py` loads the viewer's `solid_node.viewer` entry point — a
+standard-library-only function returning the bundle path, the export page
+and the declared API version — and nothing else of it; `solid viewer`,
+`solid export`, the Sphinx directive and the web snapshot all resolve the
+bundle there and name one remedy when it is absent. Everything else runs the
+viewer as a separate process through `sys.executable -m solid_node_viewer`.
 
-The browser app is a small React shell (ADR-013, amended by ADR-036). It
-loads the shared viewer bundle, mounts it against `/build/viewer.json` with
-inline autoplay controls, names the tab from the snapshot, and uses the
-mount handle's `manifestChanged()` after `/ws/reload` reports a successful
-build. The shared viewer reconciles the document in place and refetches only
-geometry whose `(model path, mtime)` identity changed (ADR-037); the canvas,
-viewpoint, animation clock, and unchanged meshes survive. `reload()` remains
-available for a host that explicitly needs a complete replacement.
-Tree traversal, world-matrix composition, expression evaluation, animation,
-stale-load disposal, and targeted-update failure containment live once in the
-reusable viewer package (ADR-035/037), not in the development app.
+`solid develop` opens the browser viewer when its package is installed and
+OpenSCAD otherwise; `--web` and `--openscad` are explicit and never
+substituted. The browser viewer is the viewer's `serve --build-dir` process
+on the project's atomically published build directory, restarted after each
+completed build as the in-process server was, so the reload channel's
+"greet a reconnecting browser with `reload`" contract is unchanged. The
+server, the React development shell, the bundle routes and the reload and
+build-error surfaces are specified in the viewer's `development-server`
+capability; how the widget renders — tree traversal, world-matrix
+composition, expression evaluation, animation, targeted in-place updates —
+in its `viewer-package` capability. Those decisions (ADR-012/013/014/027/
+035/036/037/042) are relocated to the viewer repository under their
+original numbers.
 
-A sibling OpenSCAD GUI viewer (`--openscad`) and the headless
-snapshot renderers cover non-interactive cases. The browser snapshot renderer
+The browser snapshot renderer keeps the half that knows what a node is: it
 renders any stale artifact of the photographed node, serializes that node's
 tree into a temporary sibling and hardlinks its artifacts there, all while
-holding the project build lock, then releases the lock and serves that pinned
-staging tree on an ephemeral loopback port. It never republishes or sweeps the
-build itself: the published document belongs to the producer serving it, so a
-snapshot of one part leaves the rest of the project intact. Playwright
-captures only the transparent canvas under Chromium/SwiftShader; staging is
-removed after either success or failure (ADR-041).
+holding the project build lock, then releases the lock and runs the viewer's
+`capture` on that pinned staging directory with the image size, the animation
+instant and the camera it resolved from OpenSCAD's syntax. It never
+republishes or sweeps the build itself: the published document belongs to the
+producer serving it, so a snapshot of one part leaves the rest of the project
+intact. The viewer adds the bundle and a mount page, serves the directory on
+an ephemeral loopback port and captures only the transparent canvas under
+Chromium/SwiftShader; staging is removed after either success or failure
+(ADR-041/068).
 
 ### Export and embedding (EXPORT · specs `export`, `sphinx-embedding`)
 
@@ -724,8 +733,8 @@ removed after either success or failure (ADR-041).
 `manifest.json` (`format: solid-node-export`, at the versioned tree-document
 schema shared with `viewer.json` — `version: 2`, or `3` when the tree holds
 a flexible node; not a portability claim),
-deduplicated `models/*.stl`, and a
-React-free three.js **widget** whose side-effect-free imperative core mounts a
+deduplicated `models/*.stl`, and — copied from the installed viewer
+package — a React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
 auto-mounts `data-solid-widget` containers, animates `$t` client-side (play/
 pause + timeline when animated), and honors `?t=`/`?autoplay=0`. The browser
@@ -965,8 +974,11 @@ The short list that changes must not silently break:
   boundary is exercised by rendered spike snapshots rather than by a
   test. Closing it needs OpenSCAD in the loop, which nothing yet
   requires.
-- **Create React App is deprecated** (ADR-013): the dev viewer's
-  toolchain carries migration debt (Vite or similar).
+- **Create React App is deprecated** (ADR-013, now in solid-node-viewer):
+  the development shell's toolchain carries migration debt (Vite or similar),
+  owed by the viewer repository.
+- **The viewer is installed from Git in CI and on Read the Docs** until
+  solid-node-viewer is published on PyPI.
 - **Sequential STL rendering**: `build_stls` renders one STL at a
   time; cold builds could parallelize `openscad` jobs
   (`docs/performance-improvement.md` §4–5, unscheduled).
@@ -979,8 +991,8 @@ The short list that changes must not silently break:
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
-| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024 |
+| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048 |
-| Web viewer | `solid_node/viewers/web/` | `web-viewer` | 012–015, 018, 036 |
-| Export & widget | `core/export.py`, `core/serializer.py`, `viewers/widget/` | `export`, `viewer-package` | 020, 034, 035, 051, 057 |
+| Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
+| Export | `core/export.py`, `core/serializer.py` | `export` | 020, 034, 051, 057, 068 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

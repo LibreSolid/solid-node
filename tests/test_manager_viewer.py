@@ -10,33 +10,28 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from solid_node.manager.viewer import Viewer
+from solid_node.viewers.bundle import ViewerUnavailable
+
+REPORT = {'path': '/tmp/solid-widget.js', 'index': '/tmp/index.html',
+          'apiVersion': 5, 'version': '0.1.0'}
 
 
 class ViewerCommandTest(TestCase):
 
-    def test_reports_existing_bundle_as_json(self):
+    def test_reports_the_installed_viewer_as_json(self):
         output = io.StringIO()
-        with patch('solid_node.manager.viewer.bundle_path',
-                   return_value='/tmp/solid-widget.js'), \
-             patch('solid_node.manager.viewer.api_version', return_value=1), \
-             patch('solid_node.manager.viewer.has_bundle', return_value=True), \
+        with patch('solid_node.manager.viewer.describe', return_value=REPORT), \
              redirect_stdout(output):
             Viewer().handle(Namespace())
+        self.assertEqual(json.loads(output.getvalue()), REPORT)
 
-        self.assertEqual(json.loads(output.getvalue()), {
-            'path': '/tmp/solid-widget.js', 'apiVersion': 1,
-        })
-
-    def test_missing_bundle_exits_with_remedy_and_no_stdout(self):
-        output = io.StringIO()
-        errors = io.StringIO()
-        with patch('solid_node.manager.viewer.has_bundle', return_value=False), \
-             patch('solid_node.manager.viewer.missing_bundle_remedy',
-                   return_value='Build it with npm.'), \
+    def test_missing_viewer_exits_with_remedy_and_no_stdout(self):
+        output, errors = io.StringIO(), io.StringIO()
+        with patch('solid_node.manager.viewer.describe',
+                   side_effect=ViewerUnavailable('Install the viewer extra.')), \
              redirect_stdout(output), redirect_stderr(errors), \
              self.assertRaises(SystemExit) as raised:
             Viewer().handle(Namespace())
-
         self.assertEqual(raised.exception.code, 1)
         self.assertEqual(output.getvalue(), '')
-        self.assertIn('Build it with npm.', errors.getvalue())
+        self.assertIn('Install the viewer extra.', errors.getvalue())

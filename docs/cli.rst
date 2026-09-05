@@ -32,38 +32,44 @@ solid develop
 
     solid develop [reference] [--set NAME=VALUE ...] [--web] [--web-dev]
                          [--no-web] [--openscad] [--debug-builder]
-                         [--debug-web] [--callback URL]
+                         [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
-rebuilds the parts that changed, and serves a viewer that reloads
-automatically.
+rebuilds the parts that changed, and opens a viewer that reloads
+automatically. Which viewer depends on what is installed: the browser
+viewer when the separate `solid-node-viewer
+<https://github.com/LibreSolid/solid-node-viewer>`_ package is present
+(``pip install "solid-node[viewer]"``; see :doc:`the viewer <viewer>`),
+the OpenSCAD GUI otherwise. An explicit flag is honoured or refused, never
+swapped for the other viewer.
 
 ``--web``
-    Start a webserver at http://localhost:8000 to view the project in
-    the browser. This is the default when no viewer option is given.
+    View the project in the browser at http://localhost:8000. The default
+    when ``solid-node-viewer`` is installed; without it, the command fails
+    naming the extra to install.
 
 ``--openscad``
-    Open the project in the OpenSCAD GUI instead. OpenSCAD reloads the
-    generated code when it changes, except while animating.
+    Open the project in the OpenSCAD GUI. The default when
+    ``solid-node-viewer`` is not installed. OpenSCAD reloads the generated
+    code when it changes, except while animating.
 
 ``--web-dev``
-    For working on the web viewer itself: additionally start the
-    frontend development server (a proxy to ``npm start`` in the
-    viewer's React app), so viewer code changes hot-reload too.
+    For working on the browser viewer itself, from a source checkout of
+    ``solid-node-viewer``: the viewer additionally starts its own npm dev
+    server and proxies the page to it, so viewer code changes hot-reload too.
 
 ``--no-web``
     Run the watch-and-rebuild loop with no viewer at all, leaving
     ``SOLID_NODE_PORT`` free. Use this when another program renders the
     published build directory itself and only needs the rebuilds; pair it
     with ``--callback URL`` to be told when a new build is ready. It cannot
-    be combined with ``--web``, ``--web-dev`` or ``--debug-web``.
+    be combined with ``--web`` or ``--web-dev``.
 
 ``--debug-builder``
     Run the builder in the foreground so breakpoints work. Automatic
-    reload is disabled in this mode.
-
-``--debug-web``
-    Run the webserver in the foreground to support breakpoints in it.
+    reload is disabled in this mode. To step into the browser viewer's
+    server instead, run it yourself: ``solid-node-viewer serve --build-dir
+    _build``.
 
 ``--callback URL``
     POST the exact URL (with no request body) after the initial complete
@@ -128,8 +134,8 @@ solid snapshot
 
 Renders the node to a PNG image without opening a viewer. The default
 OpenSCAD renderer is the fast inspection path; the optional web renderer
-captures the packaged viewer in headless Chromium and preserves a real alpha
-channel for compositing.
+hands the model to the installed ``solid-node-viewer``, which photographs it
+in headless Chromium and preserves a real alpha channel for compositing.
 
 .. code-block:: bash
 
@@ -138,10 +144,12 @@ channel for compositing.
     $ solid snapshot --renderer web -o transparent.png
 
 ``--renderer``
-    ``openscad`` (default) or ``web``. Install the optional browser renderer
-    with ``pip install "solid-node[web-snapshot]"`` and download its browser
-    separately with ``playwright install chromium``. The web renderer never
-    falls back to OpenSCAD when its dependency or browser is unavailable.
+    ``openscad`` (default) or ``web``. The default stays ``openscad``
+    whether or not the browser viewer is installed. Install the web renderer
+    with ``pip install "solid-node[web-snapshot]"`` (the viewer package with
+    its browser driver) and download the browser separately with
+    ``playwright install chromium``. Neither renderer ever falls back to the
+    other when its dependency is unavailable.
 
 ``-o``, ``--output``
     Output file path. Default: derived from the resolved node.
@@ -224,7 +232,9 @@ and how to use it.
 ``--no-widget``
     Export only ``manifest.json`` and ``models/``, without the viewer
     page and JS bundle. Useful when the viewer is supplied elsewhere —
-    for example by the Sphinx extension at documentation build time.
+    for example by the Sphinx extension at documentation build time — and
+    the only way to export in an installation without ``solid-node-viewer``,
+    since the widget files are copied from that package.
 
 Environment variables
 =====================
@@ -234,10 +244,11 @@ Environment variables
     the project root. Default: ``_build``.
 
 ``SOLID_NODE_PORT``
-    Port of the ``solid develop`` web viewer. Default: 8000.
+    Port of the ``solid develop`` browser viewer. Default: 8000. Read by
+    the viewer's server, which inherits the environment ``solid`` loaded.
 
 ``SOLID_NODE_FRONTEND_PORT``
-    Port of the npm dev server behind ``solid develop --web-dev``.
+    Port of the viewer's npm dev server behind ``solid develop --web-dev``.
     Default: 3000.
 
 The ``solid`` command loads a ``.env`` file from the working directory

@@ -10,12 +10,14 @@ build:
   apt_packages:
     - openscad
   jobs:
-    # Build the widget from source, then export both example machines for
-    # this documentation build.  The exports are intentionally ignored by
-    # Git: they are served by RTD, not kept in the source repositories.
+    # Install the browser viewer the exports ship -- the separate
+    # solid-node-viewer package, from its repository until it is on PyPI;
+    # its source distribution builds the widget with the node above --
+    # then export both example machines for this documentation build.
+    # The exports are intentionally ignored by Git: they are served by RTD,
+    # not kept in the source repositories.
     pre_build:
-      - npm ci --prefix solid_node/viewers/widget
-      - npm run build --prefix solid_node/viewers/widget
+      - pip install "solid-node-viewer @ git+https://github.com/LibreSolid/solid-node-viewer.git"
       - cd docs/examples/v8-engine && PYTHONPATH="$READTHEDOCS_REPOSITORY_PATH" python -c "from solid_node.cli import manage; manage()" export -o docs/_exports/v8-engine --fps 30 --frames 360
       - cd docs/examples/metamaquina2 && PYTHONPATH="$READTHEDOCS_REPOSITORY_PATH" python -c "from solid_node.cli import manage; manage()" export -o docs/_exports/metamaquina2 --fps 30 --frames 360
 

@@ -1,10 +1,13 @@
-# Viewer Distribution Specification
+# Viewer Distribution
 
-## Purpose
+## REMOVED Requirements
 
-Distributions deliver the built reusable viewer and expose it consistently to
-the CLI, static export, and documentation embedding.
-## Requirements
+### Requirement: Distributions carry a built viewer bundle
+**Reason**: solid-node no longer contains the viewer. The bundle is carried by the `solid-node-viewer` distribution, whose own `viewer-distribution` capability specifies how it is built into wheels and source distributions.
+**Migration**: Install the viewer with `pip install "solid-node[viewer]"`. Wheels and source distributions of solid-node contain no JavaScript and building them needs no npm.
+
+## MODIFIED Requirements
+
 ### Requirement: An installed framework reports its viewer
 
 The framework SHALL report, to a program that does not import it, the
@@ -52,6 +55,8 @@ without loading the CAD runtime.
   viewer files
 - **THEN** it copies the bundle from the installed viewer package without
   importing the framework's CAD runtime
+
+## ADDED Requirements
 
 ### Requirement: The viewer is an optional extra
 
@@ -107,4 +112,3 @@ server or capture code.
 - **WHEN** a different `solid-node-viewer` executable appears earlier on the
   PATH than the one installed beside the running interpreter
 - **THEN** the framework still runs the viewer installed beside its interpreter
-
