@@ -153,16 +153,21 @@ not the nodes are exact.
 
 The system SHALL provide `assertBlockedBeyond(node, magnitude, against, ...)`
 and `assertFreeWithin(...)` (same signature), which temporarily inject one
-perturbation operation into `node.operations` immediately before the node's
-first pre-existing `Translation` (appended if none), measure fouling against
-`against` through the shared intersection helper in world coordinates, and
-ALWAYS remove the injected operation in a `finally` — `node.operations` is
-left exactly as found. Two mutually exclusive modes: rotational via `axis`
-(default `(0,0,1)` when neither is given) and translational via `along` (a
-local pre-placement direction, normalized to unit, magnitude in mm). Passing
-both `axis` and `along`, a zero `along` vector, or a `directions` value other
-than `'both'`/`'forward'` SHALL raise `ValueError`. `directions='both'`
-(default) checks both signs; `'forward'` only the positive.
+perturbation operation into `node.operations` before every pre-existing
+operation of the node — at index 0, whatever the node's first operation is —
+measure fouling against `against` through the shared intersection helper in
+world coordinates, and ALWAYS remove the injected operation in a `finally` —
+`node.operations` is left exactly as found. Because the perturbation is the
+first operation applied, `axis` and `along` are read in the node's own
+untransformed frame and every one of the node's own operations — rotations,
+translations, simulated motion — carries them, as do its ancestors'. Two
+mutually exclusive modes: rotational via `axis` (default `(0,0,1)` when
+neither is given) and translational via `along` (a direction in the node's
+own frame, normalized to unit, magnitude in mm). Passing both `axis` and
+`along`, a zero `along` vector, or a `directions` value other than
+`'both'`/`'forward'` SHALL raise `ValueError`. `directions='both'` (default)
+checks both signs; `'forward'` only the positive.
+
 `assertFreeWithin` accepts a list of magnitudes to sweep. `volume_epsilon`
 (mm³, default 0.0 = exact emptiness) counts an intersection as fouling only
 when `abs(volume) > volume_epsilon`, filtering flush-contact boolean noise.
@@ -203,6 +208,14 @@ limit AND Free within it; `assertBlockedBeyond` alone is insufficient
   a pin whose placement rotates it onto a bank
 - **THEN** the perturbation translates the pin 2 mm along its local axis as
   carried by the placement rotations, not the world Z axis
+
+#### Scenario: A node whose first operation is a rotation
+
+- **WHEN** a perturbation assertion runs on a node whose operations are a
+  Rotation of 90° about Z followed by a Translation, with `along=(1, 0, 0)`
+- **THEN** the perturbation is inserted before the Rotation, the node is
+  displaced along the world direction that Rotation carries local X to, and
+  the verdict is the one that displacement reaches
 
 #### Scenario: An epsilon with nothing to absorb is reported
 

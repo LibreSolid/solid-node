@@ -655,8 +655,9 @@ builds none and needs no mesh engine. Distance and containment assertions
 remain mesh-sampled. This includes the
 **paired kinematic fit contract** (ADR-025): `assertBlockedBeyond` +
 `assertFreeWithin` perturb a part along its working degree of freedom
-(rotational `axis=` or translational `along=`, injected in the local
-pre-placement frame, always restored) — fit is certified only by the
+(rotational `axis=` or translational `along=`, injected before every
+operation of the node so the direction is the node's own and all of its
+rotations carry it, ADR-075; always restored) — fit is certified only by the
 pair. `volume_epsilon` separates real interference from boolean noise,
 with a deliberately strict default: a flush contact that is non-empty
 at exactly 0.0 mm³ **is** a foul until the test opts into an epsilon.

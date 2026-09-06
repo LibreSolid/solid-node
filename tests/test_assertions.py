@@ -124,22 +124,26 @@ class IntersectsWhenNegative(IntersectsWhenPositive):
 
 class PerturbationInsertionTest(TestCase):
 
-    def test_rotation_inserted_before_first_translation(self):
+    def test_perturbation_inserted_before_every_operation(self):
         node = RecordingNode()
+        turn = Rotation(90, [0, 0, 1], node)
         placement = Translation([5, 0, 0], node)
-        node.operations.append(placement)
+        node.operations.extend([turn, placement])
         against = FarAway()
 
         asserter.assertFreeWithin(node, 1.0, against)
 
         # Both signed directions (+1.0 and -1.0) get a snapshot; each
-        # must show the Rotation sitting BEFORE the pre-existing
-        # Translation, never after it.
+        # must show the injected Rotation sitting BEFORE every
+        # pre-existing operation -- the node's own leading Rotation
+        # included -- so the axis is read in the node's own frame.
         self.assertEqual(len(node.recorded), 2)
         for operations in node.recorded:
-            self.assertEqual(len(operations), 2)
+            self.assertEqual(len(operations), 3)
             self.assertIsInstance(operations[0], Rotation)
-            self.assertIs(operations[1], placement)
+            self.assertIsNot(operations[0], turn)
+            self.assertIs(operations[1], turn)
+            self.assertIs(operations[2], placement)
 
     def test_rotation_appended_when_no_translation_present(self):
         node = RecordingNode()
@@ -699,6 +703,46 @@ class LocalFrameCarriedByRotationTest(TestCase):
 
         asserter.assertFreeWithin(
             node, self.DISTANCE, against_naive, along=(1, 0, 0),
+            directions='forward')
+
+
+class LocalFrameCarriedByLeadingRotationTest(TestCase):
+    """The twin of LocalFrameCarriedByRotationTest for a node whose
+    FIRST operation is the Rotation: `[Rotation(90, Z),
+    Translation([5, 0, 0])]`, "spin then place". The perturbation is
+    inserted before every operation, so the leading Rotation carries
+    `along=(1, 0, 0)` to world Y exactly as a trailing one does: the
+    true displacement is R90((1.5, 0, 0)) == (0, 1.5, 0) on top of the
+    placement (5, 0, 0), landing at (5, 1.5, 0). A reading of `along`
+    in the frame the Rotation produces -- the parent's -- would land
+    at (6.5, 0, 0) instead; the two disagree on the verdict."""
+
+    DISTANCE = 1.5
+
+    def _node(self):
+        node = FakeNode(name='Node')
+        node.operations.append(Rotation(90, [0, 0, 1], node))
+        node.operations.append(Translation([5, 0, 0], node))
+        return node
+
+    def test_carried_destination_genuinely_fouls(self):
+        node = self._node()
+        against_correct = FakeNode('Correct')
+        against_correct.operations.append(Translation([5, 1.5, 0],
+                                                       against_correct))
+
+        asserter.assertBlockedBeyond(
+            node, self.DISTANCE, against_correct, along=(1, 0, 0),
+            directions='forward')
+
+    def test_parent_frame_destination_stays_clear(self):
+        node = self._node()
+        against_parent = FakeNode('Parent')
+        against_parent.operations.append(Translation([6.5, 0, 0],
+                                                      against_parent))
+
+        asserter.assertFreeWithin(
+            node, self.DISTANCE, against_parent, along=(1, 0, 0),
             directions='forward')
 
 

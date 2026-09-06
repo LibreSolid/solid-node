@@ -1315,20 +1315,19 @@ class TestCase(BaseTestCase):
     # `along` (translation) is given -- passing both is a loud error.
     # A Rotation (by a signed angle, about `axis`) or a Translation
     # (by a signed distance along the unit vector `along`) is
-    # inserted into node.operations right before node's first
-    # pre-existing Translation, appended if node has no Translation.
+    # inserted into node.operations before every pre-existing
+    # operation, at index 0 (ADR-025 as amended by ADR-075).
     #
     # That single insertion rule is what makes both modes "local":
     # a rotation turns node about its OWN axis rather than the world
     # origin, because it runs before node has been moved away from
-    # the origin by its own placement Translation; a translation
-    # likewise moves node along `along` in whatever frame node is in
-    # at that point in its OWN operations -- so any Rotation that is
-    # already part of node's own placement, or of an ancestor
-    # assembly's, and therefore applies to the mesh AFTER this
-    # insertion point, carries the perturbation's direction along
-    # with it. `along` is a direction in node's local, pre-placement
-    # frame, not a fixed world vector -- that carrying is the point.
+    # the origin by any of its own operations; a translation likewise
+    # moves node along `along` in node's own untransformed frame --
+    # so every Rotation of node's own, a leading one included, and
+    # every one of an ancestor assembly's, applies to the mesh AFTER
+    # the perturbation and carries its direction along with it.
+    # `along` is a direction in node's own frame, not a fixed world
+    # vector and not the parent's -- that carrying is the point.
     #
     # The perturbation is always removed afterwards, success or
     # failure, leaving node.operations exactly as found.
@@ -1457,12 +1456,9 @@ class TestCase(BaseTestCase):
         else:
             operation = Rotation(signed_value, list(axis), node)
             label = f"at {signed_value}deg"
-        index = next(
-            (i for i, op in enumerate(node.operations)
-             if isinstance(op, Translation)),
-            len(node.operations),
-        )
-        node.operations.insert(index, operation)
+        # Before every pre-existing operation, whatever comes first:
+        # the node's own frame is the frame, always (ADR-075).
+        node.operations.insert(0, operation)
         try:
             stats = _intersection_stats(node, against)
             is_empty, volume = stats
