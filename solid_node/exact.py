@@ -165,15 +165,21 @@ def write_brep(shape, path, mtime_ns, digest=None):
     _atomic_export(path, mtime_ns, shape.exportBrep, digest)
 
 
-def write_stl(shape, path, mtime_ns, digest=None, *, remove_degenerate=False):
-    # Match CadQueryNode's historical cq.exporters.export defaults.
+def write_stl(shape, path, mtime_ns, digest=None):
+    """Tessellate `shape` to an STL artifact without degenerate triangles.
+
+    OCCT's mesher emits zero-area triangles on some vendor solids (shafts,
+    standoffs, stepper frames); they add nothing to the surface and break
+    the mesh engine's edge pairing, so every exact artifact -- a leaf's or
+    a fused solid's -- drops them. The tessellation tolerances are the
+    historical cq.exporters.export defaults.
+    """
     def export(temporary):
         shape.exportStl(temporary, tolerance=0.1, angularTolerance=0.1)
-        if remove_degenerate:
-            mesh = trimesh.load(temporary, file_type='stl')
-            mesh.update_faces(mesh.nondegenerate_faces())
-            mesh.remove_unreferenced_vertices()
-            mesh.export(temporary, file_type='stl')
+        mesh = trimesh.load(temporary, file_type='stl', process=False)
+        mesh.update_faces(mesh.nondegenerate_faces())
+        mesh.remove_unreferenced_vertices()
+        mesh.export(temporary, file_type='stl')
 
     _atomic_export(path, mtime_ns, export, digest)
 

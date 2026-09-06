@@ -66,5 +66,4 @@ class FusionNode(InternalNode):
         shape = self.shape()
         digest = self.source_digest
         write_brep(shape, self.brep_file, self.mtime_ns, digest)
-        write_stl(shape, self.stl_file, self.mtime_ns, digest,
-                  remove_degenerate=True)
+        write_stl(shape, self.stl_file, self.mtime_ns, digest)

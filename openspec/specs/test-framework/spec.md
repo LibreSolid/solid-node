@@ -257,18 +257,25 @@ exact path's cost proportional to interacting pairs.
 
 The per-STL cache SHALL be split by what each part of it needs:
 
-- a solid's local bounding box and its watertightness validation are read from
-  the same cached base mesh the `mesh` property uses, keyed by
-  `(stl_file, mtime)` with stale entries evicted on rebuild, and SHALL be
-  performed whenever a solid is selected — a non-watertight STL raises a
-  `ValueError` naming the file rather than failing inside the boolean engine.
-  This half SHALL NOT require the mesh engine;
+- a solid's local bounding box is read from the same cached base mesh the
+  `mesh` property uses, keyed by `(stl_file, mtime)` with stale entries
+  evicted on rebuild, whenever a solid is selected. This half SHALL NOT
+  require the mesh engine and SHALL NOT judge the mesh: selecting a solid,
+  placing it in the broad phase, or comparing it on the exact kernel never
+  raises for the state of its mesh;
 - one `manifold3d.Manifold` per `(stl_file, mtime)` (module-level, stale
   entries evicted on rebuild) is built from that same cached base mesh at the
   FIRST comparison that actually reads it, and never for a solid whose every
   comparison is decided by the boundary-representation kernel. Repeated reads
   SHALL reuse the one cached Manifold, so deferring construction SHALL NOT
-  increase the number of Manifolds built for any assembly.
+  increase the number of Manifolds built for any assembly. The mesh engine's
+  own construction status is the admissibility verdict: a Manifold whose
+  `status()` is not `NoError` SHALL raise a `ValueError` naming the STL file
+  and the engine's status, with trimesh's watertightness verdict as a
+  diagnostic, and SHALL NOT be cached; a mesh the engine accepts
+  is compared whatever trimesh says of it. A flexible leaf's Manifold, built
+  from its evaluated mesh at the current binding, is judged the same way and
+  the error names the node.
 
 The faceted fast path SHALL then place the cached Manifolds with a lazy
 `transform()` and intersect them directly, reading `is_empty()` and `volume()`
@@ -310,8 +317,33 @@ emits SHALL NOT depend on whether its solids carry exact geometry.
 
 #### Scenario: Non-watertight part
 
-- **WHEN** a faceted fast-path assertion touches an STL that is not watertight
-- **THEN** it raises a `ValueError` naming that STL file
+- **WHEN** a faceted fast-path assertion reads an STL from which the mesh
+  engine builds a Manifold whose status is not `NoError` (a box missing a
+  triangle, say)
+- **THEN** it raises a `ValueError` naming that STL file and the engine's
+  status, and the Manifold is not cached
+
+#### Scenario: A mesh trimesh doubts and the engine accepts
+
+- **WHEN** a faceted fast-path assertion reads an STL whose edges are shared
+  by four faces, so trimesh reports it non-watertight, and the mesh engine
+  builds it with `NoError`
+- **THEN** the assertion compares the part and reaches the engine's verdict,
+  with no error
+
+#### Scenario: An exact run never judges a mesh
+
+- **WHEN** the run's kernel is exact, two exact solids are compared, and one
+  of them has an STL the mesh engine would refuse
+- **THEN** the verdict is the boundary-representation kernel's, no Manifold
+  is built, and the STL's state raises nothing
+
+#### Scenario: The broad phase does not judge a mesh
+
+- **WHEN** `assertNoSolidInterference` selects a solid whose STL the mesh
+  engine would refuse and no candidate pair compares it faceted
+- **THEN** the sweep completes with the kernel's verdicts and the solid's
+  bounding box culls its pairs as any other's does
 
 #### Scenario: An exact tight fit is not interference
 
@@ -1165,3 +1197,4 @@ applied before any assertion reads them.
   `SOLID_TEST_KERNEL=faceted` in the environment
 - **THEN** its geometric assertions use the faceted path with the
   environment's epsilon
+

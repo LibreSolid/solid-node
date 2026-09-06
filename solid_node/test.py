@@ -197,7 +197,7 @@ def _settled(stats):
 # trimesh.boolean.intersection call re-checks watertightness of BOTH
 # meshes and re-converts both to Manifold, even when the caller only
 # needs is_empty()/volume(); this cache pays that conversion (and the
-# watertightness check) once per STL for the whole suite instead of
+# engine's admissibility verdict) once per STL for the whole suite instead of
 # once per boolean. Keyed the same way as cached_base_mesh (fix 1),
 # with the same stale-entry eviction on rebuild.
 _manifold_cache = {}
@@ -213,24 +213,22 @@ _manifold_cache = {}
 _flexible_manifold_cache = {}
 
 # Companion cache holding only what the mesh engine is NOT needed for:
-# a solid's local bounding box, and the watertightness verdict that
-# comes with reading it. Both are properties of the STL, read from the
-# same cached base mesh, so they stay available -- and eager -- for
-# every selected solid whether or not manifold3d is installed.
+# a solid's local bounding box, a property of the STL read from the
+# same cached base mesh, so it stays available -- and eager -- for
+# every selected solid whether or not manifold3d is installed. It
+# judges nothing: selecting a solid, placing it in the broad phase or
+# comparing it on the exact kernel never asks whether its mesh is one
+# the engine would accept. Only a faceted read asks, below.
 _bounds_cache = {}
 
 
 def _cached_local_bounds(stl_file):
     """Local bounds for `stl_file`, read once per (stl_file, mtime) from
     the same trimesh mesh fix 1's cached_base_mesh loads (no extra disk
-    read). Watertightness is validated ONCE here and raises a clear,
-    STL-naming error if it fails, instead of letting an obscure failure
-    surface deep inside the boolean engine.
+    read).
 
     This half of the old combined cache deliberately needs no mesh
-    engine: it is what lets the spatial index place an exact solid, and
-    what keeps a non-watertight STL reported by name even for a solid
-    the broad phase culls out of every pair.
+    engine: it is what lets the spatial index place an exact solid.
     """
     mtime = os.path.getmtime(stl_file)
     key = (stl_file, mtime)
@@ -238,14 +236,31 @@ def _cached_local_bounds(stl_file):
     if cached is None:
         for stale_key in [k for k in _bounds_cache if k[0] == stl_file]:
             del _bounds_cache[stale_key]
-        mesh = cached_base_mesh(stl_file)
-        if not mesh.is_volume:
-            raise ValueError(
-                f"{stl_file} is not watertight -- cannot build a Manifold "
-                "cache for spatial assertions")
-        cached = mesh.bounds.copy()
+        cached = cached_base_mesh(stl_file).bounds.copy()
         _bounds_cache[key] = cached
     return cached
+
+
+def _admitted(manifold, mesh, what):
+    """`manifold` if the engine built it cleanly, else a ValueError
+    naming `what` and the engine's own status.
+
+    The engine judges its own input. trimesh's opinion of the mesh is
+    reported beside it as a diagnostic -- it is what a human opens the
+    file to look for -- but it decides nothing: OpenSCAD's four-face
+    snap-tab edges and build123d's T-junctions are non-watertight to
+    trimesh and NoError to Manifold, with the same volume, and a
+    predicate stricter than the engine it guards refuses parts the
+    engine would compare.
+    """
+    status = manifold.status()
+    if status.name == 'NoError':
+        return manifold
+    raise ValueError(
+        f"{what}: the mesh engine refuses this mesh ({status.name}) -- "
+        f"cannot build a Manifold for spatial assertions; trimesh reads it "
+        f"as {'watertight' if mesh.is_watertight else 'not watertight'}. "
+        f"Repair or replace the mesh; nothing is repaired here")
 
 
 _FACETED_NEEDED_BY = 'Comparing faceted geometry'
@@ -275,10 +290,10 @@ def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
             del _manifold_cache[stale_key]
         bounds = _cached_local_bounds(stl_file)
         mesh = cached_base_mesh(stl_file)
-        manifold = Manifold(mesh=Mesh(
+        manifold = _admitted(Manifold(mesh=Mesh(
             vert_properties=np.asarray(mesh.vertices, np.float32),
             tri_verts=np.asarray(mesh.faces, np.uint32),
-        ))
+        )), mesh, stl_file)
         cached = (manifold, bounds)
         _manifold_cache[key] = cached
     return cached
@@ -300,16 +315,11 @@ def _flexible_manifold(node, needed_by=_FACETED_NEEDED_BY,
                           if k[0] == node.uniq_id]:
             del _flexible_manifold_cache[stale_key]
         mesh = node.base_mesh()
-        if not mesh.is_watertight:
-            raise ValueError(
-                f"{node.name} is not watertight at this binding -- cannot "
-                f"build a Manifold from its evaluated mesh"
-            )
         bounds = (mesh.bounds[0].copy(), mesh.bounds[1].copy())
-        manifold = Manifold(mesh=Mesh(
+        manifold = _admitted(Manifold(mesh=Mesh(
             vert_properties=np.asarray(mesh.vertices, np.float32),
             tri_verts=np.asarray(mesh.faces, np.uint32),
-        ))
+        )), mesh, f"{node.name} at this binding")
         cached = (manifold, bounds)
         _flexible_manifold_cache[key] = cached
     return cached

@@ -26,7 +26,8 @@ from solid_node.node import (
 )
 from solid_node.exact import (_placement_cache, _shape_cache,
                               cached_shape, placed_shape,
-                              solid_count, solid_volume, write_brep)
+                              solid_count, solid_volume, write_brep,
+                              write_stl)
 from solid_node.node.base import StlRenderStart
 import solid_node.test as test_module
 from solid_node.test import TestCase as GeometryTestCase, _intersection_stats
@@ -734,3 +735,76 @@ class FacetedKernelTest(TestCase):
 
         self.assertTrue(stats.exact)
         self.assertAlmostEqual(stats.volume, 0.5, places=6)
+
+
+class MeshNeverJudgedOnTheExactPathTest(FacetedKernelTest):
+    """Selecting a solid, placing it in the broad phase, or comparing it
+    on the exact kernel never judges its mesh: only a faceted read asks
+    the engine, and only the engine's own status refuses."""
+
+    def holey_node(self, name, translation=None):
+        holey = trimesh.creation.box((1, 1, 1))
+        holey.faces = holey.faces[:-1]
+        node = StlShapeNode(self.unit_box, self.stl(name, holey), name)
+        if translation is not None:
+            from solid_node.node.operations import Translation
+            node.operations.append(Translation(translation, node))
+        return node
+
+    def no_engine(self):
+        return patch.object(test_module, 'require_mesh_engine',
+                            side_effect=AssertionError('no Manifold here'))
+
+    def test_an_exact_run_never_judges_a_mesh(self):
+        left = self.holey_node('holey')
+        right = self.box_node('right', [0.5, 0, 0])
+
+        with self.no_engine():
+            stats = _intersection_stats(left, right)
+
+        self.assertTrue(stats.exact)
+        self.assertFalse(stats.is_empty)
+        self.assertAlmostEqual(stats.volume, 0.5, places=6)
+
+    def test_the_broad_phase_does_not_judge_a_mesh(self):
+        holey = self.holey_node('holey', [5, 0, 0])
+        near = self.box_node('near')
+        root = SimpleNamespace(rigid=False, children=(holey, near),
+                               operations=[], _parent=None)
+        holey._parent = near._parent = root
+
+        with self.no_engine():
+            asserter.assertNoSolidInterference(root)
+
+    def test_a_faceted_run_refuses_only_what_the_engine_refuses(self):
+        self.faceted()
+        left = self.holey_node('holey')
+        right = self.box_node('right', [0.5, 0, 0])
+
+        with self.assertRaisesRegex(ValueError, 'holey.*NotManifold'):
+            _intersection_stats(left, right)
+
+
+class DegenerateTriangleExportTest(TestCase):
+    """An exact artifact's mesh carries no degenerate triangles: the
+    leaf export drops what OCCT tessellates with no area, as the fused
+    solid's export already did."""
+
+    def test_write_stl_drops_degenerate_triangles(self):
+        box = trimesh.creation.box((2, 2, 2))
+        vertices = np.vstack([box.vertices, [[5, 5, 5], [6, 6, 6]]])
+        faces = np.vstack([box.faces, [[8, 8, 9]]])
+        tessellated = trimesh.Trimesh(vertices, faces, process=False)
+
+        class Shape:
+            def exportStl(self, path, tolerance, angularTolerance):
+                tessellated.export(path, file_type='stl')
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'leaf.stl')
+            write_stl(Shape(), path, 1 * 10 ** 9)
+            raw = trimesh.load(path, process=False)
+
+        self.assertEqual(len(raw.faces), 12)
+        self.assertTrue(raw.nondegenerate_faces().all())
+        self.assertEqual(len(raw.vertices), 36)

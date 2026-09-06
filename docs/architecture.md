@@ -571,6 +571,9 @@ composition path fuses the shapes children *return*, and a fusion refuses a
 flexible child (ADR-057). An
 all-exact fusion is the exception to the subprocess protocol: it writes its
 BREP and tessellates its fused shape synchronously in process (ADR-045).
+Every exact artifact's STL, a leaf's or a fusion's, is written without the
+zero-area triangles OCCT's mesher emits, so the mesh engine's edge pairing
+sees only the surface (ADR-074).
 
 The artifact sweep learns one thing from the tree rather than from the
 document. A flexible leaf's snapshot is addressed by its binding, and the
@@ -659,10 +662,14 @@ with a deliberately strict default: a flush contact that is non-empty
 at exactly 0.0 mm³ **is** a foul until the test opts into an epsilon.
 
 The shared intersection path (ADR-029/044) caches one Manifold per
-`(stl_file, mtime)` (watertightness checked once, at fill), culls
-provably disjoint pairs with a conservative world-AABB broad-phase,
-and reads `is_empty()`/`volume()` straight off lazy-transformed Manifolds —
-verdict-identical to the naive faceted path. Exact pairs share the same AABB
+`(stl_file, mtime)`, built at the first faceted read and judged there by
+the engine's own `status()` (ADR-074): a mesh Manifold refuses raises by
+file name with the engine's reason, a mesh trimesh doubts and the engine
+accepts is compared, and selection, the broad phase and the exact path
+never judge a mesh at all. It culls provably disjoint pairs with a
+conservative world-AABB broad-phase, and reads `is_empty()`/`volume()`
+straight off lazy-transformed Manifolds — verdict-identical to the naive
+faceted path. Exact pairs share the same AABB
 broad phase, then use OCCT common and interpret “contains no solid” as empty;
 kernel failure raises and never falls back. `volume_epsilon` is ignored with a
 warning when every comparison in a call was exact.

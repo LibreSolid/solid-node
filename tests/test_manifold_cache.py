@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Regression tests for docs/performance-improvement.md fix 3: caching
-one manifold3d.Manifold per (stl_file, mtime) -- watertightness
-validated ONCE at cache fill -- instead of trimesh.boolean.intersection
+one manifold3d.Manifold per (stl_file, mtime) -- admissibility judged
+ONCE at cache fill, by the engine's own status -- instead of trimesh.boolean.intersection
 re-checking watertightness and re-converting both meshes on EVERY
 call. Per placement the cached Manifold is transformed (lazy) by the
 composed world matrix and intersected directly (`a ^ b`), reading
@@ -124,12 +124,14 @@ class ManifoldCacheBuiltOnceTest(ManifoldCacheTestCase):
         asserter.assertIntersecting(origin, near)
 
 
-class WatertightValidationTest(ManifoldCacheTestCase):
-    """Watertightness is validated ONCE, at cache fill, with a clear
-    error naming the offending STL."""
+class MeshEngineGateTest(ManifoldCacheTestCase):
+    """The mesh engine judges its own input: a Manifold whose status is
+    not NoError is refused by name, once, at the first faceted read; a
+    mesh trimesh doubts and the engine accepts is compared like any
+    other."""
 
-    def test_non_watertight_stl_raises_a_clear_error(self):
-        # A box missing one triangle: not watertight.
+    def test_a_mesh_the_engine_refuses_names_the_file_and_status(self):
+        # A box missing one triangle: not a manifold, to anyone.
         holey = trimesh.creation.box((2, 2, 2))
         holey.faces = holey.faces[:-1]
         holey_path = os.path.join(self.tmpdir.name, 'holey.stl')
@@ -138,12 +140,37 @@ class WatertightValidationTest(ManifoldCacheTestCase):
 
         part = self._part('Holey')
         part.stl_file = holey_path
-        against = self._part('Against', [1000, 0, 0])
+        against = self._part('Against', [0.5, 0, 0])
 
         with self.assertRaises(ValueError) as ctx:
             asserter.assertNotIntersecting(part, against)
 
         self.assertIn(holey_path, str(ctx.exception))
+        self.assertIn('NotManifold', str(ctx.exception))
+        self.assertFalse(any(key[0] == holey_path
+                             for key in test_module._manifold_cache))
+
+    def test_a_mesh_trimesh_doubts_and_the_engine_accepts_is_compared(self):
+        # Two boxes sharing one edge, as OpenSCAD 2021.01 exports a
+        # snap tab against its wall: the edge belongs to four faces, so
+        # trimesh calls the mesh non-watertight and two bodies, while
+        # the engine builds it with NoError and the volume of both.
+        shared = trimesh.util.concatenate([
+            trimesh.creation.box((2, 2, 2)),
+            trimesh.creation.box((2, 2, 2)).apply_translation([2, 2, 0])])
+        shared.merge_vertices()
+        shared_path = os.path.join(self.tmpdir.name, 'shared_edge.stl')
+        shared.export(shared_path)
+        self.assertFalse(trimesh.load(shared_path).is_watertight)
+
+        part = self._part('Tabbed')
+        part.stl_file = shared_path
+        near = self._part('Near', [2.5, 2.5, 0])
+        far = self._part('Far', [1000, 0, 0])
+
+        asserter.assertIntersecting(part, near)
+        asserter.assertNotIntersecting(part, far)
+        asserter.assertIntersectVolumeAbove(part, near, 3.0)
 
 
 class VolumeEpsilonEmptinessSemanticsTest(ManifoldCacheTestCase):
@@ -405,13 +432,10 @@ class ExactAssemblyBuildsNoManifoldTest(ManifoldCacheTestCase):
         self.assertNotIn(exact_far.stl_file, built)
 
 
-class WatertightnessStaysEagerTest(ManifoldCacheTestCase):
-    """Deferring the Manifold must not defer the diagnostic that comes
-    with it. Watertightness is a property of the STL, readable from the
-    cached base mesh with no mesh engine at all, and it is reported for
-    every SELECTED solid -- including one the broad phase culls out of
-    every pair, which is exactly the solid a deferred check would stop
-    reporting."""
+class CulledSolidIsNotJudgedTest(ManifoldCacheTestCase):
+    """Selecting a solid judges nothing. A solid the broad phase culls
+    out of every pair is never read by the engine, so a mesh the engine
+    would refuse raises only if some comparison actually reads it."""
 
     def _holey(self, name):
         holey = trimesh.creation.box((2, 2, 2))
@@ -420,15 +444,23 @@ class WatertightnessStaysEagerTest(ManifoldCacheTestCase):
         holey.export(path)
         return path
 
-    def test_a_culled_solid_is_still_reported_non_watertight(self):
-        holey_path = self._holey('holey')
-        holey = FacetedPart('Holey', holey_path)
+    def test_a_culled_solid_is_not_judged(self):
+        holey = FacetedPart('Holey', self._holey('holey'))
         holey.operations.append(Translation([1000, 0, 0], holey))
         first = FacetedPart('First', self.box_path)
         second = FacetedPart('Second', self.box_path)
+        second.operations.append(Translation([10, 0, 0], second))
+
+        asserter.assertNoSolidInterference(
+            Root('Root', (first, second, holey)))
+
+    def test_a_compared_solid_is_judged_by_the_engine(self):
+        holey_path = self._holey('holey')
+        holey = FacetedPart('Holey', holey_path)
+        first = FacetedPart('First', self.box_path)
 
         with self.assertRaises(ValueError) as ctx:
-            asserter.assertNoSolidInterference(
-                Root('Root', (first, second, holey)))
+            asserter.assertNoSolidInterference(Root('Root', (first, holey)))
 
         self.assertIn(holey_path, str(ctx.exception))
+        self.assertIn('NotManifold', str(ctx.exception))
