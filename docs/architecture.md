@@ -172,7 +172,7 @@ piece, and `time` raises on it as on any leaf.
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` and `Build123dNode` (both export to STL and re-import),
 `OpenScadNode` (`scad_source` + module call), `JScadNode` (shells out to the
-`jscad` CLI), and `StlNode` (`stl_source`, a committed mesh materialized with
+`jscad` CLI), and `StlNode` (`stl_source`, a mesh materialized with
 no backend at all). Every node exposes derived read-only exactness (ADR-044): the
 OCCT adapters are exact, the other leaf adapters are faceted, and an
 internal node is exact only when every child is. Exactness does not require
@@ -189,7 +189,7 @@ additionally rejects a render result that is not a solid, and accepts a
 `BuildPart` builder by taking its finished `.part`.
 
 One leaf kind has no modelling backend at all. `StlNode` is a part that
-arrives as a committed STL mesh: it declares `stl_source` beside its wrapper
+arrives as an STL mesh: it declares `stl_source` beside its wrapper
 module, resolves and tracks it like `JScadNode` does its `.js`, and
 materializes its own artifact from it inside `as_scad()` — selected body,
 `adjust` correction, binary export, stamped with the source mtime, so no

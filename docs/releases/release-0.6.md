@@ -86,11 +86,11 @@ compensation, SVG import, engraving, nesting and a production-export
 command are deliberately left out; the persisted exact profile keeps them
 all additive.
 
-**Imported meshes.** `StlNode` wraps a committed `.stl`, so a design
-published only as a mesh can be assembled under source control and a new
-part designed to fit it. A non-watertight mesh fails at build naming the
-defect (`require_watertight = False` admits one knowingly); a multi-body
-file is a part pack, selected by `body` with a per-body inventory on
+**Imported meshes.** `StlNode` wraps an `.stl`, so a design published only
+as a mesh can be assembled and a new part designed to fit it. A
+non-watertight mesh fails at build naming the defect
+(`require_watertight = False` admits one knowingly); a multi-body file is
+a part pack, selected by `body` with a per-body inventory on
 omission; `adjust(self, mesh)` corrects the mesh in code, not constructor
 knobs. An `StlNode` in a fusion makes that fusion faceted — the documented
 price of designing against a downloaded part.

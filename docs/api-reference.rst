@@ -136,7 +136,7 @@ Leaf nodes
 
    .. attribute:: stl_source
 
-      Path of the committed ``.stl``, relative to the directory of the
+      Path of the ``.stl``, relative to the directory of the
       python file declaring the node.
 
    .. attribute:: require_watertight

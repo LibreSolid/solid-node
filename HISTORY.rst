@@ -163,10 +163,10 @@ New features
   compensation, SVG import, engraving, nesting and a production-export
   command are deliberately left out; the persisted exact profile keeps them
   all additive.
-* **Imported meshes.** ``StlNode`` wraps a committed ``.stl`` declared by
-  ``stl_source``, so a design published only as a mesh can be assembled under
-  source control and a new part can be designed to fit it. A non-watertight
-  mesh fails at build naming the file and the defect, with
+* **Imported meshes.** ``StlNode`` wraps an ``.stl`` declared by
+  ``stl_source``, so a design published only as a mesh can be assembled and a
+  new part can be designed to fit it. A non-watertight mesh fails at build
+  naming the file and the defect, with
   ``require_watertight = False`` to admit one knowingly. A multi-body file is
   a part pack: ``body`` selects one component by index, and leaving it unset
   reports the count with a per-body inventory of centroid, bounds and volume.

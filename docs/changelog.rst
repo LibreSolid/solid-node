@@ -260,7 +260,7 @@ for it to matter. The narrative announcement is at
   first backend: a laser-cut part authored as a 2D ``profile()`` plus a
   declared ``thickness``, writing a nominal kerf-free ``.dxf`` beside
   its STL and BREP under the same freshness guard.
-* **Imported meshes.** ``StlNode`` wraps a committed ``.stl``; a
+* **Imported meshes.** ``StlNode`` wraps an ``.stl``; a
   non-watertight mesh fails at build (``require_watertight = False``
   admits one knowingly), a multi-body file is selected by ``body`` with
   a per-body inventory on omission, and ``adjust(self, mesh)`` corrects

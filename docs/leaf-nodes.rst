@@ -46,7 +46,7 @@ of making:
 
 And one whose part is not modelled here at all, but imported:
 
-* **StlNode** A part that comes from a committed STL mesh — a model
+* **StlNode** A part that comes from an STL mesh — a model
   published as a mesh rather than as CAD source
 
 And one whose part does not hold still:
@@ -408,7 +408,7 @@ declares it, and name it:
 That is the whole declaration for a well-behaved file. `render()` is not
 an extension point here — the part is the mesh.
 
-The node does not import the committed file in place: it materializes
+The node does not import the file in place: it materializes
 **its own artifact** from it, exactly as every other leaf produces its
 own STL, and that artifact is what the assembly, the fusion, the viewer,
 the export and the printed-piece inventory all see. Producing it needs
