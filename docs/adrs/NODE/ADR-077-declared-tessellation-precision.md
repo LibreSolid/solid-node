@@ -1,4 +1,4 @@
-# ADR-076: Declared tessellation precision
+# ADR-077: Declared tessellation precision
 
 **Status:** Accepted
 

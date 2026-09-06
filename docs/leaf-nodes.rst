@@ -48,7 +48,7 @@ And two whose part is not modelled here at all, but imported:
 
 * **StlNode** A part that comes from an STL mesh — a model
   published as a mesh rather than as CAD source
-* **StepNode** A part that comes from one product of a committed STEP
+* **StepNode** A part that comes from one product of a STEP
   document — a vendor part or assembly, selected by name. Unlike
   `StlNode`, it is exact: a STEP product is a boundary representation
   the moment it is read.
@@ -643,7 +643,7 @@ StepNode
 ========
 
 STEP is the format every CAD package and every vendor publishes. A
-**StepNode** brings one product of a committed STEP document into a
+**StepNode** brings one product of a STEP document into a
 project as an ordinary part — selected by name, corrected in code, and
 admitted only if it is a solid — exactly as `StlNode` does for a mesh.
 

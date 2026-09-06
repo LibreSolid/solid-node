@@ -96,7 +96,7 @@ and clearance verdicts, a `.brep` artifact, `shape()`.
   the spatial assertions work as for `CadQueryNode`, and the STL artifact
   is written by `ExactLeafNode.as_scad` and so honours the
   `linear_deflection` / `angular_deflection` declaration of
-  `declared-tessellation-precision` (ADR-076). `StepNode` inherits those
+  `declared-tessellation-precision` (ADR-078). `StepNode` inherits those
   defaults unchanged (0.1 mm, 0.1 rad); see design D9.
 - **Deferred reader import.** The OCP STEP reader is imported by the
   adapter module, which `solid_node.node` resolves only when `StepNode` is

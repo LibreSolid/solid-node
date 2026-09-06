@@ -57,10 +57,10 @@ generated leaves' composed world placements agrees with the reader's
 own world matrix to within 4.93e-10 mm, the contract
 ``Internal-Cycloidal-Actuator``'s hand-written ``test_machine.py``
 existed only to check by hand. See :ref:`import-step`. (OpenSpec change
-``step-assembly-import``; ADR-078.)
+``step-assembly-import``; ADR-079.)
 
 **The STEP part, an exact external-file leaf.** ``StepNode`` reads one
-product out of a committed STEP document as an ordinary part —
+product out of a STEP document as an ordinary part —
 selected by ``part``, naming the product as the file carries it; a
 document with exactly one candidate product (a bare single-part file,
 or the commoner file in which an exporter wraps one part in an
@@ -98,7 +98,7 @@ inherited default, against 1.76 MB (35,240 triangles) declaring
 two; reading that 35 MB document costs 14 to 17 seconds once per
 process, and a second node selecting from the same cached document
 costs 0.0003 s. See :ref:`step-import`. (OpenSpec change
-``step-part-leaf``; ADR-077.)
+``step-part-leaf``; ADR-078.)
 
 **Declared tessellation precision.** An exact leaf (``CadQueryNode``,
 ``Build123dNode``, ``Build123dSheetNode``) or a ``FusionNode`` fusing
@@ -125,7 +125,7 @@ returned it; Internal-Cycloidal-Actuator's design record measured the
 cost on a vendor STEP part: 19.9 MB (398,184 triangles) at the
 framework's default against 1.8 MB (35,776 triangles) at
 ``angular_deflection = 0.5``. See :ref:`tessellation-precision`.
-(OpenSpec change ``declared-tessellation-precision``; ADR-076.)
+(OpenSpec change ``declared-tessellation-precision``; ADR-077.)
 
 **The expression vocabulary projects kept rebuilding.**
 ``solid_node.math`` now carries ``abs``, ``floor``, ``ceil``, ``sign``,

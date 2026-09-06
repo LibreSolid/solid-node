@@ -1,7 +1,7 @@
 # step-import Specification
 
 ## Purpose
-The STEP part leaf: how a committed STEP document becomes an exact part -- its declaration and freshness, the product selected by name with the inventory as the failure, the product's own frame, correction in code, the solid-admission gate, colour from the document, one read per file per process, and its exactness.
+The STEP part leaf: how a STEP document becomes an exact part -- its declaration and freshness, the product selected by name with the inventory as the failure, the product's own frame, correction in code, the solid-admission gate, colour from the document, one read per file per process, and its exactness.
 
 ## Requirements
 ### Requirement: STEP source declaration and freshness

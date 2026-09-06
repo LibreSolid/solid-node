@@ -115,7 +115,7 @@
       `StepNode` leaves builds with no `openscad` on the PATH.
 - [x] 6.2 Red: a `StepNode` declaring `angular_deflection = 0.5` writes
       strictly fewer triangles than the same node declaring nothing, and
-      its `.brep` is unchanged between the two (the ADR-076 path, inherited
+      its `.brep` is unchanged between the two (the ADR-078 path, inherited
       and not redeclared — design D9).
 - [x] 6.3 Red: `import solid_node.node` in a fresh interpreter leaves
       `OCP` out of `sys.modules`, and accessing `StepNode` imports the STEP
@@ -137,7 +137,7 @@
       (measured directly: without the copy, a default node built after a
       `angular_deflection = 0.5` node also came out at 306 triangles
       instead of 8002, and vice versa depending on build order). This is
-      the same relative/absolute-mode meshing hazard ADR-076 documents
+      the same relative/absolute-mode meshing hazard ADR-078 documents
       for a project's own `premesh()`, arriving here through the new
       per-file document cache instead. Fixed in `_Document.shape()`, and
       task 7.4's ADR records it.
@@ -159,7 +159,7 @@
       - **`angular_deflection = 0.5`** (0.1 mm linear, unchanged): **1.76
         MB** STL (1,762,084 bytes), **35,240 triangles**.
       - **`.brep`**: byte-for-byte identical between the two builds
-        (1,267,511 bytes each, `cmp` confirms), as D9/ADR-076 promise --
+        (1,267,511 bytes each, `cmp` confirms), as D9/ADR-078 promise --
         only the mesh changed.
       - **Read time** (this leaf's `cached_document`, cold cache, this
         worktree's environment, `cadquery` already imported): **14.2 s
@@ -172,7 +172,7 @@
       0.5` through this leaf gives **1.76 MB / 35,240 triangles** --
       smaller and cleaner than every previously measured route to a
       coarse `Output_Shaft`: better than the actuator's own `premesh()`
-      trick run through the *old* (pre-ADR-076) framework export path
+      trick run through the *old* (pre-ADR-078) framework export path
       (3.35 MB, inflated by the relative/absolute mesh-mode mismatch
       recorded in the actuator's design), and closely matching the
       actuator's own direct `BRepMesh_IncrementalMesh` figure (1.8 MB /
@@ -199,7 +199,7 @@
       external-file leaf: selection by product name with the inventory as
       the failure, the product's own frame, one document read per file per
       process — extending ADR-054 and ADR-055 and depending on ADR-047,
-      ADR-050, ADR-071 and ADR-076, and carrying the 7.1 measurement as
+      ADR-050, ADR-071 and ADR-078, and carrying the 7.1 measurement as
       the originating caller's evidence. Index it in `docs/adrs/README.md`
       and update `docs/architecture.md` where it describes the leaf
       adapters.

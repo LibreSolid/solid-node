@@ -326,7 +326,7 @@ node.
 
 ### D9. `StepNode` keeps the inherited 0.1 rad angular deflection
 
-ADR-076 left this open — "Whether a future `StepNode` should default to
+ADR-078 left this open — "Whether a future `StepNode` should default to
 something coarser than 0.1 rad, given that every project reading vendor
 STEP has wanted 0.5. That is the `StepNode` cycle's question" — and the
 answer here is **no**: `StepNode` inherits `linear_deflection = 0.1` and
@@ -341,7 +341,7 @@ exporting the stored triangulation directly, **3.35 MB** through the
 framework's export as it stands (because that export asks OCCT for 0.1 rad
 unconditionally and the mesher re-tessellates every face where the request
 is finer than the stored mesh), and 6.30 MB when the stored mesh's
-relative/absolute mode does not match the export's. Under ADR-076 the
+relative/absolute mode does not match the export's. Under ADR-078 the
 export asks for the declared value, so a `StepNode` declaring
 `angular_deflection = 0.5` stores nothing and meshes once at 0.5 — a fourth
 number, which task 7.1 measures on this very part before any of it is
@@ -359,7 +359,7 @@ written down. Against that background:
    STEP round trip silently degrading a part is a bad promise.
 3. The failure modes are asymmetric. An over-fine artifact announces itself
    (a 19.9 MB STL, a slow viewer); an over-coarse one is silent, and under
-   `solid test --faceted` it moves clearance verdicts (ADR-076's own risk).
+   `solid test --faceted` it moves clearance verdicts (ADR-078's own risk).
 4. The cost of the decision to the projects that want 0.5 is one line —
    `angular_deflection = 0.5` in the class body — which the `StepNode`
    documentation tells them to write, with the numbers task 7.1 measures

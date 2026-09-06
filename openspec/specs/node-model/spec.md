@@ -171,7 +171,7 @@ part is authored as a profile plus thickness under the `sheet-parts`
 capability, one mesh-import leaf, `StlNode` (with `stl_source`), whose
 part is a committed STL mesh under the `stl-import` capability, one
 solid-import leaf, `StepNode` (with `step_source` and `part`), whose part is
-one product of a committed STEP document under the `step-import`
+one product of a STEP document under the `step-import`
 capability, and one
 flexible leaf kind, `MolejoNode`, whose part is a molejo shape spec fed by
 ports under the `flexible-parts` capability. Each adapter

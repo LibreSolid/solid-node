@@ -123,7 +123,7 @@
       `docs/adrs/README.md`; update `docs/architecture.md` where it
       describes the exact artifact path.
 
-      ADR-076 (docs/adrs/NODE/ADR-076-declared-tessellation-precision.md),
+      ADR-078 (docs/adrs/NODE/ADR-078-declared-tessellation-precision.md),
       the next free number after ADR-075. Indexed in
       `docs/adrs/README.md` under NODE. `docs/architecture.md` updated
       where it describes exact STL tessellation (the ADR-074 degenerate-

@@ -2,7 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""The solid-import leaf: a committed STEP document as a part.
+"""The solid-import leaf: a STEP document as a part.
 
 STEP is the format every CAD package and every vendor publishes. Unlike
 `StlNode`'s mesh, a STEP product is a boundary representation the
@@ -236,7 +236,7 @@ class _Document:
         meshes first (at whatever precision it declares) would leave a
         triangulation the other's `exportStl` treats as already good
         enough and reuses, regardless of what the second node declared
-        (the same relative/absolute-mode hazard ADR-076 documents).
+        (the same relative/absolute-mode hazard ADR-077 documents).
         `.copy(mesh=False)` -- `BRepBuilderAPI_Copy`, not copying any
         existing triangulation -- gives each caller independent
         topology to mesh on its own terms.
@@ -365,7 +365,7 @@ def solids_from_faces(shape, tolerance):
 
 
 class StepNode(ExactLeafNode):
-    """A part that comes from one product of a committed STEP document.
+    """A part that comes from one product of a STEP document.
 
     Declare the file with `step_source`, as a path relative to the
     directory of the module defining the subclass::
@@ -388,7 +388,7 @@ class StepNode(ExactLeafNode):
     are inherited whole.
     """
 
-    #: The committed STEP file, relative to the wrapper module's
+    #: The STEP file, relative to the wrapper module's
     #: directory.
     step_source = None
 

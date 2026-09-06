@@ -1,4 +1,4 @@
-# ADR-078: Reading a STEP document's placements, and scaffolding declarative source from them
+# ADR-079: Reading a STEP document's placements, and scaffolding declarative source from them
 
 **Status:** Accepted
 
@@ -7,16 +7,16 @@
 **Change:** `step-assembly-import`
 
 **Extends:**
-- [ADR-077: The STEP part as an exact external-file
-  leaf](ADR-077-the-step-part-as-an-exact-external-file-leaf.md)
+- [ADR-078: The STEP part as an exact external-file
+  leaf](ADR-078-the-step-part-as-an-exact-external-file-leaf.md)
 
 **Depends on:**
-- [ADR-076: Declared tessellation
-  precision](ADR-076-declared-tessellation-precision.md)
+- [ADR-077: Declared tessellation
+  precision](ADR-077-declared-tessellation-precision.md)
 
 ## Context and Problem Statement
 
-ADR-077 gives the framework one product of a STEP document, in the
+ADR-078 gives the framework one product of a STEP document, in the
 product's own frame, deliberately: "The file's placements are the
 assembly's business; a later cycle may read them." A vendor STEP file
 is not a bag of parts, though — where each part sits is the larger half
@@ -125,7 +125,7 @@ flat tree (55 occurrences, all direct children of the root). Solid
 counts for the `products` report read `GetShape_s` directly rather than
 through `_Document.shape()`'s protective copy: the copy exists so two
 `StepNode`s meshing the same product cannot contaminate each other
-(ADR-077's own fix), and counting topology never meshes, so paying for
+(ADR-078's own fix), and counting topology never meshes, so paying for
 the copy would cost 163× for nothing it protects here (2.602 s against
 0.016 s for the actuator's 21 products).
 
@@ -261,7 +261,7 @@ occurrences are repeated placements of these, sharing an artifact
 exactly as design D8 predicts) totalling 11.74 MiB of STL — against the
 19.91 MB `Output_Shaft` alone would cost at the framework's inherited
 default; this build's own `Output_Shaft` STL is 1.76 MB, matching
-ADR-077's own `angular_deflection = 0.5` figure exactly. Every one of
+ADR-078's own `angular_deflection = 0.5` figure exactly. Every one of
 the 55 generated leaves matched one of the reader's 55 occurrences, and
 the worst placement deviation over all of them is 4.93e-10 mm — about
 twenty million times inside the 0.01 mm asked. The structure extraction

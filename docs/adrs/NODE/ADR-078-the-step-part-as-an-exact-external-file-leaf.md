@@ -1,4 +1,4 @@
-# ADR-077: The STEP part as an exact external-file leaf
+# ADR-078: The STEP part as an exact external-file leaf
 
 **Status:** Accepted
 
@@ -18,8 +18,8 @@
 - [ADR-050: Nanosecond-fidelity artifact
   freshness](ADR-050-nanosecond-fidelity-artifact-freshness.md)
 - [ADR-071: Node-Scoped Content Currency](ADR-071-node-scoped-content-currency.md)
-- [ADR-076: Declared tessellation
-  precision](ADR-076-declared-tessellation-precision.md)
+- [ADR-077: Declared tessellation
+  precision](ADR-077-declared-tessellation-precision.md)
 
 ## Context and Problem Statement
 
@@ -42,7 +42,7 @@ Unlike an imported mesh, a STEP product is a boundary representation
 the moment it is read. `ExactLeafNode` (ADR-047) already holds the
 whole exact-adapter contract — `exact`, `shape()`, the `.brep`,
 `as_scad()` writing both artifacts at the node's declared deflections
-(ADR-076) — so a STEP leaf that derives it inherits all of it. The
+(ADR-077) — so a STEP leaf that derives it inherits all of it. The
 question this ADR settles is everything ADR-054/055 settled for a
 mesh, now for a document: how a product is selected, what frame it
 arrives in, how it is corrected, when it is admitted, where its colour
@@ -205,7 +205,7 @@ cached document therefore shared mutable mesh state: whichever node's
 `exportStl` ran first (at whatever precision it declared) left a
 triangulation the second treated as already fine enough and reused,
 silently discarding its own declared `angular_deflection` — the same
-relative/absolute-mode meshing hazard ADR-076 documents for a project's
+relative/absolute-mode meshing hazard ADR-077 documents for a project's
 own `premesh()`, arriving here through this leaf's own document cache
 instead of a project's hand-written one. Confirmed directly: without
 isolation, a node declaring `angular_deflection = 0.5` built after a
@@ -222,7 +222,7 @@ per-file document cache does.
 
 ### `StepNode` keeps the inherited 0.1 rad angular deflection (D9)
 
-ADR-076 left this open for this leaf's own cycle to answer, and the
+ADR-077 left this open for this leaf's own cycle to answer, and the
 answer is **no**: `StepNode` inherits `linear_deflection = 0.1` and
 `angular_deflection = 0.1` from `ExactLeafNode` and redeclares neither,
 so what precision a part is tessellated at is readable from a project's
@@ -239,7 +239,7 @@ default writes **19.91 MB** (398,184 triangles); declaring
 a byte-for-byte identical `.brep` between the two (`cmp` confirms).
 This is a **better** number than either figure previously on record —
 smaller than the 3.35 MB the actuator's own `premesh()` trick achieved
-running through the framework's *pre*-ADR-076 export (inflated by the
+running through the framework's *pre*-ADR-077 export (inflated by the
 relative/absolute mesh-mode mismatch that trick depended on), and
 closely matching the actuator's own direct `BRepMesh_IncrementalMesh`
 figure of 1.8 MB / 35,776 triangles — with no premesh trick and no

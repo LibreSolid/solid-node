@@ -215,7 +215,7 @@ publishes, and it is exact rather than faceted. `StepNode` declares
 `stl_source`, and derives `ExactLeafNode` directly rather than writing
 its own `as_scad()`: a STEP product is a boundary representation the
 moment it is read, so `shape()`, the `.brep`, exact fusion and declared
-tessellation precision (ADR-076) all come from that base whole, and no
+tessellation precision (ADR-077) all come from that base whole, and no
 external tool of any kind produces its artifacts. `part` selects one
 product out of the document by name — the candidates being every
 top-level XCAF label except a root that is itself an assembly, so a
@@ -237,7 +237,7 @@ file for it. The XCAF document itself is read and transferred at most
 once per file per process, cached on `(path, mtime_ns)` in the shape of
 `solid_node.exact._shape_cache`, because the read is expensive (11.79 s
 measured on a 35 MB vendor assembly) and a project may hold many leaves
-over one file (ADR-077).
+over one file (ADR-078).
 
 The other half of a STEP document — where each product sits — is a
 reader, not a node: `StepAssembly(path)`, in the same adapter module,
@@ -257,7 +257,7 @@ import-step` turns this reader into project-owned source in one shot:
 `AssemblyNode` per assembly product, its children placed at the
 document's own transforms, machine at rest — no driver, no
 `simulate()`), never overwriting existing source and never touching
-`pyproject.toml` (ADR-078).
+`pyproject.toml` (ADR-079).
 
 One leaf kind names a *manufacturing method* rather than a backend.
 `SheetLeafNode` — internal base, `Build123dSheetNode` its v1 adapter — is a
@@ -628,7 +628,7 @@ sees only the surface (ADR-074). The tessellation itself is at whatever
 `linear_deflection` (mm) and `angular_deflection` (rad) an `ExactLeafNode`
 or `FusionNode` subclass declares as a class attribute — 0.1 and 0.1,
 the framework's historical values, when it declares neither — read and
-validated once, immediately before each write (ADR-076). Precision is
+validated once, immediately before each write (ADR-077). Precision is
 not artifact identity and rides the node's own source set instead
 (ADR-071), so redeclaring it rewrites the same `.stl` in place; the
 `.brep` and `shape()` are unaffected, and a fusion's declaration shapes
@@ -1195,12 +1195,12 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 076, 077, 078 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
-| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 078 |
+| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
 | Export | `core/export.py`, `core/serializer.py` | `export` | 020, 034, 051, 057, 068 |

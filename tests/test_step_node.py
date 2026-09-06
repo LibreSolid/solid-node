@@ -2,7 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""The STEP leaf: a committed vendor B-rep as a first-class part.
+"""The STEP leaf: a vendor B-rep as a first-class part.
 
 STEP is the format every CAD package and every vendor publishes, and
 until this leaf the framework could not read one. Two projects

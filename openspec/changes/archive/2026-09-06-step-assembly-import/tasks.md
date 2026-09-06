@@ -286,7 +286,7 @@
       a node, the quaternion decomposition and why the trace route is not
       accurate enough (design fact 5), the propriety gate, one declaration
       per occurrence rather than `.repeat()`, and the never-overwrite
-      rule. It extends the cycle-B StepNode ADR and depends on ADR-076.
+      rule. It extends the cycle-B StepNode ADR and depends on ADR-078.
       Index it in `docs/adrs/README.md` and update `docs/architecture.md`
       where it describes the CLI commands and the leaf adapters.
 

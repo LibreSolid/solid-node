@@ -144,7 +144,7 @@ class NodePackageImportCost(TestCase):
                                 f'resolving {name} did not import cadquery')
 
     def test_importing_the_node_package_does_not_import_the_step_reader(self):
-        # design D10 / ADR-077: OCP is the boundary-representation
+        # design D10 / ADR-078: OCP is the boundary-representation
         # kernel's own package, and StepNode's reader lives inside it;
         # a bare package import must not pull it in.
         result = self._ran('import solid_node.node\n')
