@@ -64,6 +64,7 @@ _EXPORTS = {
     'OpenScadNode': 'adapters.openscad',
     'JScadNode': 'adapters.jscad',
     'StlNode': 'adapters.stl',
+    'StepNode': 'adapters.step',
     'property_as_number': 'decorators',
 }
 

@@ -89,10 +89,13 @@ those belong to the dedicated build-parameter module and SHALL be reachable
 only from there. Importing `solid_node.node`, or any module beneath it,
 SHALL NOT import a backend the caller has not named.
 
-In particular, importing `solid_node.node` SHALL NOT import `cadquery`. The
+In particular, importing `solid_node.node` SHALL NOT import `cadquery`, and
+SHALL NOT import the boundary-representation kernel's STEP reader. The
 exact-geometry stack SHALL be imported when a name that depends on it —
-`FusionNode`, `CadQueryNode`, `Build123dNode`, `Build123dSheetNode`, or a
-module reached through them — is first accessed.
+`FusionNode`, `CadQueryNode`, `Build123dNode`, `Build123dSheetNode`,
+`StepNode`, or a
+module reached through them — is first accessed, and the STEP reader when
+`StepNode` is.
 
 Attribute access SHALL resolve submodules of `solid_node.node` as well as the
 exported classes, so a consumer reading `solid_node.node.<submodule>` after
@@ -111,6 +114,12 @@ A name that is not exported SHALL raise `AttributeError`, as it does today.
 - **WHEN** a module runs `from solid_node.node import CadQueryNode`
 - **THEN** it receives the same class it receives today, and `cadquery` is
   imported
+
+#### Scenario: The STEP reader is not imported by the node package
+
+- **WHEN** `solid_node.node` is imported in a fresh interpreter
+- **THEN** the kernel's STEP reader is absent from the process's imported
+  modules, and it is imported when `StepNode` is first accessed
 
 #### Scenario: A submodule is reached through the package
 

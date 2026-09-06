@@ -44,10 +44,14 @@ of making:
   **SheetLeafNode** base, which owns the sheet contract — other sheet
   backends can slot in beside it.
 
-And one whose part is not modelled here at all, but imported:
+And two whose part is not modelled here at all, but imported:
 
 * **StlNode** A part that comes from an STL mesh — a model
   published as a mesh rather than as CAD source
+* **StepNode** A part that comes from one product of a committed STEP
+  document — a vendor part or assembly, selected by name. Unlike
+  `StlNode`, it is exact: a STEP product is a boundary representation
+  the moment it is read.
 
 And one whose part does not hold still:
 
@@ -339,7 +343,12 @@ Vendor STEP geometry is overwhelmingly fillets and threads, and 0.1 rad
 of angular deflection over such a part costs an order of magnitude in
 artifact size for surface a viewer cannot see: one measured part went
 from 19.9 MB (398,184 triangles) at the default to 1.8 MB (35,776
-triangles) at `angular_deflection = 0.5`.
+triangles) at `angular_deflection = 0.5`. `StepNode` (:ref:`below
+<step-import>`) is that vendor part's own leaf: reading the same
+product through it, at the same declaration, measures 19.91 MB
+(398,184 triangles) against 1.76 MB (35,240 triangles) — the same
+order-of-magnitude drop, produced by one direct mesh at the declared
+value rather than the premesh trick that first measured it.
 
 Like `SheetLeafNode.thickness`, this is a class attribute, not a
 constructor argument, and it is not part of the node's artifact
@@ -627,6 +636,235 @@ real obligations, but they belong in your project's documentation, not
 in a class attribute. And it does not take an STL set apart into an
 assembly: import each part you need and assemble them with the nodes and
 operations you already have.
+
+.. _step-import:
+
+StepNode
+========
+
+STEP is the format every CAD package and every vendor publishes. A
+**StepNode** brings one product of a committed STEP document into a
+project as an ordinary part — selected by name, corrected in code, and
+admitted only if it is a solid — exactly as `StlNode` does for a mesh.
+
+Unlike `StlNode`, this leaf is **exact**: a STEP product is a boundary
+representation the moment it is read, so `StepNode` derives the same
+`ExactLeafNode` base `CadQueryNode` and `Build123dNode` do. `shape()`,
+the `.brep` artifact, exact fusion, the spatial assertions and
+:ref:`declared tessellation precision <tessellation-precision>` all come
+for free; producing its artifacts needs no external tool at all, not
+even the STEP file's own reader beyond OCCT.
+
+Commit the `.step` file inside your project, beside the python module
+that declares it, and name it:
+
+.. code-block:: python
+
+    from solid_node.node import StepNode
+
+    class Bracket(StepNode):
+
+        step_source = 'vendor/bracket.step'
+
+A file holding exactly one product needs nothing more. `render()` is
+not an extension point here — the part is the document's product.
+
+Selecting a product by name
+----------------------------
+
+A STEP document is a tree of named **products** — parts and
+sub-assemblies alike, each counted once however many times the document
+places it. `part` names the product this node is, as the file carries
+it:
+
+.. code-block:: python
+
+    class Gearbox(StepNode):
+
+        step_source = 'vendor/gearbox.step'
+        part = 'Output_Shaft'
+
+You do not always need to say. The products a node may select *by
+omission* are the document's **candidates** — every product except a
+root that is itself an assembly. That covers both a bare single-part
+file and the far commoner file in which an exporter wraps one part in
+an assembly root: either way there is one candidate, so no name is
+needed. A document's assembly root is never selected by omission, so a
+project that forgot to name a part can never be handed the whole
+assembly by accident — it stays selectable, just never the default.
+
+When a document has more than one candidate and `part` is unset, or
+`part` names a product the document does not have, the build fails with
+the document's own inventory — one line per product, naming the
+discovery tool as the failure itself, exactly as `StlNode`'s pack
+inventory does for a mesh:
+
+.. code-block:: text
+
+    Gearbox: /home/me/rc-car/vendor/gearbox.step holds 3 candidate
+    products, so `part` must name one of them. It holds 4 products;
+    declare `part = "<name>"` to select one, indexing this inventory:
+      Housing: root assembly, 1 occurrence, 0 solids, bounds (-40.000, -25.000, 0.000)..(40.000, 25.000, 30.000), volume 0.000
+      Output_Shaft: part, 1 occurrence, 1 solid, bounds (-5.000, -5.000, 0.000)..(5.000, 5.000, 60.000), volume 4712.389
+      Bearing_Cap: part, 2 occurrences, 1 solid, bounds (-12.000, -12.000, 0.000)..(12.000, 12.000, 4.000), volume 1809.557
+      Idler: sub-assembly, 1 occurrence, 3 solids, bounds (-8.000, -8.000, 0.000)..(8.000, 8.000, 10.000), volume 892.412
+
+A sub-assembly is a selectable product too: naming one selects its
+components at their own internal placements, which is what you want
+when a vendor ships a gearbox as one shippable unit inside a bigger
+file. Two distinct products sharing one name fail naming the ambiguity
+and describing both, rather than guessing which was meant.
+
+The part arrives in its own frame
+----------------------------------
+
+Whichever way it is placed in the document, a selected product's
+geometry is its **own**, unplaced shape — never an occurrence's located
+copy. Two occurrences of one part, however far apart, select the same
+unplaced geometry; a selected sub-assembly holds its components at
+their internal placements, not its parent's placement of it. Placing a
+part is your assembly's job, with the same placement operations you use
+on any other node — exactly as `StlNode` never bakes a pack's layout
+into the body it extracts.
+
+Correcting a part: the adjust hook
+------------------------------------
+
+Corrections are **code**, not a vocabulary of constructor knobs:
+implement `adjust()`, which receives the selected product as a CadQuery
+`Shape` and returns the corrected one.
+
+.. code-block:: python
+
+    class Bracket(StepNode):
+
+        step_source = 'vendor/bracket.step'
+
+        def adjust(self, shape):
+            return shape.scale(25.4)        # authored in inches
+
+Whatever the hook returns is what the artifacts hold, so `shape()`, the
+`.brep`, a fusion and the export all see one geometry — and it is what
+the admission gate below judges, so a hook cannot slip a defect past it.
+
+Only a solid is admitted
+--------------------------
+
+A STEP product that carries only faces has no volume: the exact kernel
+cannot fuse or intersect it, and an STL written from it would enclose
+nothing. So a product that holds no solid after `adjust` fails at build
+time, naming the node, the file, the part and what the geometry does
+hold, and **no artifact is written**:
+
+.. code-block:: text
+
+    Battery: /home/me/robot/vendor/robot.step part 'Battery' holds no
+    solid -- 1 shells and 6 faces. Nothing is repaired automatically;
+    correct it in adjust(), for example with solids_from_faces().
+
+There is no escape hatch here the way `require_watertight = False` is
+one for `StlNode`: a face-only B-rep would break `shape()`, every
+fusion and every volume assertion outright, not merely disappoint a
+watertight check. If a vendor genuinely published a part as bare
+surfaces, sew it **knowingly**, in your own `adjust` hook, with the
+helper this module provides:
+
+.. code-block:: python
+
+    from solid_node.node.adapters.step import solids_from_faces
+
+    class Battery(StepNode):
+
+        step_source = 'vendor/robot.step'
+        part = 'Battery'
+
+        def adjust(self, shape):
+            return solids_from_faces(shape, tolerance=0.05)
+
+`solids_from_faces(shape, tolerance)` sews within `tolerance` and wraps
+each resulting closed shell in a solid. It does **not** guarantee that
+the shells actually close, that `tolerance` is right for this file, or
+that the result is watertight or manifold — sewing is a judgement your
+project makes about a file it has inspected, not a repair the framework
+performs for you.
+
+Colour from the document
+--------------------------
+
+A subclass that declares no `color` takes the part's colour from the
+document — the product's own surface colour, else the colour every
+occurrence of it agrees on, else none — converted to the `#RRGGBB` your
+project already writes for every other node. A STEP file's colour is
+stored as linear RGB; the leaf converts it to sRGB before hex-encoding
+it, so a part written at a given colour in your CAD package reads back
+as that colour here, rather than roughly 12% darker.
+
+.. code-block:: python
+
+    class Bracket(StepNode):
+
+        step_source = 'vendor/bracket.step'
+
+    class RecolouredBracket(Bracket):
+
+        color = '#8b93a0'   # overrides the document's own colour
+
+A declared `color` always wins, and — because resolving the document's
+colour is what would otherwise force every build to open the STEP file,
+even one whose artifacts are already current — a subclass that declares
+its own never opens the document at all.
+
+What reading a STEP file costs
+---------------------------------
+
+XCAF's read-and-transfer is the expensive part, not the leaf: **14 to
+17 seconds** measured through this leaf's own cache on a 35 MB vendor
+assembly of 21 products (`ReadFile` and `Transfer`, plus indexing every
+product's name, kind and occurrences). So a document is read and
+transferred **at most once per file per process**, cached on the file's
+path and modification time; every `StepNode` selecting a part out of
+the same file after the first shares that one read — measured at
+**0.0003 s**, roughly five orders of magnitude cheaper — and a node
+whose artifacts are already current never triggers a read at all.
+Replacing the file evicts the stale entry and the next read picks up
+the change.
+
+Precision, on a real vendor part
+------------------------------------
+
+Because `StepNode` is exact, it may declare `linear_deflection` and
+`angular_deflection` exactly as `CadQueryNode` and `Build123dNode` do
+— see :ref:`tessellation-precision`. Vendor STEP geometry is exactly
+the case that section's example is drawn from: on the real
+`Output_Shaft` product this leaf originates from, the framework's
+inherited default (0.1 mm / 0.1 rad — declaring neither attribute)
+writes a **19.91 MB** STL of **398,184 triangles**, where declaring
+
+.. code-block:: python
+
+    class OutputShaft(StepNode):
+
+        step_source = 'vendor/actuator.step'
+        part = 'Output_Shaft'
+        angular_deflection = 0.5
+
+writes **1.76 MB** (**35,240 triangles**) — the same part, the same
+`.brep`, about a tenth of the triangles. `StepNode` inherits the framework's
+historical defaults unchanged; a project reading vendor STEP is the one
+that usually wants this line.
+
+What importing a STEP document costs
+----------------------------------------
+
+Be clear-eyed about the reverse of `StlNode`'s trade-off: **a StepNode
+is exact**, so fusing it with another exact part composes on the OCCT
+kernel, not through OpenSCAD/CGAL — no external renderer needed at all.
+What it does not do is read the document's placements: a selected
+product always arrives in its own, unplaced frame, so an assembly of
+several `StepNode` leaves is placed with your project's own placement
+operations, the same way `StlNode`'s pack bodies are. Reading a STEP
+file's own assembly structure — its occurrence transforms — is left to
+a future capability; this leaf's job is one part at a time.
 
 .. _flexible-parts:
 

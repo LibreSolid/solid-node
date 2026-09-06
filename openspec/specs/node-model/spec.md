@@ -169,12 +169,16 @@ The system SHALL provide leaf adapters for multiple CAD backends —
 (with `jscad_source`) — one sheet leaf kind, `Build123dSheetNode`, whose
 part is authored as a profile plus thickness under the `sheet-parts`
 capability, one mesh-import leaf, `StlNode` (with `stl_source`), whose
-part is a committed STL mesh under the `stl-import` capability, and one
+part is a committed STL mesh under the `stl-import` capability, one
+solid-import leaf, `StepNode` (with `step_source` and `part`), whose part is
+one product of a committed STEP document under the `step-import`
+capability, and one
 flexible leaf kind, `MolejoNode`, whose part is a molejo shape spec fed by
 ports under the `flexible-parts` capability. Each adapter
 SHALL implement `as_scad()`; adapters
 declaring a `namespace` (`Solid2Node`, `CadQueryNode`, `Build123dNode`,
-`OpenScadNode`, `Build123dSheetNode`, `MolejoNode`) get namespace-based render
+`OpenScadNode`, `Build123dSheetNode`, `StepNode`, `MolejoNode`) get
+namespace-based render
 validation, while `JScadNode` and `StlNode` declare none and skip that check.
 
 `Build123dNode` SHALL accept as a render result a build123d solid — a `Part`,
@@ -198,10 +202,13 @@ OpenSCAD SHALL be the compilation target for the adapters that emit SCAD for
 it to render: `Solid2Node` and `OpenScadNode` have their STL rendered by
 OpenSCAD from the SCAD each emits. An adapter that produces its own artifact
 through another tool SHALL NOT additionally require OpenSCAD to do so —
-`CadQueryNode`, `Build123dNode` and `Build123dSheetNode` through their own
+`CadQueryNode`, `Build123dNode`, `Build123dSheetNode` and `StepNode` through
+their own
 kernel, `JScadNode` through the `jscad` binary, `MolejoNode` through molejo's
 Python evaluator, and `StlNode` through no
 external tool at all: its artifact is materialized from the committed mesh.
+`StepNode` needs no external tool either: the kernel that reads its document
+is the one that writes its artifacts.
 Every adapter still emits SCAD, so the assembled document remains complete and
 the OpenSCAD GUI viewer can still open any project; emitting it does not imply
 that OpenSCAD renders it.
@@ -215,7 +222,8 @@ specifies.
 
 An adapter whose backend is a boundary-representation kernel SHALL additionally
 expose its geometry exactly, under the `exact-geometry` capability.
-`CadQueryNode`, `Build123dNode`, `Build123dSheetNode` and `MolejoNode` are
+`CadQueryNode`, `Build123dNode`, `Build123dSheetNode`, `StepNode` and
+`MolejoNode` are
 such adapters: each is exact and provides `shape()`.
 `Solid2Node`, `OpenScadNode`, `JScadNode` and `StlNode` produce geometry only
 as meshes and are not exact. Exposing exact geometry SHALL NOT change an
@@ -246,6 +254,13 @@ exact question is unaffected.
 - **WHEN** a `Build123dSheetNode` is assembled
 - **THEN** its extruded solid is exported to STL and re-imported via
   `import_stl` in the SCAD output, as for the other kernel-owned adapters
+
+#### Scenario: STEP adapter routes through its own artifact
+
+- **WHEN** a `StepNode` is assembled
+- **THEN** the product it selected is exported to STL and re-imported via
+  `import_stl` in the SCAD output, as for the other kernel-owned adapters,
+  and no external tool is required to produce it
 
 #### Scenario: STL adapter routes through its materialized artifact
 
@@ -285,7 +300,8 @@ exact question is unaffected.
 #### Scenario: Only the B-rep backends are exact
 
 - **WHEN** `exact` is read across one instance of each adapter
-- **THEN** the `CadQueryNode`, `Build123dNode`, `Build123dSheetNode` and
+- **THEN** the `CadQueryNode`, `Build123dNode`, `Build123dSheetNode`,
+  `StepNode` and
   `MolejoNode` report true and the `Solid2Node`, `OpenScadNode`,
   `JScadNode` and `StlNode` report false
 

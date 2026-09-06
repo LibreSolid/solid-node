@@ -62,6 +62,7 @@ that way.
 - [ADR-071](NODE/ADR-071-node-scoped-content-currency.md) — Node-scoped content currency — **Accepted**, amends 060, 033
 - [ADR-072](NODE/ADR-072-a-declared-time-base.md) — A declared time base: `time = Time(loop=…)`, seconds on every path — **Accepted**, extends 008
 - [ADR-076](NODE/ADR-076-declared-tessellation-precision.md) — Declared tessellation precision: `linear_deflection` / `angular_deflection` — **Accepted**, depends on 026/044/045/047/063/071
+- [ADR-077](NODE/ADR-077-the-step-part-as-an-exact-external-file-leaf.md) — The STEP part as an exact external-file leaf: `StepNode` — **Accepted**, extends 054/055, depends on 047/050/071/076
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

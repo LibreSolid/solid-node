@@ -172,8 +172,9 @@ piece, and `time` raises on it as on any leaf.
 Leaf adapters (ADR-004) wrap the backends: `Solid2Node`,
 `CadQueryNode` and `Build123dNode` (both export to STL and re-import),
 `OpenScadNode` (`scad_source` + module call), `JScadNode` (shells out to the
-`jscad` CLI), and `StlNode` (`stl_source`, a mesh materialized with
-no backend at all). Every node exposes derived read-only exactness (ADR-044): the
+`jscad` CLI), `StlNode` (`stl_source`, a mesh materialized with
+no backend at all), and `StepNode` (`step_source` + `part`, a STEP
+document's own kernel writing its artifacts). Every node exposes derived read-only exactness (ADR-044): the
 OCCT adapters are exact, the other leaf adapters are faceted, and an
 internal node is exact only when every child is. Exactness does not require
 one backend — every exact adapter converts its render result to one shared
@@ -202,11 +203,41 @@ a 0-based index into the components ordered by centroid (x, then y, then z),
 with the failure of an unselected pack carrying the full inventory. And
 normalization is code — an `adjust(self, mesh)` hook over the trimesh — not
 constructor knobs. Because the wrapper module carries `body` and `adjust`, it
-joins the node's tracked source set, the only leaf for which that is true
-(ADR-055).
+joins the node's tracked source set (ADR-055) — a rule `StepNode` below
+also needs and for the same reason.
 `StlNode` is faceted: `exact` is false, mesh-only is settled doctrine for
 imported meshes, and a fusion containing one is faceted and unions through the
 OpenSCAD/CGAL path (ADR-045).
+
+A second external-file leaf reads the *other* file every vendor
+publishes, and it is exact rather than faceted. `StepNode` declares
+`step_source` beside its wrapper module exactly as `StlNode` declares
+`stl_source`, and derives `ExactLeafNode` directly rather than writing
+its own `as_scad()`: a STEP product is a boundary representation the
+moment it is read, so `shape()`, the `.brep`, exact fusion and declared
+tessellation precision (ADR-076) all come from that base whole, and no
+external tool of any kind produces its artifacts. `part` selects one
+product out of the document by name — the candidates being every
+top-level XCAF label except a root that is itself an assembly, so a
+bare single-part file and the commoner file wrapping one part in an
+assembly root both select themselves, while a multi-component root is
+never handed to a node by omission. A wrong or missing selection fails
+with the document's own inventory — name, kind, occurrence count, solid
+count, bounding box, volume, one line per product — the failure again
+the discovery tool. The selected shape is always the product's own
+frame, never an occurrence's placed copy; `adjust(self, shape)`
+corrects it, and a shape holding no solid after `adjust` fails
+admission naming what it does hold, with the explicit
+`solids_from_faces(shape, tolerance)` helper the only sanctioned way to
+turn a face-only vendor part into one. A subclass that declares no
+`color` takes it from the document's own surface colour (converted from
+XCAF's linear RGB to the framework's sRGB `#RRGGBB`) through a property
+resolved lazily, so a build whose artifacts are current never opens the
+file for it. The XCAF document itself is read and transferred at most
+once per file per process, cached on `(path, mtime_ns)` in the shape of
+`solid_node.exact._shape_cache`, because the read is expensive (11.79 s
+measured on a 35 MB vendor assembly) and a project may hold many leaves
+over one file (ADR-077).
 
 One leaf kind names a *manufacturing method* rather than a backend.
 `SheetLeafNode` — internal base, `Build123dSheetNode` its v1 adapter — is a

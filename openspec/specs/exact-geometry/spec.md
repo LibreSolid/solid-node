@@ -11,8 +11,11 @@ a triangle mesh.
 
 For a leaf, `exact` SHALL be determined by its adapter type and SHALL NOT be
 recomputed from rendered content: `CadQueryNode`, `Build123dNode`,
-`Build123dSheetNode` and `MolejoNode` are exact; `Solid2Node`,
-`OpenScadNode` and `JScadNode` are not. `MolejoNode`'s exact geometry is
+`Build123dSheetNode`, `StepNode` and `MolejoNode` are exact; `Solid2Node`,
+`OpenScadNode` and `JScadNode` are not. `StepNode`'s geometry is
+a boundary representation the moment it is read — the document it selects a
+product from is itself exact — which is the whole difference between
+importing a solid and importing a mesh. `MolejoNode`'s exact geometry is
 per-instant — the solid molejo's B-rep evaluator constructs at the bound
 snapshot, under the `flexible-parts` capability — and its exactness is fixed
 by type like every other adapter's, not by installation state or binding.
@@ -40,8 +43,15 @@ exact.
 #### Scenario: An exact leaf
 
 - **WHEN** `exact` is read on a `CadQueryNode`, a `Build123dNode`, a
-  `Build123dSheetNode` or a `MolejoNode`
+  `Build123dSheetNode`, a `StepNode` or a `MolejoNode`
 - **THEN** it is true, without rendering the node
+
+#### Scenario: An imported solid is exact where an imported mesh is not
+
+- **WHEN** `exact` is read on a `StepNode` and on an `StlNode`
+- **THEN** the `StepNode` reports true and the `StlNode` reports false, and
+  a fusion over the `StepNode` composes exactly while one over the
+  `StlNode` does not
 
 #### Scenario: A faceted leaf
 
@@ -223,7 +233,8 @@ declared linear and angular deflection.
 ### Requirement: Declared tessellation precision
 
 A node that writes an exact STL artifact — an `ExactLeafNode` and every
-adapter beneath it (`CadQueryNode`, `Build123dNode`, `Build123dSheetNode`),
+adapter beneath it (`CadQueryNode`, `Build123dNode`, `Build123dSheetNode`,
+`StepNode`),
 and a `FusionNode` whose subtree is exact — SHALL take the tolerances of
 that artifact's tessellation from two class attributes it MAY declare,
 named after the OCCT quantities they set:
@@ -237,6 +248,10 @@ A node that declares neither SHALL be tessellated at `linear_deflection =
 0.1` and `angular_deflection = 0.1`, the values the framework has always
 used, so an existing project's artifacts are byte-for-byte what they were.
 A node MAY declare either attribute alone; the other keeps its default.
+The defaults SHALL be the same for every exact adapter: no adapter SHALL
+carry a default of its own, so what precision a part is written at is
+readable from the project's own source rather than from which backend the
+part came from.
 
 Each value SHALL be read at the point the artifact is written and SHALL be
 a positive finite number. A value that is not — zero, negative, infinite,
@@ -264,6 +279,13 @@ requirement.
   declaring `angular_deflection = 0.5` and the other declaring nothing
 - **THEN** both artifacts are written and the declaring node's artifact
   holds strictly fewer triangles than the default one's
+
+#### Scenario: An imported solid takes the same defaults
+
+- **WHEN** a `StepNode` declaring neither attribute is built
+- **THEN** its STL artifact is tessellated at 0.1 mm and 0.1 rad, as every
+  other exact leaf's is, and declaring `angular_deflection = 0.5` on it
+  coarsens only that node's artifact
 
 #### Scenario: A node that declares nothing is unchanged
 

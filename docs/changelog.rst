@@ -8,6 +8,47 @@ Changelog
 Unreleased
 ----------
 
+**The STEP part, an exact external-file leaf.** ``StepNode`` reads one
+product out of a committed STEP document as an ordinary part —
+selected by ``part``, naming the product as the file carries it; a
+document with exactly one candidate product (a bare single-part file,
+or the commoner file in which an exporter wraps one part in an
+assembly) needs no ``part`` at all, while a document of several never
+hands its assembly root to a node by omission. A wrong or missing
+``part`` fails with the document's own inventory — one line per
+product, naming its kind, occurrence count, solid count, bounding box
+and volume — so no separate inspection tool has to exist. The selected
+geometry is always the product's own, unplaced shape, never an
+occurrence's located copy; ``adjust(self, shape)`` corrects it in code,
+and the module exports ``solids_from_faces(shape, tolerance)`` for
+sewing a vendor part published as bare surfaces, called knowingly from
+an ``adjust`` hook — a product that still holds no solid fails
+admission naming the node, the file, the part and what it does hold,
+and nothing is repaired silently. A subclass that declares no ``color``
+takes it from the document — the product's own surface colour, else the
+colour every occurrence of it agrees on, else none — converted from
+XCAF's linear RGB to the sRGB the framework's ``color`` attribute
+already is; a declared ``color`` wins and never opens the document. The
+document is read and transferred at most once per file per process,
+cached on the file's path and modification time, so several nodes over
+one file share one read and a node whose artifacts are current triggers
+none at all. Unlike ``StlNode``, this leaf is **exact**: it derives
+``ExactLeafNode`` and so inherits ``shape()``, the ``.brep``, exact
+fusion and :ref:`declared tessellation precision
+<tessellation-precision>` at the same inherited defaults every exact
+leaf has, whole. Born of two projects that had each written this reader
+by hand — ``Internal-Cycloidal-Actuator`` (a 35 MB, 21-product Inventor
+assembly) and ``openvmp`` (67 vendor STEP files) — both of which also
+carried their own module-level document cache for the same reason this
+leaf now has one built in. Measured on the actuator's own
+``Output_Shaft`` through this leaf: 19.91 MB (398,184 triangles) at the
+inherited default, against 1.76 MB (35,240 triangles) declaring
+``angular_deflection = 0.5``, with an identical ``.brep`` between the
+two; reading that 35 MB document costs 14 to 17 seconds once per
+process, and a second node selecting from the same cached document
+costs 0.0003 s. See :ref:`step-import`. (OpenSpec change
+``step-part-leaf``; ADR-077.)
+
 **Declared tessellation precision.** An exact leaf (``CadQueryNode``,
 ``Build123dNode``, ``Build123dSheetNode``) or a ``FusionNode`` fusing
 exact children may now declare ``linear_deflection`` (mm) and

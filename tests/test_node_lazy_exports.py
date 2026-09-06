@@ -54,6 +54,7 @@ EXPECTED_EXPORTS = {
     'OpenScadNode': 'solid_node.node.adapters.openscad',
     'JScadNode': 'solid_node.node.adapters.jscad',
     'StlNode': 'solid_node.node.adapters.stl',
+    'StepNode': 'solid_node.node.adapters.step',
     'property_as_number': 'solid_node.node.decorators',
     # Added by the declarative node API, lazily like the rest. Only the
     # STRUCTURE half: the parameter kinds this package also exported for
@@ -71,7 +72,7 @@ PARAMETER_NAMES = ('Quantity', 'Length', 'Angle', 'Count', 'Ratio', 'Scalar',
 
 # The exports whose submodule reaches `solid_node.exact` -> `cadquery`.
 EXACT_EXPORTS = ('FusionNode', 'CadQueryNode', 'Build123dNode',
-                 'Build123dSheetNode')
+                 'Build123dSheetNode', 'StepNode')
 
 # Refuse `cadquery` the way an interpreter without the wheel does, in the
 # shape of tests/mesh_engine_absent.py: a `sys.meta_path` finder that
@@ -141,6 +142,21 @@ class NodePackageImportCost(TestCase):
                     f'assert isinstance({name}, type), {name!r}\n')
                 self.assertTrue(result.imported('cadquery'),
                                 f'resolving {name} did not import cadquery')
+
+    def test_importing_the_node_package_does_not_import_the_step_reader(self):
+        # design D10 / ADR-077: OCP is the boundary-representation
+        # kernel's own package, and StepNode's reader lives inside it;
+        # a bare package import must not pull it in.
+        result = self._ran('import solid_node.node\n')
+        self.assertFalse(result.imported('OCP'),
+                         'importing solid_node.node imported OCP')
+
+    def test_naming_step_node_imports_the_step_reader(self):
+        result = self._ran(
+            'from solid_node.node import StepNode\n'
+            'assert isinstance(StepNode, type), StepNode\n')
+        self.assertTrue(result.imported('OCP'),
+                        'resolving StepNode did not import OCP')
 
 
 class NodePackageExports(TestCase):
