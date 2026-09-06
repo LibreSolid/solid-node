@@ -385,6 +385,17 @@ def function_formula(name, numeric, *args):
     need dimensionless arguments and return an angle. `numeric` is the
     function's own numeric mode, so evaluation and the class body agree
     on degrees.
+
+    Only the PRIMITIVES appear here -- the functions `solid_node.math`
+    emits as an OpenSCAD call. Its compositions (`clamp`, `clamp01`,
+    `ramp`, `lerp`, `wrap`, `piecewise`, `bump`, and the vector
+    helpers) deliberately have no branch: a rule would give each of
+    them a second definition beside the composition its numeric and
+    symbolic faces are, and the declared face would stop being the same
+    function as the other two. What they do to dimensions follows from
+    the rules below plus the algebra's own. The `ValueError` at the end
+    is what holds that line: a composition that acquired a rule would
+    fail loudly rather than quietly gain one.
     """
     dimensions = [_dimension_of(arg) for arg in args]
     if any(dimension is None for dimension in dimensions):
@@ -423,6 +434,36 @@ def function_formula(name, numeric, *args):
                 f"{_expression_dimension(args[1])}, and atan2 needs them "
                 f"equal.")
         result = {'A': 1}
+    elif name == 'abs':
+        # Distance from zero: whatever went in, in the same kind.
+        (result,) = normalized
+    elif name in ('min', 'max'):
+        if normalized[0] != normalized[1]:
+            raise DimensionError(
+                f"{name}({_describe(args[0])}, {_describe(args[1])}): the two "
+                f"arguments are {_expression_dimension(args[0])} and "
+                f"{_expression_dimension(args[1])}, and {name} needs them "
+                f"equal. A bound on a dimensioned quantity is stated as a "
+                f"quantity, not as a bare number.")
+        result = normalized[0]
+    elif name in ('floor', 'ceil'):
+        # A whole number bears no dimension, so comparing a quantity
+        # against the integers only means something once a unit is
+        # assumed -- and assuming a unit is exactly what this algebra
+        # refuses to do. The whole number of steps in a length is
+        # floor(length / step), which says what it is counting in.
+        (dimension,) = normalized
+        if dimension:
+            raise DimensionError(
+                f"{name}({_describe(args[0])}): {_describe(args[0])} is "
+                f"{_expression_dimension(args[0])}, and {name} takes a "
+                f"dimensionless quantity, because a whole number has no "
+                f"dimension to compare against. Divide by the unit you are "
+                f"counting in first, as in {name}(length / step).")
+        result = {}
+    elif name == 'sign':
+        # Which side of zero, and zero belongs to every dimension.
+        result = {}
     else:
         raise ValueError(f'unknown function {name!r}')
     return Formula(numeric, args, result, symbol=name)

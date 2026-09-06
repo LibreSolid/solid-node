@@ -117,9 +117,9 @@ node's `check()`, called once its parameters are resolved and before any
 child is realized; an exception refuses the instance (ADR-065). A formula's dimension is a mapping from axis to
 exponent — products add, quotients subtract, sums require equality,
 `Angle` its own axis, `Count` and `Ratio` dimensionless — checked on
-`import`, with `solid_node.math`'s functions carrying their own rules
-and a project free to subclass `Quantity` with new exponents
-(ADR-062). By the time any `render()` runs every parameter is a plain
+`import`, with `solid_node.math`'s emitted primitives carrying their own
+rules and its compositions inheriting theirs, and a project free to
+subclass `Quantity` with new exponents (ADR-062). By the time any `render()` runs every parameter is a plain
 value; backends, `uniq_id` and the serializer never see a token. Reading
 a parameter off a sibling declaration is refused: shared values are
 declared on the ancestor and passed down.
@@ -969,22 +969,54 @@ stack.
 
 There is exactly one expression semantics: **OpenSCAD's degree
 conventions**, with `^` as power (ADR-022, revised). `solid_node/math.py`
-is the dual-mode source of truth (numeric under keyframes, deferred
-OpenSCAD expressions when symbolic). Three runtimes must agree —
-`math.py`, OpenSCAD, and the one TypeScript evaluator in the shared
-viewer package — and since ADR-056 stage 3b the same semantics govern
-**driver expressions** too: a qualified id resolves through a nested
-driver map, needing no grammar extension.
+is the source of truth, and every function in it wears **three faces**:
+numeric on plain numbers (keyframes, tests), a deferred OpenSCAD
+expression when any argument is symbolic (the build and viewer path),
+and a dimension-checked `Formula` when any argument is a declared
+parameter (ADR-062). Three runtimes must agree — `math.py`, OpenSCAD,
+and the one TypeScript evaluator in the viewer package — and since
+ADR-056 stage 3b the same semantics govern **driver expressions** too: a
+qualified id resolves through a nested driver map, needing no grammar
+extension.
+
+The module is split in two, and the split is load-bearing.
+**Primitives** are what it emits as an OpenSCAD call: the degree
+trigonometry, `sqrt`, and the direct builtins `abs`, `floor`, `ceil`,
+`sign`, `min` and `max`. Each carries a dimension rule in
+`function_formula`. **Compositions** — `clamp`, `clamp01`, `ramp`,
+`lerp`, `wrap`, `piecewise`, `bump`, and the vector helpers `polar`,
+`turn`, `rotate_x`, `rotate_y`, `rotate_z` — are built from those and
+carry no rule, so each has exactly one definition and its declared face
+is the same function as the other two; what they do to dimensions is a
+consequence of the primitives' rules and the algebra's. The consequence
+a caller meets is that a bound, period or centre stated as a bare number
+against a dimensioned quantity is refused, exactly as `length + 1` is.
+
+A name enters the vocabulary only if all three runtimes compute it
+identically, which is why there is no `round` (OpenSCAD rounds halves
+away from zero, JavaScript toward +infinity, Python to even) and no
+`mod` (OpenSCAD spells it as the `%` operator, whose sign rule differs
+from Python's). `SYMBOLIC_BUILTINS` in `math.py` is the single inventory
+of every name that may be emitted; `_symbolic_call` refuses any other.
 
 That agreement is **enforced**, not documented: `parity-fixture.test.ts`
 runs the shipped evaluator against `parity-fixture.json`, whose expected
 values are producer values — one numeric render of a tree paired by
 structure with one symbolic serialization of it, so nothing recomputes
 an expression a second way. `tools/generate_parity_fixture.py`
-regenerates it from the ADR-056 expression spike's corpus (182 cases:
-linear driver terms, port scales, degree-trig chains, `^` terms, mixed
-`$t`-and-driver formulas), and it pins `Driver.native`'s design-to-native
-conversion, integer round-half-to-even included, for the same reason.
+regenerates it from **two** corpora — the ADR-056 expression spike's
+two-axis machine (linear driver terms, port scales, degree-trig chains,
+`^` terms, mixed `$t`-and-driver formulas) and
+`tests/expression_project/vocabulary.py`, which puts every remaining
+emitted builtin on the wire under a driver bound negative as well as
+positive — for 421 cases in all. The generator reads `SYMBOLIC_BUILTINS`
+and **refuses to write while any emitted name is uncovered**, so the
+enforcement cannot silently narrow; `tests/test_expression_corpus.py`
+says the same in the framework's own suite. The fixture also pins
+`Driver.native`'s design-to-native conversion, integer
+round-half-to-even included, for the same reason. The fixture itself is
+committed in the viewer repository (ADR-068), so widening the vocabulary
+is one change here and one there.
 
 ## Load-bearing invariants
 

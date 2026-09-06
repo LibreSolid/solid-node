@@ -84,7 +84,7 @@ that way.
 - [ADR-018](IPC/ADR-018-lean-framework-separation.md) — Lean framework separation — **Accepted**
 
 ### MATH — expression evaluation parity
-- [ADR-022](MATH/ADR-022-cross-runtime-degree-trig-parity-for-t-expressions.md) — Cross-runtime degree-trig parity for `$t` and driver expressions — **Accepted**, revised 2026-08-26 (recorded defect fixed; parity enforced by a producer-generated fixture)
+- [ADR-022](MATH/ADR-022-cross-runtime-degree-trig-parity-for-t-expressions.md) — Cross-runtime degree-trig parity for `$t` and driver expressions — **Accepted**, revised 2026-09-06 (defect fixed and parity enforced 2026-08-26; vocabulary widened beyond trigonometry, and the corpus must cover every emitted name)
 
 ### TEST-FRAMEWORK — CAD testing
 - [ADR-009](TEST-FRAMEWORK/ADR-009-trimesh-based-mesh-assertions-for-cad-testing.md) — Trimesh mesh assertions — **Accepted**, extended by 025

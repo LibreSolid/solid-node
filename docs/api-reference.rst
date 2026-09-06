@@ -248,6 +248,74 @@ scenario tests.
 
 .. autofunction:: solid_node.simulation.qualified_instructions
 
+Expression math
+===============
+
+``solid_node.math`` is the one expression semantics: OpenSCAD's degree
+conventions, computed on plain numbers, deferred as an OpenSCAD
+expression when a value is symbolic (animation time or a driver), and
+carrying dimension rules when a value is a declared parameter. See
+:ref:`Non-linear kinematics <non-linear-kinematics>`.
+
+Every function here has all three faces, so one formula serves the
+tests, the build and the browser.
+
+Primitives
+----------
+
+The functions the module emits as an OpenSCAD call. Every name it can
+emit is listed in ``solid_node.math.SYMBOLIC_BUILTINS``, and each is a
+builtin OpenSCAD and JavaScript's ``Math`` both carry with the same
+semantics.
+
+.. autofunction:: solid_node.math.sin
+.. autofunction:: solid_node.math.cos
+.. autofunction:: solid_node.math.tan
+.. autofunction:: solid_node.math.asin
+.. autofunction:: solid_node.math.acos
+.. autofunction:: solid_node.math.atan
+.. autofunction:: solid_node.math.atan2
+.. autofunction:: solid_node.math.sqrt
+.. autofunction:: solid_node.math.abs
+.. autofunction:: solid_node.math.floor
+.. autofunction:: solid_node.math.ceil
+.. autofunction:: solid_node.math.sign
+.. autofunction:: solid_node.math.min
+.. autofunction:: solid_node.math.max
+
+There is deliberately no ``round`` and no ``mod``: OpenSCAD, JavaScript
+and Python round halves three different ways, and OpenSCAD spells
+modulo as the ``%`` operator rather than a function. ``floor(x + 0.5)``
+is the half-up every runtime agrees on.
+
+Compositions
+------------
+
+Built out of the primitives and ordinary arithmetic, so what they do to
+dimensions follows from the primitives' rules rather than from a rule of
+their own.
+
+.. autofunction:: solid_node.math.clamp
+.. autofunction:: solid_node.math.clamp01
+.. autofunction:: solid_node.math.ramp
+.. autofunction:: solid_node.math.lerp
+.. autofunction:: solid_node.math.wrap
+.. autofunction:: solid_node.math.piecewise
+.. autofunction:: solid_node.math.bump
+
+Vector helpers
+--------------
+
+Composition over the scalar functions, so a symbolic component or a
+declared formula rides through. Angles are degrees, positive
+counter-clockwise, as everywhere else.
+
+.. autofunction:: solid_node.math.polar
+.. autofunction:: solid_node.math.turn
+.. autofunction:: solid_node.math.rotate_x
+.. autofunction:: solid_node.math.rotate_y
+.. autofunction:: solid_node.math.rotate_z
+
 Testing
 =======
 

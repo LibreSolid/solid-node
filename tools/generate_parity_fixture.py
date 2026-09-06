@@ -64,6 +64,7 @@ Python and no CAD stack.
 
 import json
 import os
+import re
 import sys
 
 ROOT = os.path.abspath(
@@ -88,6 +89,9 @@ from solid_node.simulation.enumeration import (  # noqa: E402
     bind_declared_defaults,
 )
 
+import solid_node.math as sn_math  # noqa: E402
+
+from tests.expression_project.vocabulary import Vocabulary  # noqa: E402
 from tests.flexible_project import spring as flexible_fixture  # noqa: E402
 
 from machine_model import Machine  # noqa: E402
@@ -110,6 +114,18 @@ SNAPSHOTS = [
 # driver's own declaration. The last two sit exactly on a half native
 # unit, where Python rounds to even.
 CONVERSION_TARGETS = [0.0, 100.0, 12.5, -5.0, 0.01, -0.01, 0.00625, 0.01875]
+
+# The vocabulary corpus's own snapshots (tests/expression_project). Its
+# driver runs 0..100 native units over one sweep, and one setting is
+# NEGATIVE on purpose: floor, ceil, sign, min and max are exactly where
+# two runtimes could disagree, and only below zero.
+VOCABULARY_SNAPSHOTS = [
+    {'drive': 0,   'time': 0.0},
+    {'drive': 25,  'time': 0.125},
+    {'drive': 50,  'time': 0.37},
+    {'drive': 100, 'time': 0.75},
+    {'drive': -20, 'time': 0.5},
+]
 
 WHOLE_TARGETS = [0.5, 1.5, 2.5, -0.5, -1.5, 3.4, -3.6]
 
@@ -172,14 +188,66 @@ def symbolic_scalars():
 
 def driver_scope(snapshot):
     """The snapshot as the client holds it: nested, because a qualified
-    id is member access to the expression parser."""
+    id is member access to the expression parser. A driver declared on
+    the root keeps its bare name and sits at the top level."""
     scope = {}
     for key, value in snapshot.items():
         if key == 'time':
             continue
+        if '.' not in key:
+            scope[key] = value
+            continue
         instance, name = key.rsplit('.', 1)
         scope.setdefault(instance, {})[name] = value
     return scope
+
+
+def vocabulary_scalars(snapshot=None):
+    """The vocabulary corpus walked the same way the spike's machine is:
+    a fresh tree per binding, read back as a render result."""
+    tree = Vocabulary()
+    if snapshot is None:
+        with symbolic_document(tree) as (declarations, _):
+            return scalars(document(tree)), drivers_table(declarations)
+    tree.set_state(**snapshot)
+    return scalars(document(tree)), None
+
+
+def vocabulary_cases():
+    """One case per operation slot per snapshot, keyed apart from the
+    spike's so a regeneration leaves every pinned case untouched."""
+    symbolic, table = vocabulary_scalars()
+    cases = []
+    for index, snapshot in enumerate(VOCABULARY_SNAPSHOTS):
+        numeric, _ = vocabulary_scalars(snapshot)
+        if set(numeric) != set(symbolic):
+            raise SystemExit(
+                'the vocabulary corpus\'s numeric and symbolic walks '
+                'disagree on structure; the fixture would pair unrelated '
+                'operations')
+        scope = {'time': snapshot['time'], 'drivers': driver_scope(snapshot)}
+        for key in sorted(symbolic):
+            cases.append({
+                'key': f'vocabulary{index}|{key}',
+                'expression': symbolic[key],
+                'scope': scope,
+                'expected': float(numeric[key]),
+            })
+    return cases, table
+
+
+def uncovered_builtins(cases):
+    """Every name `solid_node.math` may emit that no case exercises.
+
+    The inventory is the module's own SYMBOLIC_BUILTINS, read here
+    rather than copied, so adding a symbolic function without a corpus
+    case fails this regeneration instead of silently shipping a name no
+    runtime is checked on.
+    """
+    called = set()
+    for case in cases:
+        called |= set(re.findall(r'([A-Za-z_]\w*)\(', case['expression']))
+    return sorted(set(sn_math.SYMBOLIC_BUILTINS) - called)
 
 
 def conversions():
@@ -305,10 +373,19 @@ def build():
                 'scope': scope,
                 'expected': float(numeric[key]),
             })
+    vocabulary, vocabulary_table = vocabulary_cases()
+    cases.extend(vocabulary)
+    table = dict(table, **vocabulary_table)
+    missing = uncovered_builtins(cases)
+    if missing:
+        raise SystemExit(
+            f'no case exercises {", ".join(missing)}, so the fixture would '
+            f'pin a vocabulary narrower than the one solid_node.math can '
+            f'emit; add the call to tests/expression_project/vocabulary.py')
     return {
-        'generated_by':
-            'solid_node/viewers/widget/tools/generate_parity_fixture.py',
-        'corpus': 'spike/expressions/machine_model.py',
+        'generated_by': 'tools/generate_parity_fixture.py',
+        'corpus': ('spike/expressions/machine_model.py, '
+                   'tests/expression_project/vocabulary.py'),
         'drivers': table,
         'cases': cases,
         'conversions': conversions(),
@@ -323,9 +400,13 @@ def main():
         json.dump(fixture, handle, indent=2)
         handle.write('\n')
     powers = sum(1 for case in fixture['cases'] if '^' in case['expression'])
+    vocabulary = sum(1 for case in fixture['cases']
+                     if case['key'].startswith('vocabulary'))
     flexible = fixture['flexible']
     print(f'{path}: {len(fixture["cases"])} expression cases '
-          f'({powers} containing `^`), '
+          f'({powers} containing `^`, {vocabulary} from the vocabulary '
+          f'corpus, covering all {len(sn_math.SYMBOLIC_BUILTINS)} emitted '
+          f'builtins), '
           f'{len(fixture["conversions"])} conversions, '
           f'{len(flexible["cases"])} flexible bindings of '
           f'{flexible["vertex_count"]} vertices '

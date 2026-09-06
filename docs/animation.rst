@@ -78,6 +78,8 @@ This also means two different assemblies can drive the same node (say,
 a wheel spun by its axle and steered by the steering assembly) without
 disturbing each other's operations.
 
+.. _non-linear-kinematics:
+
 Non-linear kinematics
 =====================
 
@@ -104,6 +106,84 @@ client-side as you scrub the timeline, and in tests, where time is a
 plain number (see :ref:`testing_steps <testing-steps>`). Python's
 `math.sin` would crash on symbolic time — and it works in radians,
 while all angles in Solid Node are degrees.
+
+More than trigonometry
+----------------------
+
+Motion is rarely all curves. A mechanism holds at a stop, moves over
+part of a stroke and not the rest, counts whole steps, or follows a
+path you measured rather than derived — and none of that can branch on
+``self.time``, because in the viewer there is no value to branch on.
+``solid_node.math`` carries the arithmetic that expresses those without
+a branch:
+
+* ``abs``, ``floor``, ``ceil``, ``sign``, ``min`` and ``max`` — the
+  OpenSCAD builtins, which the browser evaluates from JavaScript's
+  ``Math`` and which need no stand-in built out of ``sqrt``;
+* ``clamp(x, low, high)`` and ``clamp01(x)`` — a value held within
+  bounds, which is how a part stops at a stop;
+* ``ramp(x, start, end)`` — 0 before ``start``, 1 after ``end``,
+  straight through between, so a stage of a timeline is one term;
+* ``lerp(a, b, u)`` — ``a`` at 0 and ``b`` at 1, unclamped;
+* ``wrap(angle)`` — an angle folded into (-180, 180], and
+  ``wrap(value, period)`` for anything else that repeats;
+* ``piecewise(x, points)`` — linear interpolation through measured
+  ``(x, y)`` waypoints, held flat past each end;
+* ``bump(u)`` — a smooth 0–1–0 pulse over ``u`` in [0, 1], for a stage
+  that rises and falls inside its own slice of the timeline.
+
+A cam that dwells and then lifts, over a measured profile, reads as
+what it is:
+
+.. code-block:: python
+
+    from solid_node.math import clamp01, piecewise
+
+    PROFILE = [(0.0, 0.0), (90.0, 0.0), (150.0, 12.0), (210.0, 0.0)]
+
+    class Valve(AssemblyNode):
+
+        def simulate(self):
+            angle = 360 * self.time
+            self.stem.translate([0, 0, piecewise(angle, PROFILE)])
+
+There is deliberately no ``round`` and no ``mod``. OpenSCAD rounds a
+half away from zero, JavaScript rounds it toward +infinity and Python
+rounds it to even, so a ``round`` could not mean one thing everywhere;
+write ``floor(x + 0.5)``, which all three agree on. OpenSCAD spells
+modulo as the ``%`` operator rather than a function, and its sign rule
+differs from Python's, so ``wrap`` is built on ``ceil`` instead.
+
+Some things stay yours to write, and one is worth naming because it
+looks like it should be here. "1 when these two integers are equal" is
+one line::
+
+    def selected(a, b):
+        return 1 - clamp01(abs(a - b))
+
+but it is only an indicator *for integers* — for anything else it is a
+triangular hat, quietly. The framework cannot check that precondition,
+so the line lives in your project, where the precondition is yours to
+state.
+
+Points, not just numbers
+------------------------
+
+The same three faces cover small vector arithmetic, so a point turned
+by a driver-derived angle survives the viewer::
+
+    from solid_node.math import polar, rotate_x
+
+    class Finger(AssemblyNode):
+
+        def simulate(self):
+            tip = rotate_x((0, 0, PHALANX), -90 * self.closure)
+            self.pad.translate(list(tip))
+
+``polar(radius, angle)`` gives a point on a ray, ``turn(point, angle,
+about=...)`` turns a 2D point about a centre, and ``rotate_x``,
+``rotate_y`` and ``rotate_z`` turn a 3D point about an axis. All
+degrees, all right-handed, all returning plain tuples.
 
 .. _time-base:
 

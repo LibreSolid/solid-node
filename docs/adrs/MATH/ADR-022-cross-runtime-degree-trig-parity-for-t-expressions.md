@@ -1,8 +1,9 @@
 # ADR-022: Cross-Runtime Degree-Trig Parity for `$t` Expression Evaluation
 
-**Status:** Accepted, revised 2026-08-26 (defect fixed, parity enforced)
+**Status:** Accepted, revised 2026-09-06 (vocabulary widened, corpus covers it)
 **Date:** 2026-07-17
 **Revised:** 2026-08-26 — see *Revision (2026-08-26)* below
+**Revised:** 2026-09-06 — see *Revision (2026-09-06)* below
 **Depends on:**
 - [ADR-008: Time-Based Animation System for Assemblies](../NODE/ADR-008-time-based-animation-system-for-assemblies.md)
 
@@ -146,12 +147,89 @@ bound driver values numerically and keeps `$t` symbolic, so it
 evaluates the same functions on the same conventions. Option 3
 (code-generated function tables) stays unadopted and unneeded.
 
+## Revision (2026-09-06): the vocabulary grew, and the corpus covers all of it
+
+The **decision is unchanged** -- one `$t` and driver expression
+semantics, OpenSCAD's degree conventions, `^` as power, enforced by a
+producer-valued parity corpus. What changed is how much vocabulary that
+decision governs, and one new rule about the corpus.
+
+**1. `solid_node.math` is no longer only trigonometry.** It now also
+emits six direct OpenSCAD builtins -- `abs`, `floor`, `ceil`, `sign`,
+`min` and `max` -- and composes over them `clamp`, `clamp01`, `ramp`,
+`lerp`, `wrap`, `piecewise` and `bump`, plus the vector helpers `polar`,
+`turn`, `rotate_x`, `rotate_y` and `rotate_z`. Only the emitted
+primitives are new *semantics*; the compositions put nothing on the wire
+that a primitive did not already put there.
+
+The empirical case was that four projects
+(`abacus`, `fender-bender`, `pascaline`, `snappy-reprap`) had each built
+a clamp kit out of `sqrt(x * x)` on the belief that the browser's
+expression language had no `min`, `max` or `floor`, and four clock
+models under `3DPrintedClocks` imported solid2's private
+`OpenSCADConstant` to emit `floor` themselves. **The belief was false**:
+the evaluator copies every own property of JavaScript's `Math` into its
+scope, so those names were always there, and OpenSCAD has the same
+builtins. That the belief survived in four projects at once is itself
+an argument for this ADR's discipline: the shared semantics were
+documented, and their *extent* was not.
+
+**2. Two names were refused on parity grounds**, which is this ADR's
+criterion doing its job before code exists rather than after:
+
+- **`round`.** OpenSCAD rounds a half away from zero, JavaScript's
+  `Math.round` toward +infinity, Python to even. Three runtimes, three
+  answers, on a value a timeline lands on constantly. `floor(x + 0.5)`
+  is the half-up all three agree on.
+- **`mod`.** OpenSCAD has no `mod()` function -- it spells the
+  operation as the `%` operator -- while the viewer's evaluator does
+  define `mod`, so emitting it would evaluate in the browser and fail to
+  parse as OpenSCAD. `wrap` is built on `ceil` instead.
+
+A latent hazard is recorded but not fixed: solid2's
+`OpenSCADConstant.__mod__` emits `%`, which OpenSCAD and JavaScript
+evaluate C-style (sign of the dividend) where Python's `%` takes the
+sign of the divisor. Nothing in the framework or the corpus catches a
+model that writes `a % b` on a symbolic value.
+
+**3. The corpus must now cover every emitted name.** Enforcement is only
+as wide as the corpus behind it, so a symbolic function added without a
+case is a name no runtime is checked on. `solid_node/math.py` therefore
+carries `SYMBOLIC_BUILTINS`, the single inventory of every builtin
+`_symbolic_call` may emit; `_symbolic_call` refuses a name absent from
+it, `tools/generate_parity_fixture.py` refuses to regenerate while one is
+uncovered, and `tests/test_expression_corpus.py` says the same in the
+framework's own suite. No consumer keeps a second list.
+
+**4. The corpus is two trees, not one.** The spike's two-axis machine is
+untouched -- editing it would change the key and expected value of every
+case already pinned, and a regeneration nobody can review is one nobody
+checks. The new vocabulary gets `tests/expression_project/vocabulary.py`,
+whose operations are appended under their own key prefix. The fixture
+went from 266 to 421 cases with **zero** existing cases changed or
+removed; the widest deviation over the 155 new ones is 1.42e-14, the same
+order as the 2.49e-14 the spike measured. One snapshot binds the driver
+NEGATIVE on purpose: below zero is the only place `floor`, `ceil`,
+`sign`, `min` and `max` could disagree between runtimes.
+
+**5. No evaluator change was needed**, and that was verified against
+`evaluator.ts` rather than assumed before the vocabulary was chosen. The
+regenerated fixture is committed in the solid-node-viewer repository,
+which is where it lives since ADR-068; a framework change that widens the
+vocabulary is therefore two changes in two repositories, and this one
+produced the numbers while the viewer commits them.
+
+**What remains true.** OpenSCAD and Python still cannot share code with
+the browser, so the corpus, not a shared module, is what spans them.
+Option 3 (code-generated function tables) stays unadopted and unneeded.
+
 ## References
 
-- `solid_node/math.py` -- dual-mode degree trig (numeric + symbolic OpenSCADConstant), source of truth
-- `solid_node/viewers/widget/src/evaluator.ts` -- the one TypeScript evaluator: degree overrides, `powify`, driver-map scope, free-variable analysis
-- `solid_node/viewers/widget/src/parity-fixture.test.ts` -- the enforcement: the shipped module against producer-computed values
-- `solid_node/viewers/widget/tools/generate_parity_fixture.py` -- regenerates the committed fixture from the spike corpus
+- `solid_node/math.py` -- the expression vocabulary and `SYMBOLIC_BUILTINS`, source of truth
+- `solid_node/parameters.py` -- `function_formula`, the dimension rule of each emitted primitive
+- `tools/generate_parity_fixture.py` -- regenerates the committed fixture from both corpora, and refuses while a builtin is uncovered
+- `spike/expressions/machine_model.py`, `tests/expression_project/vocabulary.py` -- the two corpora
+- `tests/test_math.py`, `tests/test_declarative_algebra.py`, `tests/test_expression_corpus.py` -- the three faces and the coverage rule
 - `spike/expressions/FINDINGS.md` -- the parity measurement and its seam 7, now closed
-- `tests/test_math.py` -- `math.py` numeric/symbolic tests referenced by the JS golden corpus
+- In the solid-node-viewer repository (relocated by ADR-068): `solid_node_viewer/widget/src/evaluator.ts`, the one TypeScript evaluator, and `solid_node_viewer/widget/src/parity-fixture.test.ts` with `parity-fixture.json`, the enforcement
 - Commits: `2975e51` (add `solid_node.math`, #19), `2019d30` (Math builtins in context, `^` as power)

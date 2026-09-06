@@ -8,6 +8,35 @@ Changelog
 Unreleased
 ----------
 
+**The expression vocabulary projects kept rebuilding.**
+``solid_node.math`` now carries ``abs``, ``floor``, ``ceil``, ``sign``,
+``min`` and ``max`` — the OpenSCAD builtins, emitted by name — plus
+``clamp``, ``clamp01``, ``ramp``, ``lerp``, ``wrap``, ``piecewise`` and
+``bump`` composed over them, and the vector helpers ``polar``, ``turn``,
+``rotate_x``, ``rotate_y`` and ``rotate_z``. Each has the module's three
+faces: a number in tests, a deferred OpenSCAD expression in the viewer,
+and a dimension-checked formula in a declarative class body. Born of
+thirteen project ``kinematics.py`` modules: four of them built a clamp
+kit out of ``sqrt(x * x)`` believing the browser had no ``min``, ``max``
+or ``floor`` — it has had all three all along — and four clock models
+imported solid2's private ``OpenSCADConstant`` to emit ``floor``
+themselves. An abacus clamp that published 123 characters of nested
+``sqrt`` now publishes 44 of ``min(max(...))``.
+
+There is deliberately no ``round`` (OpenSCAD, JavaScript and Python
+round halves three different ways; ``floor(x + 0.5)`` is the half-up all
+three agree on) and no ``mod`` (OpenSCAD spells it as the ``%``
+operator, whose sign rule differs from Python's). ``floor`` and ``ceil``
+take a dimensionless quantity, because a whole number bears no
+dimension: count in the unit you mean, ``floor(travel / pitch)``. Every
+name the module can emit is in ``solid_node.math.SYMBOLIC_BUILTINS`` and
+is pinned by the cross-runtime parity fixture, which the generator now
+refuses to write while one is uncovered. A call mixing animation time
+with a declared parameter, which used to render the declaration's
+``repr()`` into the published expression, now raises. See
+:ref:`Non-linear kinematics <non-linear-kinematics>`. (OpenSpec change
+``expression-math``; ADR-022, revised.)
+
 **Several models in one project.** A manifest may declare its models by
 name in ``[tool.solid-node.models]``, with ``model`` naming the default
 among them; a manifest without the table is unchanged. A declared name

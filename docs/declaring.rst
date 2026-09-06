@@ -197,6 +197,48 @@ reads exactly as it did in a hand-written parameter file:
         cone_distance = module / 2 * sqrt(z1 * z1 + z2 * z2)
         axis_y        = cone_distance * cos(pitch_angle)
 
+The rest of ``solid_node.math`` takes part too, and its rules follow
+from the same idea. ``abs`` keeps its argument's kind; ``min`` and
+``max`` need their two arguments to agree and keep that kind; ``sign``
+takes anything and gives a dimensionless -1, 0 or 1, because it compares
+against zero and zero belongs to every kind.
+
+``floor`` and ``ceil`` want a **dimensionless** argument, which is worth
+a sentence because it surprises people. They compare a quantity against
+the whole numbers, and a whole number has no dimension — so ``floor(bore)``
+would only mean something if millimetres were assumed, and assuming a
+unit is exactly what this algebra will not do. Say what you are counting
+in and it reads better anyway::
+
+    steps = floor(travel / pitch)      # a dimensionless count
+    landed = steps * pitch             # back to a length
+
+The functions built out of those — ``clamp``, ``clamp01``, ``ramp``,
+``lerp``, ``wrap``, ``piecewise`` and ``bump`` — carry no rule of their
+own; what they do to dimensions falls out of the primitives they
+compose. ``clamp(reach, low, high)`` needs its three arguments to agree
+and gives back that kind; ``ramp`` gives a dimensionless fraction. One
+consequence catches people once: a bound stated as a bare number against
+a dimensioned quantity is refused::
+
+    clamp01(bore)             # DimensionError: bore is L, 0.0 is not
+    max(bore, 0.0)            # the same
+    max(bore, Length(0.0))    # what you meant
+
+which is the same refusal ``bore + 1`` already gives, arriving from
+``min`` and ``max`` rather than from a rule written for the clamp.
+
+``wrap`` has the same catch in its second argument: its default period is
+the plain number ``360.0``, so in a declaration state the period as a
+quantity too::
+
+    wrap(bearing)                 # DimensionError: bearing is A, 360.0 is not
+    wrap(bearing, Angle(360.0))   # a derived Angle
+
+A turn about the origin needs nothing of the sort — ``turn(point, angle)``
+builds no centring terms at all, so it never meets a bare zero — but an
+explicit centre must be stated in the point's own kind.
+
 The algebra is honest about its reach. It catches *dimensional*
 mistakes — a wrong formula shape, a forgotten factor, mixed kinds — not
 geometric ones. ``Count`` and ``Ratio`` are both dimensionless, so
