@@ -712,3 +712,57 @@ class ComparisonKernelSelectionTest(TestCase):
         self.assertEqual(
             stdout.getvalue(),
             '\nRan 0 tests in 1.00 seconds: 0 passed, 0 failed\n')
+
+
+ROBOT_SOURCE = '''from solid_node.node import Solid2Node
+from solid2 import cube
+
+
+class Keel(Solid2Node):
+    """A sub-assembly that only its parent can build."""
+
+    def render(self):
+        raise RuntimeError('keel needs its boat')
+
+
+class Boat(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+'''
+
+ROBOT_TEST_SOURCE = '''from solid_node.test import TestCase
+from boat.robot import Boat
+
+
+class BoatTest(TestCase):
+    node = Boat
+
+    def test_boat_builds(self):
+        self.assertIsNotNone(self.node.mesh)
+'''
+
+
+class BareFileCoversDeclaredClassesTest(MultiTestCaseFixture):
+    """A bare file reference covers the node classes its companion
+    declares and no other: a sub-assembly nobody tests, that cannot be
+    built alone, is never built. openvmp's robot.py is the origin --
+    a machine and five sub-assemblies whose ports the machine binds."""
+
+    def test_an_undeclared_sub_assembly_is_not_built(self):
+        node_path = self.write('boat/robot.py', ROBOT_SOURCE)
+        self.write('boat/test_robot.py', ROBOT_TEST_SOURCE)
+
+        code, stdout, stderr = self.run_solid_test(node_path)
+
+        self.assertEqual(code, 0, stderr)
+        self.assertNotIn('keel needs its boat', stderr)
+        self.assertIn('BoatTest.test_boat_builds', stdout)
+        self.assertIn('Ran 1 tests', stdout)
+
+    def test_a_file_with_no_companion_builds_every_class(self):
+        node_path = self.write('boat/hull.py', HULL_SOURCE)
+
+        code, stdout, stderr = self.run_solid_test(node_path)
+
+        self.assertEqual(code, 0, stderr)
+        self.assertIn('Ran 0 tests', stdout)

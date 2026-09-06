@@ -63,9 +63,16 @@ before the first test method runs, so a test sweep never blocks another build of
 the same project.
 
 When the reference names a single node, the run covers that node and the test
-cases bound to it. When the reference names a file, the run covers every node
-class defined in that file and every test case in its companion. No test case in
-a companion file SHALL be excluded from a run that covers its node.
+cases bound to it. When the reference names a file, the run covers the node
+classes defined in that file that its companion test cases declare, each once
+and in the file's definition order, and every test case in the companion; a
+node class no test case declares SHALL NOT be built. When the companion
+declares no node — there is no companion, or the file defines one node class
+and its cases leave `node` implicit — the run covers every node class defined
+in the file. A test case beside a file defining several node classes that
+does not declare its node SHALL fail the run, naming the case and the
+candidate classes, before any node is built. No test case in a companion
+file SHALL be excluded from a run that covers its node.
 
 Each method runs once per declared testing instant (default `[0]`), with the
 keyframe set per instant, a colored pass/fail dot printed per instant, and each
@@ -91,9 +98,23 @@ unchanged.
 #### Scenario: A file reference runs every node in the file
 
 - **WHEN** a user runs `solid test windmill/model.py` on a file defining two
-  node classes, each with a companion test case
+  node classes, each with a companion test case declaring it
 - **THEN** both nodes are built and the test methods of both test cases are
   counted in the summary
+
+#### Scenario: A sub-assembly no test declares is not built
+
+- **WHEN** a user runs `solid test boat/robot.py` on a file defining a machine
+  and a sub-assembly that cannot be built on its own, and the companion's
+  test cases declare only the machine
+- **THEN** the machine is built and tested, the sub-assembly is never built,
+  and the run passes
+
+#### Scenario: A file with no companion builds every node
+
+- **WHEN** a user runs `solid test boat/hull.py` on a file defining two node
+  classes and no companion test file
+- **THEN** both nodes are built and the run reports zero tests
 
 #### Scenario: A faceted run is labelled as one
 

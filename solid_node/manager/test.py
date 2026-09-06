@@ -92,13 +92,27 @@ class Test:
                 selections = [(klass, node_path, path, None)]
             except AmbiguousNodeError:
                 # A bare file is the one reference deliberately allowed to
-                # name every node it defines when testing.
+                # name several nodes when testing: the ones its companion
+                # test cases declare, in the file's order, and no other. A
+                # sub-assembly nobody tests is never built -- it may not
+                # build alone. With nothing declared, every class it
+                # defines, as before.
                 root = project_root(path)
                 node_path = os.path.realpath(path)
                 module = import_module_from_path(node_path, root)
+                candidates = _defined_classes(
+                    node_path, module, AbstractBaseNode)
+                declared = []
+                for case_class in load_tests(node_path, root):
+                    node_class = getattr(case_class, 'node', None)
+                    if node_class is None:
+                        self.fail(f"{case_class.__name__} must declare node; "
+                                  "candidates: "
+                                  + ', '.join(name for name, _ in candidates))
+                    declared.append(node_class)
                 selections = [(klass, node_path, f'{node_path}:{name}', None)
-                              for name, klass in _defined_classes(
-                                  node_path, module, AbstractBaseNode)]
+                              for name, klass in candidates
+                              if not declared or klass in declared]
         # One run covers every selected node, and reports once: a file
         # reference naming several nodes is still a single test run, not one
         # run per node -- and neither is a walk over every declared model.
