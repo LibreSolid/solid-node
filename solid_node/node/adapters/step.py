@@ -41,13 +41,16 @@ file's mtime changes -- the same cache shape as
 `solid_node.exact._shape_cache`.
 """
 
+import math
 import os
 import sys
 
 import cadquery as cq
+import numpy as np
 from OCP.Bnd import Bnd_Box
 from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import BRepBuilderAPI_Sewing
+from OCP.gp import gp_Vec
 from OCP.IFSelect import IFSelect_RetDone
 from OCP.Quantity import Quantity_Color
 from OCP.STEPCAFControl import STEPCAFControl_Reader
@@ -509,3 +512,284 @@ class StepNode(ExactLeafNode):
             f'{len(shape.Faces())} faces. Nothing is repaired '
             f'automatically; correct it in adjust(), for example with '
             f'solids_from_faces().')
+
+
+##############################################
+# Assembly structure: StepAssembly, a reader, not a node
+#
+# StepNode above reads one product in its OWN frame and says nothing
+# about where the document places it. This section reads the other
+# half: the occurrence walk, the placement and world matrices, and the
+# exact decomposition into the framework's own rotate-then-translate
+# pair (design D1-D3 of step-assembly-import).
+
+#: Tolerance for the propriety gate (design D5): a placement whose
+#: rotation-block determinant or scale factor strays this far from 1
+#: is a mirror or a scale, which `Rotation`/`Translation` cannot state.
+_PROPRIETY_TOLERANCE = 1e-9
+
+#: Below this angle (radians) a rotation is reported as the identity,
+#: with a stated axis rather than whatever arbitrary direction OCCT's
+#: quaternion carries for a zero turn (design D2, fact 5).
+_ZERO_ANGLE_TOLERANCE = 1e-9
+
+
+class ProductInfo:
+    """One entry of `StepAssembly.products`: a product of the document,
+    however many times it is placed (spec "document's assembly
+    structure")."""
+
+    __slots__ = ('name', 'kind', 'occurrence_count', 'solid_count', 'color')
+
+    def __init__(self, name, kind, occurrence_count, solid_count, color):
+        self.name = name
+        self.kind = kind
+        self.occurrence_count = occurrence_count
+        self.solid_count = solid_count
+        self.color = color
+
+    def __repr__(self):
+        return (f'ProductInfo(name={self.name!r}, kind={self.kind!r}, '
+               f'occurrence_count={self.occurrence_count}, '
+               f'solid_count={self.solid_count}, color={self.color!r})')
+
+
+class Occurrence:
+    """One entry of `StepAssembly.occurrences`: one placement of one
+    product in the document (spec "every occurrence of the document is
+    walked").
+
+    `identity` is the component label's own `_entry` -- already a
+    globally unique path within the document (design D3), because
+    `TDF_Tool.Entry_s` reports the full tag chain from the document
+    root, not a name. It is never the label name, which is absent or
+    meaningless depending on the writer (design fact 3).
+
+    `angle_deg`, `axis` and `translation` are None when `proper` is
+    False (design D5): a mirror or a scale cannot be stated as the
+    framework's `rotate`/`translate` pair.
+    """
+
+    __slots__ = ('identity', 'label_name', 'product_name', 'parent_name',
+                'matrix', 'world_matrix', 'color', 'proper', 'determinant',
+                'scale_factor', 'angle_deg', 'axis', 'translation')
+
+    def __init__(self, identity, label_name, product_name, parent_name,
+                matrix, world_matrix, color, proper, determinant,
+                scale_factor, angle_deg, axis, translation):
+        self.identity = identity
+        self.label_name = label_name
+        self.product_name = product_name
+        self.parent_name = parent_name
+        self.matrix = matrix
+        self.world_matrix = world_matrix
+        self.color = color
+        self.proper = proper
+        self.determinant = determinant
+        self.scale_factor = scale_factor
+        self.angle_deg = angle_deg
+        self.axis = axis
+        self.translation = translation
+
+    def __repr__(self):
+        return (f'Occurrence(product_name={self.product_name!r}, '
+               f'parent_name={self.parent_name!r}, proper={self.proper})')
+
+
+def _trsf_matrix(trsf):
+    """The 4x4 matrix `trsf` states, exactly as the document carries
+    it -- `Value(i, j)` for the 3x4 rigid (or scaled) block (design
+    fact 1)."""
+    matrix = np.eye(4)
+    for i in range(3):
+        for j in range(4):
+            matrix[i, j] = trsf.Value(i + 1, j + 1)
+    return matrix
+
+
+def _propriety(matrix, trsf):
+    """`(proper, determinant, scale_factor)` for a placement matrix
+    (design D5). Both raw values are always returned, whether or not
+    the placement is proper, so the report can name what is wrong."""
+    determinant = float(np.linalg.det(matrix[:3, :3]))
+    scale_factor = trsf.ScaleFactor()
+    proper = (abs(determinant - 1.0) <= _PROPRIETY_TOLERANCE and
+             abs(scale_factor - 1.0) <= _PROPRIETY_TOLERANCE)
+    return proper, determinant, scale_factor
+
+
+def _positive_axis(angle_deg, axis):
+    """The determinism convention (design D2, ratification note): state
+    the axis whose largest-magnitude component is positive, negating
+    the angle to match. The same rotation either way; the same document
+    always yields the same literals."""
+    largest = max(range(3), key=lambda index: abs(axis[index]))
+    if axis[largest] < 0:
+        return -angle_deg, tuple(-component for component in axis)
+    return angle_deg, axis
+
+
+def _decompose(trsf):
+    """`(angle_deg, axis, translation)` reproducing `trsf` through the
+    framework's own `Rotation(angle, axis).matrix()` then
+    `Translation(translation).matrix()` (design D2): OCCT's own
+    quaternion, never trace-and-acos, so a 180 degree turn round-trips
+    (design fact 5).
+
+    Call only on a proper placement -- an improper one has no rotation
+    to extract (design D5).
+    """
+    quaternion = trsf.GetRotation()
+    vec = gp_Vec()
+    # The OCP binding returns the angle as a ONE-ELEMENT TUPLE, writing
+    # the axis into `vec` (design fact 11): unpacking any other shape
+    # fails at runtime.
+    (angle,) = quaternion.GetVectorAndAngle(vec)
+    angle_deg = math.degrees(angle)
+
+    if abs(angle_deg) <= math.degrees(_ZERO_ANGLE_TOLERANCE):
+        # A zero rotation carries an arbitrary axis (design fact 5);
+        # state one rather than publish whatever OCCT happened to keep.
+        angle_deg = 0.0
+        axis = (0.0, 0.0, 1.0)
+    else:
+        norm = math.sqrt(vec.X() ** 2 + vec.Y() ** 2 + vec.Z() ** 2)
+        axis = (vec.X() / norm, vec.Y() / norm, vec.Z() / norm)
+        angle_deg, axis = _positive_axis(angle_deg, axis)
+
+    translation = (trsf.Value(1, 4), trsf.Value(2, 4), trsf.Value(3, 4))
+    return angle_deg, axis, translation
+
+
+#: The identity decomposition, for the one occurrence with no wrapping
+#: component label at all: a bare file holding a single part and no
+#: assembly (spec "a one-part file is one occurrence").
+_IDENTITY_DECOMPOSITION = (0.0, (0.0, 0.0, 1.0), (0.0, 0.0, 0.0))
+
+
+def _solid_count(document, product):
+    """`product`'s own solid count, read from the shared shape rather
+    than through `_Document.shape()`'s protective copy (design D4,
+    fact 8): counting topology never meshes, so there is nothing the
+    copy needs to protect here, and paying it would cost 163x on a
+    large document."""
+    shape = cq.Shape.cast(document.shape_tool.GetShape_s(product.label))
+    return len(shape.Solids())
+
+
+class StepAssembly:
+    """A STEP document's assembly structure: every product, every
+    occurrence walked through nested sub-assemblies, and the exact
+    rotate/translate pair each proper placement decomposes to.
+
+    Not a node: it declares no geometry, writes no artifact, and joins
+    no tracked source set. It reads `path` through the same per-file
+    cache `StepNode` uses (`cached_document`), so a process that has
+    already read the file for a `StepNode` pays nothing more to read
+    its structure, and a process that has not pays the read exactly
+    once::
+
+        assembly = StepAssembly('vendor/actuator.stp')
+        for product in assembly.products:
+            print(product.name, product.kind, product.occurrence_count)
+        for occurrence in assembly.occurrences:
+            print(occurrence.product_name, occurrence.angle_deg,
+                 occurrence.axis, occurrence.translation)
+    """
+
+    def __init__(self, path):
+        self.path = os.path.realpath(path)
+        document = cached_document(self.path)
+        self._document = document
+
+        self.products = []
+        #: The first free product the document lists, in document order
+        #: -- the document's own root, whether OCCT calls it a `part`
+        #: (a bare single-part file) or an assembly. `None` only for a
+        #: document with no free product at all, which nothing in this
+        #: reader expects but which is safer to represent than to
+        #: raise on.
+        self.root = None
+        for entry in document.order:
+            raw_product = document.products[entry]
+            info = ProductInfo(
+                name=raw_product.name,
+                kind=raw_product.kind,
+                occurrence_count=document.occurrences(raw_product),
+                solid_count=_solid_count(document, raw_product),
+                color=document.color(raw_product),
+            )
+            self.products.append(info)
+            if raw_product.is_free and self.root is None:
+                self.root = info
+
+        self.occurrences = []
+        for entry in document.order:
+            product = document.products[entry]
+            if product.is_free:
+                self._walk(document, product, np.eye(4))
+
+    def _walk(self, document, product, world):
+        """Append one `Occurrence` per component of `product`, then
+        recurse into every component that is itself an assembly,
+        composing `world` outward (design D3: `world = parent_world @
+        local`). `world` is `product`'s own world matrix -- identity
+        for a free root."""
+        if not product.is_assembly:
+            # A bare file: one product, no assembly root at all (spec
+            # "a one-part file is one occurrence"). There is no
+            # component label to identify it by, so its own product
+            # entry is the identity.
+            angle_deg, axis, translation = _IDENTITY_DECOMPOSITION
+            self.occurrences.append(Occurrence(
+                identity=product.entry, label_name='',
+                product_name=product.name, parent_name=None,
+                matrix=np.eye(4), world_matrix=world, color=None,
+                proper=True, determinant=1.0, scale_factor=1.0,
+                angle_deg=angle_deg, axis=axis, translation=translation))
+            return
+
+        parent_name = None if product.is_free else product.name
+
+        components = TDF_LabelSequence()
+        document.shape_tool.GetComponents_s(product.label, components)
+        for index in range(1, components.Length() + 1):
+            component = components.Value(index)
+            referred = TDF_Label()
+            is_reference = document.shape_tool.GetReferredShape_s(
+                component, referred)
+            target = referred if is_reference else component
+            target_entry = _entry(target)
+            target_product = document.products.get(target_entry)
+            if target_product is None:
+                # Same over-approximation as `_Document.__init__`: a
+                # malformed reference to a label GetShapes() never
+                # listed is skipped rather than raised on.
+                continue
+
+            trsf = document.shape_tool.GetLocation_s(component).Transformation()
+            local_matrix = _trsf_matrix(trsf)
+            world_matrix = world @ local_matrix
+            proper, determinant, scale_factor = _propriety(local_matrix, trsf)
+            if proper:
+                angle_deg, axis, translation = _decompose(trsf)
+            else:
+                angle_deg = axis = translation = None
+
+            self.occurrences.append(Occurrence(
+                identity=_entry(component),
+                # Empty, not None, when the writer left the component
+                # label unnamed (spec: "its reported label name is
+                # empty rather than standing in as its identity").
+                label_name=_label_name(component) or '',
+                product_name=target_product.name,
+                parent_name=parent_name,
+                matrix=local_matrix,
+                world_matrix=world_matrix,
+                color=document._label_color(component),
+                proper=proper, determinant=determinant,
+                scale_factor=scale_factor,
+                angle_deg=angle_deg, axis=axis, translation=translation))
+
+            if target_product.is_assembly:
+                self._walk(document, target_product, world_matrix)

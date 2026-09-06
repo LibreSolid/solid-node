@@ -239,6 +239,26 @@ once per file per process, cached on `(path, mtime_ns)` in the shape of
 measured on a 35 MB vendor assembly) and a project may hold many leaves
 over one file (ADR-077).
 
+The other half of a STEP document — where each product sits — is a
+reader, not a node: `StepAssembly(path)`, in the same adapter module,
+walks every occurrence through nested sub-assemblies over the identical
+cached document, reporting each one's placement matrix, its world
+matrix composed outward through its parents, and, for a proper rigid
+placement, the exact `(angle, axis)`/translation pair that reproduces
+it through the framework's own `rotate` then `translate` — decomposed
+through OCCT's own quaternion (`gp_Trsf.GetRotation()`,
+`GetVectorAndAngle`) rather than the trace and an `acos`, which is not
+accurate enough at a 180° turn. A placement that is not proper — a
+mirror or a scale, neither of which `rotate`/`translate` can state — is
+reported with its determinant and scale factor and left undecomposed;
+the rest of the document is unaffected. The CLI command `solid
+import-step` turns this reader into project-owned source in one shot:
+`parts.py` (one `StepNode` subclass per part) and `assembly.py` (one
+`AssemblyNode` per assembly product, its children placed at the
+document's own transforms, machine at rest — no driver, no
+`simulate()`), never overwriting existing source and never touching
+`pyproject.toml` (ADR-078).
+
 One leaf kind names a *manufacturing method* rather than a backend.
 `SheetLeafNode` — internal base, `Build123dSheetNode` its v1 adapter — is a
 part cut from sheet stock, authored as a 2D `profile()` plus a declared
@@ -1175,12 +1195,12 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 076 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 076, 077, 078 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
-| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068 |
+| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 078 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
 | Export | `core/export.py`, `core/serializer.py` | `export` | 020, 034, 051, 057, 068 |

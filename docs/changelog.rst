@@ -8,6 +8,57 @@ Changelog
 Unreleased
 ----------
 
+**Reading a STEP document's assembly structure, and scaffolding source
+from it.** ``StepAssembly(path)`` reads a document's products and every
+occurrence of them, walked through nested sub-assemblies — each
+occurrence's placement matrix in its parent's frame, its world matrix
+composed outward, and, for every placement that is a proper rigid
+transform, the exact ``(angle, axis)``/``translation`` pair that
+reproduces it through the framework's own ``rotate`` then ``translate``.
+The decomposition goes through OCCT's own quaternion
+(``gp_Trsf.GetRotation().GetVectorAndAngle()``), never through the trace
+and an ``acos``: measured over the Internal-Cycloidal-Actuator's 55
+placements (27 of them exactly 180°, 2 the identity), the quaternion
+route reproduces every matrix to 4.4e-16 and the trace route only to
+3.0e-8 — thirty times outside the 1e-9 the contract asks, and wrong
+exactly on the half-turns. A placement that is not proper — a mirror or
+a scale — is reported with its determinant and scale factor and is not
+decomposed, because ``rotate``/``translate`` cannot state one; the rest
+of the document is unaffected. ``StepAssembly`` is not a node: it reads
+through the same cached document ``StepNode`` does, so a process that
+has already read a file for one pays nothing more for the other, and
+reading the whole structure of the actuator's 35 MB document — 21
+products, 55 occurrences — costs 0.042 s after the 11.10 s document
+read is warm.
+
+``solid import-step FILE [--into PACKAGE_DIR] [--model NAME]`` turns a
+document into project-owned, declarative source in one shot: ``parts.py``
+(one ``StepNode`` subclass per part, declaring ``step_source``, ``part``
+and ``angular_deflection = 0.5`` under a comment) and ``assembly.py``
+(one ``AssemblyNode`` per assembly product, one child declaration per
+occurrence, and a ``render()`` placing each by ``rotate`` then
+``translate`` at the document's own transform, under a comment naming
+the occurrence and the file). The generated machine is at rest — no
+driver, no ``simulate()`` — and the command never overwrites an
+existing ``parts.py`` or ``assembly.py``, writes nothing when any
+placement is improper, and prints the manifest lines rather than
+editing ``pyproject.toml``. Born of the same two projects as ``StepNode``:
+``Internal-Cycloidal-Actuator``'s design record named six placements
+typed by hand into ``machine.py``, one of them (``Eccentric_Shaft``) an
+axis sign that is not visible in the matrix at a glance, and a
+recomposition test that existed only to check the typing; ``openvmp``
+wrote the same occurrence walk against PartCAD's ``.assy`` format.
+Scaffolded into a scratchpad project and built against this cycle: the
+actuator document builds in 21.5 s, 20 distinct part artifacts (the
+other 35 of 55 occurrences share theirs, as repeated placements of the
+same product always have), 11.74 MiB of STL against the 19.91 MB one
+part alone would cost at the inherited default; every one of the 55
+generated leaves' composed world placements agrees with the reader's
+own world matrix to within 4.93e-10 mm, the contract
+``Internal-Cycloidal-Actuator``'s hand-written ``test_machine.py``
+existed only to check by hand. See :ref:`import-step`. (OpenSpec change
+``step-assembly-import``; ADR-078.)
+
 **The STEP part, an exact external-file leaf.** ``StepNode`` reads one
 product out of a committed STEP document as an ordinary part —
 selected by ``part``, naming the product as the file carries it; a

@@ -30,6 +30,7 @@ COMMANDS = {
     'export': ('solid_node.manager.export', 'Export'),
     'viewer': ('solid_node.manager.viewer', 'Viewer'),
     'models': ('solid_node.manager.models', 'Models'),
+    'import-step': ('solid_node.manager.import_step', 'ImportStep'),
 }
 
 #: The tokens that make the top-level parser print its own help. That is the

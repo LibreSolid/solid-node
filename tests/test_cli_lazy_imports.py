@@ -51,12 +51,13 @@ COMMAND_MODULES = {
     'solid_node.manager.export',
     'solid_node.manager.viewer',
     'solid_node.manager.models',
+    'solid_node.manager.import_step',
 }
 
 #: The order `solid -h` lists commands in, and has listed them in since
 #: the command-first flip (ADR-024).
 COMMAND_ORDER = ['build', 'develop', 'test', 'snapshot', 'new', 'export',
-                 'viewer', 'models']
+                 'viewer', 'models', 'import-step']
 
 MIGRATION_HINT = ('The CLI grammar changed in 0.4: commands come first. '
                   'Try: solid {command} {path} [options]\n')
@@ -75,14 +76,21 @@ def reference_parser():
     from solid_node.manager.build import Build
     from solid_node.manager.develop import Develop
     from solid_node.manager.export import Export
+    from solid_node.manager.import_step import ImportStep
     from solid_node.manager.models import Models
     from solid_node.manager.new import New
     from solid_node.manager.snapshot import Snapshot
     from solid_node.manager.test import Test
     from solid_node.manager.viewer import Viewer
 
-    commands = [Build(), Develop(), Test(), Snapshot(), New(), Export(),
-                Viewer(), Models()]
+    # Paired with a name explicitly, rather than derived from the class
+    # (`Build` -> `build`): `ImportStep` -> `import-step` is not that
+    # derivation, and every other command's name still matches its
+    # class lower-cased, so nothing else changes shape.
+    commands = [('build', Build()), ('develop', Develop()), ('test', Test()),
+               ('snapshot', Snapshot()), ('new', New()), ('export', Export()),
+               ('viewer', Viewer()), ('models', Models()),
+               ('import-step', ImportStep())]
 
     # argparse derives `prog` from argv[0], and `manage()` lets it: the
     # reference has to be built under the same argv the comparison runs
@@ -98,8 +106,7 @@ def reference_parser():
         )
 
     built = {}
-    for command in commands:
-        name = command.__class__.__name__.lower()
+    for name, command in commands:
         command_parser = subparsers.add_parser(name, help=command.__doc__)
         if getattr(command, 'needs_node', True):
             command_parser.add_argument(
@@ -277,7 +284,12 @@ class RegistryConformanceTest(TestCase):
         for name, (module, class_name) in COMMANDS.items():
             with self.subTest(command=name):
                 command_class = getattr(import_module(module), class_name)
-                self.assertEqual(class_name.lower(), name)
+                # A command name may hyphenate ('import-step') where a
+                # Python class name cannot: the class name lower-cased
+                # is the name with its hyphens removed, not the name
+                # itself.
+                self.assertEqual(class_name.lower(),
+                                 name.replace('-', ''))
 
                 command = command_class()
                 self.assertTrue(command.__doc__,

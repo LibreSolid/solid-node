@@ -279,6 +279,52 @@ project root, the build root, the default's name and the models, each
 with its ``build_dir``; a project that declares a single ``model`` lists
 one entry whose name is null.
 
+.. _import-step:
+
+solid import-step
+==================
+
+::
+
+    solid import-step FILE [--into PACKAGE_DIR] [--model NAME]
+
+Reads a STEP document's assembly structure and writes two files of
+project-owned, declarative source the pilot then edits: ``parts.py``,
+one :ref:`StepNode <step-import>` subclass per product that is a part,
+and ``assembly.py``, one ``AssemblyNode`` subclass per assembly product,
+declaring one child per occurrence and a ``render()`` that places each
+one by ``rotate`` then ``translate`` at the document's own placement,
+under a comment naming the occurrence and the file it came from. The
+generated model is a **machine at rest**: it declares no driver and
+defines no ``simulate()`` — which joints move is a design decision the
+pilot makes in the source this command hands over, not a guess the
+document's placements could support.
+
+``--into`` names the package directory the two files are written into,
+created if it does not exist, and given an ``__init__.py`` when it holds
+none; it defaults to the current directory. ``--model`` names the
+generated model, defaulting to a name derived from the document's root
+product, or from the file's stem when that product is unnamed.
+
+The command **never overwrites**: when either file already exists it
+writes neither, names the one that stopped it, and exits 1 — the same
+rule ``solid new`` applies to its target directory, for the same reason.
+It writes nothing, either, when the document holds a placement that is
+not a proper rigid transform (a mirror or a scale): the framework's
+``rotate``/``translate`` pair cannot state one, and the message names the
+occurrence with its determinant and scale factor.
+
+It takes no node reference and loads no node — like ``solid models``, it
+never imports project code — but it does need the exact-geometry kernel
+to read the document, exactly as ``StepNode`` does; an installation
+without it is told so by name, with the remedy, rather than failing with
+an import traceback.
+
+The command never touches ``pyproject.toml``: it prints the
+``[tool.solid-node.models]`` line to add, along with the ``solid build``
+and ``solid develop`` invocations to try next — following ``solid
+models``, which reads the manifest and never writes it.
+
 .. _several-models:
 
 Several models in one project

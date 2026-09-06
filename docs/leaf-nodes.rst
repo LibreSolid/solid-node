@@ -862,9 +862,17 @@ kernel, not through OpenSCAD/CGAL — no external renderer needed at all.
 What it does not do is read the document's placements: a selected
 product always arrives in its own, unplaced frame, so an assembly of
 several `StepNode` leaves is placed with your project's own placement
-operations, the same way `StlNode`'s pack bodies are. Reading a STEP
-file's own assembly structure — its occurrence transforms — is left to
-a future capability; this leaf's job is one part at a time.
+operations, the same way `StlNode`'s pack bodies are.
+
+That placement can come from the document itself. :ref:`solid
+import-step <import-step>` reads a document's whole assembly
+structure — every occurrence, walked through nested sub-assemblies,
+decomposed exactly into the ``rotate``/``translate`` pair above — and
+scaffolds ``parts.py`` and ``assembly.py`` from it: one `StepNode`
+subclass per part, one `AssemblyNode` per assembly product, placed at
+the document's own transforms. It is a one-shot command, not part of
+this leaf: it writes project-owned source you then edit, and never
+touches a build.
 
 .. _flexible-parts:
 
