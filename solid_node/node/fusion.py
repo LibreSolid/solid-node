@@ -2,8 +2,8 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-from solid_node.exact import (cached_shape, fuse_shapes, placed_shape,
-                              write_brep, write_stl)
+from solid_node.exact import (cached_shape, deflections, fuse_shapes,
+                              placed_shape, write_brep, write_stl)
 from .base import _compose_solid_matrix
 from .internal import InternalNode
 
@@ -16,6 +16,16 @@ class FusionNode(InternalNode):
     """
 
     _type = 'FusionNode'
+
+    #: The tessellation precision of this fusion's OWN fused solid --
+    #: see `ExactLeafNode.linear_deflection`/`angular_deflection` for the
+    #: declaration shape, the currency and identity consequences, and the
+    #: OCCT quantities these name. A fusion does NOT inherit either
+    #: attribute from its children: the fuse is a different shape than
+    #: any of them, and there is no defensible way to pick a winner among
+    #: children that disagree.
+    linear_deflection = 0.1
+    angular_deflection = 0.1
 
     @property
     def time(self):
@@ -66,4 +76,6 @@ class FusionNode(InternalNode):
         shape = self.shape()
         digest = self.source_digest
         write_brep(shape, self.brep_file, self.mtime_ns, digest)
-        write_stl(shape, self.stl_file, self.mtime_ns, digest)
+        linear_deflection, angular_deflection = deflections(self)
+        write_stl(shape, self.stl_file, self.mtime_ns,
+                 linear_deflection, angular_deflection, digest)

@@ -4,6 +4,7 @@
 
 """Exact B-rep geometry shared by nodes and geometric assertions."""
 
+import math
 import os
 import tempfile
 import time
@@ -165,23 +166,65 @@ def write_brep(shape, path, mtime_ns, digest=None):
     _atomic_export(path, mtime_ns, shape.exportBrep, digest)
 
 
-def write_stl(shape, path, mtime_ns, digest=None):
+def write_stl(shape, path, mtime_ns, linear_deflection, angular_deflection,
+             digest=None):
     """Tessellate `shape` to an STL artifact without degenerate triangles.
 
     OCCT's mesher emits zero-area triangles on some vendor solids (shafts,
     standoffs, stepper frames); they add nothing to the surface and break
     the mesh engine's edge pairing, so every exact artifact -- a leaf's or
-    a fused solid's -- drops them. The tessellation tolerances are the
-    historical cq.exporters.export defaults.
+    a fused solid's -- drops them, after tessellating at whatever precision
+    the caller asks for.
+
+    `linear_deflection` and `angular_deflection` are required rather than
+    defaulted: the framework's historical values (0.1 mm, 0.1 rad) live in
+    exactly one place, the class attribute declarations on `ExactLeafNode`
+    and `FusionNode` (see `deflections`), not duplicated here as a second
+    default a reader could find and trust.
     """
     def export(temporary):
-        shape.exportStl(temporary, tolerance=0.1, angularTolerance=0.1)
+        shape.exportStl(temporary, tolerance=linear_deflection,
+                        angularTolerance=angular_deflection)
         mesh = trimesh.load(temporary, file_type='stl', process=False)
         mesh.update_faces(mesh.nondegenerate_faces())
         mesh.remove_unreferenced_vertices()
         mesh.export(temporary, file_type='stl')
 
     _atomic_export(path, mtime_ns, export, digest)
+
+
+_DEFLECTION_UNITS = {
+    'linear_deflection': 'millimetres',
+    'angular_deflection': 'radians',
+}
+
+
+def _validated_deflection(node, attribute):
+    value = getattr(node, attribute)
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or value <= 0):
+        unit = _DEFLECTION_UNITS[attribute]
+        raise ValueError(
+            f'{node.name}.{attribute} must be a positive finite number '
+            f'of {unit}, not {value!r}')
+    return float(value)
+
+
+def deflections(node):
+    """Read and validate the tessellation precision `node` declares.
+
+    Reads `node.linear_deflection` and `node.angular_deflection` -- class
+    attributes `ExactLeafNode` and `FusionNode` declare with the
+    framework's historical defaults (0.1 mm, 0.1 rad) -- at the point the
+    artifact is about to be written, which is what lets a node whose
+    artifacts are already current skip the validation entirely.
+
+    A value is refused unless it is a real number (`bool` excluded --
+    `True` is not a deflection), finite, and strictly positive; the error
+    names the node and the offending attribute.
+    """
+    return (_validated_deflection(node, 'linear_deflection'),
+           _validated_deflection(node, 'angular_deflection'))
 
 
 def _place(shape, values):

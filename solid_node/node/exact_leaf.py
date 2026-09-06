@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from solid2 import import_stl
-from solid_node.exact import (cached_shape, shape_from_rendered, write_brep,
-                              write_stl)
+from solid_node.exact import (cached_shape, deflections, shape_from_rendered,
+                              write_brep, write_stl)
 from solid_node.node.leaf import LeafNode
 
 
@@ -31,6 +31,23 @@ class ExactLeafNode(LeafNode):
     cadquery, trimesh and OCP.
     """
 
+    #: The maximum distance, in millimetres, between this node's STL
+    #: artifact and the surface it approximates -- OCCT's own
+    #: `theLinDeflection`. Declared as a class attribute like
+    #: `SheetLeafNode.thickness`: an edit lands in this node's own class
+    #: body, which the source-set path already tracks (ADR-071), so it
+    #: rebuilds this node's artifacts and nothing else. It is read and
+    #: validated at export time, not here -- see `exact.deflections` --
+    #: and never enters uniq_id (ADR-026/063): two tessellations of one
+    #: solid are one node's artifact at two times, not two nodes.
+    linear_deflection = 0.1
+
+    #: The maximum angle, in radians, between the normals of two adjacent
+    #: facets of this node's STL artifact -- OCCT's own
+    #: `theAngDeflection`. Same declaration shape and same defaults as
+    #: `linear_deflection` above.
+    angular_deflection = 0.1
+
     @property
     def exact(self):
         return True
@@ -52,11 +69,24 @@ class ExactLeafNode(LeafNode):
         which this path used to run upstream of. A node that opts out of
         optimization still reaches here, so the guard belongs on the adapter
         and not only on the assemble() shortcut.
+
+        The BREP is written before the STL, and not merely for symmetry
+        with FusionNode.generate_stl(): `Shape.exportStl` calls
+        `BRepMesh_IncrementalMesh`, which stores its triangulation ON the
+        shape, and `Shape.exportBrep` serialises whatever triangulation the
+        shape is carrying alongside its topology. Export the STL first and
+        two builds of the same solid at different declared precision write
+        BYTE-DIFFERENT `.brep` files, even though the topology --
+        everything `shape()` and `.brep` promise -- never changed. Writing
+        the BREP from the not-yet-meshed shape is what keeps it, and
+        `shape()`, independent of whatever precision is declared.
         """
         shape = shape_from_rendered(rendered)
         digest = self.source_digest
-        if not self._up_to_date(self.stl_file):
-            write_stl(shape, self.stl_file, self.mtime_ns, digest)
         if not self._up_to_date(self.brep_file):
             write_brep(shape, self.brep_file, self.mtime_ns, digest)
+        if not self._up_to_date(self.stl_file):
+            linear_deflection, angular_deflection = deflections(self)
+            write_stl(shape, self.stl_file, self.mtime_ns,
+                     linear_deflection, angular_deflection, digest)
         return import_stl(self.local_stl)

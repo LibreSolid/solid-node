@@ -111,6 +111,33 @@ fits a downloaded mesh, and can take minutes on a dense one.
 Choose children accordingly: when a fused part matters to exact
 assertions, author its children on an OCCT backend.
 
+.. _fusion-tessellation-precision:
+
+Tessellation precision
+======================
+
+An exact `FusionNode` may declare `linear_deflection` and
+`angular_deflection` — see :ref:`tessellation-precision` for what the
+two attributes mean and the consequences of declaring them — for the
+solid it fuses:
+
+.. code-block:: python
+
+    class CoarseKnob(FusionNode):
+
+        angular_deflection = 0.5
+
+        def render(self):
+            return [KnobShaft(), KnobGrip()]
+
+A fusion does **not** inherit a declaration from its children. The
+fused solid is a different shape from any of them — asking which
+child's precision should win has no defensible answer — so each
+declaration shapes only the artifact of the node that declares it. A
+fusion of a coarse vendor part and a fine printed bracket keeps the
+bracket's artifact fine and the vendor part's artifact coarse; only a
+declaration on the fusion itself coarsens the fused solid.
+
 Fusions in assemblies
 =====================
 

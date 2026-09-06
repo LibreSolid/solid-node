@@ -573,7 +573,15 @@ all-exact fusion is the exception to the subprocess protocol: it writes its
 BREP and tessellates its fused shape synchronously in process (ADR-045).
 Every exact artifact's STL, a leaf's or a fusion's, is written without the
 zero-area triangles OCCT's mesher emits, so the mesh engine's edge pairing
-sees only the surface (ADR-074).
+sees only the surface (ADR-074). The tessellation itself is at whatever
+`linear_deflection` (mm) and `angular_deflection` (rad) an `ExactLeafNode`
+or `FusionNode` subclass declares as a class attribute — 0.1 and 0.1,
+the framework's historical values, when it declares neither — read and
+validated once, immediately before each write (ADR-076). Precision is
+not artifact identity and rides the node's own source set instead
+(ADR-071), so redeclaring it rewrites the same `.stl` in place; the
+`.brep` and `shape()` are unaffected, and a fusion's declaration shapes
+only its own fused solid, never a child's.
 
 The artifact sweep learns one thing from the tree rather than from the
 document. A flexible leaf's snapshot is addressed by its binding, and the
@@ -1136,7 +1144,7 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 076 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |

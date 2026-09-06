@@ -8,6 +8,33 @@ Changelog
 Unreleased
 ----------
 
+**Declared tessellation precision.** An exact leaf (``CadQueryNode``,
+``Build123dNode``, ``Build123dSheetNode``) or a ``FusionNode`` fusing
+exact children may now declare ``linear_deflection`` (mm) and
+``angular_deflection`` (radians) as class attributes, shaping how finely
+that node's own ``.stl`` is tessellated. A node declaring neither is
+tessellated at ``linear_deflection = 0.1`` and ``angular_deflection =
+0.1`` — the values the framework has always used — so an existing
+project's artifacts do not change. The declaration is not a constructor
+parameter and does not enter the node's artifact identity: editing it
+rebuilds the same artifact in place through the ordinary node-scoped
+content path (ADR-071), the way editing
+:attr:`~solid_node.node.SheetLeafNode.thickness` does when it is
+declared rather than passed. A ``FusionNode`` declares precision for its
+own fused solid and does not inherit a child's. Only the mesh changes:
+the ``.brep`` and ``shape()`` are identical whatever is declared, but
+everything that reads the mesh — the viewer, the export, a faceted
+``solid test`` run, and printed-piece identity (a fingerprint of built
+content) — sees the declared precision, so redeclaring it gives a node a
+new piece id. ``openvmp`` and ``Internal-Cycloidal-Actuator`` are the two
+projects that asked for this, each having reached past the public API
+into ``BRepMesh_IncrementalMesh`` to premesh a shape before ``render()``
+returned it; Internal-Cycloidal-Actuator's design record measured the
+cost on a vendor STEP part: 19.9 MB (398,184 triangles) at the
+framework's default against 1.8 MB (35,776 triangles) at
+``angular_deflection = 0.5``. See :ref:`tessellation-precision`.
+(OpenSpec change ``declared-tessellation-precision``; ADR-076.)
+
 **The expression vocabulary projects kept rebuilding.**
 ``solid_node.math`` now carries ``abs``, ``floor``, ``ceil``, ``sign``,
 ``min`` and ``max`` — the OpenSCAD builtins, emitted by name — plus

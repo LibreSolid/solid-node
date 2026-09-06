@@ -119,6 +119,10 @@ conflicting with Solid Node:
     if __name__ == '__cq_main__':
         show_object(DemoProject().render())
 
+A `CadQueryNode` may declare `linear_deflection` and `angular_deflection`
+to shape how finely its `.stl` is tessellated — see
+:ref:`tessellation-precision`.
+
 Build123dNode
 =============
 
@@ -294,6 +298,84 @@ extension point is `profile()`, not `render()` — but it is exact in the
 same way, drives the same kernel, and needs no OpenScad. A fusion may
 take a sheet part and a CadQuery or build123d part as children and fuse
 them exactly.
+
+Like every `ExactLeafNode`, it may declare `linear_deflection` and
+`angular_deflection` to shape its `.stl` — see
+:ref:`tessellation-precision`. They shape the mesh only: the DXF above
+comes from the nominal profile, not from the tessellation.
+
+.. _tessellation-precision:
+
+Tessellation precision
+======================
+
+Every exact leaf — `CadQueryNode`, `Build123dNode`, `Build123dSheetNode`
+and any other `ExactLeafNode` subclass — writes its `.stl` artifact by
+tessellating its OCCT shape, and MAY declare two class attributes that
+shape how finely:
+
+.. code-block:: python
+
+    class VendorShaft(CadQueryNode):
+
+        angular_deflection = 0.5
+
+        def render(self):
+            return cq.importers.importStep('shaft.step')
+
+* `linear_deflection` — the maximum distance, in millimetres, between
+  the mesh and the surface it approximates. OCCT's own
+  `theLinDeflection`.
+* `angular_deflection` — the maximum angle, in radians, between the
+  normals of two adjacent facets. OCCT's own `theAngDeflection`.
+
+Neither is required. A node declaring neither is tessellated at
+`linear_deflection = 0.1` and `angular_deflection = 0.1` — the values the
+framework has always used — so an existing project's artifacts do not
+change. A node may declare either attribute alone; the other keeps its
+default.
+
+Vendor STEP geometry is overwhelmingly fillets and threads, and 0.1 rad
+of angular deflection over such a part costs an order of magnitude in
+artifact size for surface a viewer cannot see: one measured part went
+from 19.9 MB (398,184 triangles) at the default to 1.8 MB (35,776
+triangles) at `angular_deflection = 0.5`.
+
+Like `SheetLeafNode.thickness`, this is a class attribute, not a
+constructor argument, and it is not part of the node's artifact
+identity: two tessellations of one solid are one node's artifact at two
+times, not two nodes. It is declared in the module defining the node
+class, which the node already tracks in its source set, so **editing the
+declared value rebuilds the node** the way editing any other class body
+text does — nothing new to opt into, nothing to configure at the project
+or run level. A declared value that is not a positive finite number
+raises at the point the artifact is written, naming the node and the
+attribute.
+
+**Only the mesh changes.** The node's `.brep` artifact and the shape
+`shape()` returns are identical whatever is declared — exactness is a
+property of the geometry, a mesh tolerance is a property of one derived
+representation of it. Everything that reads the mesh sees the declared
+precision as a consequence of that, not as a separate contract:
+
+* the viewer and the exported STL carry the declared triangles;
+* under ``solid test --faceted``, every comparison is answered on the
+  compared nodes' meshes, so a coarse declaration can move a clearance
+  verdict that the default (exact) kernel would not move — test a
+  design whose clearances are close on the exact kernel, which is
+  unaffected by any declaration here;
+* a node's printed-piece id is a fingerprint of its built artifact's
+  content, so redeclaring precision gives the node a new piece id even
+  though the part did not change.
+
+A `FusionNode` declares precision the same way, for its own fused solid
+— see :ref:`fusion-tessellation-precision`.
+
+The faceted adapters (`Solid2Node`, `OpenScadNode`, `JScadNode`,
+`StlNode`) do not carry these attributes: the framework never
+tessellates their geometry, so there is nothing for a deflection to
+shape. `MolejoNode`'s geometry is tessellated by molejo's own evaluator
+and is outside this declaration.
 
 OpenScadNode
 ============

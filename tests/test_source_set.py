@@ -190,7 +190,8 @@ class UpToDateLeafTest(BaseNodeTest):
         # back-dates the STL it just wrote, and a mock that writes
         # nothing would fail this test on the missing file rather than
         # on the export.
-        def export_stub(shape, path, mtime, digest=None):
+        def export_stub(shape, path, mtime, linear_deflection,
+                       angular_deflection, digest=None):
             with open(path, 'w') as fh:
                 fh.write('solid empty\nendsolid empty\n')
 

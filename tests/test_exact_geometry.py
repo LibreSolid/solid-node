@@ -802,7 +802,7 @@ class DegenerateTriangleExportTest(TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, 'leaf.stl')
-            write_stl(Shape(), path, 1 * 10 ** 9)
+            write_stl(Shape(), path, 1 * 10 ** 9, 0.1, 0.1)
             raw = trimesh.load(path, process=False)
 
         self.assertEqual(len(raw.faces), 12)

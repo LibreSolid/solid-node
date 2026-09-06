@@ -61,6 +61,7 @@ that way.
 - [ADR-066](NODE/ADR-066-render-at-rest-simulate-per-instant.md) — render() builds the machine at rest, simulate() moves it — **Accepted**, extends 002, 023
 - [ADR-071](NODE/ADR-071-node-scoped-content-currency.md) — Node-scoped content currency — **Accepted**, amends 060, 033
 - [ADR-072](NODE/ADR-072-a-declared-time-base.md) — A declared time base: `time = Time(loop=…)`, seconds on every path — **Accepted**, extends 008
+- [ADR-076](NODE/ADR-076-declared-tessellation-precision.md) — Declared tessellation precision: `linear_deflection` / `angular_deflection` — **Accepted**, depends on 026/044/045/047/063/071
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

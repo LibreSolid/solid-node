@@ -80,6 +80,21 @@ Leaf nodes
 .. autoclass:: solid_node.node.exact_leaf.ExactLeafNode
    :members: exact, shape
 
+   .. attribute:: linear_deflection
+
+      The maximum distance, in millimetres, between this node's ``.stl``
+      artifact and the surface it approximates (OCCT's own
+      ``theLinDeflection``). Declared as a class attribute, like
+      :attr:`~solid_node.node.SheetLeafNode.thickness`; defaults to
+      ``0.1``. See :ref:`tessellation-precision`.
+
+   .. attribute:: angular_deflection
+
+      The maximum angle, in radians, between the normals of two
+      adjacent facets of this node's ``.stl`` artifact (OCCT's own
+      ``theAngDeflection``). Defaults to ``0.1``. See
+      :ref:`tessellation-precision`.
+
 .. autoclass:: solid_node.node.Solid2Node
    :members: as_number
 
@@ -169,6 +184,16 @@ Internal nodes
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time
+
+   .. attribute:: linear_deflection
+
+      The tessellation precision of this fusion's own fused solid, not
+      inherited from its children. See
+      :ref:`fusion-tessellation-precision`.
+
+   .. attribute:: angular_deflection
+
+      As above.
 
 Parameters
 ==========
