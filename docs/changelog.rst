@@ -36,6 +36,27 @@ with a declared parameter, which used to render the declaration's
 ``repr()`` into the published expression, now raises. See
 :ref:`Non-linear kinematics <non-linear-kinematics>`. (OpenSpec change
 ``expression-math``; ADR-022, revised.)
+**The mechanism laws, carried once.** ``solid_node.mechanisms`` holds
+the textbook geometry thirteen projects' ``kinematics.py`` kept
+rewriting, each in its own frame and sign convention: the external
+spur-gear mesh and its inverse (``meshed_angle``, ``driving_angle``),
+the lead screw (``screw_travel``, ``screw_angle``), the planar
+slider-crank (``crank_pin``, ``crank_rod_angle``, ``piston_height``),
+linear delta kinematics (``delta_carriage``, ``delta_rod``) and the
+circle geometry a linkage asks for (``circle_intersection``,
+``triangle_angle``, ``link_rise``). Every one is a composition over
+``solid_node.math``, so it computes on numbers and builds the viewer's
+expression on symbolic time or a driver, and emits no OpenSCAD builtin
+that module does not already emit. A gear library's convention is two
+argument values rather than a fork of the law: cq_gears' gap centre at
+``180 / teeth``, MrBunsy's at ``gap_angle / 2``. There is no declared
+(class-body) face — the laws carry degree literals the dimension
+algebra cannot type as angles, so a declared token raises there and
+``.value`` is the way through. Lifted from ``sandbox/gearbox``,
+``3DPrintedClocks`` (``wall_clock_01`` and the grasshopper),
+``v8-engine``, ``kossel``, ``openflexure-microscope``, ``Inmoov-sim``
+and ``snappy-reprap``, and checked against each of their own functions.
+(OpenSpec change ``mechanisms``.)
 
 **Several models in one project.** A manifest may declare its models by
 name in ``[tool.solid-node.models]``, with ``model`` naming the default

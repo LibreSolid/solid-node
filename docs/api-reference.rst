@@ -249,7 +249,7 @@ scenario tests.
 .. autofunction:: solid_node.simulation.qualified_instructions
 
 Expression math
-===============
+========
 
 ``solid_node.math`` is the one expression semantics: OpenSCAD's degree
 conventions, computed on plain numbers, deferred as an OpenSCAD
@@ -315,6 +315,111 @@ counter-clockwise, as everywhere else.
 .. autofunction:: solid_node.math.rotate_x
 .. autofunction:: solid_node.math.rotate_y
 .. autofunction:: solid_node.math.rotate_z
+=======
+Mechanisms
+==========
+
+The textbook mechanism laws, importable from
+``solid_node.mechanisms``. Each is a composition over
+``solid_node.math`` and so has two of that module's three faces: it
+computes a number when the node is posed at a keyframe, and builds the
+equivalent deferred OpenSCAD expression when its driving argument is
+animation time or a driver. The third — a formula over declared
+parameters — it deliberately does not have; see below. Every angle is
+in degrees, positive by the right-hand rule about the axis each family
+states. Read the family module's docstring for its frame, its zero and
+its sign before calling into it.
+
+There is **no declared (class-body) face**. The laws carry degree
+literals — the mesh adds ``180``, the screw divides by ``360`` — and the
+dimension algebra has no way to type a plain number as an angle, so a
+declared token reaching a law raises ``DimensionError`` at class
+definition. A class body that needs a static mesh phase computes it over
+``.value`` operands, the algebra's stated escape hatch::
+
+    class Train(AssemblyNode):
+        wheel = Count(60)
+        pinion = Count(8)
+        phase = Angle(0.0)
+        pinion_phase = meshed_angle(phase.value, wheel.value, pinion.value)
+
+Gears
+-----
+
+The external spur-gear mesh. A pair is meshed when a tooth of the driven
+points into a gap of the driver along the line of centres; where a tooth
+sits at zero is the gear library's business, so the law takes it as two
+plain reference angles and reads no gear object. ``driver_gap`` is the
+direction of a gap centre in the driver's own frame at angle zero,
+``driven_tooth`` the direction of a tooth tip in the driven's. cq_gears
+centres a tooth on +X, so its gap centre is ``180 / teeth``; MrBunsy's
+``Gear`` starts at a gap, so its gap centre is ``gap_angle / 2`` and its
+tooth tip ``gap_angle + tooth_angle / 2``, both negated for a flipped
+part and zero for a lantern pinion.
+
+.. autofunction:: solid_node.mechanisms.meshed_angle
+
+.. autofunction:: solid_node.mechanisms.driving_angle
+
+Screws
+------
+
+The lead screw, right-hand and sign-neutral: a positive turn by the
+right-hand rule about the screw's own axis advances it along that axis
+relative to its nut. A left-hand thread, a nut moving instead of a
+screw, or a lever that inverts is the caller's minus sign, where it can
+be read beside the reason for it. ``lead`` is the advance per turn —
+pitch times starts, never bare pitch.
+
+.. autofunction:: solid_node.mechanisms.screw_travel
+
+.. autofunction:: solid_node.mechanisms.screw_angle
+
+Cranks
+------
+
+The planar slider-crank, in the crank's own plane: the crank axis is the
+plane normal, the cylinder axis is *along*, the other coordinate is
+*across*, and the crank angle is measured from *along*, zero at top dead
+centre. A caller whose crank axis is elsewhere maps these with its own
+frame rotation.
+
+.. autofunction:: solid_node.mechanisms.crank_pin
+
+.. autofunction:: solid_node.mechanisms.crank_rod_angle
+
+.. autofunction:: solid_node.mechanisms.piston_height
+
+Deltas
+------
+
+Linear delta kinematics: towers on a circle about Z, carriages riding
+vertically, a diagonal rod to the effector. ``radius`` is the horizontal
+distance from an effector joint to its carriage joint with the effector
+at the origin. ``delta_rod`` returns two rotations about *constant* axes
+rather than one about the perpendicular the lean happens about, because
+a ``Rotation``'s axis cannot carry a driver symbol; pose a rod authored
+along Z by ``-tilt`` about Y, then ``azimuth`` about Z.
+
+.. autofunction:: solid_node.mechanisms.delta_carriage
+
+.. autofunction:: solid_node.mechanisms.delta_rod
+
+Linkages
+--------
+
+Circle geometry. ``side = 1`` picks the intersection to the left of the
+direction from the first centre to the second. None of the three guards
+an unreachable configuration: a ``sqrt`` or ``acos`` out of range raises
+numerically, exactly as ``solid_node.math`` raises, and is NaN
+symbolically, exactly as OpenSCAD and the viewer are — a guard would
+have to invent a pose that does not exist.
+
+.. autofunction:: solid_node.mechanisms.circle_intersection
+
+.. autofunction:: solid_node.mechanisms.triangle_angle
+
+.. autofunction:: solid_node.mechanisms.link_rise
 
 Testing
 =======

@@ -1018,6 +1018,28 @@ round-half-to-even included, for the same reason. The fixture itself is
 committed in the viewer repository (ADR-068), so widening the vocabulary
 is one change here and one there.
 
+### Mechanisms (MATH · in spec `mechanisms`)
+
+`solid_node/mechanisms/` carries the textbook mechanism laws that a
+project's own `kinematics.py` kept rewriting (ADR-076): the external
+spur-gear mesh and its inverse, the lead screw, the planar slider-crank,
+linear delta kinematics, and the circle geometry a linkage asks for. One
+module per family — `gears`, `screws`, `cranks`, `deltas`, `linkages` —
+with the family's frame, zero and sign stated once at its top, and an
+eager flat re-export whose names are unique across families.
+
+Three properties make it a subsystem rather than a utility drawer. Every
+law is a **composition over `solid_node.math`** and arithmetic, so it has
+that module's numeric and symbolic faces and emits **no OpenSCAD builtin
+the parity corpus above does not already pin** — the `mechanisms` spec
+requires that, so a law wanting a new builtin must go through `math.py`
+first. A gear library's convention enters as **reference angles**
+(`driver_gap`, `driven_tooth`), not as a fork of the law or a read of a
+gear object. And there is **no declared face**: the laws carry degree
+literals the ADR-062 algebra cannot type as angles, so a declared token
+reaching one raises `DimensionError` at class definition, with `.value`
+as the documented way through.
+
 ## Load-bearing invariants
 
 The short list that changes must not silently break:
@@ -1117,6 +1139,7 @@ The short list that changes must not silently break:
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts` | 001–004, 006, 026, 044–045, 047, 053–055, 057 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
+| Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |

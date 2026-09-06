@@ -184,6 +184,26 @@ by a driver-derived angle survives the viewer::
 about=...)`` turns a 2D point about a centre, and ``rotate_x``,
 ``rotate_y`` and ``rotate_z`` turn a 3D point about an axis. All
 degrees, all right-handed, all returning plain tuples.
+Before writing a mechanism out longhand over those functions, look in
+`solid_node.mechanisms`: it carries the laws projects kept rewriting —
+the external spur-gear mesh, the lead screw, the slider-crank, linear
+delta kinematics, and the circle geometry a linkage keeps asking for.
+Each is a composition over `solid_node.math`, so it has that module's
+numeric and symbolic faces — and only those two: a mechanism law carries
+degree literals the dimension algebra cannot type, so unlike the
+functions of `solid_node.math` it has no third, declared face, and
+reaching one from a class body raises there. Each states its frame, its
+zero and its sign in the family module it lives in. See :doc:`the API
+reference <api-reference>`.
+
+The delta is the worked reason the package exists. A rod leaning toward
+a moving effector leans about a direction that the effector's position
+decides — and a `Rotation`'s axis is a *constant*: it cannot carry a
+driver symbol, so ``rotate(angle, computed_axis)`` works in a test and
+fails in the viewer. `delta_rod` therefore returns two rotations about
+constant axes, ``-tilt`` about Y then ``azimuth`` about Z, which is the
+same pose and survives symbolically. That finding cost one project a
+rendered mesh to discover; it is now a docstring.
 
 .. _time-base:
 
