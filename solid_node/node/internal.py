@@ -5,7 +5,8 @@
 import functools
 
 from .base import AbstractBaseNode
-from .declarative import StructureError, declared_child_nodes
+from .declarative import (StructureError, declared_child_nodes,
+                          declared_children)
 from .ports import bind
 from solid2 import union
 
@@ -45,7 +46,7 @@ def _declarative_render(render):
             rendered = render(self)
         finally:
             self.__dict__['_rendering'] = False
-        if rendered is not None or not declared:
+        if rendered is not None or not declared_children(type(self)):
             return rendered
         omitted = frozenset(child.name for child in declared
                             if child._omitted)
@@ -142,8 +143,13 @@ class InternalNode(AbstractBaseNode):
 
         if len(scads) > 1:
             rendered = union()(scads)
-        else:
+        elif scads:
             rendered = scads[0]
+        else:
+            # A non-rigid assembly may contain no present parts. Keep the
+            # ordinary composable result through assemble()/scad_code without
+            # inventing geometry; FusionNode rejects this list in validate().
+            rendered = union()()
 
         return rendered
 

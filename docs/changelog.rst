@@ -56,6 +56,13 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Empty non-rigid assemblies now build as empty groups.** A declarative repeat
+resolved to zero, omission of every declared child, or an explicit empty child
+list now passes through assembly and serialization as ``children: []`` and
+produces no STL for the non-rigid group. A rigid fusion with no selected child
+is rejected during validation because it cannot represent one solid.
+(OpenSpec change ``support-empty-assemblies``; ADR-082.)
+
 **All-model tests now continue after a model fails to build.** During
 ``solid test --all``, a failure while loading, constructing, keyframing,
 rendering, assembling, or generating artifacts is counted once against the

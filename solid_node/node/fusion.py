@@ -47,6 +47,10 @@ class FusionNode(InternalNode):
         """
         super().validate(rendered)
 
+        if not rendered:
+            raise Exception(
+                f'{self.name} must fuse at least one rigid child')
+
         for child in rendered:
             if not child.rigid:
                 raise Exception(

@@ -12,12 +12,14 @@ Structure varies with parameters, never with time: an omitted set that
 changes between renders of one instance raises.
 """
 
+import os
+
 from solid2 import cube
 
 from solid_node.core.serializer import serialize_node
 from solid_node.node import AssemblyNode, FusionNode, Solid2Node
 from solid_node.node.declarative import StructureError
-from solid_node.parameters import Flag, Length
+from solid_node.parameters import Count, Flag, Length
 
 from .base import BaseNodeTest
 from .declarative_project.engine import Cylinders, Engine
@@ -54,6 +56,34 @@ class RenderReturnsNothingTest(BaseNodeTest):
         document = serialize_node(group, lambda rigid: rigid.name)
         self.assertEqual([child['name'] for child in document['children']],
                          ['first', 'second', 'third'])
+
+    def test_a_zero_repeat_is_an_empty_declared_assembly(self):
+        class Rack(AssemblyNode):
+            count = Count(0, min=0)
+            parts = Box().repeat(count)
+
+        rack = Rack()
+
+        self.assertEqual(rack.render(), [])
+        rack.assemble()
+        self.assertEqual(rack.children, [])
+        self.assertEqual(rack.scad_code.strip(), 'union();')
+        self.assertEqual(
+            serialize_node(rack, lambda rigid: rigid.name)['children'], [])
+
+    def test_an_explicit_empty_assembly_keeps_the_list_contract(self):
+        class Empty(AssemblyNode):
+            def render(self):
+                return []
+
+        empty = Empty()
+
+        empty.assemble()
+
+        self.assertEqual(empty.children, [])
+        self.assertEqual(empty.scad_code.strip(), 'union();')
+        self.assertEqual(
+            serialize_node(empty, lambda rigid: rigid.name)['children'], [])
 
     def test_positioning_without_a_return_is_absolute_across_keyframes(self):
         class Spinner(AssemblyNode):
@@ -160,6 +190,25 @@ class OmissionTest(BaseNodeTest):
         self.assertEqual([child['name'] for child in document['children']],
                          ['tower', 'rotor'])
 
+    def test_omitting_every_child_builds_an_empty_assembly(self):
+        class OptionalFixture(AssemblyNode):
+            first = Box()
+            second = Box(size=2.0)
+
+            def render(self):
+                self.first.omit()
+                self.second.omit()
+
+        fixture = OptionalFixture()
+
+        fixture.assemble()
+
+        self.assertEqual(fixture.children, [])
+        self.assertIsNone(fixture.first._parent)
+        self.assertIsNone(fixture.second._parent)
+        self.assertEqual(
+            serialize_node(fixture, lambda rigid: rigid.name)['children'], [])
+
     def test_omission_is_decided_afresh_each_render(self):
         bare = Windmill(guard_installed=False)
 
@@ -240,3 +289,38 @@ class OmissionTest(BaseNodeTest):
 
         for unit in cylinders.units:
             self.assertGreater(unit.piston.mesh.volume, 0)
+
+
+class EmptyFusionTest(BaseNodeTest):
+
+    def assert_fusion_is_refused_without_artifacts(self, fusion):
+        with self.assertRaisesRegex(
+                Exception, rf"{type(fusion).__name__}.*at least one.*child"):
+            fusion.assemble()
+        for path in (fusion.scad_file, fusion.brep_file, fusion.stl_file):
+            self.assertFalse(os.path.exists(path), path)
+
+    def test_an_explicit_empty_fusion_is_refused(self):
+        class EmptyFusion(FusionNode):
+            def render(self):
+                return []
+
+        self.assert_fusion_is_refused_without_artifacts(EmptyFusion())
+
+    def test_a_zero_repeat_fusion_is_refused(self):
+        class EmptyBatch(FusionNode):
+            count = Count(0, min=0)
+            parts = Box().repeat(count)
+
+        self.assert_fusion_is_refused_without_artifacts(EmptyBatch())
+
+    def test_omitting_every_fused_child_is_refused(self):
+        class EmptySelection(FusionNode):
+            first = Box()
+            second = Box(size=2.0)
+
+            def render(self):
+                self.first.omit()
+                self.second.omit()
+
+        self.assert_fusion_is_refused_without_artifacts(EmptySelection())

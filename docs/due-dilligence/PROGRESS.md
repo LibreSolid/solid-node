@@ -25,7 +25,8 @@ the order below.
   — OpenSpec change `normalize-scaffold-identifiers`.
 - [x] [F09 — Multi-model tests stop on build failures despite the continuation contract](README.md#f09--multi-model-tests-stop-on-build-failures-despite-the-continuation-contract)
   — OpenSpec change `continue-all-model-tests-after-build-failure`.
-- [ ] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)
+- [x] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)
+  — OpenSpec change `support-empty-assemblies`; ADR-082.
 - [ ] [F11 — Invalid simulation time inputs can silently bypass checks](README.md#f11--invalid-simulation-time-inputs-can-silently-bypass-checks)
 
 ## Documentation and process inconsistencies
@@ -46,4 +47,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **F10**.
+Next framework finding by priority and order: **F11**.

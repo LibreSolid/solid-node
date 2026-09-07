@@ -347,6 +347,20 @@ The all-model selection phase catches reference-resolution errors, but the execu
 
 **Location:** [solid_node/node/internal.py:40–49](../../solid_node/node/internal.py#L40) and [143–146](../../solid_node/node/internal.py#L143).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`support-empty-assemblies` and ADR-082. Declarative substitution now consults
+class-level child metadata, so a zero repeat remains declared structure and
+renders as `[]`. Internal composition carries zero children as an empty SCAD
+group; a non-rigid assembly assembles and serializes with `children: []` and
+produces no STL of its own. An empty rigid fusion is instead rejected during
+validation with a diagnostic naming the fusion and its requirement for at
+least one rigid child. Direct declarative coverage passed 20 tests, and the
+focused lifecycle/document set passed 155 tests. The saved public probe's
+zero-child build now exits 0 and records non-rigid STL generation as a no-op.
+The complete suite passed 1,630 tests with 16 skipped, 44 warnings, and 274
+passing subtests. The original evidence below remains the pre-fix audit
+record.
+
 `RepeatDeclaration.realize()` accepts zero, but `_declarative_render()` treats an empty realized child list as absence of declarations and returns `None` unchanged. The assembly validator then rejects it. A second empty-list failure exists downstream: `as_scad()` indexes `scads[0]` when there are no children.
 
 **Reproduction:** Declare an assembly with:

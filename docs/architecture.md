@@ -147,7 +147,10 @@ the same `__init_subclass__` hook that installs the lifecycle —
 substitutes the realized declared children in declaration order minus
 those `omit()` marked; a returned list keeps its contract untouched,
 and a class with nothing to position needs no `render()` at all
-(ADR-064). An omitted child is not linked, built, exported, fused or
+(ADR-064). Declaration is independent of realized count: a zero repeat or
+omission of every child substitutes `[]`, which an assembly carries through
+its ordinary lifecycle and serializes explicitly as `children: []`
+(ADR-082). An omitted child is not linked, built, exported, fused or
 serialized. Structure varies with parameters, never with time: `omit()`
 raises in `simulate()`, and on the legacy path the wrapper records the
 omitted set of an instance's first render and raises on a later render
@@ -158,7 +161,10 @@ Two concrete internal nodes encode the **rigid/non-rigid** axis
 (ADR-003): `FusionNode` (rigid union, no `time`) and `AssemblyNode`
 (non-rigid, animatable). Rigidity is static and determined by node type;
 a fusion rejects any non-rigid child during validation, enforcing "fuse
-solids, then assemble them" (ADR-039). Only rigid nodes produce STLs, which
+solids, then assemble them" (ADR-039). An empty assembly is valid grouping
+and produces no STL of its own; an empty fusion is rejected before artifact
+generation because a rigid fusion must denote at least one solid (ADR-082).
+Only rigid nodes produce STLs, which
 is why cached geometry must be time-invariant. A topmost rigid node is the
 first rigid node on a branch below an assembly, or a rigid root itself; its
 STL is the complete printed solid for that branch.
@@ -1270,8 +1276,8 @@ The short list that changes must not silently break:
 
 | Subsystem | Code | Spec capability | ADRs |
 |---|---|---|---|
-| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079 |
-| Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
+| Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
+| Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 080, 081 |
