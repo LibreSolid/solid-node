@@ -1,0 +1,97 @@
+{
+  "build": {
+    "renderer_failure": {
+      "exitcode": 0,
+      "stls": [
+        [
+          "_build/design/part-Part-8570a2e1669f.stl",
+          0
+        ]
+      ],
+      "published": true,
+      "errors": false,
+      "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.scad generated with 1788740941.3286119!\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 588230\n INFO -    core.builder - Building /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl by pid 588230\n INFO -       node.base - waiting for /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl ...\nERROR: Assertion 'false' failed: \"audit deliberate failure\" in file part-Part-8570a2e1669f.scad, line 1\nTRACE: called by 'assert' in file part-Part-8570a2e1669f.scad, line 1\nTRACE: called by 'part' in file part-Part-8570a2e1669f.scad, line 4\nGeometries in cache: 1\nGeometry cache size in bytes: 0\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\nCurrent top level object is empty.\n INFO -       node.base - /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl done!\n INFO -       node.base - /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl generated with 1788740941.3286119!\n INFO -    core.builder - /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl done!\n INFO -    core.builder - START\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\nWARNING -     core.pieces - Could not derive geometry facts for /tmp/solid-audit-pwqcp8m7/renderer/_build/design/part-Part-8570a2e1669f.stl\nTraceback (most recent call last):\n  File \"/home/asa/devel/libresolid-studio/solid-node/WTs/due-dilligence/solid_node/core/pieces.py\", line 69, in _geometry_facts\n    size = [float(value) for value in mesh.extents]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'NoneType' object is not iterable\n"
+    },
+    "stale_error": {
+      "first_exit": 0,
+      "rebuild_exit": 0,
+      "errors_remain": true,
+      "models": "{\"root\": \"/tmp/solid-audit-pwqcp8m7/errors\", \"build_root\": \"/tmp/solid-audit-pwqcp8m7/errors/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"design.part:Part\", \"default\": true, \"build_dir\": \"/tmp/solid-audit-pwqcp8m7/errors/_build\", \"state\": \"failed\"}]}\n"
+    },
+    "external_export": {
+      "exitcode": 0,
+      "model": "models/../errors/_build/design/part-Part-8570a2e1669f.stl",
+      "files": [
+        "errors/_build/design/part-Part-8570a2e1669f.stl",
+        "renderer/_build/design/part-Part-8570a2e1669f.stl",
+        "exported/errors/_build/design/part-Part-8570a2e1669f.stl"
+      ],
+      "stderr": " INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -     core.export - /tmp/solid-audit-pwqcp8m7/errors/_build/design/part-Part-8570a2e1669f.stl -> /tmp/solid-audit-pwqcp8m7/exported/models/../errors/_build/design/part-Part-8570a2e1669f.stl\n INFO -     core.export - /tmp/solid-audit-pwqcp8m7/exported/manifest.json written\n"
+    },
+    "cleanup": {
+      "notes_survive": false,
+      "backup_survives": false
+    },
+    "numeric_scaffold": {
+      "new_exit": 0,
+      "build_exit": 1,
+      "source": "from solid_node.node import Solid2Node\nfrom solid2 import cube, cylinder, translate\n\nclass 3dPrinter(Solid2Node):\n\n    def render(self):\n        return translate(-25, -25, 0)(\n            cube(50, 50, 50)\n        ) - cylinder(r=10, h=100)\n",
+      "stderr": " line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 991, in exec_module\n  File \"<frozen importlib._bootstrap_external>\", line 1129, in get_code\n  File \"<frozen importlib._bootstrap_external>\", line 1059, in source_to_code\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\n  File \"/tmp/solid-audit-pwqcp8m7/3d_printer/3d_printer/3d_printer.py\", line 4\n    class 3dPrinter(Solid2Node):\n          ^\nSyntaxError: invalid decimal literal\n"
+    },
+    "mtime_collision": {
+      "first_exit": 0,
+      "rebuild_exit": 0,
+      "before_volume": 1.0,
+      "after_volume": 1.0,
+      "expected_volume": 8000
+    },
+    "watch_events": {
+      "modified:/project/part.py": true,
+      "modified:/project/part.scad": false,
+      "modified:/project/part.stl": false,
+      "modified:/project/part.step": false,
+      "modified:/project/part.js": false,
+      "moved:/project/part.tmp": false
+    }
+  },
+  "additional": {
+    "export_escape": {
+      "exitcode": 0,
+      "model": "models/../../../_build/design/part-Part-8570a2e1669f.stl",
+      "outside_output": true,
+      "target_exists": true,
+      "target": "exports/_build/design/part-Part-8570a2e1669f.stl"
+    },
+    "zero_children": {
+      "exitcode": 1,
+      "stderr": " INFO -    core.builder - START\nERROR -    core.builder - design.part:Rack: failed to assemble project: <class 'design.part.Rack'>.render() should return a list, not <class 'NoneType'>\n"
+    },
+    "test_all": {
+      "exitcode": 1,
+      "second_ran": false,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/home/asa/devel/libresolid-studio/solid-node/WTs/due-dilligence/solid_node/cli.py\", line 160, in manage\n    command.handle(args)\n  File \"/home/asa/devel/libresolid-studio/solid-node/WTs/due-dilligence/solid_node/manager/test.py\", line 135, in handle\n    self.node = self.build_node(reference)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/asa/devel/libresolid-studio/solid-node/WTs/due-dilligence/solid_node/manager/test.py\", line 211, in build_node\n    rendered = node.render()\n               ^^^^^^^^^^^^^\n  File \"/tmp/solid-audit-more-ah994j1f/all/design/part.py\", line 9, in render\n    raise RuntimeError(\"intentional broken first model\")\nRuntimeError: intentional broken first model\n"
+    },
+    "lock_bypass": {
+      "stl_written_while_locked": true,
+      "child_still_running": true,
+      "stl_sizes": [
+        684
+      ],
+      "exitcode": 0
+    },
+    "negative_dt": {
+      "tick": 0,
+      "checks_run": 0,
+      "scheduled": [
+        -1
+      ]
+    },
+    "zero_instruction": {
+      "state_at_trigger": {
+        "x": 0
+      },
+      "node_x": 0
+    }
+  }
+}

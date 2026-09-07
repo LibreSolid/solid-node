@@ -1,0 +1,26 @@
+Reviewed commit: fa977ac9f3621e8a56ab33ff3f80ca04e6498089
+Date: 2026-09-07 UTC
+Worktree: WTs/due-dilligence (branch due-dilligence)
+
+Command, run from worktree root:
+PYTHONPATH=. xvfb-run -a /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q --tb=short
+
+Result:
+1524 passed, 14 skipped, 38 warnings, 258 subtests passed in 203.10s (0:03:23)
+
+Skip conditions inspected at collection:
+13: sphinx not installed
+1: set SOLID_NODE_WEB_SNAPSHOT_E2E=1 to photograph through the installed viewer
+
+Environment:
+Python 3.12.3; Linux
+OpenSCAD 2021.01
+cadquery 2.7.0; build123d 0.10.0; trimesh 4.4.9
+numpy 2.2.6; molejo 0.2.0; watchdog 6.0.0; pytest 9.1.1
+Viewer entry point installed: yes
+
+Audit probes:
+probe_build.py: completed, observed current defects (see evidence.json/build)
+probe_additional.py: completed, observed current defects (see evidence.json/additional)
+The probes print observations; an exit status of zero means the probe completed,
+not that the implementation satisfies the intended behavior.
