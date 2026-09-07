@@ -100,9 +100,15 @@ an identical inventory.
 
 #### Scenario: Rebuilding an unchanged model changes nothing
 
-- **WHEN** a build runs again with no source change
+- **WHEN** a build runs again with no source change and no prior build error
 - **THEN** the published document is byte-identical to the previous one and no
   consumer is notified of new work
+
+#### Scenario: Recovering failure state preserves the document
+
+- **WHEN** an unchanged successful build clears a prior build error
+- **THEN** the published document and piece inventory remain byte-identical
+  while the recovery can be reported as a publication-state change
 
 ### Requirement: The inventory is additive to the published document
 

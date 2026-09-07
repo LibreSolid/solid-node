@@ -19,7 +19,8 @@ the order below.
   — OpenSpec change `guard-source-set-currency`; ADR-081.
 - [x] [F06 — Changes to non-Python source files never trigger reload](README.md#f06--changes-to-non-python-source-files-never-trigger-reload)
   — OpenSpec change `watch-all-tracked-sources`.
-- [ ] [F07 — Successful rebuilds can leave `solid models` reporting failure](README.md#f07--successful-rebuilds-can-leave-solid-models-reporting-failure)
+- [x] [F07 — Successful rebuilds can leave `solid models` reporting failure](README.md#f07--successful-rebuilds-can-leave-solid-models-reporting-failure)
+  — OpenSpec change `clear-recovered-build-errors`.
 - [ ] [F08 — `solid new 3d-printer` creates an unusable project](README.md#f08--solid-new-3d-printer-creates-an-unusable-project)
 - [ ] [F09 — Multi-model tests stop on build failures despite the continuation contract](README.md#f09--multi-model-tests-stop-on-build-failures-despite-the-continuation-contract)
 - [ ] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)

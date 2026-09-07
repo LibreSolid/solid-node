@@ -64,6 +64,39 @@ class BuilderLifecycleTest(TestCase):
         self.builder._write_viewer_snapshot()
         self.assertFalse(os.path.exists(os.path.join(self.root, 'errors.json')))
 
+    def test_unchanged_snapshot_clears_error_without_rewriting_document(self):
+        artifact = os.path.join(self.root, 'part.stl')
+        open(artifact, 'w').write('current')
+        self.builder.node = SimpleNamespace(
+            rigid=True, name='part', _type='SolidNode', color=None, mtime=0,
+            operations=(), stl_file=artifact)
+        self.assertTrue(self.builder._write_viewer_snapshot())
+        document = os.path.join(self.root, 'viewer.json')
+        with open(document, 'rb') as stream:
+            before = stream.read()
+        before_mtime_ns = os.stat(document).st_mtime_ns
+        write_error('previous', self.root)
+
+        changed = self.builder._write_viewer_snapshot()
+
+        self.assertTrue(changed)
+        self.assertFalse(os.path.exists(os.path.join(self.root, 'errors.json')))
+        with open(document, 'rb') as stream:
+            self.assertEqual(stream.read(), before)
+        self.assertEqual(os.stat(document).st_mtime_ns, before_mtime_ns)
+
+    def test_document_construction_failure_preserves_previous_error(self):
+        write_error('previous', self.root)
+        self.builder.node = Mock()
+
+        with patch('solid_node.core.builder.serialize_node',
+                   side_effect=RuntimeError('cannot serialize')):
+            with self.assertRaisesRegex(RuntimeError, 'cannot serialize'):
+                self.builder._write_viewer_snapshot()
+
+        with open(os.path.join(self.root, 'errors.json')) as stream:
+            self.assertEqual(json.load(stream)['error'], 'previous')
+
     def test_error_file_is_valid_json_while_replaced(self):
         for index in range(20):
             write_error(f'failure {index}', self.root)
@@ -291,6 +324,40 @@ class RedundantAndSupersededBuildTest(TestCase):
         self.assertEqual(os.stat(document).st_mtime_ns, before,
                          'a redundant build rewrote the document')
         callback.assert_not_called()
+
+    def test_recovered_error_notifies_after_releasing_build_lock(self):
+        builder, node = self.build_fixture(artifact_current=True)
+        document = self.publish_matching_document(builder, node)
+        before_mtime_ns = os.stat(document).st_mtime_ns
+        write_error('previous', builder.build_dir)
+        lock_held = []
+        notifications = []
+
+        @contextmanager
+        def recording_lock(build_dir=None):
+            lock_held.append(True)
+            try:
+                yield
+            finally:
+                lock_held.pop()
+
+        def notify():
+            self.assertFalse(lock_held)
+            notifications.append('recovered')
+
+        with patch('solid_node.core.builder.load_node', return_value=node), \
+             patch('solid_node.core.builder.project_build_lock',
+                   recording_lock), \
+             patch.object(builder, 'generate_stl') as generate, \
+             patch.object(builder, '_notify_callback', side_effect=notify):
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.CURRENT)
+        generate.assert_not_called()
+        self.assertEqual(notifications, ['recovered'])
+        self.assertFalse(os.path.exists(os.path.join(
+            builder.build_dir, 'errors.json')))
+        self.assertEqual(os.stat(document).st_mtime_ns, before_mtime_ns)
 
     def test_a_current_artifact_still_republishes_a_stale_document(self):
         """The pass that renders an artifact exits before writing the

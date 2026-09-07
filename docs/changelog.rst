@@ -56,6 +56,14 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Successful unchanged builds now clear prior failure status.** A complete
+build removes ``errors.json`` after constructing its viewer document even when
+those document bytes already match the published snapshot. The snapshot stays
+untouched, while ``solid models`` transitions from ``failed`` to ``published``.
+Development callbacks report that recovery after the build lock is released;
+a true no-op with no prior error remains silent. (OpenSpec change
+``clear-recovered-build-errors``.)
+
 **Development watches now rebuild for every tracked source.** After successful
 assembly, modifications to explicitly tracked OpenSCAD, JSCAD, STL, STEP, and
 Python sources all end the current builder pass so the develop loop can reload

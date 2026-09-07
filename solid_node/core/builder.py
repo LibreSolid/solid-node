@@ -207,10 +207,12 @@ def prepare_build_dir(build_dir=None):
 
 
 def clear_errors(build_dir=None):
-    """Clear any existing error file"""
+    """Clear any existing error file and report a recovered failure state."""
     errors_file = get_errors_file(build_dir)
     if os.path.exists(errors_file):
         os.remove(errors_file)
+        return True
+    return False
 
 
 def write_error(error_message, build_dir=None):
@@ -438,8 +440,9 @@ class Builder(FileSystemEventHandler):
     def _write_viewer_snapshot(self):
         """Record the source-backed viewer tree beside a completed build.
 
-        Returns whether this made anything new reachable, so a build that
-        found everything already published notifies nobody.
+        Returns whether externally visible publication state changed. A new
+        document or recovery from a prior error is observable; a build that
+        found the same successful state already published notifies nobody.
 
         Serialized in symbolic driver mode, the same guarantee export
         makes: the published document describes the machine, not the
@@ -475,10 +478,10 @@ class Builder(FileSystemEventHandler):
         snapshot['root'] = root
         snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
+        recovered = clear_errors(self.build_dir)
         if self._published_document() == document:
-            return False
+            return recovered
         # An old error must be gone before this manifest exposes new work.
-        clear_errors(self.build_dir)
         atomic_write(os.path.join(self.build_dir, 'viewer.json'), document)
         self._sweep_unreferenced_artifacts(snapshot)
         return True

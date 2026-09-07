@@ -266,6 +266,20 @@ The builder watches each file in `node.files`, but its modification handler reje
 
 **Location:** [solid_node/core/builder.py:457–461](../../solid_node/core/builder.py#L457).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`clear-recovered-build-errors`. Snapshot publication now constructs the full
+document before clearing prior failure state, then reports recovery even when
+the document already matches `viewer.json`. That recovery invokes the existing
+development callback after the project lock is released; a true no-op with no
+prior error remains silent. Focused publication, lifecycle, CLI, and model
+status coverage passed 86 tests with 17 passing subtests. The saved public
+probe now observes both builds exiting 0, `errors.json` removed, and `solid
+models --json` reporting `"state": "published"`. No new ADR was needed: the
+change fills the unchanged-document case in ADR-038's error/publication order
+and uses ADR-031's existing completed-publication callback boundary. The
+complete suite passed 1,547 tests with 16 skipped, 39 warnings, and 263 passing
+subtests. The original evidence below remains the pre-fix audit record.
+
 `_write_viewer_snapshot()` returns immediately when its serialized document equals the existing one. `clear_errors()` comes after that return, so an unchanged successful result cannot clear a previous failure.
 
 **Reproduction:** Build a valid cube, place a previous transient failure in `_build/errors.json`, and run `solid build` again without modifying the model. The rebuild exits **0**, but `errors.json` survives and `solid models --json` reports **`"state": "failed"`**. The injected error file isolates recovery from the unrelated causes of a transient failure.
