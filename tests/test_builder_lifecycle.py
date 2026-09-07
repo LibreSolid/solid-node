@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 
 from trimesh.creation import box
 from trimesh.util import concatenate
+from watchdog.events import DirModifiedEvent, FileModifiedEvent
 
 from solid_node.core.builder import (Builder, BuildOutcome, atomic_write,
                                      write_error)
@@ -68,6 +69,57 @@ class BuilderLifecycleTest(TestCase):
             write_error(f'failure {index}', self.root)
             with open(os.path.join(self.root, 'errors.json')) as output:
                 self.assertEqual(json.load(output)['error'], f'failure {index}')
+
+
+class BuilderWatchDispatchTest(TestCase):
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.loop = asyncio.new_event_loop()
+        self.addCleanup(self.loop.close)
+        self.builder = Builder('model.py', build_dir=self.root)
+        self.builder.loop = self.loop
+
+    def dispatch(self, event):
+        self.builder.file_changed = self.loop.create_future()
+        self.builder.dispatch(event)
+        self.loop.run_until_complete(asyncio.sleep(0))
+        return self.builder.file_changed.done()
+
+    def test_every_precisely_watched_source_extension_triggers_reload(self):
+        sources = [os.path.join(self.root, f'part{extension}')
+                   for extension in ('.py', '.scad', '.js', '.stl', '.step')]
+        self.builder._watched_sources = {
+            os.path.realpath(source) for source in sources
+        }
+
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertTrue(self.dispatch(FileModifiedEvent(source)))
+
+    def test_broad_watch_filters_non_python_bytecode_and_directories(self):
+        self.builder._watched_sources = set()
+
+        self.assertTrue(self.dispatch(FileModifiedEvent(
+            os.path.join(self.root, 'part.py'))))
+        self.assertFalse(self.dispatch(FileModifiedEvent(
+            os.path.join(self.root, 'part.stl'))))
+        self.assertFalse(self.dispatch(FileModifiedEvent(
+            os.path.join(self.root, '__pycache__', 'part.py'))))
+        self.assertFalse(self.dispatch(DirModifiedEvent(self.root)))
+
+    def test_duplicate_precise_events_are_harmless(self):
+        source = os.path.join(self.root, 'part.stl')
+        self.builder._watched_sources = {os.path.realpath(source)}
+        self.builder.file_changed = self.loop.create_future()
+
+        event = FileModifiedEvent(source)
+        self.builder.dispatch(event)
+        self.builder.dispatch(event)
+        self.loop.run_until_complete(asyncio.sleep(0))
+
+        self.assertTrue(self.builder.file_changed.done())
 
 
 class FakeNode:

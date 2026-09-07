@@ -23,6 +23,8 @@ import tempfile
 import time
 from unittest import TestCase
 
+from trimesh.creation import box
+
 from solid_node.core.builder import Builder, get_errors_file
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,7 +65,8 @@ class SimplePipe(Solid2Node):
 '''
 
 
-def _run_builder(project_root, build_dir, is_reload):
+def _run_builder(project_root, build_dir, is_reload,
+                 path='flat_project/simple_pipe.py'):
     """Target for the child process: chdir into the scratch project
     root and run one Builder attempt, mirroring how Develop.handle()
     invokes Builder(self.path, is_reload=...).start() in production.
@@ -79,7 +82,7 @@ def _run_builder(project_root, build_dir, is_reload):
     os.chdir(project_root)
     sys.path.insert(0, project_root)
     os.environ['SOLID_BUILD_DIR'] = build_dir
-    Builder('flat_project/simple_pipe.py', is_reload=is_reload).start()
+    Builder(path, is_reload=is_reload).start()
 
 
 class BuilderReloadResilienceTest(TestCase):
@@ -217,3 +220,61 @@ class BuilderReloadResilienceTest(TestCase):
         self.assertFalse(proc.is_alive(),
                           "startup attempt hung instead of exiting cleanly")
         self.assertNotEqual(proc.exitcode, 0)
+
+
+class ImportedStlWatchTest(TestCase):
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='solid_node_stl_watch_test_')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        package = os.path.join(self.root, 'parts')
+        os.makedirs(package)
+        with open(os.path.join(package, '__init__.py'), 'w') as stream:
+            stream.write('')
+        with open(os.path.join(package, 'bracket.py'), 'w') as stream:
+            stream.write(
+                'from solid_node.node import StlNode\n'
+                'class Bracket(StlNode):\n'
+                '    stl_source = "bracket.stl"\n')
+        self.source = os.path.join(package, 'bracket.stl')
+        box().export(self.source, file_type='stl')
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as stream:
+            stream.write('[tool.solid-node]\n'
+                         'model = "parts.bracket:Bracket"\n')
+        self.build_dir = os.path.join(self.root, '_build')
+        self.proc = None
+
+    def tearDown(self):
+        if self.proc is not None and self.proc.is_alive():
+            self.proc.terminate()
+        if self.proc is not None:
+            self.proc.join(timeout=10)
+
+    def wait_until(self, predicate, timeout=15, interval=0.1):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if predicate():
+                return True
+            time.sleep(interval)
+        return predicate()
+
+    def test_modifying_tracked_stl_ends_the_builder_watch(self):
+        self.proc = multiprocessing.Process(
+            target=_run_builder,
+            args=(self.root, self.build_dir, False, 'parts/bracket.py'),
+        )
+        self.proc.start()
+
+        snapshot = os.path.join(self.build_dir, 'viewer.json')
+        self.assertTrue(self.wait_until(
+            lambda: os.path.exists(snapshot) and self.proc.is_alive()),
+            'builder never published and entered its watch')
+
+        with open(self.source, 'ab') as stream:
+            stream.write(b'\n')
+
+        self.proc.join(timeout=5)
+        self.assertFalse(
+            self.proc.is_alive(),
+            'builder ignored a modification to its tracked STL source')
+        self.assertEqual(self.proc.exitcode, 0)

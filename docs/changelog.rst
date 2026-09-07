@@ -56,6 +56,13 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Development watches now rebuild for every tracked source.** After successful
+assembly, modifications to explicitly tracked OpenSCAD, JSCAD, STL, STEP, and
+Python sources all end the current builder pass so the develop loop can reload
+the model. The recursive recovery watch used after a failed load remains
+limited to Python sources outside ``__pycache__`` to avoid rebuild noise.
+(OpenSpec change ``watch-all-tracked-sources``.)
+
 **Every tracked source now guards artifact currency.** A settled artifact must
 match both the maximum source timestamp and a recorded metadata fingerprint of
 each contributing file, so an edit to an older dependency cannot be hidden by

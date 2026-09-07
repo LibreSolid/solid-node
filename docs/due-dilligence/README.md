@@ -237,6 +237,23 @@ Currency compares the artifact timestamp with the **maximum** timestamp of all t
 
 **Location:** [solid_node/core/builder.py:302–305](../../solid_node/core/builder.py#L302) and [581–594](../../solid_node/core/builder.py#L581).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`watch-all-tracked-sources`. A successful assembly now records normalized real
+paths for every precisely watched source, and any modification to one of those
+paths triggers the existing thread-safe rebuild signal regardless of its file
+extension. Events outside that set retain the recursive recovery watch's
+Python-only and `__pycache__` filters. The red run rejected four tracked
+geometry extensions and left a live imported-STL builder waiting after its
+mesh changed. After correction, 165 focused lifecycle, recovery, source-set,
+and adapter tests passed with 7 passing subtests; the live process exited on
+the STL edit, and the saved probe reports `true` for tracked `.py`, `.scad`,
+`.js`, `.stl`, and `.step` modifications while the out-of-scope move remains
+`false`. The complete suite passed 1,544 tests with 16 skipped, 39 warnings,
+and 263 passing subtests. The original evidence below remains the pre-fix audit
+record. No new ADR was needed: the correction makes the handler honor the
+individual tracked-source watch already accepted in ADR-007 and leaves that
+architecture unchanged.
+
 The builder watches each file in `node.files`, but its modification handler rejects every path that does not end in `.py`. The comment assumes the precise source list contains only Python files; OpenSCAD, JSCAD, imported STL, and STEP adapters invalidate that assumption.
 
 **Reproduction:** Dispatch real watchdog `FileModifiedEvent` objects through a builder with an asyncio future. A `.py` modification resolves the future; modifications to `.scad`, `.js`, `.stl`, and `.step` do not.

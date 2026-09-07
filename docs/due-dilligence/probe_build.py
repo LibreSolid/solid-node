@@ -83,6 +83,13 @@ with tempfile.TemporaryDirectory(prefix='solid-audit-') as directory:
     loop = asyncio.new_event_loop()
     builder = Builder('design.part:Part', build_dir=str(base / 'watch'))
     builder.loop = loop
+    precise_sources = [
+        '/project/part.py', '/project/part.scad', '/project/part.stl',
+        '/project/part.step', '/project/part.js',
+    ]
+    builder._watched_sources = {
+        os.path.realpath(path) for path in precise_sources
+    }
     observed = {}
     for event in [FileModifiedEvent('/project/part.py'), FileModifiedEvent('/project/part.scad'), FileModifiedEvent('/project/part.stl'), FileModifiedEvent('/project/part.step'), FileModifiedEvent('/project/part.js'), FileMovedEvent('/project/part.tmp', '/project/part.py')]:
         builder.file_changed = loop.create_future()

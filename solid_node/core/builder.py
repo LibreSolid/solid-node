@@ -223,7 +223,7 @@ def write_error(error_message, build_dir=None):
 
 
 class Builder(FileSystemEventHandler):
-    """Monitors .py files. On any change, generate STLs and exit"""
+    """Monitor model sources. On any relevant change, exit for a rebuild."""
     def __init__(self, path, is_reload=False, build_dir=None,
                  watch=True, callback=None,
                  lifecycle=False, overrides=None):
@@ -248,6 +248,7 @@ class Builder(FileSystemEventHandler):
         self.lifecycle = lifecycle
 
         self.file_changed = None
+        self._watched_sources = set()
         self.observer = Observer()
 
     def start(self):
@@ -308,6 +309,9 @@ class Builder(FileSystemEventHandler):
                 return BuildOutcome.SOURCE_CHANGED
 
             if assembly_failure is None and self.watch:
+                self._watched_sources = {
+                    os.path.realpath(path) for path in self.node.files
+                }
                 for path in self.node.files:
                     self.observer.schedule(self, path, recursive=False)
                 self.observer.start()
@@ -395,6 +399,7 @@ class Builder(FileSystemEventHandler):
         the node (the reload itself failed before we could find out):
         watch the whole project directory recursively so a subsequent
         fix is still detected."""
+        self._watched_sources.clear()
         watch_dir = os.path.dirname(os.path.realpath(self.path)) or '.'
         self.observer.schedule(self, watch_dir, recursive=True)
 
@@ -598,12 +603,13 @@ class Builder(FileSystemEventHandler):
         for the process to exit"""
         if event.is_directory:
             return
-        if not event.src_path.endswith('.py') or '__pycache__' in event.src_path:
-            # Only relevant under the broad fallback watch (_watch_broadly),
-            # which recurses over a whole directory instead of the
-            # precise, already-.py-only file list: filter out bytecode
-            # cache writes and other noise so they can't trigger a
-            # reload loop.
+        source = os.path.realpath(event.src_path)
+        if (source not in self._watched_sources and
+                (not source.endswith('.py') or '__pycache__' in source)):
+            # A precisely watched path is already known to affect the model,
+            # whatever its extension. Events outside that set can only come
+            # from the broad recovery watch, where unrelated files and
+            # bytecode writes must not trigger a reload loop.
             return
         logger.info(f'{event.src_path} changed, reloading')
         self.loop.call_soon_threadsafe(self._resolve_file_changed)
