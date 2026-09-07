@@ -32,7 +32,8 @@ the order below.
 
 ## Documentation and process inconsistencies
 
-- [ ] [C01 — Assertion documentation promises more than vertex sampling proves](README.md#c01--assertion-documentation-promises-more-than-vertex-sampling-proves)
+- [x] [C01 — Assertion documentation promises more than vertex sampling proves](README.md#c01--assertion-documentation-promises-more-than-vertex-sampling-proves)
+  — corrected the assertion descriptions and documented their sampling limit.
 - [ ] [C02 — Browser capture instructions omit the required opt-in](README.md#c02--browser-capture-instructions-omit-the-required-opt-in)
 - [ ] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
 - [ ] **C04 — Audit scaffolded viewer next-step guidance.** The generated
@@ -48,4 +49,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **C01**.
+Next framework finding by priority and order: **C02**.

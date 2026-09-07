@@ -408,6 +408,14 @@ These are distinct from the reproduced implementation defects above.
 
 ### C01 — Assertion documentation promises more than vertex sampling proves
 
+**Resolution:** Corrected on the `due-dilligence` branch. The assertion list
+now says exactly that `assertInside`, `assertClose`, and `assertFar` sample the
+second mesh's vertices against the first mesh. It calls out density,
+direction, edge, face, and concavity limits; states that no whole-surface
+containment assertion exists; and directs overlap, assembly-clash, and
+connectivity questions to their whole-geometry assertions. The implementation
+and test-framework contract were already consistent and did not change.
+
 [docs/testing.rst:285–289](../testing.rst#L285) says `assertInside` proves complete containment and that `assertClose`/`assertFar` constrain every point. The [implementation](../../solid_node/test.py#L1263) samples only the second mesh's vertices, exactly as the [test-framework specification](../../openspec/specs/test-framework/spec.md#requirement-mesh-assertions) explicitly requires. Faces can cross a concavity or another object while their vertices satisfy the sampled predicate. This is an overstatement in the user documentation, not a claim that the implementation violates its present sampling spec. Describe the sampling limitation and direct whole-solid claims to suitable geometric assertions.
 
 ### C02 — Browser capture instructions omit the required opt-in

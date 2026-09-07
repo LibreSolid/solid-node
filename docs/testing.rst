@@ -282,15 +282,27 @@ provides mesh assertions for fits and clearances:
 
 * `assertNotIntersecting(node1, node2)` — the two meshes do not overlap
 * `assertIntersecting(node1, node2)` — the two meshes have some overlap
-* `assertInside(node1, node2)` — node2 is completely inside node1
-* `assertClose(node1, node2, max_distance)` — every point of node2 is at
-  most `max_distance` away from node1
-* `assertFar(node1, node2, min_distance)` — every point of node2 is at
-  least `min_distance` away from node1
+* `assertInside(node1, node2)` — every mesh vertex of node2 is classified
+  inside node1
+* `assertClose(node1, node2, max_distance)` — every mesh vertex of node2 is
+  at most `max_distance` away from node1's mesh surface
+* `assertFar(node1, node2, min_distance)` — every mesh vertex of node2 is at
+  least `min_distance` away from node1's mesh surface
 * `assertIntersectVolumeAbove(node1, node2, min_volume)` — the overlap
   volume is above `min_volume`
 * `assertIntersectVolumeBelow(node1, node2, max_volume)` — the overlap
   volume is below `max_volume`
+
+``assertInside``, ``assertClose`` and ``assertFar`` sample node2's vertices;
+they do not inspect points along its edges or faces. Their result therefore
+depends on mesh density and direction, and by itself does not prove
+whole-solid containment or a bound between every pair of surface points. This
+matters especially for coarse meshes and concave boundaries. Use the
+intersection and intersection-volume assertions when the contract concerns
+overlap between a named pair, ``assertNoSolidInterference`` for clashes among
+the topmost rigid solids of an assembly, and ``assertNoDisconnectedSolids``
+for connectedness of each printed solid. There is currently no whole-surface
+containment assertion.
 
 Perturbation assertions
 -----------------------
