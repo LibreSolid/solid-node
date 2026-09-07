@@ -65,8 +65,8 @@ The reproductions and observed output are retained:
 Run the scripts with the project's development Python, from the repository root:
 
 ```bash
-python docs/due-dilligence/probe_build.py
-python docs/due-dilligence/probe_additional.py
+python workflow/archive/due-dilligence-2026-09-07/probe_build.py
+python workflow/archive/due-dilligence-2026-09-07/probe_additional.py
 ```
 
 They create and remove their own temporary projects. Their exit code reports whether the probe completed; the JSON records the behavior observed, so these are observation probes rather than assertion-based regression tests. As fixes land, current probe output can differ from the original [evidence.json](evidence.json). Paths in that recorded evidence identify temporary directories that have since been removed. Watcher evidence is at event-dispatch level; the locking probe uses a real held `flock` and CLI subprocess.
@@ -91,7 +91,7 @@ P1 means data loss, incorrect published geometry, or a broken concurrency/output
 
 ## F01 — Failed renderer output is committed as successful geometry
 
-**Location:** [solid_node/node/base.py:1075–1086](../../solid_node/node/base.py#L1075), with the temporary file created at [line 856](../../solid_node/node/base.py#L856).
+**Location:** [solid_node/node/base.py:1075–1086](../../../solid_node/node/base.py#L1075), with the temporary file created at [line 856](../../../solid_node/node/base.py#L856).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `reject-failed-openscad-render`. A nonzero OpenSCAD exit now fails the build,
@@ -117,13 +117,13 @@ module part() {
 
 Run `solid build`. OpenSCAD reports the assertion failure, but the command exits **0**, publishes `viewer.json`, leaves no `errors.json`, and publishes an STL of **0 bytes**. The piece inventory logs a warning rather than rejecting publication.
 
-**Impact:** A build consumer receives a success signal with unusable geometry. On the same failure path, an existing good artifact can be replaced by the failed output. This contradicts the [one-shot build outcome contract](../../openspec/specs/one-shot-build-and-notification/spec.md) and the [artifact publication contract](../../openspec/specs/build-pipeline/spec.md).
+**Impact:** A build consumer receives a success signal with unusable geometry. On the same failure path, an existing good artifact can be replaced by the failed output. This contradicts the [one-shot build outcome contract](../../../openspec/specs/one-shot-build-and-notification/spec.md) and the [artifact publication contract](../../../openspec/specs/build-pipeline/spec.md).
 
-**Recommended correction and proof:** Check the renderer's exit status before publishing, propagate a failed build outcome, retain the previous artifact, and clean up the failed temporary output and render lock. Add a real renderer-failure regression for both a cold build and replacement of a previously valid STL. The [JSCAD adapter](../../solid_node/node/adapters/jscad.py#L73) also ignores its subprocess status and deserves the same review; an actual JSCAD failure was not exercised here.
+**Recommended correction and proof:** Check the renderer's exit status before publishing, propagate a failed build outcome, retain the previous artifact, and clean up the failed temporary output and render lock. Add a real renderer-failure regression for both a cold build and replacement of a previously valid STL. The [JSCAD adapter](../../../solid_node/node/adapters/jscad.py#L73) also ignores its subprocess status and deserves the same review; an actual JSCAD failure was not exercised here.
 
 ## F02 — Build cleanup deletes files it does not own
 
-**Location:** [solid_node/core/builder.py:191–218](../../solid_node/core/builder.py#L191).
+**Location:** [solid_node/core/builder.py:191–218](../../../solid_node/core/builder.py#L191).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `preserve-unowned-build-siblings`. Build preparation now consumes only the
@@ -142,13 +142,13 @@ original evidence below remains the pre-fix audit record.
 
 **Reproduction:** Beside `_build`, create `_build.notes` containing user notes and `_build.backup/keep.txt` containing a backup. Call `prepare_build_dir()`. Both unrelated paths are deleted. The probe confines this operation to a temporary directory.
 
-**Impact:** User data sharing the prefix is removed without an explicit cleanup request. A second consequence follows directly from the current code: [BrowserRenderer.stage()](../../solid_node/viewers/browser.py#L107) creates `_build.web-snapshot.*` siblings and [render() releases the lock before capture](../../solid_node/viewers/browser.py#L35). A concurrent build's preparation can delete a live snapshot stage. That interleaving was identified from source, not reproduced with Chromium.
+**Impact:** User data sharing the prefix is removed without an explicit cleanup request. A second consequence follows directly from the current code: [BrowserRenderer.stage()](../../../solid_node/viewers/browser.py#L107) creates `_build.web-snapshot.*` siblings and [render() releases the lock before capture](../../../solid_node/viewers/browser.py#L35). A concurrent build's preparation can delete a live snapshot stage. That interleaving was identified from source, not reproduced with Chromium.
 
 **Recommended correction and proof:** Restrict migration cleanup to demonstrably owned legacy paths, and keep active snapshot staging outside that cleanup rule. Test ordinary repeated preparation with unrelated sibling files, plus a capture overlapping a build.
 
 ## F03 — Export paths can escape the output directory
 
-**Location:** [solid_node/core/export.py:140–149](../../solid_node/core/export.py#L140), consumed by [the copy loop at lines 112–117](../../solid_node/core/export.py#L112).
+**Location:** [solid_node/core/export.py:140–149](../../../solid_node/core/export.py#L140), consumed by [the copy loop at lines 112–117](../../../solid_node/core/export.py#L112).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `confine-export-models`. Export model paths now use the project-aware and
@@ -173,13 +173,13 @@ models/../../../_build/design/part-Part-8570a2e1669f.stl
 
 The copied STL actually lands under `<temporary>/exports/_build/design/`, **outside** `portable/`. The probe verifies both the escape and the file's existence.
 
-**Impact:** Copying or serving only the advertised export directory produces a broken export. The copy can also overwrite an existing file outside the requested destination if the derived path matches it. This violates the [portable export contract](../../openspec/specs/export/spec.md).
+**Impact:** Copying or serving only the advertised export directory produces a broken export. The copy can also overwrite an existing file outside the requested destination if the derived path matches it. This violates the [portable export contract](../../../openspec/specs/export/spec.md).
 
 **Recommended correction and proof:** Resolve the artifact root through the same project/model selection used to build the node, and enforce destination containment before copying. Test path and qualifier exports from the project root, a nested directory, and outside the project, with both default and configured build roots.
 
 ## F04 — Exact geometry bypasses build mutual exclusion
 
-**Location:** [solid_node/core/builder.py:290–309](../../solid_node/core/builder.py#L290), [solid_node/node/exact_leaf.py:84–91](../../solid_node/node/exact_leaf.py#L84), and [solid_node/manager/test.py:205–214](../../solid_node/manager/test.py#L205).
+**Location:** [solid_node/core/builder.py:290–309](../../../solid_node/core/builder.py#L290), [solid_node/node/exact_leaf.py:84–91](../../../solid_node/node/exact_leaf.py#L84), and [solid_node/manager/test.py:205–214](../../../solid_node/manager/test.py#L205).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `lock-artifact-assembly`. The builder now acquires the selected project lock
@@ -202,13 +202,13 @@ The builder calls `node.assemble()` before entering `project_build_lock()`. Exac
 
 **Reproduction:** Hold the project's real `_build.lock` using `fcntl.flock(..., LOCK_EX)` in one process. Start `solid build` for a new CadQuery cube in another. A **684-byte STL appears while the first process still holds the lock**, and the CLI remains running. Release the lock; the CLI then completes successfully.
 
-**Impact:** Two builders can render and replace the same exact artifacts concurrently. Checking source freshness later cannot undo a publication that already happened. The [mutual-exclusion requirement](../../openspec/specs/build-pipeline/spec.md#requirement-project-build-mutual-exclusion) explicitly requires every artifact producer to acquire the lock before rendering or publishing.
+**Impact:** Two builders can render and replace the same exact artifacts concurrently. Checking source freshness later cannot undo a publication that already happened. The [mutual-exclusion requirement](../../../openspec/specs/build-pipeline/spec.md#requirement-project-build-mutual-exclusion) explicitly requires every artifact producer to acquire the lock before rendering or publishing.
 
 **Recommended correction and proof:** Enclose every artifact-producing lifecycle phase in the project lock, including assembly and any load-time hooks that can materialize artifacts. Keep watch waits and notifications outside it. Test contention with actual exact and imported leaves, rather than only a stubbed `build_stls()` call.
 
 ## F05 — Aggregate timestamp equality hides changed source contents
 
-**Location:** [solid_node/node/base.py:737–740](../../solid_node/node/base.py#L737) and [1012–1016](../../solid_node/node/base.py#L1012).
+**Location:** [solid_node/node/base.py:737–740](../../../solid_node/node/base.py#L737) and [1012–1016](../../../solid_node/node/base.py#L1012).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `guard-source-set-currency` and ADR-081. Artifact timestamp equality now also
@@ -229,13 +229,13 @@ Currency compares the artifact timestamp with the **maximum** timestamp of all t
 
 **Reproduction:** A leaf imports `SIZE` from `dimensions.py`. Stamp the leaf file 60 seconds ahead, then build a cube with `SIZE = 1`. Change the helper to `SIZE = 20`, leaving its new timestamp below the leaf's timestamp, and build again. Both builds exit **0**, but the published volume remains **1 mm³** instead of **8,000 mm³**.
 
-**Impact:** Clock skew, future-dated files, or source restoration preserving older timestamps can silently retain incorrect geometry. The helper is already in the tracked set: expanding dependency discovery does not fix this defect. The content fallback never runs on this path. This contradicts the [build currency requirement](../../openspec/specs/build-pipeline/spec.md), which says changed source must not be reported current.
+**Impact:** Clock skew, future-dated files, or source restoration preserving older timestamps can silently retain incorrect geometry. The helper is already in the tracked set: expanding dependency discovery does not fix this defect. The content fallback never runs on this path. This contradicts the [build currency requirement](../../../openspec/specs/build-pipeline/spec.md), which says changed source must not be reported current.
 
 **Recommended correction and proof:** Use a source-set fingerprint that detects changes to individual contributors, with an explicit policy for content changes under preserved timestamps. Reconcile the performance-oriented timestamp rule with the stronger correctness claim in the specs. Add a regression where a dependency changes without becoming the newest source.
 
 ## F06 — Changes to non-Python source files never trigger reload
 
-**Location:** [solid_node/core/builder.py:302–305](../../solid_node/core/builder.py#L302) and [581–594](../../solid_node/core/builder.py#L581).
+**Location:** [solid_node/core/builder.py:302–305](../../../solid_node/core/builder.py#L302) and [581–594](../../../solid_node/core/builder.py#L581).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `watch-all-tracked-sources`. A successful assembly now records normalized real
@@ -258,13 +258,13 @@ The builder watches each file in `node.files`, but its modification handler reje
 
 **Reproduction:** Dispatch real watchdog `FileModifiedEvent` objects through a builder with an asyncio future. A `.py` modification resolves the future; modifications to `.scad`, `.js`, `.stl`, and `.step` do not.
 
-**Impact:** Editing a watched geometry source leaves `solid develop` showing the previous build until a qualifying Python edit or a manual restart. This conflicts with the [watch-rebuild requirement](../../openspec/specs/build-pipeline/spec.md#requirement-watch-rebuild-loop).
+**Impact:** Editing a watched geometry source leaves `solid develop` showing the previous build until a qualifying Python edit or a manual restart. This conflicts with the [watch-rebuild requirement](../../../openspec/specs/build-pipeline/spec.md#requirement-watch-rebuild-loop).
 
 **Recommended correction and proof:** Filter the broad recovery watch separately from the precise tracked-source watch. Accept modifications to every explicitly tracked source. Add real develop-loop tests for non-Python sources. The probe also shows that a directly dispatched move event does nothing, but actual editor atomic-save behavior is platform dependent and is not claimed as a separately confirmed defect here.
 
 ## F07 — Successful rebuilds can leave `solid models` reporting failure
 
-**Location:** [solid_node/core/builder.py:457–461](../../solid_node/core/builder.py#L457).
+**Location:** [solid_node/core/builder.py:457–461](../../../solid_node/core/builder.py#L457).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `clear-recovered-build-errors`. Snapshot publication now constructs the full
@@ -284,13 +284,13 @@ subtests. The original evidence below remains the pre-fix audit record.
 
 **Reproduction:** Build a valid cube, place a previous transient failure in `_build/errors.json`, and run `solid build` again without modifying the model. The rebuild exits **0**, but `errors.json` survives and `solid models --json` reports **`"state": "failed"`**. The injected error file isolates recovery from the unrelated causes of a transient failure.
 
-**Impact:** Status consumers disagree with the successful build outcome and can keep displaying an error indefinitely. The [error-publication contract](../../openspec/specs/build-pipeline/spec.md) requires successful builds to remove the previous error.
+**Impact:** Status consumers disagree with the successful build outcome and can keep displaying an error indefinitely. The [error-publication contract](../../../openspec/specs/build-pipeline/spec.md) requires successful builds to remove the previous error.
 
 **Recommended correction and proof:** Clear recovered errors after successful validation regardless of whether document bytes changed; keep the failure state intact until the build is actually complete. Test unchanged-document recovery and define whether that status transition should notify consumers.
 
 ## F08 — `solid new 3d-printer` creates an unusable project
 
-**Location:** [solid_node/manager/new.py:30–32](../../solid_node/manager/new.py#L30).
+**Location:** [solid_node/manager/new.py:30–32](../../../solid_node/manager/new.py#L30).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `normalize-scaffold-identifiers`. Scaffold naming now produces one final
@@ -315,11 +315,11 @@ Name normalization permits leading digits and derives the class name directly fr
 
 **Impact:** A plausible mechanical-project name produces broken source while scaffolding reports success.
 
-**Recommended correction and proof:** Either reject invalid identifiers before creating anything or consistently prefix/normalize them into valid package and class identifiers. Compile and load generated source in tests for digit-leading names and Python keywords. The scaffold's unconditional browser URL at [line 73](../../solid_node/manager/new.py#L73) also needs to reflect the documented OpenSCAD fallback and configured port.
+**Recommended correction and proof:** Either reject invalid identifiers before creating anything or consistently prefix/normalize them into valid package and class identifiers. Compile and load generated source in tests for digit-leading names and Python keywords. The scaffold's unconditional browser URL at [line 73](../../../solid_node/manager/new.py#L73) also needs to reflect the documented OpenSCAD fallback and configured port.
 
 ## F09 — Multi-model tests stop on build failures despite the continuation contract
 
-**Location:** [solid_node/manager/test.py:135–155](../../solid_node/manager/test.py#L135) and [205–214](../../solid_node/manager/test.py#L205).
+**Location:** [solid_node/manager/test.py:135–155](../../../solid_node/manager/test.py#L135) and [205–214](../../../solid_node/manager/test.py#L205).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `continue-all-model-tests-after-build-failure`. Each declared model's
@@ -339,13 +339,13 @@ The all-model selection phase catches reference-resolution errors, but the execu
 
 **Reproduction:** Declare `broken` first and `good` second. Make `Broken.render()` raise `RuntimeError`; give `good` a test printing a marker. Run `solid test --all` without `--failfast`. It exits **1** with a traceback, prints no aggregate report, and never runs the second model's test.
 
-**Impact:** One broken model prevents validation of the rest of a project. The [CLI contract](../../openspec/specs/cli/spec.md#requirement-test-command) explicitly says a model that fails to load or build must not stop the run unless `--failfast` is given.
+**Impact:** One broken model prevents validation of the rest of a project. The [CLI contract](../../../openspec/specs/cli/spec.md#requirement-test-command) explicitly says a model that fails to load or build must not stop the run unless `--failfast` is given.
 
 **Recommended correction and proof:** Record build failures per model, continue the selection loop, and report once at the end. Add separate regressions for constructor, render, and artifact-generation failures, both with and without `--failfast`.
 
 ## F10 — Zero repeated children break the declarative render contract
 
-**Location:** [solid_node/node/internal.py:40–49](../../solid_node/node/internal.py#L40) and [143–146](../../solid_node/node/internal.py#L143).
+**Location:** [solid_node/node/internal.py:40–49](../../../solid_node/node/internal.py#L40) and [143–146](../../../solid_node/node/internal.py#L143).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `support-empty-assemblies` and ADR-082. Declarative substitution now consults
@@ -372,13 +372,13 @@ parts = Part().repeat(count)
 
 Supply no `render()` method, as the declarative API permits. `solid build` exits **1** with `render() should return a list, not <class 'NoneType'>`.
 
-**Impact:** A valid non-negative count cannot describe an absent optional group. The [declarative render requirement](../../openspec/specs/declarative-nodes/spec.md#requirement-an-internal-render-that-returns-nothing) says consumers must see the substituted child list, never `None`.
+**Impact:** A valid non-negative count cannot describe an absent optional group. The [declarative render requirement](../../../openspec/specs/declarative-nodes/spec.md#requirement-an-internal-render-that-returns-nothing) says consumers must see the substituted child list, never `None`.
 
 **Recommended correction and proof:** Distinguish declared structure from realized child count, and handle empty non-rigid assemblies throughout assembly and serialization. Test zero repeats and omission of every child. Decide and state separately whether an empty rigid fusion is meaningful.
 
 ## F11 — Invalid simulation time inputs can silently bypass checks
 
-**Location:** [solid_node/simulation/sim.py:112–115](../../solid_node/simulation/sim.py#L112), [run()](../../solid_node/simulation/sim.py#L216), and [_ticks()](../../solid_node/simulation/sim.py#L243).
+**Location:** [solid_node/simulation/sim.py:112–115](../../../solid_node/simulation/sim.py#L112), [run()](../../../solid_node/simulation/sim.py#L216), and [_ticks()](../../../solid_node/simulation/sim.py#L243).
 
 **Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
 `validate-simulation-time-boundaries` and ADR-083. Simulation construction now
@@ -416,7 +416,7 @@ containment assertion exists; and directs overlap, assembly-clash, and
 connectivity questions to their whole-geometry assertions. The implementation
 and test-framework contract were already consistent and did not change.
 
-[docs/testing.rst:285–289](../testing.rst#L285) says `assertInside` proves complete containment and that `assertClose`/`assertFar` constrain every point. The [implementation](../../solid_node/test.py#L1263) samples only the second mesh's vertices, exactly as the [test-framework specification](../../openspec/specs/test-framework/spec.md#requirement-mesh-assertions) explicitly requires. Faces can cross a concavity or another object while their vertices satisfy the sampled predicate. This is an overstatement in the user documentation, not a claim that the implementation violates its present sampling spec. Describe the sampling limitation and direct whole-solid claims to suitable geometric assertions.
+[docs/testing.rst:285–289](../../../docs/testing.rst#L285) says `assertInside` proves complete containment and that `assertClose`/`assertFar` constrain every point. The [implementation](../../../solid_node/test.py#L1263) samples only the second mesh's vertices, exactly as the [test-framework specification](../../../openspec/specs/test-framework/spec.md#requirement-mesh-assertions) explicitly requires. Faces can cross a concavity or another object while their vertices satisfy the sampled predicate. This is an overstatement in the user documentation, not a claim that the implementation violates its present sampling spec. Describe the sampling limitation and direct whole-solid claims to suitable geometric assertions.
 
 ### C02 — Browser capture instructions omit the required opt-in
 
@@ -428,7 +428,7 @@ Chromium, sets `SOLID_NODE_WEB_SNAPSHOT_E2E=1`, and runs the real transparent
 capture test. The command passed locally against the installed viewer and
 browser (1 test, 1 warning).
 
-[README.rst:129–131](../../README.rst#L129) says browser snapshot tests are mandatory for renderer changes and that missing browser setup is reported as a failure rather than skipped. The actual [end-to-end test](../../tests/test_browser_renderer.py#L230) skips unless `SOLID_NODE_WEB_SNAPSHOT_E2E=1`, even when the viewer is installed. This audit observed that skip. The [CI test job](../../.github/workflows/python-app.yml) sets no such flag. Document the exact validation command and arrange for relevant changes to exercise it; a green default suite is not evidence of a real browser capture.
+[README.rst:129–131](../../../README.rst#L129) says browser snapshot tests are mandatory for renderer changes and that missing browser setup is reported as a failure rather than skipped. The actual [end-to-end test](../../../tests/test_browser_renderer.py#L230) skips unless `SOLID_NODE_WEB_SNAPSHOT_E2E=1`, even when the viewer is installed. This audit observed that skip. The [CI test job](../../../.github/workflows/python-app.yml) sets no such flag. Document the exact validation command and arrange for relevant changes to exercise it; a green default suite is not evidence of a real browser capture.
 
 ### C03 — The README overstates viewer process isolation
 
@@ -440,7 +440,7 @@ and their modules are not imported. This aligns the introductions with the
 existing implementation, architecture synthesis, and viewer-distribution
 contract.
 
-The [README's viewer introduction](../../README.rst#L38) says the framework never imports the viewer. [bundle.describe()](../../solid_node/viewers/bundle.py#L50) calls `entry.load()()`, which imports and runs the viewer's entry-point provider in the framework process. The [viewer-distribution spec](../../openspec/specs/viewer-distribution/spec.md#requirement-the-framework-finds-the-installed-viewer-through-its-entry-point) explicitly permits this narrow import and forbids other viewer imports. Align the README with that actual boundary: entry-point metadata runs locally; serving and capture run in separate processes. This observation makes no licensing determination.
+The [README's viewer introduction](../../../README.rst#L38) says the framework never imports the viewer. [bundle.describe()](../../../solid_node/viewers/bundle.py#L50) calls `entry.load()()`, which imports and runs the viewer's entry-point provider in the framework process. The [viewer-distribution spec](../../../openspec/specs/viewer-distribution/spec.md#requirement-the-framework-finds-the-installed-viewer-through-its-entry-point) explicitly permits this narrow import and forbids other viewer imports. Align the README with that actual boundary: entry-point metadata runs locally; serving and capture run in separate processes. This observation makes no licensing determination.
 
 ### C04 — Scaffolded next steps predict one viewer and port
 

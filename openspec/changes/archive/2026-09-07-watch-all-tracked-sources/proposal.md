@@ -38,7 +38,7 @@ _None._
   make event filtering depend on whether the changed path is one of them.
 - Builder lifecycle/reload tests: cover precise non-Python events and broad
   recovery filtering, including one real observer cycle.
-- `docs/due-dilligence/probe_build.py`: model precise watch registration before
-  dispatching its saved event matrix.
+- `workflow/archive/due-dilligence-2026-09-07/probe_build.py`: model precise
+  watch registration before dispatching its saved event matrix.
 - `docs/changelog.rst` and the due-diligence records will describe the fix.
 - No dependency, public API, artifact-format, or viewer change is required.

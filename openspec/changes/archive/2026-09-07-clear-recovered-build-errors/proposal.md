@@ -41,8 +41,9 @@ _None._
 - Builder lifecycle and publication tests: cover unchanged recovery, retained
   errors on failed document construction, callback behavior, and the existing
   no-error no-op path.
-- `docs/due-dilligence/probe_build.py`: the existing stale-error probe becomes
-  caller evidence for the corrected `solid models --json` state.
+- `workflow/archive/due-dilligence-2026-09-07/probe_build.py`: the existing
+  stale-error probe becomes caller evidence for the corrected
+  `solid models --json` state.
 - `docs/changelog.rst` and the due-diligence records will describe the fix.
 - No public API, artifact schema, dependency, viewer, or geometry change is
   required.

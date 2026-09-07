@@ -43,8 +43,9 @@ _None._
 - Simulation tests: cover zero/negative/non-finite/non-numeric `dt`, invalid
   instants/periods/durations, past scheduling, lack of mutation on refusal,
   and zero-duration instructions triggered directly and through `at()`.
-- `docs/due-dilligence/probe_additional.py`: the negative-`dt` observation
-  becomes an expected construction refusal and the zero-duration observation
+- `workflow/archive/due-dilligence-2026-09-07/probe_additional.py`: the
+  negative-`dt` observation becomes an expected construction refusal and the
+  zero-duration observation
   becomes immediate target state in both the bank and node.
 - Baseline simulation specification, architecture records, changelog, and
   due-diligence records will state the boundary. ADR disposition will be

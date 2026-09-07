@@ -40,8 +40,8 @@ _None._
   Python identifier.
 - `tests/test_manager_new.py`: cover the normalization matrix, compilation,
   manifest consistency, and real build/test acceptance.
-- `docs/due-dilligence/probe_build.py`: the existing numeric scaffold probe
-  becomes caller evidence for a clean first build.
+- `workflow/archive/due-dilligence-2026-09-07/probe_build.py`: the existing
+  numeric scaffold probe becomes caller evidence for a clean first build.
 - `docs/changelog.rst` and due-diligence records will describe the fix and
   retain the separate printed-URL review lead.
 - Existing valid scaffold names, CLI grammar, templates, dependencies, and

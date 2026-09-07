@@ -43,8 +43,8 @@ _None._
   validation before geometry generation.
 - Declarative render/node tests: cover zero repeats, omission of all children,
   empty serialization, and the fusion refusal.
-- `docs/due-dilligence/probe_additional.py`: the existing zero-repeat project
-  becomes caller evidence for a successful build.
+- `workflow/archive/due-dilligence-2026-09-07/probe_additional.py`: the
+  existing zero-repeat project becomes caller evidence for a successful build.
 - Baseline specifications, architecture records, changelog, and
   due-diligence records will state the boundary. ADR disposition will be
   assessed after the implementation evidence establishes the final design.

@@ -40,8 +40,9 @@ _None._
 - `tests/test_named_models.py` and/or `tests/test_manager_test.py`: cover
   construction, render, assembly, and artifact-generation failures with and
   without `--failfast`.
-- `docs/due-dilligence/probe_additional.py`: the existing two-model probe
-  becomes caller evidence that the second model runs and the command still
+- `workflow/archive/due-dilligence-2026-09-07/probe_additional.py`: the
+  existing two-model probe becomes caller evidence that the second model runs
+  and the command still
   exits nonzero.
 - `docs/changelog.rst` and due-diligence records will describe the fix.
 - No node API, test assertion semantics, artifact schema, build-directory

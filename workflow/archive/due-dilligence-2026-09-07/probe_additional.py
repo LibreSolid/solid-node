@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 import time
-REPO=Path(__file__).resolve().parents[2]
+REPO=Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 ENV=dict(os.environ,PYTHONPATH=str(REPO),PYTHONDONTWRITEBYTECODE='1'); ENV.pop('SOLID_BUILD_DIR',None)
 CMD=[sys.executable,'-c','from solid_node.cli import manage; manage()']
