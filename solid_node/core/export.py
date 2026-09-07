@@ -23,8 +23,9 @@ import os
 import shutil
 
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, animation_block, document_version,
-    drivers_table, instructions_table, serialize_node, symbolic_document,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, animation_block, bind_document,
+    document_version, drivers_table, instructions_table, serialize_node,
+    symbolic_document,
 )
 from .builder import project_build_lock
 from .pieces import PieceInventory
@@ -100,15 +101,23 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
         drivers = drivers_table(declarations)
         events = instructions_table(instructions)
 
+    bindings = bind_document(root, drivers.keys())
+
     manifest = {
         'format': MANIFEST_FORMAT,
-        'version': document_version(root),
+        'version': document_version(root, bindings),
         'animation': animation_block(node, fps, frames),
         'drivers': drivers,
         'instructions': events,
-        'root': root,
-        'pieces': inventory.pieces(),
     }
+    if bindings:
+        # Beside `drivers` and `instructions`, ahead of `root`: the shape
+        # design.md D3 shows (ADR-080). Omitted entirely, not `[]`, when
+        # nothing repeats, so a document with nothing to share is
+        # byte-identical to the one published before bindings existed.
+        manifest['bindings'] = bindings
+    manifest['root'] = root
+    manifest['pieces'] = inventory.pieces()
 
     os.makedirs(output_dir, exist_ok=True)
     for stl_file, model_path in models.items():

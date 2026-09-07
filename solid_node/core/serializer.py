@@ -47,10 +47,32 @@ producer -- ``document_version`` reads it off the finished tree -- because
 a document holding no flexible node is byte-identical to the version 2 it
 has always been, and claiming otherwise would make an old consumer refuse
 documents it renders perfectly.
+
+Version 4 adds the ``bindings`` table (ADR-080): every symbolic value the
+framework builds is a solid2 ``OpenSCADConstant``, string-eager, so a value
+used twice is written out twice and a value reused at each of several
+nested levels is written exponentially often.  ``bind_document`` (below)
+reads the expression strings ``operations`` and flexible ``params`` already
+carry, interns them structurally across the whole document
+(``solid_node.core.expressions``), and rewrites every occurrence of a
+subexpression that repeats -- except a bare number or a bare driver id,
+shorter written out than referenced -- into a reference to a named entry
+in an ordered ``bindings`` table, so a consumer resolves it in one forward
+pass before any operation or ``params`` expression.  Detected at
+serialization, by parsing text the producer already built: nothing about
+how a project writes kinematics, or about solid2's own arithmetic, changes.
+The version is a property of the CONTENT once more: a document with
+nothing to share carries no ``bindings`` key and is byte-identical to what
+this module has always published, while a non-empty table is the one
+version bump in this ladder that is NOT additive -- a consumer ignoring
+``bindings`` would resolve a reference to nothing and render a wrong pose,
+so a consumer that cannot read version 4 must refuse it rather than render
+it.
 """
 
 from contextlib import contextmanager
 
+from solid_node.core.expressions import bind_expressions
 from solid_node.node.qualified import (
     DriverToken, declared_drivers_of, driver_id, drive_tree,
 )
@@ -71,6 +93,14 @@ DOCUMENT_VERSION = 2
 #: precedent, and it is what keeps an old consumer refusing exactly the
 #: documents it genuinely cannot render.
 FLEXIBLE_DOCUMENT_VERSION = 3
+
+#: The version a document carrying a non-empty `bindings` table declares
+#: (ADR-080). A consumer ignoring `bindings` would resolve a binding name
+#: to nothing and render a wrong pose, so this bump is not additive: a
+#: document with nothing shared omits the key and keeps declaring
+#: `DOCUMENT_VERSION` or `FLEXIBLE_DOCUMENT_VERSION`, byte-identical to
+#: what the framework published before bindings existed.
+BINDINGS_DOCUMENT_VERSION = 4
 
 
 @contextmanager
@@ -216,24 +246,96 @@ def animation_block(root, fps=30, frames=360):
     return block
 
 
-def document_version(root):
+def document_version(root, bindings=()):
     """The LOWEST schema version the serialized tree ``root`` needs.
 
     Read off the document rather than tracked while building it, so the
-    three producers that share this walk cannot disagree about what they
-    just emitted.  A tree carrying a flexible node carries a shape no
-    version 2 consumer knows and says so; a tree carrying none is
-    unchanged in every byte and claims nothing new, which is what lets a
-    consumer that cannot render flexible parts keep rendering every
-    document that has none -- and refuse loudly only on one that has
-    them, rather than render nothing where a spring belongs.
+    producers that share this walk cannot disagree about what they just
+    emitted.  A tree carrying a flexible node carries a shape no version 2
+    consumer knows and says so; a tree carrying none is unchanged in every
+    byte and claims nothing new, which is what lets a consumer that cannot
+    render flexible parts keep rendering every document that has none --
+    and refuse loudly only on one that has them, rather than render
+    nothing where a spring belongs.
+
+    ``bindings``, when non-empty, always wins (ADR-080): a consumer
+    ignoring the table would resolve a binding name to nothing and render
+    a wrong pose, so the bump is not additive the way ``loop`` and
+    ``instructions`` were.  With nothing bound this answers exactly what it
+    always has, so a document with nothing to share stays byte-identical
+    to the one published before bindings existed.
     """
+    if bindings:
+        return BINDINGS_DOCUMENT_VERSION
+    return _tree_version(root)
+
+
+def _tree_version(root):
     if 'flexible' in root:
         return FLEXIBLE_DOCUMENT_VERSION
     for child in root.get('children', ()):
-        if document_version(child) != DOCUMENT_VERSION:
+        if _tree_version(child) != DOCUMENT_VERSION:
             return FLEXIBLE_DOCUMENT_VERSION
     return DOCUMENT_VERSION
+
+
+class _Slot:
+    """One rewritable expression location inside a serialized document:
+    an operation's angle or one translation component, or a flexible
+    leaf's one ``params`` entry."""
+
+    __slots__ = ('container', 'key')
+
+    def __init__(self, container, key):
+        self.container = container
+        self.key = key
+
+    def get(self):
+        return self.container[self.key]
+
+    def set(self, value):
+        self.container[self.key] = value
+
+
+def _collect_slots(root, slots):
+    for operation in root['operations']:
+        if operation[0] == 'r':
+            slots.append(_Slot(operation, 1))
+        else:
+            translation = operation[1]
+            for index in range(len(translation)):
+                slots.append(_Slot(translation, index))
+    if 'flexible' in root:
+        params = root['flexible']['params']
+        for key in params:
+            slots.append(_Slot(params, key))
+    for child in root.get('children', ()):
+        _collect_slots(child, slots)
+
+
+def bind_document(root, driver_ids):
+    """Publish each subexpression that repeats across ``root``'s operation
+    and flexible ``params`` expressions once, named, and rewrite every
+    occurrence to reference it in place (ADR-080).
+
+    ``driver_ids`` is every qualified driver id declared in the same
+    document -- the document's own ``drivers`` table keys -- so a minted
+    name can never collide with one (design.md D4).
+
+    Returns the ordered ``bindings`` list: ``[]`` when nothing in the tree
+    repeats, in which case ``root`` is left untouched and the caller omits
+    the ``bindings`` key entirely, publishing the byte-identical document
+    it always has.
+    """
+    slots = []
+    _collect_slots(root, slots)
+    expressions = [slot.get() for slot in slots]
+    rewritten, bindings, _warnings = bind_expressions(expressions, driver_ids)
+    if not bindings:
+        return []
+    for slot, text in zip(slots, rewritten):
+        slot.set(text)
+    return bindings
 
 
 def serialize_node(node, model_path, piece_id=None):

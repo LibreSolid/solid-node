@@ -64,7 +64,7 @@ and a binding over a driver id as well as over `$t`.
 - **THEN** it carries a `bindings` array holding at least one entry that names
   an earlier entry and at least one entry referenced from more than one case
 
-#### Scenario: Regeneration leaves the existing corpus's values alone
+#### Scenario: Regeneration leaves the existing corpus alone
 
 - **WHEN** the fixture is regenerated after the new corpus is added
 - **THEN** every case the previous fixture carried is present under the same

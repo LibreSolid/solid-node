@@ -121,6 +121,7 @@ that way.
 - [ADR-042](EXPORT/ADR-042-host-controlled-viewer-assembly-navigation.md) — Host-controlled viewer assembly navigation — **Accepted** — *Relocated* to solid-node-viewer (ADR-068)
 - [ADR-043](EXPORT/ADR-043-content-derived-printed-piece-identity.md) — Content-derived printed-piece identity — **Accepted**
 - [ADR-051](EXPORT/ADR-051-producer-owned-animation-time-in-node-documents.md) — Producer-owned animation time in node-tree documents — **Accepted**
+- [ADR-080](EXPORT/ADR-080-a-shared-subexpression-is-named-once.md) — A shared subexpression is named once: the document's `bindings` table — **Accepted**, extends 034, depends on 022/051
 
 ADR-019 (the solid-builder agent system) predates the shop and lives
 with the agent tooling's own history, not in this framework log.

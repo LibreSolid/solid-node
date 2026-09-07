@@ -262,13 +262,17 @@ class DocumentVersionTest(BaseNodeTest):
         self.assertEqual(DOCUMENT_VERSION, 2)
 
     def test_a_driver_declaring_export_publishes_the_table(self):
+        """This tree's `position.value` is genuinely reused across the
+        carriage and cover of each axis (ADR-080), so it now declares 4,
+        not 2; the pulley's own operation is untouched either way, since
+        `usteps * DEG_PER_USTEP` occurs nowhere else in the document."""
         machine = Machine()
         bind_declared_defaults(machine)
         out_dir = os.path.join(self.build_dir, 'export_out')
 
         manifest = export_node(machine, out_dir, widget=False)
 
-        self.assertEqual(manifest['version'], 2)
+        self.assertEqual(manifest['version'], 4)
         self.assertEqual(sorted(manifest['drivers']),
                          ['x_axis.motor', 'y_axis.motor'])
         self.assertEqual(

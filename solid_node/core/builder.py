@@ -18,7 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .loader import ProjectManifestError, load_node, project_root, read_project
 from .serializer import (
-    animation_block,
+    animation_block, bind_document,
     DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
     serialize_node, symbolic_document,
 )
@@ -430,15 +430,25 @@ class Builder(FileSystemEventHandler):
                     rigid_node.stl_file, self.build_dir),
                 inventory.register,
             )
-            snapshot = {'format': DOCUMENT_FORMAT,
-                        # The lowest version this tree's content needs:
-                        # a project with no flexible part publishes the
-                        # document it always did.
-                        'version': document_version(root),
-                        'animation': animation_block(self.node),
-                        'drivers': drivers_table(declarations),
-                        'instructions': instructions_table(instructions),
-                        'root': root}
+            drivers = drivers_table(declarations)
+            events = instructions_table(instructions)
+        bindings = bind_document(root, drivers.keys())
+        snapshot = {'format': DOCUMENT_FORMAT,
+                    # The lowest version this tree's content needs: a
+                    # project with no flexible part and nothing shared
+                    # publishes the document it always did (ADR-080).
+                    'version': document_version(root, bindings),
+                    'animation': animation_block(self.node),
+                    'drivers': drivers,
+                    'instructions': events}
+        if bindings:
+            # Beside `drivers` and `instructions`, ahead of `root`, and
+            # deterministically ordered (design.md D5) -- which is what
+            # keeps the byte comparison below correct: rebuilding an
+            # unchanged model must not republish merely because its
+            # bindings were named or ordered differently.
+            snapshot['bindings'] = bindings
+        snapshot['root'] = root
         snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
         if self._published_document() == document:

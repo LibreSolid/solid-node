@@ -129,9 +129,14 @@ and SHALL be reported differently.
 
 Emitting no geometry SHALL be confined to the `.scad` path: it SHALL
 NOT alter the published document, whose `params` carry the port's
-symbolic expression verbatim for the consumer to evaluate per frame,
-and SHALL NOT alter any numerically bound evaluation, mesh, or exact
-answer.
+symbolic expression — the expression itself, never the constant an
+instant computed — for the consumer to evaluate per frame, and SHALL
+NOT alter any numerically bound evaluation, mesh, or exact answer. Where
+a `params` expression shares a subexpression with another expression of
+the same document, it SHALL be published as a reference into the
+document's `bindings` table, exactly as an operation's expression is: what
+the guarantee preserves is the value the consumer evaluates, not the text
+it is written in.
 
 #### Scenario: Same binding, no re-evaluation
 
@@ -157,8 +162,16 @@ answer.
 
 - **WHEN** that same tree is published
 - **THEN** the flexible leaf appears in the document with its `tech`,
-  its spec, and `params` carrying the time-dependent expression
-  verbatim, exactly as for a driver-bound leaf
+  its spec, and `params` carrying the time-dependent expression rather
+  than a constant, exactly as for a driver-bound leaf
+
+#### Scenario: A shared parameter expression is published through the table
+
+- **WHEN** a flexible leaf's `params` expression shares a subexpression with
+  an operation elsewhere in the same document
+- **THEN** that subexpression is published once as a `bindings` entry, the
+  leaf's `params` value references it by name, and evaluating the table and
+  then the parameter yields what the flat expression yielded
 
 #### Scenario: An unbound port still fails loudly
 

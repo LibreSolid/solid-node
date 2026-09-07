@@ -84,6 +84,20 @@ class BrowserStagingTest(TestCase):
                      if name.startswith("_build.web-snapshot.")]
         self.assertEqual(leftovers, [])
 
+    def test_the_staged_document_carries_no_bindings_key(self):
+        """The web-snapshot document is keyframed and numeric by
+        construction (design.md D6-D7, tasks.md 3.1): `stage()` never
+        calls `bind_document`, so it can never carry a `bindings` key or
+        declare version 4 -- asserted here, not built, since nothing
+        about this path changed."""
+        staging = self.renderer.stage(self.node, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+        with open(os.path.join(staging, 'viewer.json')) as handle:
+            document = json.load(handle)
+
+        self.assertNotIn('bindings', document)
+        self.assertIn(document['version'], (2, 3))
+
     def test_stage_survives_overlapping_build_preparation(self):
         staging = self.renderer.stage(self.node, self.build_dir)
         self.addCleanup(self.renderer.remove_stage, staging)

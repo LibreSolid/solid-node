@@ -38,11 +38,22 @@ play/pause and a timeline for animated nodes, and the
 The manifest is a ``solid-node-export`` document carrying ``format``
 and ``version``, the ``animation`` parameters, a ``drivers`` table
 (qualified id → default, range, unit, dtype, scale), an
-``instructions`` table, the ``root`` node tree with its symbolic
-operations, and the printed-``pieces`` inventory. The declared
-``version`` is a property of the *content*: a document with no drivers
-is version 1, drivers make it version 2, and a flexible part makes it
-version 3, so documents published by earlier releases keep rendering.
+``instructions`` table, an ordered ``bindings`` table when the model
+has one, the ``root`` node tree with its symbolic operations, and the
+printed-``pieces`` inventory. The declared ``version`` is a property of
+the *content*: a document with no drivers is version 1, drivers make it
+version 2, a flexible part makes it version 3, and a model whose
+operations repeat a subexpression makes it version 4, so documents
+published by earlier releases keep rendering.
+
+``bindings`` is how a repeated subexpression reaches the wire once
+instead of once per use: each entry is ``{name, expression}``, named
+``_b0``, ``_b1``, … in the order a consumer must evaluate them (an
+entry names only ``$t``, a declared driver id, or an *earlier* entry),
+and an operation or a flexible leaf's ``params`` may hold one of those
+names in place of the expression it stands for. A model whose
+expressions repeat nothing publishes no ``bindings`` key at all, so an
+ordinary export is unaffected.
 
 .. warning::
 
@@ -85,7 +96,10 @@ Hosts that load ``solid-widget.js`` directly may call
 ``SolidNodeWidget.mount(target, manifestUrl, options)``. The package's
 ``solidNodeViewerApi`` declaration, browser global, and each mount
 handle all report API version 5, and the viewer accepts document
-schema versions 1, 2 and 3.
+schema versions 1, 2 and 3 — 4 once a released viewer version adds
+``bindings`` evaluation; until then a version-4 document (any model
+whose operations repeat a subexpression) is refused, loudly, naming the
+version, in the same phase that already refuses an unknown one.
 
 Camera options: ``view`` (camera and target), ``up`` and ``fov``; each
 vector may be a three-number tuple, and ``fov`` is in degrees. When

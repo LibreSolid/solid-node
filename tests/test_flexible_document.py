@@ -28,8 +28,8 @@ import os
 from solid_node.core.builder import Builder, project_build_lock
 from solid_node.core.export import export_node
 from solid_node.core.serializer import (
-    DOCUMENT_VERSION, FLEXIBLE_DOCUMENT_VERSION, document_version,
-    serialize_node, symbolic_document,
+    BINDINGS_DOCUMENT_VERSION, DOCUMENT_VERSION, FLEXIBLE_DOCUMENT_VERSION,
+    document_version, serialize_node, symbolic_document,
 )
 from solid_node.simulation.enumeration import bind_declared_defaults
 
@@ -41,6 +41,19 @@ from .meta_project.machine import Machine
 #: The expression the fixture's `connect(FREE_HEIGHT - self.lift, ...)`
 #: produces once the driver is bound to its qualified token.
 LIFT_EXPRESSION = '(46.8 - valvetrain.lift)'
+
+
+def resolved(document, expression_or_name):
+    """`expression_or_name` as the flat expression it stands for: itself,
+    unless it is exactly one document `bindings` entry's name (schema
+    v4, ADR-080) -- `Valvetrain.render()` builds `FREE_HEIGHT - self.lift`
+    twice (once for the retainer's placement, once for the spring's
+    port), so this fixture's own LIFT_EXPRESSION is exactly the kind of
+    repeat this cycle publishes once and references."""
+    for entry in document.get('bindings', ()):
+        if entry['name'] == expression_or_name:
+            return entry['expression']
+    return expression_or_name
 
 #: Every key a node of a flexible-free document has ever carried.
 VERSION_2_NODE_KEYS = {'name', 'type', 'color', 'mtime', 'operations',
@@ -205,12 +218,16 @@ class FlexiblePublishedBuildTest(BaseNodeTest):
             return json.load(document)
 
     def test_the_published_document_declares_version_three(self):
+        """The fixture's `retainer.translate` and `spring.params.height`
+        both build `FREE_HEIGHT - self.lift`, so this document also has a
+        shared subexpression to publish once (schema v4, ADR-080) and
+        declares 4 rather than the 3 flexible content alone would need."""
         engine = bound_engine()
         engine.assemble()
 
         document = self.publish(engine)
 
-        self.assertEqual(document['version'], 3)
+        self.assertEqual(document['version'], BINDINGS_DOCUMENT_VERSION)
         self.assertEqual(find(document['root'], 'spring')['flexible']['tech'],
                          'molejo')
 
@@ -224,6 +241,13 @@ class FlexiblePublishedBuildTest(BaseNodeTest):
                          ['Retainer'])
 
     def test_a_flexible_free_publication_is_unchanged(self):
+        """`Axis.render()` builds `self.position.value` once for the
+        carriage and again, nested, in the cover's expression, and the
+        two axes' covers both build `5.0 * cos(360.0 * $t)` -- so this
+        fixture, too, has genuine sharing to publish (ADR-080) and
+        declares 4 rather than the flexible-free 2 it declared before
+        this cycle. Version aside, the tree remains flexible-free: no
+        node grows the `flexible` key."""
         machine = Machine()
         bind_declared_defaults(machine)
         with project_build_lock():
@@ -231,7 +255,7 @@ class FlexiblePublishedBuildTest(BaseNodeTest):
 
         document = self.publish(machine)
 
-        self.assertEqual(document['version'], 2)
+        self.assertEqual(document['version'], BINDINGS_DOCUMENT_VERSION)
         self.assertNotIn('flexible', json.dumps(document))
 
         def keys(node):
@@ -250,15 +274,21 @@ class FlexibleExportTest(BaseNodeTest):
         return export_node(node, out_dir, widget=False), out_dir
 
     def test_the_manifest_carries_the_spec_and_declares_version_three(self):
+        """As `FlexiblePublishedBuildTest` above: the shared lift
+        expression makes this document version 4, and the spring's
+        `params.height` is now that binding's name rather than the
+        expression's own text (design.md D3 -- "a reference is the
+        binding's name written where an expression would be")."""
         manifest, _ = self.export(bound_engine())
 
         spring = find(manifest['root'], 'spring')
-        self.assertEqual(manifest['version'], 3)
+        self.assertEqual(manifest['version'], BINDINGS_DOCUMENT_VERSION)
         self.assertEqual(spring['flexible']['tech'], 'molejo')
         self.assertEqual(spring['flexible']['spec'],
                          fixture.Spring().render().to_dict())
-        self.assertEqual(spring['flexible']['params'],
-                         {'height': LIFT_EXPRESSION})
+        self.assertEqual(
+            resolved(manifest, spring['flexible']['params']['height']),
+            LIFT_EXPRESSION)
         self.assertIn('valvetrain.lift', manifest['drivers'])
 
     def test_the_export_stays_self_contained_with_no_model_for_it(self):
@@ -278,14 +308,18 @@ class FlexibleExportTest(BaseNodeTest):
         manifest, _ = self.export(bound_engine(**{'valvetrain.lift': 6.0}))
 
         spring = find(manifest['root'], 'spring')
-        self.assertEqual(spring['flexible']['params'],
-                         {'height': LIFT_EXPRESSION})
+        self.assertEqual(
+            resolved(manifest, spring['flexible']['params']['height']),
+            LIFT_EXPRESSION)
 
     def test_a_flexible_free_export_keeps_version_two(self):
+        """Named for the flexible-free content it tests, but this fixture
+        also has the sharing `FlexiblePublishedBuildTest` above documents,
+        so it now declares 4 (ADR-080), not the flexible-free 2 alone."""
         machine = Machine()
         bind_declared_defaults(machine)
 
         manifest, _ = self.export(machine)
 
-        self.assertEqual(manifest['version'], 2)
+        self.assertEqual(manifest['version'], BINDINGS_DOCUMENT_VERSION)
         self.assertNotIn('flexible', json.dumps(manifest))

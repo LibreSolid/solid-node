@@ -5,10 +5,12 @@
 Complete normal-build viewer state for private local framework consumers.
 ## Requirements
 ### Requirement: Complete builds publish a viewer snapshot
+
 The builder SHALL publish the versioned viewer snapshot named `viewer.json` in
 the normal build directory only after the current project model has assembled
 and every required STL artifact is current. The document SHALL declare
-`format: "solid-node-export"`, `version: 1`, an `animation` object with numeric
+`format: "solid-node-export"`, the schema version its content needs, an
+`animation` object with numeric
 `fps` and `frames`, and a `root` with the same observable schema and child-name
 behavior as export `manifest.json`. When the root assembly declares a time
 base, the `animation` object SHALL also carry numeric `loop`: the declared
@@ -26,6 +28,19 @@ SHALL remain non-portable: it SHALL NOT create an export-style `models/`
 directory or copy models into one. Changes to the shared tree shape or operation
 serialization are breaking and MUST bump `version` and update every producer and
 consumer of the shared schema together.
+
+When the serialized document contains a subexpression occurring more than
+once, `viewer.json` SHALL carry the same ordered `bindings` table the export
+manifest carries, under the same shared-subexpression, naming and version
+rules, and SHALL declare `version: 4`. When it contains no such subexpression
+the key SHALL be absent and the snapshot SHALL declare the version its content
+already needed, byte-identical to the snapshot published before bindings
+existed.
+
+Because publication is decided by comparing the serialized document against the
+one already published, the `bindings` table SHALL be ordered deterministically
+for a given tree: rebuilding an unchanged model SHALL NOT republish merely
+because its bindings were named or ordered differently.
 
 #### Scenario: A complete model is built once
 - **WHEN** `solid build <project>` completes successfully
@@ -51,13 +66,33 @@ consumer of the shared schema together.
   time base
 - **THEN** its `viewer.json` `animation` object has no `loop` key
 
+#### Scenario: A model whose expressions repeat a subexpression
+
+- **WHEN** `solid build <project>` completes a model in which one
+  subexpression appears in the operations of several nodes
+- **THEN** its `viewer.json` declares `version: 4`, carries a non-empty
+  ordered `bindings` array, and holds that subexpression's text exactly once
+
+#### Scenario: A model with nothing shared publishes the document it always did
+
+- **WHEN** `solid build <project>` completes a model whose expressions repeat
+  no subexpression
+- **THEN** its `viewer.json` has no `bindings` key and is byte-identical to the
+  snapshot published for that model before bindings existed
+
+#### Scenario: An unchanged model is not republished for its bindings
+
+- **WHEN** an unchanged model carrying bindings is built twice
+- **THEN** the second build finds the serialized document equal to the
+  published one and does not republish
+
 #### Scenario: Linked names match the portable export
 
 - **WHEN** the same attribute-linked assembly is published as a normal build
   and as a static export
 - **THEN** `viewer.json` and `manifest.json` contain the same linked node names,
-  operations, colour, `mtime`, and rigid/non-rigid tree structure while
-  retaining their distinct model path roots
+  operations, bindings, colour, `mtime`, and rigid/non-rigid tree structure
+  while retaining their distinct model path roots
 
 ### Requirement: Failed later builds retain viewer state
 A build failure after a successful publication SHALL leave a readable viewer

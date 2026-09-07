@@ -1,6 +1,6 @@
 # ADR-080: A shared subexpression is named once — the document's bindings table
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-09-07
 
@@ -151,11 +151,14 @@ two published forms in parity forever, and the flat form is the defect.
 
 ## Consequences
 
-- The grasshopper document's expression text falls from 31,611,478 bytes to
-  3,072 — 10,287× — and the document from 31.6 MB to about 30 kB. Its longest
-  published expression falls from 3,322,703 characters to 197. Numeric parity
-  is exact: 116 expressions at seven values of `$t`, checked both against the
-  reconstructed flat text and against the strings in the shipped document.
+- Measured on the real document at implementation (`tasks.md` 6.3, superseding
+  the design-time prototype's estimate): the grasshopper document's expression
+  text falls from 31,611,478 bytes to 3,130 — 10,099.5× — and the document from
+  31,638,555 bytes to 32,227 — 981.7×. 56 bindings are published; the longest
+  is 212 characters. Numeric parity is exact: all 116 operation scalars at
+  three values of `$t` (no driver is declared), checked against the flattened
+  document — 348 checks, 0 mismatches. Nothing but `bindings`, `version` and
+  the expression strings themselves differs between the two documents.
 - A consumer that cannot resolve the table refuses the document, by version,
   in the phase where it already refuses an unknown version — before the live
   scene is touched. That is the correct failure, and it is why the bump is not

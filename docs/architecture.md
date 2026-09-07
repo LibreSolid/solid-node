@@ -864,8 +864,9 @@ Chromium/SwiftShader; staging is removed after either success or failure
 
 `solid export` (ADR-020/034/035/042) emits a self-contained static artifact:
 `manifest.json` (`format: solid-node-export`, at the versioned tree-document
-schema shared with `viewer.json` — `version: 2`, or `3` when the tree holds
-a flexible node; not a portability claim),
+schema shared with `viewer.json` — `version: 2`, `3` when the tree holds a
+flexible node, or `4` when its expressions share a subexpression (ADR-080);
+not a portability claim),
 deduplicated `models/*.stl`, and — copied from the installed viewer
 package — a React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
@@ -924,9 +925,14 @@ rim, an STL arrives non-indexed and therefore already looks flat, and
 skipping the pass spares O(V) work per driven frame. Two refusals stand in
 the prepare phase, before the live tree is touched, so a rejected document
 leaves the standing scene intact: a document version outside the accepted
-set `[1, 2, 3]` — a check the loader previously did not perform at all —
-and a `flexible` node whose `tech` this build cannot evaluate, each named
-in the error.
+set — `[1, 2, 3]` at this writing, and, once the paired viewer change
+(ADR-080) that evaluates a `bindings` table lands, `[1, 2, 3, 4]` — a check
+the loader previously did not perform at all — and a `flexible` node whose
+`tech` this build cannot evaluate, each named in the error. Until that
+viewer change lands, a version-4 document — which this framework can
+already publish — is refused here by design (ADR-080): silently ignoring
+`bindings` would resolve a reference to nothing and render a wrong pose, so
+a version bump forces the loud refusal instead.
 The tree
 walk is the same rigid-stops/non-rigid-recurses rule as the NodeAPI;
 operations ship as raw expression strings. Both producers use the same core
@@ -1009,6 +1015,60 @@ The version is a property of the **content**, not of the producer:
 flexible node stays byte-identical to the version 2 it always was and an
 old consumer refuses only what it genuinely cannot render. Consumers accept
 1, 2 and 3.
+
+**Schema version 4 publishes each subexpression more than one operation or
+`params` entry uses, once, as a named `bindings` table** (ADR-080). Every
+symbolic value the framework builds is a solid2 `OpenSCADConstant`, and
+`OpenSCADConstant` is string-eager — a value used twice is written twice,
+and a value reused at each of several nested levels is written exponentially
+often, which is what let one clock's kinematics publish a 31.6 MB document
+that was 99.9% seven million copies of 263 distinct subexpressions. The cure
+does not touch how a project writes kinematics or how `solid_node.math` and
+solid2's operator overloads build text: `solid_node/core/expressions.py`
+parses the strings the walk already collected from `operations` and flexible
+`params`, interns them structurally across the whole document, and rewrites
+every occurrence of a subexpression that repeats — except a bare number or a
+bare driver id, shorter written out than referenced — into a reference to a
+named entry. `bindings` is a top-level array beside `drivers` and
+`instructions`, each entry `{name, expression}`, ordered so an entry names
+only `$t`, a declared driver id, or an **earlier** entry: a consumer
+evaluates it in one forward pass, before any operation or `params`
+expression, into the same scope it already builds for `$t` and drivers.
+Names are `_b0`, `_b1`, … in table order, under a prefix lengthened by a
+leading underscore whenever a declared driver id would otherwise collide
+with one — deterministically, so a legal model is never refused for a
+driver's name. A reference is the binding's name written where an
+expression would be, resolved exactly as `$t` and a driver id are: **a name
+resolves as a binding before it is judged an undeclared driver**, and
+dependence flows through it, so an operation whose whole expression is a
+binding name over `$t` is still time-dependent and one over a driver still
+depends on that driver. An expression the parser cannot read — outside the
+grammar two producers emit, reachable only through a hand-written
+`scad_inline` string — is published verbatim and unshared, with a warning,
+never failing the build; the producer refuses to publish only when the
+table it would write is wrong (an entry naming a later entry, a name
+colliding with a driver id, a rewrite that does not reproduce what was
+built), which is a framework defect, never a project's. The version, like
+the drivers table before it, is read off the finished document rather than
+declared while building it: non-empty `bindings` → **4**; empty → the
+version the tree's shape already needed (2, or 3 with a flexible leaf),
+with the key omitted entirely, so a document with nothing to share is
+byte-identical to the one published before this existed. Unlike the
+additive keys above, this bump is not additive — a consumer ignoring
+`bindings` would resolve a reference to nothing and render a wrong pose —
+so it is a genuine refusal for a consumer that cannot read version 4, by
+design, in the phase that already refuses an unknown version. **The `.scad`
+path never sees a binding**: `operation.scad(...)` and `port.value` read
+`self.angle` / `self.translation` / the port's value directly, never
+`operation.serialized` or `flexible_document()`'s table-rewritten strings,
+so generated SCAD and `Solid2Node.as_number`'s `echo(...)` round-trip are
+unaffected. `solid snapshot --renderer web` keyframes and bakes constants
+before serializing, so its staged document shares nothing, carries no
+table, and stays at version 2 or 3 with any viewer. Consumers accept 1, 2,
+3 and 4 once the paired viewer change (`solid-node-viewer`) widens its
+accepted set to admit it; until then a version-4 document is refused by the
+phase described just below, which is the correct failure for a machine no
+installed viewer can yet resolve `bindings` for.
 
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
@@ -1199,9 +1259,9 @@ The short list that changes must not silently break:
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
-| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026 |
+| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 080 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
-| Export | `core/export.py`, `core/serializer.py` | `export` | 020, 034, 051, 057, 068 |
+| Export | `core/export.py`, `core/serializer.py`, `core/expressions.py` | `export` | 020, 034, 051, 057, 068, 080 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

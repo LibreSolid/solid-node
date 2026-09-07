@@ -8,6 +8,54 @@ Changelog
 Unreleased
 ----------
 
+**A repeated subexpression is published once, not once per use.** Every
+symbolic value in the framework is a solid2 ``OpenSCADConstant``, and
+``OpenSCADConstant`` is string-eager: a value used twice is written out
+twice, and a value reused at each of several nested levels is written
+exponentially often. 3DPrintedClocks' grasshopper escapement
+(``wall_clock_53_grasshopper``) found the far end of that: its published
+``viewer.json`` was 31,638,555 bytes, of which 31,611,478 were operation
+expression text — seven million written copies of 263 distinct
+subexpressions — and the document would not animate in the browser
+viewer. The export ``manifest.json`` and the normal-build ``viewer.json``
+now gain an ordered top-level ``bindings`` table: a subexpression that
+occurs more than once anywhere in the document's expressions is published
+once, named, and referenced by name everywhere it occurred, except a bare
+number or a bare driver id, which is shorter written out than referenced.
+Rebuilding that same clock's document measured expression text falling
+from 31,611,478 to 3,130 bytes and the document itself from 31,638,555 to
+32,227 bytes, with 56 bindings published and the longest one 212
+characters; every one of its 116 operation values, evaluated at three
+points in the animation under the document's own OpenSCAD-degree
+semantics, matched the flattened document's exactly. A document with
+nothing to share is byte-identical to the one the framework has always
+published. A document carrying a non-empty ``bindings`` table declares
+schema **version 4**, and the bump is not additive: a consumer that
+ignores ``bindings`` would resolve a reference to nothing and render a
+wrong pose, so a consumer that cannot read version 4 refuses the document
+rather than render it, in the same phase that already refuses an unknown
+version. Sharing is detected at serialization by a new internal parser
+(``solid_node/core/expressions.py``) reading the expression text the
+producer already built; nothing about how a project writes kinematics, or
+about solid2's own arithmetic, changes. An expression the parser cannot
+read — reachable only through a hand-written ``scad_inline`` string
+outside the grammar the two producers emit — is published verbatim and
+unshared, with a warning, and never fails the build. The ``.scad`` path
+is untouched: it reads operation and port values directly rather than
+their serialized form, so generated SCAD and ``Solid2Node.as_number``'s
+OpenSCAD round-trip are unaffected, and ``solid snapshot --renderer web``
+keyframes and bakes constants, so it never carries a table and stays at
+version 2/3 with any viewer. The producer cost is small against a CAD
+build: two clean rebuilds of the grasshopper clock (STLs already current)
+measured 17.6 s and 23.3 s of whole build time. **A viewer that has not
+yet widened its accepted document versions to include 4 refuses a
+version-4 document, loudly, in its own prepare phase, before the live
+scene is touched** — until the paired ``solid-node-viewer`` change lands,
+this is expected for nearly any animated model, not only a
+grasshopper-sized one, because the sharing rule has no size threshold: a
+subexpression as small as ``$t * loop`` reaching two operations is
+already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
+
 **Build preparation preserves sibling data.** The one-time migration from the
 retired symlink publication layout now moves only the directory referenced by
 the build path. Ordinary preparation and migration leave every other

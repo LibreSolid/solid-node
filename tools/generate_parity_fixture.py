@@ -82,7 +82,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, SPIKE)
 
 from solid_node.core.serializer import (  # noqa: E402
-    drivers_table, serialize_node, symbolic_document,
+    bind_document, drivers_table, serialize_node, symbolic_document,
 )
 from solid_node.simulation.driver import Driver  # noqa: E402
 from solid_node.simulation.enumeration import (  # noqa: E402
@@ -91,6 +91,7 @@ from solid_node.simulation.enumeration import (  # noqa: E402
 
 import solid_node.math as sn_math  # noqa: E402
 
+from tests.expression_project.sharing import SharedValueTree  # noqa: E402
 from tests.expression_project.vocabulary import Vocabulary  # noqa: E402
 from tests.flexible_project import spring as flexible_fixture  # noqa: E402
 
@@ -125,6 +126,15 @@ VOCABULARY_SNAPSHOTS = [
     {'drive': 50,  'time': 0.37},
     {'drive': 100, 'time': 0.75},
     {'drive': -20, 'time': 0.5},
+]
+
+# The sharing corpus's own snapshots (tests/expression_project/sharing.py,
+# ADR-080/design.md D13): three points, enough to pin the table's
+# semantics without restating the vocabulary corpus's coverage.
+SHARING_SNAPSHOTS = [
+    {'share': 0,  'time': 0.0},
+    {'share': 30, 'time': 0.125},
+    {'share': 70, 'time': 0.6},
 ]
 
 WHOLE_TARGETS = [0.5, 1.5, 2.5, -0.5, -1.5, 3.4, -3.6]
@@ -236,17 +246,66 @@ def vocabulary_cases():
     return cases, table
 
 
-def uncovered_builtins(cases):
-    """Every name `solid_node.math` may emit that no case exercises.
+def sharing_scalars(snapshot=None):
+    """The sharing corpus, walked like the vocabulary corpus above --
+    except the symbolic walk also runs `bind_document`, exactly as
+    `export_node`/`Builder._write_viewer_snapshot` do, so its cases'
+    `expression` values are what a real document would publish: a bound
+    node's own name, or the flat text where nothing was shared."""
+    tree = SharedValueTree()
+    if snapshot is None:
+        with symbolic_document(tree) as (declarations, _):
+            root = document(tree)
+        driver_ids = drivers_table(declarations).keys()
+        bindings = bind_document(root, driver_ids)
+        return scalars(root), drivers_table(declarations), bindings
+    tree.set_state(**snapshot)
+    return scalars(document(tree)), None, None
+
+
+def sharing_cases():
+    """One case per operation slot per snapshot, and the `bindings` table
+    the symbolic walk produced -- the table pinned once, not per case,
+    exactly as the flexible fixture's counts and topology are (design.md
+    D13: an entry naming an earlier entry, one referenced from more than
+    one case, and a binding over a driver id as well as over `$t`)."""
+    symbolic, table, bindings = sharing_scalars()
+    cases = []
+    for index, snapshot in enumerate(SHARING_SNAPSHOTS):
+        numeric, _, _ = sharing_scalars(snapshot)
+        if set(numeric) != set(symbolic):
+            raise SystemExit(
+                'the sharing corpus\'s numeric and symbolic walks '
+                'disagree on structure; the fixture would pair unrelated '
+                'operations')
+        scope = {'time': snapshot['time'], 'drivers': driver_scope(snapshot)}
+        for key in sorted(symbolic):
+            cases.append({
+                'key': f'sharing{index}|{key}',
+                'expression': symbolic[key],
+                'scope': scope,
+                'expected': float(numeric[key]),
+            })
+    return cases, table, bindings
+
+
+def uncovered_builtins(cases, bindings=()):
+    """Every name `solid_node.math` may emit that no case, and no
+    `bindings` entry, exercises.
 
     The inventory is the module's own SYMBOLIC_BUILTINS, read here
     rather than copied, so adding a symbolic function without a corpus
     case fails this regeneration instead of silently shipping a name no
-    runtime is checked on.
+    runtime is checked on. A table can carry a call no case's own
+    expression repeats (design.md D10), so the scan reads both -- a
+    corpus whose cases were self-contained could otherwise hide an
+    emitted builtin by moving it into an entry.
     """
     called = set()
     for case in cases:
         called |= set(re.findall(r'([A-Za-z_]\w*)\(', case['expression']))
+    for entry in bindings:
+        called |= set(re.findall(r'([A-Za-z_]\w*)\(', entry['expression']))
     return sorted(set(sn_math.SYMBOLIC_BUILTINS) - called)
 
 
@@ -376,7 +435,10 @@ def build():
     vocabulary, vocabulary_table = vocabulary_cases()
     cases.extend(vocabulary)
     table = dict(table, **vocabulary_table)
-    missing = uncovered_builtins(cases)
+    sharing, sharing_table, bindings = sharing_cases()
+    cases.extend(sharing)
+    table = dict(table, **sharing_table)
+    missing = uncovered_builtins(cases, bindings)
     if missing:
         raise SystemExit(
             f'no case exercises {", ".join(missing)}, so the fixture would '
@@ -385,8 +447,16 @@ def build():
     return {
         'generated_by': 'tools/generate_parity_fixture.py',
         'corpus': ('spike/expressions/machine_model.py, '
-                   'tests/expression_project/vocabulary.py'),
+                   'tests/expression_project/vocabulary.py, '
+                   'tests/expression_project/sharing.py'),
         'drivers': table,
+        # Beside `cases`, as `viewer.json`/`manifest.json` carry `bindings`
+        # beside `root` (design.md D10): only the sharing corpus's document
+        # was passed through `bind_document`, so this table is scoped to
+        # its `sharing<N>|...` cases -- the spike machine's and the
+        # vocabulary corpus's cases are untouched, their pinned expressions
+        # exactly as they were before this cycle.
+        'bindings': bindings,
         'cases': cases,
         'conversions': conversions(),
         'flexible': flexible_binding(),
