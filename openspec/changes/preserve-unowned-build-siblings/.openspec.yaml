@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-07
+goal: Build preparation never deletes sibling files or directories it cannot
+  prove it owns.
