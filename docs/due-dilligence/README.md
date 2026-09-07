@@ -420,6 +420,14 @@ and test-framework contract were already consistent and did not change.
 
 ### C02 — Browser capture instructions omit the required opt-in
 
+**Resolution:** Corrected on the `due-dilligence` branch. The contributor
+README now gives the exact opt-in command and distinguishes an intentional
+default skip from dependency failure after opt-in. GitHub Actions now has a
+required browser-snapshot job that installs the viewer's snapshot extra and
+Chromium, sets `SOLID_NODE_WEB_SNAPSHOT_E2E=1`, and runs the real transparent
+capture test. The command passed locally against the installed viewer and
+browser (1 test, 1 warning).
+
 [README.rst:129–131](../../README.rst#L129) says browser snapshot tests are mandatory for renderer changes and that missing browser setup is reported as a failure rather than skipped. The actual [end-to-end test](../../tests/test_browser_renderer.py#L230) skips unless `SOLID_NODE_WEB_SNAPSHOT_E2E=1`, even when the viewer is installed. This audit observed that skip. The [CI test job](../../.github/workflows/python-app.yml) sets no such flag. Document the exact validation command and arrange for relevant changes to exercise it; a green default suite is not evidence of a real browser capture.
 
 ### C03 — The README overstates viewer process isolation

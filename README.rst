@@ -127,8 +127,17 @@ Notes:
 * Rendering tests invoke the real ``openscad`` binary. On a headless machine,
   snapshot-related tests may need ``xvfb-run -a pytest ...``.
 * Browser-snapshot tests are mandatory for changes to that renderer. Install
-  the ``web-snapshot`` extra and Chromium as shown above; a missing browser is
-  reported as a setup failure rather than skipped.
+  the ``web-snapshot`` extra and Chromium as shown above, then run the real
+  capture explicitly:
+
+  .. code-block:: bash
+
+      $ SOLID_NODE_WEB_SNAPSHOT_E2E=1 pytest tests/test_browser_renderer.py::BrowserSnapshotEndToEndTest
+
+  The ordinary suite leaves this environment variable unset and skips the
+  capture, even when the viewer is installed. With the opt-in set, a missing
+  viewer or browser is a setup failure. The dedicated CI browser-snapshot job
+  installs both dependencies, sets the opt-in, and runs this same test.
 * ``tests/meta_project/`` together with ``tests/test_meta.py`` is the
   end-to-end meta-project harness: it runs small real solid-node projects —
   both deliberately green and deliberately red fixtures — to prove the
