@@ -181,6 +181,23 @@ The copied STL actually lands under `<temporary>/exports/_build/design/`, **outs
 
 **Location:** [solid_node/core/builder.py:290–309](../../solid_node/core/builder.py#L290), [solid_node/node/exact_leaf.py:84–91](../../solid_node/node/exact_leaf.py#L84), and [solid_node/manager/test.py:205–214](../../solid_node/manager/test.py#L205).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`lock-artifact-assembly`. The builder now acquires the selected project lock
+before assembly and holds it continuously through artifact and viewer-document
+publication. It checks the loaded source state before and after assembly and
+defers reload-error waiting until after releasing the lock. The test runner
+holds the same lock across keyframing, preliminary render, assembly, and STL
+generation, then releases it before executing project tests. Real process
+regressions cover cold CadQuery build and cold `StlNode` test-build contention;
+184 focused tests and 2 subtests passed. The saved probe now observes no STL
+while the independent holder owns the lock and a successful build after
+release. The repeated complete suite passed 1,535 tests with 16 skipped, 38
+warnings, and 258 passing subtests. The first complete run exposed the new
+mocked-builder regression leaking `SOLID_BUILD_DIR` into later modules; after
+the fixture restored its environment, the 166-test affected set and repeated
+complete suite passed. The original evidence below remains the pre-fix audit
+record.
+
 The builder calls `node.assemble()` before entering `project_build_lock()`. Exact leaf assembly writes BREP and STL artifacts in `as_scad()`, so the expensive rendering and publication have already happened when the lock is acquired. The test manager likewise assembles before its lock. Other adapters that materialize during assembly warrant the same audit.
 
 **Reproduction:** Hold the project's real `_build.lock` using `fcntl.flock(..., LOCK_EX)` in one process. Start `solid build` for a new CadQuery cube in another. A **684-byte STL appears while the first process still holds the lock**, and the CLI remains running. Release the lock; the CLI then completes successfully.

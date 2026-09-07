@@ -207,10 +207,10 @@ class Test:
             node = load_node(path, overrides=getattr(self, 'overrides', None))
         except Exception as error:
             self.fail(str(error))
-        node.set_keyframe(time)
-        rendered = node.render()
-        node.assemble()
         with project_build_lock():
+            node.set_keyframe(time)
+            rendered = node.render()
+            node.assemble()
             node.build_stls()
         return node
 

@@ -11,12 +11,15 @@ import multiprocessing
 import os
 import shutil
 import signal
+import subprocess
 import sys
 import tempfile
 import time
 from argparse import Namespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
+
+import trimesh
 
 from solid_node.core.builder import (
     get_build_dir, get_build_lock_path, project_build_lock,
@@ -212,19 +215,45 @@ class LockParticipantsTest(TestCase):
         from solid_node.manager.test import Test
         runner = Test()
         node = Mock()
-        observed = {}
-        node.build_stls.side_effect = lambda: observed.update(
-            held=lock_is_held(self.build_dir))
+        observed = []
+        for phase in ('set_keyframe', 'render', 'assemble', 'build_stls'):
+            getattr(node, phase).side_effect = (
+                lambda *_, phase=phase: observed.append(
+                    (phase, lock_is_held(self.build_dir))))
 
         with patch.dict(os.environ, {'SOLID_BUILD_DIR': self.build_dir}), \
              patch('solid_node.manager.test.load_node', return_value=node), \
              patch.object(runner, 'ensure_node_class'):
             runner.build_node('model.py')
 
-        self.assertTrue(observed['held'],
-                        'the node was built without the project build lock')
+        self.assertEqual(observed, [
+            ('set_keyframe', True),
+            ('render', True),
+            ('assemble', True),
+            ('build_stls', True),
+        ])
         self.assertFalse(lock_is_held(self.build_dir),
                          'a test sweep would block the next build')
+
+    def test_builder_assembles_while_holding_the_lock(self):
+        import asyncio
+        from solid_node.core.builder import Builder, BuildOutcome
+        builder = Builder('model.py', build_dir=self.build_dir, watch=False)
+        node = Mock(mtime_ns=0)
+        observed = []
+
+        def fail_during_assembly():
+            observed.append(lock_is_held(self.build_dir))
+            raise RuntimeError('deliberate assembly failure')
+
+        node.assemble.side_effect = fail_during_assembly
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': self.build_dir}), \
+             patch('solid_node.core.builder.load_node', return_value=node):
+            outcome = asyncio.run(builder._start())
+
+        self.assertEqual(outcome, BuildOutcome.FAILED)
+        self.assertEqual(observed, [True])
+        self.assertFalse(lock_is_held(self.build_dir))
 
     def test_export_releases_the_lock_after_building(self):
         from solid_node.core.export import export_node
@@ -242,6 +271,115 @@ class LockParticipantsTest(TestCase):
 
         self.assertTrue(observed['held'])
         self.assertFalse(lock_is_held(self.build_dir))
+
+
+class ArtifactAssemblyContentionTest(TestCase):
+    """Real adapters that publish during assemble must wait for the lock."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix='solid-artifact-lock-')
+        self.addCleanup(self.temporary.cleanup)
+        self.root = os.path.join(self.temporary.name, 'project')
+        os.makedirs(os.path.join(self.root, 'design'))
+        with open(os.path.join(self.root, 'design', '__init__.py'), 'w'):
+            pass
+
+    def write_project(self, source, test_source=None):
+        with open(os.path.join(self.root, 'pyproject.toml'), 'w') as manifest:
+            manifest.write('[tool.solid-node]\n'
+                           'model = "design.part:Part"\n')
+        with open(os.path.join(self.root, 'design', 'part.py'), 'w') as module:
+            module.write(source)
+        if test_source is not None:
+            with open(os.path.join(self.root, 'design', 'test_part.py'),
+                      'w') as test_module:
+                test_module.write(test_source)
+
+    def run_while_locked(self, command):
+        build_dir = os.path.join(self.root, '_build')
+        environment = dict(os.environ)
+        environment['PYTHONPATH'] = REPO_DIR
+        environment['PYTHONDONTWRITEBYTECODE'] = '1'
+        environment.pop('SOLID_BUILD_DIR', None)
+        output = tempfile.TemporaryFile(mode='w+')
+        self.addCleanup(output.close)
+
+        with open(f'{build_dir}.lock', 'a+') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            process = subprocess.Popen(
+                [sys.executable, '-c',
+                 'from solid_node.cli import manage; manage()', *command],
+                cwd=self.root,
+                env=environment,
+                stdout=output,
+                stderr=output,
+                text=True,
+            )
+            self.addCleanup(lambda: process.poll() is None and process.kill())
+            deadline = time.monotonic() + 30
+            log = ''
+            while time.monotonic() < deadline and process.poll() is None:
+                output.seek(0)
+                log = output.read()
+                if 'Waiting for project build lock' in log:
+                    break
+                time.sleep(.05)
+
+            self.assertIn('Waiting for project build lock', log)
+            patterns = ('*.scad', '*.brep', '*.stl')
+            artifacts = [
+                path
+                for pattern in patterns
+                for path in glob.glob(os.path.join(build_dir, '**', pattern),
+                                      recursive=True)
+            ]
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+        process.wait(timeout=60)
+        output.seek(0)
+        log = output.read()
+        self.assertEqual(process.returncode, 0, log)
+        return artifacts, build_dir
+
+    def test_cadquery_build_materializes_nothing_before_lock_release(self):
+        self.write_project(
+            'from solid_node.node import CadQueryNode\n'
+            'import cadquery as cq\n'
+            'class Part(CadQueryNode):\n'
+            '    def render(self):\n'
+            '        return cq.Workplane("XY").box(1, 1, 1)\n'
+        )
+
+        early, build_dir = self.run_while_locked(['build'])
+
+        self.assertEqual(early, [])
+        self.assertTrue(glob.glob(os.path.join(build_dir, '**', '*.brep'),
+                                  recursive=True))
+        self.assertTrue(glob.glob(os.path.join(build_dir, '**', '*.stl'),
+                                  recursive=True))
+
+    def test_stl_test_build_materializes_nothing_before_lock_release(self):
+        source_stl = os.path.join(self.root, 'design', 'source.stl')
+        trimesh.creation.box().export(source_stl, file_type='stl')
+        self.write_project(
+            'from solid_node.node import StlNode\n'
+            'class Part(StlNode):\n'
+            '    stl_source = "source.stl"\n',
+            'from solid_node.test import TestCase\n'
+            'from .part import Part\n'
+            'class PartTest(TestCase):\n'
+            '    node = Part\n'
+            '    def test_built(self):\n'
+            '        self.assertTrue(self.node.stl)\n',
+        )
+
+        early, build_dir = self.run_while_locked(
+            ['test', 'design/part.py'])
+
+        self.assertEqual(early, [])
+        self.assertTrue(glob.glob(os.path.join(build_dir, '**', '*.stl'),
+                                  recursive=True))
 
 
 class PublishedModelFollowsSourceTest(TestCase):

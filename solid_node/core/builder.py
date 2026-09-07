@@ -278,27 +278,42 @@ class Builder(FileSystemEventHandler):
         except Exception as e:
             return await self._on_reload_exception(e, 'load')
 
-        try:
-            self.node.assemble()
-        except Exception as e:
-            return await self._on_reload_exception(e, 'assemble')
-
+        # Remember the source state represented by the classes load_node()
+        # imported. If this process waits for another producer and those files
+        # move meanwhile, it must stand down before the stale classes render.
         loaded_source_mtime_ns = self.node.mtime_ns
-
-        if self.watch:
-            for path in self.node.files:
-                self.observer.schedule(self, path, recursive=False)
-            self.observer.start()
-
+        assembly_failure = None
         error_message = None
         published = False
         with project_build_lock(self.build_dir):
             prepare_build_dir(self.build_dir)
             # A process may have waited while a newer edit was built. Never
-            # let the model it loaded before waiting publish over that result.
+            # let the model it loaded before waiting render over that result.
             if self.node.mtime_ns != loaded_source_mtime_ns:
                 return BuildOutcome.SOURCE_CHANGED
-            if self._published_model_is_current():
+
+            try:
+                # Assembly is artifact production: exact and imported leaves
+                # write BREP/STL here, and every node can write SCAD.
+                self.node.assemble()
+            except Exception as error:
+                # A reload failure may wait for a repair. Carry its traceback
+                # out so that wait happens only after the lock is released.
+                assembly_failure = (error, traceback.format_exc())
+
+            # Assembly discovers the complete source union. An edit during it
+            # invalidates the loaded classes before any later publication.
+            if (assembly_failure is None and
+                    self.node.mtime_ns != loaded_source_mtime_ns):
+                return BuildOutcome.SOURCE_CHANGED
+
+            if assembly_failure is None and self.watch:
+                for path in self.node.files:
+                    self.observer.schedule(self, path, recursive=False)
+                self.observer.start()
+
+            if (assembly_failure is None and
+                    self._published_model_is_current()):
                 # No artifact needs rendering -- but the document naming them
                 # may still be a build behind, because the pass that rendered
                 # an artifact exits before writing it and the next pass finds
@@ -315,7 +330,7 @@ class Builder(FileSystemEventHandler):
                 except Exception:
                     error_message = traceback.format_exc()
                     logger.error(error_message)
-            else:
+            elif assembly_failure is None:
                 # A render or publication failure is reported through the
                 # error channel rather than escaping the builder process, so
                 # the develop loop keeps running and the artifacts already in
@@ -329,6 +344,10 @@ class Builder(FileSystemEventHandler):
                 except Exception:
                     error_message = traceback.format_exc()
                     logger.error(error_message)
+        if assembly_failure is not None:
+            error, error_traceback = assembly_failure
+            return await self._on_reload_exception(
+                error, 'assemble', error_traceback)
         if error_message:
             return await self.report_error(error_message)
         # Outside the lock: notifying a consumer is not build work, and a
@@ -339,7 +358,7 @@ class Builder(FileSystemEventHandler):
             return BuildOutcome.CURRENT
         return await self.wait_for_change()
 
-    async def _on_reload_exception(self, exc, stage):
+    async def _on_reload_exception(self, exc, stage, error_message=None):
         """Handle an exception raised while (re)importing project
         source -- a module-level SyntaxError, NameError, ImportError,
         anything -- before the observer has had a chance to start (we
@@ -359,7 +378,7 @@ class Builder(FileSystemEventHandler):
         and exit with a non-zero status instead of hanging forever
         with nothing watching.
         """
-        error_message = traceback.format_exc()
+        error_message = error_message or traceback.format_exc()
 
         if self.is_reload:
             logger.error(error_message)

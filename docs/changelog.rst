@@ -56,6 +56,14 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Artifact-producing assembly now holds the project build lock.** Ordinary
+builds acquire their selected build lock before assembly can materialize SCAD,
+BREP, or STL files and keep it through viewer-document publication. The test
+runner likewise holds one lock through keyframing, preliminary render,
+assembly, and STL generation, then releases it before project tests execute.
+A builder whose loaded sources change while it waits stands down before
+rendering. (OpenSpec change ``lock-artifact-assembly``.)
+
 **Static exports keep every model inside the requested output.** Model paths
 are now derived from the same project-aware, selected build directory that
 owns the artifacts, rather than from the command's working directory. Exporting
