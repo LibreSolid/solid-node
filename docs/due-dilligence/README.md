@@ -321,6 +321,20 @@ Name normalization permits leading digits and derives the class name directly fr
 
 **Location:** [solid_node/manager/test.py:135–155](../../solid_node/manager/test.py#L135) and [205–214](../../solid_node/manager/test.py#L205).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`continue-all-model-tests-after-build-failure`. Each declared model's
+preparation now has its own failure boundary covering load/construction,
+initial keyframe binding, render, assembly, and artifact generation. A normal
+failure is named and counted once, then the next model runs unless
+`--failfast` is set; failfast records the failure and still reaches the one-run
+report before exiting. Focused manager, named-model, and lock coverage passed
+58 tests with 4 passing stage subtests. The saved public probe now reports
+`second_ran: true`, one passed and one failed entry in its aggregate report,
+and the expected exit status 1. The complete suite passed 1,624 tests with 16
+skipped, 44 warnings, and 274 passing subtests. No new ADR was needed because
+this makes the continuation rule already accepted in ADR-073 executable. The
+original evidence below remains the pre-fix audit record.
+
 The all-model selection phase catches reference-resolution errors, but the execution loop does not catch each model's construction, render, or assembly failure. `build_node()` either raises a normal exception or calls `self.fail()`, which raises `SystemExit`. The surrounding handler catches only `StopTestRun`.
 
 **Reproduction:** Declare `broken` first and `good` second. Make `Broken.render()` raise `RuntimeError`; give `good` a test printing a marker. Run `solid test --all` without `--failfast`. It exits **1** with a traceback, prints no aggregate report, and never runs the second model's test.

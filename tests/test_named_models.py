@@ -435,6 +435,52 @@ class BuildCommandTest(NamedProjectTest):
 class TestCommandTest(NamedProjectTest):
     """Task 1.6: `solid test --all` is one run over every model."""
 
+    def break_first_model(self, stage):
+        failures = {
+            'construction': '''
+    def __init__(self):
+        raise RuntimeError('construction failed deliberately')
+''',
+            'render': '''
+    def render(self):
+        raise RuntimeError('render failed deliberately')
+''',
+            'assembly': '''
+    def render(self):
+        return cube(1)
+
+    def assemble(self, root=None):
+        raise RuntimeError('assembly failed deliberately')
+''',
+            'artifact generation': '''
+    def render(self):
+        return cube(1)
+
+    def build_stls(self):
+        raise RuntimeError('artifact generation failed deliberately')
+''',
+        }
+        path = os.path.join(
+            self.root, self.package, 'a_clock', 'clock.py')
+        with open(path, 'w') as source:
+            source.write(
+                'from solid2 import cube\n'
+                'from solid_node.node import Solid2Node\n\n'
+                'class AClock(Solid2Node):\n' + failures[stage])
+        self.forget_project()
+
+    def run_all_tests(self, failfast=False):
+        from solid_node.manager.test import Test
+        stdout, stderr = io.StringIO(), io.StringIO()
+        code = None
+        with chdir(self.root), redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                Test().handle(Namespace(path=None, set=[], all=True,
+                                        failfast=failfast))
+            except SystemExit as exit:
+                code = exit.code
+        return code, stdout.getvalue(), stderr.getvalue()
+
     def test_all_runs_every_models_tests_as_one_run(self):
         from solid_node.manager.test import Test
         stdout = io.StringIO()
@@ -455,6 +501,40 @@ class TestCommandTest(NamedProjectTest):
                          - {path for path in self.stls(self.build_root)
                             if path.startswith(('a_clock', 'b_clock'))},
                          set(), 'a model built into the flat root')
+
+    def test_all_counts_each_model_preparation_failure_and_goes_on(self):
+        for stage in ('construction', 'render', 'assembly',
+                      'artifact generation'):
+            with self.subTest(stage=stage):
+                shutil.rmtree(self.build_root, ignore_errors=True)
+                self.break_first_model(stage)
+
+                code, stdout, stderr = self.run_all_tests()
+
+                self.assertEqual(code, 1)
+                self.assertIn('Ran 2 tests', stdout)
+                self.assertIn('1 passed, 1 failed', stdout)
+                self.assertIn('a_clock', stderr)
+                self.assertIn('RuntimeError', stderr)
+                self.assertIn(f'{stage} failed deliberately', stderr)
+                self.assertTrue(
+                    self.stls(os.path.join(self.build_root, 'b_clock')),
+                    'the later model did not build and run its test')
+
+    def test_all_failfast_reports_the_build_failure_and_stops(self):
+        self.break_first_model('render')
+
+        code, stdout, stderr = self.run_all_tests(failfast=True)
+
+        self.assertEqual(code, 1)
+        self.assertIn('Ran 1 tests', stdout)
+        self.assertIn('0 passed, 1 failed', stdout)
+        self.assertIn('a_clock', stderr)
+        self.assertIn('RuntimeError', stderr)
+        self.assertIn('render failed deliberately', stderr)
+        self.assertFalse(os.path.exists(
+            os.path.join(self.build_root, 'b_clock')),
+            'failfast prepared the later model')
 
 
 class ModelsCommandTest(NamedProjectTest):

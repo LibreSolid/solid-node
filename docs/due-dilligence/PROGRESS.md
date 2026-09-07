@@ -23,7 +23,8 @@ the order below.
   — OpenSpec change `clear-recovered-build-errors`.
 - [x] [F08 — `solid new 3d-printer` creates an unusable project](README.md#f08--solid-new-3d-printer-creates-an-unusable-project)
   — OpenSpec change `normalize-scaffold-identifiers`.
-- [ ] [F09 — Multi-model tests stop on build failures despite the continuation contract](README.md#f09--multi-model-tests-stop-on-build-failures-despite-the-continuation-contract)
+- [x] [F09 — Multi-model tests stop on build failures despite the continuation contract](README.md#f09--multi-model-tests-stop-on-build-failures-despite-the-continuation-contract)
+  — OpenSpec change `continue-all-model-tests-after-build-failure`.
 - [ ] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)
 - [ ] [F11 — Invalid simulation time inputs can silently bypass checks](README.md#f11--invalid-simulation-time-inputs-can-silently-bypass-checks)
 
@@ -45,4 +46,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **F09**.
+Next framework finding by priority and order: **F10**.

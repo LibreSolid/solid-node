@@ -125,14 +125,16 @@ class Test:
                     if klass is None:
                         # The model did not resolve; that is its failure,
                         # counted once, and the walk goes on.
-                        self.num_tests += 1
-                        self.num_failed += 1
-                        sys.stderr.write(
-                            f"Error: model {model.name}: {node_path}\n")
-                        if self.failfast:
-                            raise StopTestRun
+                        self.record_model_failure(model.name, node_path)
                         continue
-                self.node = self.build_node(reference)
+                try:
+                    self.node = self.build_node(
+                        reference, fatal=model is None)
+                except Exception as error:
+                    if model is None:
+                        raise
+                    self.record_model_failure(model.name, error)
+                    continue
                 self.test_case = None
                 self.test_cases = []
                 candidates = _defined_classes(
@@ -202,11 +204,25 @@ class Test:
             self.fail(f"No such node file: {node_path} (mapped from test path {path})")
         return node_path
 
-    def build_node(self, path, time=0):
+    def record_model_failure(self, name, error):
+        """Count one declared model that could not reach its tests."""
+        self.num_tests += 1
+        self.num_failed += 1
+        if isinstance(error, Exception):
+            reason = f'{type(error).__name__}: {error}'
+        else:
+            reason = str(error)
+        sys.stderr.write(f"Error: model {name}: {reason}\n")
+        if self.failfast:
+            raise StopTestRun
+
+    def build_node(self, path, time=0, fatal=True):
         try:
             node = load_node(path, overrides=getattr(self, 'overrides', None))
         except Exception as error:
-            self.fail(str(error))
+            if fatal:
+                self.fail(str(error))
+            raise
         with project_build_lock():
             node.set_keyframe(time)
             rendered = node.render()

@@ -268,9 +268,13 @@ errors are specified in the test-framework capability.
 
 `solid test --all` SHALL run, as one test run reported once, the tests of every
 declared model in declaration order, each model built in its own build
-directory. A model that fails to load or build SHALL be reported as a failure
-of that model and SHALL NOT stop the run unless `--failfast` is given. The
-command SHALL NOT accept a reference beside the flag and SHALL fail in a
+directory. A model that fails reference resolution, load, construction,
+initial keyframe binding, render, assembly, or artifact generation SHALL be
+reported and counted once as a failure of that declared model. Its tests SHALL
+NOT run, and the runner SHALL proceed to the next declared model unless
+`--failfast` is given. The final report and exit status SHALL include every
+model failure and test result observed before the run completed or stopped.
+The command SHALL NOT accept a reference beside the flag and SHALL fail in a
 project that declares no models.
 
 #### Scenario: Test file as argument
@@ -302,6 +306,24 @@ project that declares no models.
   each with companion tests
 - **THEN** one run executes both models' tests, the summary counts all of
   them, and the exit status is nonzero iff any test failed
+
+#### Scenario: A model build failure is aggregated
+
+- **WHEN** the first declared model fails during construction, render,
+  assembly, or artifact generation and a later declared model can build
+- **AND** the user runs `solid test --all` without `--failfast`
+- **THEN** the first model is named and counted once as failed
+- **AND** the later model's tests run
+- **AND** one final report covers both models and the command exits nonzero
+
+#### Scenario: A model build failure honors failfast
+
+- **WHEN** the first declared model fails to build and a later declared model
+  can build
+- **AND** the user runs `solid test --all --failfast`
+- **THEN** the first model is named and counted once as failed
+- **AND** the later model does not build or run tests
+- **AND** one final report covers the failure and the command exits nonzero
 
 ### Requirement: Snapshot command
 

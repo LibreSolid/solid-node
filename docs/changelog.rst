@@ -56,6 +56,14 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**All-model tests now continue after a model fails to build.** During
+``solid test --all``, a failure while loading, constructing, keyframing,
+rendering, assembling, or generating artifacts is counted once against the
+declared model and the next model still runs. ``--failfast`` records that
+failure before stopping, and both paths retain the command's single aggregate
+report. (OpenSpec change
+``continue-all-model-tests-after-build-failure``.)
+
 **New-project scaffolds always use valid Python identifiers.** Names that
 sanitize to a leading digit or Python keyword now gain a deterministic
 ``project_`` prefix before paths, modules, classes, and the manifest are
