@@ -82,6 +82,22 @@ class NewCommandTest(TestCase):
         # faceted test kernel; it must never travel to CI.
         self.assertIn('.env', gitignore_content.split())
 
+    def test_success_guidance_defers_viewer_details_to_develop(self):
+        target = os.path.join(self.tmpdir.name, 'myproj')
+        stdout = io.StringIO()
+
+        with patch.dict(os.environ, {'SOLID_NODE_PORT': '8123'}), \
+                redirect_stdout(stdout):
+            New().handle(Namespace(name=target))
+
+        message = stdout.getvalue()
+        self.assertIn(f'Created new solid-node project at {target}/', message)
+        self.assertIn(f'  cd {target}', message)
+        self.assertIn('  solid develop', message)
+        self.assertNotIn('http://', message)
+        self.assertNotIn('8000', message)
+        self.assertNotIn('8123', message)
+
     def test_generated_init_is_valid_python_matching_template(self):
         target = os.path.join(self.tmpdir.name, 'myproj2')
         args = Namespace(name=target)

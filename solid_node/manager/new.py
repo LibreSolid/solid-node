@@ -79,4 +79,3 @@ class New:
         print("Next steps:")
         print(f"  cd {target}")
         print("  solid develop")
-        print("  Open http://localhost:8000 in your browser")

@@ -17,6 +17,13 @@ Zero-duration instructions now settle and bind every target immediately at
 the current tick without advancing time or adding a trajectory entry.
 (OpenSpec change ``validate-simulation-time-boundaries``; ADR-083.)
 
+**New-project guidance now defers viewer details to development.** The
+successful ``solid new`` message still shows how to enter the generated
+directory and run ``solid develop``, but no longer promises a browser at a
+hard-coded port. The development command owns viewer selection, configured
+ports, and dependency diagnostics. (OpenSpec change
+``make-scaffold-next-steps-viewer-neutral``.)
+
 **A repeated subexpression is published once, not once per use.** Every
 symbolic value in the framework is a solid2 ``OpenSCADConstant``, and
 ``OpenSCADConstant`` is string-eager: a value used twice is written out

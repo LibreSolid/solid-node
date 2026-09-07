@@ -477,8 +477,9 @@ default testing instant and SHALL remain valid when the generated model is a
 single rigid node.
 
 The command SHALL refuse to overwrite an existing target directory (exit 1)
-and SHALL print next steps for entering the generated directory and running the
-project.
+and SHALL print next steps for entering the generated directory and running
+`solid develop`. It SHALL NOT predict a viewer kind or endpoint; the develop
+command owns viewer selection, configured ports, and dependency diagnostics.
 
 #### Scenario: Fresh project includes both declared integrity tests
 
@@ -521,6 +522,13 @@ project.
 - **THEN** the command creates `project_class` with package `project_class`,
   class `ProjectClass`, and a matching manifest
 - **AND** its generated source compiles, builds, and tests without edits
+
+#### Scenario: Next steps defer viewer details to develop
+
+- **WHEN** `solid new my-project` succeeds in any viewer installation or port
+  configuration
+- **THEN** its next steps name the generated directory and `solid develop`
+- **AND** they do not claim a browser URL or viewer kind
 
 ### Requirement: Export command
 

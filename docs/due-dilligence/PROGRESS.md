@@ -38,10 +38,8 @@ the order below.
   — documented the opt-in command and added a required real-capture CI job.
 - [x] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
   — aligned README and contributor wording with the entry-point boundary.
-- [ ] **C04 — Audit scaffolded viewer next-step guidance.** The generated
-  success message hard-codes `http://localhost:8000` without considering the
-  configured port or whether the optional browser viewer is available. This
-  is the separate review lead retained from F08.
+- [x] [C04 — Scaffolded next steps predict one viewer and port](README.md#c04--scaffolded-next-steps-predict-one-viewer-and-port)
+  — OpenSpec change `make-scaffold-next-steps-viewer-neutral`.
 
 ## Cross-repository follow-ups
 
@@ -51,4 +49,5 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **C04**.
+Next framework finding by priority and order: **none**. V01 remains open for
+the independent viewer repository.

@@ -442,7 +442,34 @@ contract.
 
 The [README's viewer introduction](../../README.rst#L38) says the framework never imports the viewer. [bundle.describe()](../../solid_node/viewers/bundle.py#L50) calls `entry.load()()`, which imports and runs the viewer's entry-point provider in the framework process. The [viewer-distribution spec](../../openspec/specs/viewer-distribution/spec.md#requirement-the-framework-finds-the-installed-viewer-through-its-entry-point) explicitly permits this narrow import and forbids other viewer imports. Align the README with that actual boundary: entry-point metadata runs locally; serving and capture run in separate processes. This observation makes no licensing determination.
 
-The CI lint job additionally marks both Black and Flake8 `continue-on-error: true`, so formatting and lint errors do not block the test/release chain. That is a process gap to assess, rather than evidence of a particular runtime defect.
+### C04 — Scaffolded next steps predict one viewer and port
+
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`make-scaffold-next-steps-viewer-neutral`. The success message retains the
+normalized project path, `cd`, and `solid develop`, then stops. It no longer
+claims that a browser is listening on port 8000 because the later development
+command owns `.env` loading, viewer availability, selection, endpoint output,
+and dependency diagnostics. The focused new-command suite passed 9 tests with
+7 subtests, and broader CLI/develop coverage passed 58 tests with 35 subtests.
+The complete suite passed 1,639 tests with 16 skipped, 46 warnings, and 302
+passing subtests. No ADR was needed: the change applies the command ownership
+already recorded by ADR-024 and ADR-068.
+
+The generated success message previously hard-coded
+`http://localhost:8000`. That was wrong when `SOLID_NODE_PORT` selected another
+port, when the browser viewer was absent and OpenSCAD opened, and when neither
+viewer dependency was available. Scaffolding does not load the future
+project's `.env` and cannot reliably predict the later shell environment.
+
+The CI lint job additionally marks both Black and Flake8 `continue-on-error:
+true`, so formatting and lint errors do not block the test/release chain.
+Assessment on the completed branch confirmed that removing those allowances is
+not a self-contained switch: the configured Black check reports 204 existing
+files to reformat, while Flake8 reports 221 existing violations across 72
+files. Making those steps blocking without first paying down or baselining
+that repository-wide debt would leave CI permanently red. That cleanup is a
+separate maintenance migration rather than part of any numbered remediation
+item above.
 
 ## Recommended order of work
 
