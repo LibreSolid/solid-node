@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-07
+goal: A failed OpenSCAD render produces a failed build outcome while preserving
+  the last complete STL artifact.
