@@ -1,0 +1,710 @@
+{
+  "environment": {
+    "utc": "2026-09-07T12:20:35Z",
+    "framework_commit": "4bf9b69421b7114809af75fe663441d115407631",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "executable": "/home/asa/devel/libresolid-studio/.venv/bin/python",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "solid-node": "0.6.0",
+      "cadquery": "2.7.0",
+      "cadquery-ocp": "7.8.1.1.post1",
+      "build123d": "0.10.0",
+      "trimesh": "4.4.9",
+      "manifold3d": "3.5.2",
+      "molejo": "0.2.0",
+      "numpy": "2.2.6",
+      "scipy": "1.18.1"
+    },
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "load_average": [
+      0.84765625,
+      1.34423828125,
+      2.4501953125
+    ],
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "openscad": "OpenSCAD version 2021.01",
+    "jscad_available": false
+  },
+  "section": "startup",
+  "measurements": {
+    "python_control": {
+      "samples_s": [
+        0.09139934399718186,
+        0.08759842000290519,
+        0.08414686300238827,
+        0.09297414500179002,
+        0.08767792300204746
+      ],
+      "median_s": 0.08767792300204746,
+      "min_s": 0.08414686300238827,
+      "max_s": 0.09297414500179002,
+      "runs": [
+        {
+          "elapsed_s": 1.7272999684792012e-05,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.09139934399718186,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.179199509555474e-05,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.08759842000290519,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.3946002582088113e-05,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.08414686300238827,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.3657001545652747e-05,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.09297414500179002,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.902499934658408e-05,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.08767792300204746,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "cli_import": {
+      "samples_s": [
+        0.10062545399705414,
+        0.08135982300154865,
+        0.07981986799859442,
+        0.0784488070057705,
+        0.10535028699814575
+      ],
+      "median_s": 0.08135982300154865,
+      "min_s": 0.0784488070057705,
+      "max_s": 0.10535028699814575,
+      "runs": [
+        {
+          "elapsed_s": 0.0017193059975397773,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10062545399705414,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.0017191450024256483,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.08135982300154865,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.0019251479970989749,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.07981986799859442,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.001659974004724063,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.0784488070057705,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.0016838680021464825,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10535028699814575,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "parameters_import": {
+      "samples_s": [
+        0.08179060499969637,
+        0.09576162500161445,
+        0.08108429799904115,
+        0.09679185999993933,
+        0.08581695600150852
+      ],
+      "median_s": 0.08581695600150852,
+      "min_s": 0.08108429799904115,
+      "max_s": 0.09679185999993933,
+      "runs": [
+        {
+          "elapsed_s": 0.00503970399586251,
+          "peak_self_rss_kib": 26744,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.08179060499969637,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004721427001641132,
+          "peak_self_rss_kib": 26880,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.09576162500161445,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004444909995072521,
+          "peak_self_rss_kib": 26752,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.08108429799904115,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004621325999323744,
+          "peak_self_rss_kib": 26752,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.09679185999993933,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004838929999095853,
+          "peak_self_rss_kib": 26756,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.08581695600150852,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "Solid2Node_import": {
+      "samples_s": [
+        0.19668245399952866,
+        0.21785871599422535,
+        0.19163200100592803,
+        0.20619250500021735,
+        0.2006483119985205
+      ],
+      "median_s": 0.2006483119985205,
+      "min_s": 0.19163200100592803,
+      "max_s": 0.21785871599422535,
+      "runs": [
+        {
+          "elapsed_s": 0.10763003199826926,
+          "peak_self_rss_kib": 40708,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.19668245399952866,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.1280673359942739,
+          "peak_self_rss_kib": 40836,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.21785871599422535,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.09848937400238356,
+          "peak_self_rss_kib": 40832,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.19163200100592803,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.1114803890013718,
+          "peak_self_rss_kib": 40712,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.20619250500021735,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.10687488300027326,
+          "peak_self_rss_kib": 40836,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.2006483119985205,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "CadQueryNode_import": {
+      "samples_s": [
+        3.0163695650044247,
+        2.8829631590051576,
+        2.907900670004892,
+        2.7477015379990917,
+        3.0432262569956947
+      ],
+      "median_s": 2.907900670004892,
+      "min_s": 2.7477015379990917,
+      "max_s": 3.0432262569956947,
+      "runs": [
+        {
+          "elapsed_s": 2.4188551519982866,
+          "peak_self_rss_kib": 496424,
+          "peak_child_rss_kib": 0,
+          "module_count": 1784,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.0163695650044247,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.349414420998073,
+          "peak_self_rss_kib": 499952,
+          "peak_child_rss_kib": 0,
+          "module_count": 1784,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 2.8829631590051576,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.385178081000049,
+          "peak_self_rss_kib": 500068,
+          "peak_child_rss_kib": 0,
+          "module_count": 1784,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 2.907900670004892,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.231490874000883,
+          "peak_self_rss_kib": 499828,
+          "peak_child_rss_kib": 0,
+          "module_count": 1784,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 2.7477015379990917,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.499037806999695,
+          "peak_self_rss_kib": 496860,
+          "peak_child_rss_kib": 0,
+          "module_count": 1784,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.0432262569956947,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "test_import": {
+      "samples_s": [
+        0.7731588949973229,
+        0.7746313410025323,
+        0.8169634180012508,
+        0.8380764719986473,
+        0.7501524789986433
+      ],
+      "median_s": 0.7746313410025323,
+      "min_s": 0.7501524789986433,
+      "max_s": 0.8380764719986473,
+      "runs": [
+        {
+          "elapsed_s": 0.6397314810019452,
+          "peak_self_rss_kib": 94984,
+          "peak_child_rss_kib": 0,
+          "module_count": 916,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.7731588949973229,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.6230816749957739,
+          "peak_self_rss_kib": 94984,
+          "peak_child_rss_kib": 0,
+          "module_count": 916,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.7746313410025323,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.6725776339953882,
+          "peak_self_rss_kib": 91280,
+          "peak_child_rss_kib": 0,
+          "module_count": 916,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.8169634180012508,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.6861549469977035,
+          "peak_self_rss_kib": 95240,
+          "peak_child_rss_kib": 0,
+          "module_count": 916,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.8380764719986473,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.6065841599993291,
+          "peak_self_rss_kib": 95112,
+          "peak_child_rss_kib": 0,
+          "module_count": 916,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.7501524789986433,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "viewer_command": {
+      "samples_s": [
+        0.11611344100674614,
+        0.11007828999572666,
+        0.11235680300160311,
+        0.1206004909981857,
+        0.1331514980047359
+      ],
+      "median_s": 0.11611344100674614,
+      "min_s": 0.11007828999572666,
+      "max_s": 0.1331514980047359,
+      "runs": [
+        {
+          "elapsed_s": 0.03205978199548554,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.11611344100674614,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 6, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.031011004000902176,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.11007828999572666,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 6, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.029780548000417184,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.11235680300160311,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 6, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.03789900899573695,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.1206004909981857,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 6, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.02837234499747865,
+          "peak_self_rss_kib": 26232,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.1331514980047359,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 6, \"version\": \"0.1.0\"}"
+        }
+      ]
+    },
+    "models_command": {
+      "samples_s": [
+        0.25944462700135773,
+        0.2829778619998251,
+        0.2605244239966851,
+        0.27804722600558307,
+        0.2649030680040596
+      ],
+      "median_s": 0.2649030680040596,
+      "min_s": 0.25944462700135773,
+      "max_s": 0.2829778619998251,
+      "runs": [
+        {
+          "elapsed_s": 0.17212355199444573,
+          "peak_self_rss_kib": 43268,
+          "peak_child_rss_kib": 0,
+          "module_count": 378,
+          "heavy_imports": [],
+          "wall_s": 0.25944462700135773,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-performance-g0wkqkty/fixture\", \"build_root\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.18101202799880411,
+          "peak_self_rss_kib": 43268,
+          "peak_child_rss_kib": 0,
+          "module_count": 378,
+          "heavy_imports": [],
+          "wall_s": 0.2829778619998251,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-performance-g0wkqkty/fixture\", \"build_root\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.16877701399789657,
+          "peak_self_rss_kib": 43272,
+          "peak_child_rss_kib": 0,
+          "module_count": 378,
+          "heavy_imports": [],
+          "wall_s": 0.2605244239966851,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-performance-g0wkqkty/fixture\", \"build_root\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.16474005099735223,
+          "peak_self_rss_kib": 43268,
+          "peak_child_rss_kib": 0,
+          "module_count": 378,
+          "heavy_imports": [],
+          "wall_s": 0.27804722600558307,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-performance-g0wkqkty/fixture\", \"build_root\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.17663619100494543,
+          "peak_self_rss_kib": 43268,
+          "peak_child_rss_kib": 0,
+          "module_count": 378,
+          "heavy_imports": [],
+          "wall_s": 0.2649030680040596,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-performance-g0wkqkty/fixture\", \"build_root\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-performance-g0wkqkty/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        }
+      ]
+    },
+    "build_help": {
+      "samples_s": [
+        0.27842289099498885,
+        0.28143114400154445,
+        0.27998699299496366,
+        0.2819161389998044,
+        0.2823234149982454
+      ],
+      "median_s": 0.28143114400154445,
+      "min_s": 0.27842289099498885,
+      "max_s": 0.2823234149982454,
+      "runs": [
+        {
+          "elapsed_s": 0.17845971600036137,
+          "peak_self_rss_kib": 43392,
+          "peak_child_rss_kib": 0,
+          "module_count": 384,
+          "heavy_imports": [],
+          "wall_s": 0.27842289099498885,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.18456917900039116,
+          "peak_self_rss_kib": 43396,
+          "peak_child_rss_kib": 0,
+          "module_count": 384,
+          "heavy_imports": [],
+          "wall_s": 0.28143114400154445,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.17663223299314268,
+          "peak_self_rss_kib": 43404,
+          "peak_child_rss_kib": 0,
+          "module_count": 384,
+          "heavy_imports": [],
+          "wall_s": 0.27998699299496366,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.18844551499933004,
+          "peak_self_rss_kib": 43524,
+          "peak_child_rss_kib": 0,
+          "module_count": 384,
+          "heavy_imports": [],
+          "wall_s": 0.2819161389998044,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.17608678400574718,
+          "peak_self_rss_kib": 43392,
+          "peak_child_rss_kib": 0,
+          "module_count": 384,
+          "heavy_imports": [],
+          "wall_s": 0.2823234149982454,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        }
+      ]
+    }
+  }
+}

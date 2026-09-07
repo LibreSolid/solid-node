@@ -1,0 +1,861 @@
+{
+  "environment": {
+    "utc": "2026-09-07T12:23:49Z",
+    "framework_commit": "4bf9b69421b7114809af75fe663441d115407631",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "executable": "/home/asa/devel/libresolid-studio/.venv/bin/python",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "solid-node": "0.6.0",
+      "cadquery": "2.7.0",
+      "cadquery-ocp": "7.8.1.1.post1",
+      "build123d": "0.10.0",
+      "trimesh": "4.4.9",
+      "manifold3d": "3.5.2",
+      "molejo": "0.2.0",
+      "numpy": "2.2.6",
+      "scipy": "1.18.1"
+    },
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "load_average": [
+      2.84814453125,
+      2.001953125,
+      2.4951171875
+    ],
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "openscad": "OpenSCAD version 2021.01",
+    "jscad_available": false
+  },
+  "section": "build",
+  "measurements": [
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.2814697499998147,
+        "peak_self_rss_kib": 41988,
+        "peak_child_rss_kib": 97672,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 2.3937433999963105,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1582141\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 1582141\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.1314890619978542,
+        "peak_self_rss_kib": 43900,
+        "peak_child_rss_kib": 87828,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.2319552269982523,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "b3488b49a730e6f1c02eddd23e5d6fc4fd790ceb711e340d03bb1577181d50da",
+        "manifest_mtime_ns": 1788783831966784498,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.0763581309947767,
+        "peak_self_rss_kib": 44036,
+        "peak_child_rss_kib": 99704,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 2.188695430995722,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1582430\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 1582430\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.1356180349976057,
+        "peak_self_rss_kib": 44032,
+        "peak_child_rss_kib": 99964,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.257389886995952,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "b3488b49a730e6f1c02eddd23e5d6fc4fd790ceb711e340d03bb1577181d50da",
+        "manifest_mtime_ns": 1788783835379888376,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.0688732440030435,
+        "peak_self_rss_kib": 44036,
+        "peak_child_rss_kib": 100352,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 2.173811423999723,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1582699\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 1582699\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.063878257999022,
+        "peak_self_rss_kib": 44036,
+        "peak_child_rss_kib": 100216,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.1819321039947681,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "b3488b49a730e6f1c02eddd23e5d6fc4fd790ceb711e340d03bb1577181d50da",
+        "manifest_mtime_ns": 1788783838828993363,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 8.637825924997742,
+        "peak_self_rss_kib": 44032,
+        "peak_child_rss_kib": 100348,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 8.750389857996197,
+        "status": 0,
+        "stderr": "8783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.01-042f62ce44ff.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583120\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 1583120\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583204\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 1583204\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583268\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 1583268\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583334\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 1583334\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583400\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 1583400\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1583538\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 1583538\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.130015964001359,
+        "peak_self_rss_kib": 43908,
+        "peak_child_rss_kib": 95444,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.2636580299949856,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "4f19e54e5e063eb02c9df111ef3330f1ee31885b146e61aec50608be03794e73",
+        "manifest_mtime_ns": 1788783848772296096,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 9.015584649998345,
+        "peak_self_rss_kib": 43652,
+        "peak_child_rss_kib": 98044,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 9.161558649000654,
+        "status": 0,
+        "stderr": "8783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.01-042f62ce44ff.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584018\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 1584018\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584118\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 1584118\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584204\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 1584204\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584284\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 1584284\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584353\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 1584353\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584449\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 1584449\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.1120813570014434,
+        "peak_self_rss_kib": 43908,
+        "peak_child_rss_kib": 91204,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.2184257390035782,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "4f19e54e5e063eb02c9df111ef3330f1ee31885b146e61aec50608be03794e73",
+        "manifest_mtime_ns": 1788783859125611421,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 8.716519731999142,
+        "peak_self_rss_kib": 43904,
+        "peak_child_rss_kib": 99196,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 8.826101203005237,
+        "status": 0,
+        "stderr": "8783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.01-042f62ce44ff.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1584900\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 1584900\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1585070\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 1585070\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1585138\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 1585138\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1585223\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 1585223\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1585318\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 1585318\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1585382\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 1585382\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.1833149660014897,
+        "peak_self_rss_kib": 42120,
+        "peak_child_rss_kib": 98032,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.287761462997878,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "4f19e54e5e063eb02c9df111ef3330f1ee31885b146e61aec50608be03794e73",
+        "manifest_mtime_ns": 1788783869237919512,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 24.154220219999843,
+        "peak_self_rss_kib": 44036,
+        "peak_child_rss_kib": 99312,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 24.271861064000404,
+        "status": 0,
+        "stderr": " children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1587540\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 1587540\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1587681\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 1587681\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1587763\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 1587763\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.085050059002242,
+        "peak_self_rss_kib": 43908,
+        "peak_child_rss_kib": 93768,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.1980173749980167,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "67f845c91a3cf081851b0d8f834c74a92dba8a84f2a7ffa7be636627fd76b1b2",
+        "manifest_mtime_ns": 1788783894794698598,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 23.759121267998125,
+        "peak_self_rss_kib": 44032,
+        "peak_child_rss_kib": 99068,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 23.869437914996524,
+        "status": 0,
+        "stderr": " children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1589460\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 1589460\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1589511\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 1589511\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1589544\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 1589544\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.1295985160031705,
+        "peak_self_rss_kib": 44040,
+        "peak_child_rss_kib": 98124,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.2444509999986622,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "67f845c91a3cf081851b0d8f834c74a92dba8a84f2a7ffa7be636627fd76b1b2",
+        "manifest_mtime_ns": 1788783919867463534,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 23.92060726100317,
+        "peak_self_rss_kib": 43904,
+        "peak_child_rss_kib": 100352,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 24.035906347999116,
+        "status": 0,
+        "stderr": " children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1591380\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 1591380\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1591426\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 1591426\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788783617.8150518!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 1591476\n INFO -    core.builder - Building /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 1591476\n INFO -       node.base - waiting for /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788783617.8150518!\n INFO -    core.builder - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.122837475995766,
+        "peak_self_rss_kib": 44544,
+        "peak_child_rss_kib": 100588,
+        "module_count": 401,
+        "heavy_imports": [],
+        "wall_s": 1.2368722839964903,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788783617.8150518!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "67f845c91a3cf081851b0d8f834c74a92dba8a84f2a7ffa7be636627fd76b1b2",
+        "manifest_mtime_ns": 1788783945143235239,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.267405036000127,
+        "peak_self_rss_kib": 503664,
+        "peak_child_rss_kib": 517852,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.793428782999399,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-0/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-0/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.180782187002478,
+        "peak_self_rss_kib": 504160,
+        "peak_child_rss_kib": 511608,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.705924135996611,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-0/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "a38946322e8bd3e5beb1f23ece4d0aa203f952272a5d1cfbf1ff54667e0f7fe1",
+        "manifest_mtime_ns": 1788783951408426610,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.0427359089953825,
+        "peak_self_rss_kib": 504008,
+        "peak_child_rss_kib": 517440,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.590141071996186,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-1/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-1/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.342406787996879,
+        "peak_self_rss_kib": 504120,
+        "peak_child_rss_kib": 512448,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.94241152399627,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-1/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "a38946322e8bd3e5beb1f23ece4d0aa203f952272a5d1cfbf1ff54667e0f7fe1",
+        "manifest_mtime_ns": 1788783962673770796,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.267669521002972,
+        "peak_self_rss_kib": 503684,
+        "peak_child_rss_kib": 517860,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.786037256999407,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-2/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-2/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.430635454998992,
+        "peak_self_rss_kib": 503932,
+        "peak_child_rss_kib": 511932,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.998784160998184,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-1-2/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "a38946322e8bd3e5beb1f23ece4d0aa203f952272a5d1cfbf1ff54667e0f7fe1",
+        "manifest_mtime_ns": 1788783974372128323,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.2160332259954885,
+        "peak_self_rss_kib": 503660,
+        "peak_child_rss_kib": 518456,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.735343351996562,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.2616324099944904,
+        "peak_self_rss_kib": 503920,
+        "peak_child_rss_kib": 512644,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.776190379001491,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-0/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "7da683415f1e43e75e62901f039b2b84e56e3a04ced278a66bf84947ddbafd3e",
+        "manifest_mtime_ns": 1788783986160488713,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.339300022002135,
+        "peak_self_rss_kib": 504040,
+        "peak_child_rss_kib": 517768,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.8811613639991265,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.344896132002759,
+        "peak_self_rss_kib": 504024,
+        "peak_child_rss_kib": 513028,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.953416445001494,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-1/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "7da683415f1e43e75e62901f039b2b84e56e3a04ced278a66bf84947ddbafd3e",
+        "manifest_mtime_ns": 1788783997741842882,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.372869052996975,
+        "peak_self_rss_kib": 504292,
+        "peak_child_rss_kib": 518052,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.930603492000955,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788783617.8160517!\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.209855239998433,
+        "peak_self_rss_kib": 503796,
+        "peak_child_rss_kib": 512360,
+        "module_count": 1864,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 5.7868443289989955,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-performance-on_zs8ir/exact-8-2/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788783617.8160517!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "7da683415f1e43e75e62901f039b2b84e56e3a04ced278a66bf84947ddbafd3e",
+        "manifest_mtime_ns": 1788784009679208049,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+# Observed working-tree deltas used by the audit. Informational evidence:
+# apply each diff only to its separately named project at the recorded commit.
+# No project source was changed by this audit.
+#
+# projects/Vibecoded-demos/v8-engine, 3740f6a8cd3efc03fa5dfb854ff0728177bf5dc1
+diff --git a/v8_engine/v8_engine.py b/v8_engine/v8_engine.py
+index 0e8a87e..b0e9418 100644
+--- a/v8_engine/v8_engine.py
++++ b/v8_engine/v8_engine.py
+@@ -1,4 +1,5 @@
+-from solid_node.node import AssemblyNode, Length
++from solid_node.node import AssemblyNode
++from solid_node.parameters import Length
+ 
+ from .block.block import BlockAssembly
+ from .crankshaft.crankshaft import Crankshaft
+@@ -31,7 +32,7 @@ class Engine(AssemblyNode):
+     #: The running fit every printed pair in this machine is cut to.
+     clearance = Length(0.3, min=0.25, max=0.45)
+     #: The hand crank's throw, the one comfort dimension a maker tunes.
+-    handle_throw = Length(35.0, min=32.0, max=40.0)
++    handle_throw = Length(40.0, min=32.0, max=40.0)
+ 
+     crankshaft = Crankshaft()
+     cylinders = Cylinders()
+#
+# projects/Vibecoded-demos/abacus, 98dc357c4e14a56637884949564952df246b3829
+diff --git a/abacus/abacus.py b/abacus/abacus.py
+index 139a702..fd06dd2 100644
+--- a/abacus/abacus.py
++++ b/abacus/abacus.py
+@@ -19,7 +19,7 @@ class Abacus(AssemblyNode):
+     """
+ 
+     # Columns and frame.
+-    count      = Count(9, min=1)
++    count      = Count(7, min=1)
+     pitch      = Length(18.0, min=0)
+     post_width = Length(12.0, min=0)
+     rail_width = Length(10.0, min=0)

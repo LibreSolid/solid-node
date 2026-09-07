@@ -1,0 +1,94 @@
+{
+  "environment": {
+    "utc": "2026-09-07T12:30:45Z",
+    "framework_commit": "4bf9b69421b7114809af75fe663441d115407631",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "executable": "/home/asa/devel/libresolid-studio/.venv/bin/python",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "solid-node": "0.6.0",
+      "cadquery": "2.7.0",
+      "cadquery-ocp": "7.8.1.1.post1",
+      "build123d": "0.10.0",
+      "trimesh": "4.4.9",
+      "manifold3d": "3.5.2",
+      "molejo": "0.2.0",
+      "numpy": "2.2.6",
+      "scipy": "1.18.1"
+    },
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "load_average": [
+      3.001953125,
+      3.7119140625,
+      3.2734375
+    ],
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "openscad": "OpenSCAD version 2021.01",
+    "jscad_available": false
+  },
+  "section": "memory",
+  "measurements": {
+    "placements": [
+      {
+        "count": 100,
+        "cache_entries": 100,
+        "rss_kib": 498192,
+        "elapsed_s": 0.013136319001205266
+      },
+      {
+        "count": 1000,
+        "cache_entries": 1000,
+        "rss_kib": 507896,
+        "elapsed_s": 0.12122606800403446
+      },
+      {
+        "count": 2000,
+        "cache_entries": 2000,
+        "rss_kib": 518420,
+        "elapsed_s": 0.2533362520043738
+      },
+      {
+        "count": 4000,
+        "cache_entries": 4000,
+        "rss_kib": 539080,
+        "elapsed_s": 0.48183796599914785
+      }
+    ],
+    "baseline_rss_kib": 498940,
+    "elapsed_s": 2.6730258190000313,
+    "peak_self_rss_kib": 538764,
+    "peak_child_rss_kib": 0,
+    "module_count": 1749,
+    "heavy_imports": [
+      "trimesh",
+      "cadquery",
+      "OCP"
+    ],
+    "wall_s": 3.2805976040035603,
+    "status": 0,
+    "stderr": "",
+    "stdout": ""
+  }
+}
