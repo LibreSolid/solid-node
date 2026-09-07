@@ -54,10 +54,13 @@ recurse into its children; a flexible leaf SHALL emit one `flexible` object
 and stop recursion. Each node SHALL carry `name`, `type`, `color`,
 `mtime`, and its operations as unevaluated expressions so `$t`
 animation is preserved rather than baked to the constants of one instant. A
-rigid model reference SHALL remain rooted
-beneath the export's `models/` directory and SHALL resolve to a copied artifact
-so the export remains portable and self-contained. Changes to the shared tree
-shape or operation serialization are breaking and MUST bump `version` and
+rigid model reference SHALL be derived relative to the selected build directory
+that owns the artifact, SHALL remain rooted beneath the export's `models/`
+directory with no parent traversal, and SHALL resolve to a copied artifact so
+the export remains portable and self-contained regardless of the caller's
+working directory. An artifact outside that build directory SHALL make export
+fail before it creates or modifies the requested output. Changes to the shared
+tree shape or operation serialization are breaking and MUST bump `version` and
 update every producer and consumer of the shared schema together.
 
 When the serialized document contains a subexpression occurring more than
@@ -107,6 +110,28 @@ document rather than render it. Consumers SHALL accept versions 2, 3 and 4.
   exported
 - **THEN** `manifest.json` declares `version: 4` rather than `3`, and its
   flexible leaf's `params` may reference the table
+
+#### Scenario: Export starts in a project subdirectory
+
+- **WHEN** a project model is exported from a working directory below its
+  project root to an output directory elsewhere
+- **THEN** every model reference contains no parent traversal and resolves to
+  its copied artifact beneath the output's `models/` directory
+
+#### Scenario: Export uses a configured or selected build directory
+
+- **WHEN** export uses a relative configured build root or a named model's
+  selected build directory
+- **THEN** model references preserve artifact paths relative to that resolved
+  directory and resolve beneath the export's `models/` directory
+
+#### Scenario: A model artifact is outside its build directory
+
+- **WHEN** a rigid node names an STL whose canonical path is outside its
+  resolved build directory
+- **THEN** direct export raises `ExportModelPathError`, CLI export exits
+  nonzero with that diagnostic, and the requested output is not created or
+  modified
 
 ### Requirement: Model deduplication
 
@@ -356,4 +381,3 @@ name kind and no new resolution failure.
 - **THEN** a consumer that refuses documents naming undeclared driver ids
   accepts it, because every name its expressions carry is `$t`, a binding, or
   a function of the expression language
-

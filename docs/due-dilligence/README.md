@@ -150,6 +150,19 @@ original evidence below remains the pre-fix audit record.
 
 **Location:** [solid_node/core/export.py:140–149](../../solid_node/core/export.py#L140), consumed by [the copy loop at lines 112–117](../../solid_node/core/export.py#L112).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`confine-export-models`. Export model paths now use the project-aware and
+selection-aware build-directory resolver, canonicalize both the build root and
+artifact, and reject an artifact outside that root before touching the output.
+The CLI reports that invariant failure without a traceback or success message.
+Regressions cover nested invocation, a relative configured build root, a named
+model selection, direct-call rejection, and the CLI diagnostic. Validation
+passed 23 focused tests with 5 passing subtests and the complete suite (1,532
+passed, 16 skipped, 38 warnings, 258 passing subtests). The saved probe now
+emits `models/design/part-Part-8570a2e1669f.stl`, resolves it beneath
+`portable/models/`, and reports `outside_output: false`. The original evidence
+below remains the pre-fix audit record.
+
 `_model_path()` derives its build root from `SOLID_BUILD_DIR` or the current directory's `_build`. Actual node artifacts are anchored to the discovered project root. A direct file/qualifier reference does not anchor `SOLID_BUILD_DIR`, so the two roots disagree when the caller is in a project subdirectory or outside the project. The resulting `..` segments are accepted by the destination copy loop.
 
 **Reproduction:** From `<project>/design/nested`, export an absolute reference to `<project>/design/part.py`, using `--no-widget -o <temporary>/exports/sub/portable`. The command exits **0** and writes this manifest reference:

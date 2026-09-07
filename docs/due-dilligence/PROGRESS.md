@@ -11,7 +11,8 @@ the order below.
   — planned in `7dee1a7`, fixed in `24a65da`.
 - [x] [F02 — Build cleanup deletes files it does not own](README.md#f02--build-cleanup-deletes-files-it-does-not-own)
   — OpenSpec change `preserve-unowned-build-siblings`.
-- [ ] [F03 — Export paths can escape the output directory](README.md#f03--export-paths-can-escape-the-output-directory)
+- [x] [F03 — Export paths can escape the output directory](README.md#f03--export-paths-can-escape-the-output-directory)
+  — OpenSpec change `confine-export-models`.
 - [ ] [F04 — Exact geometry bypasses build mutual exclusion](README.md#f04--exact-geometry-bypasses-build-mutual-exclusion)
 - [ ] [F05 — Aggregate timestamp equality hides changed source contents](README.md#f05--aggregate-timestamp-equality-hides-changed-source-contents)
 - [ ] [F06 — Changes to non-Python source files never trigger reload](README.md#f06--changes-to-non-python-source-files-never-trigger-reload)
@@ -35,4 +36,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **F03**.
+Next framework finding by priority and order: **F04**.

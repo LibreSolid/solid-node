@@ -27,7 +27,7 @@ from .serializer import (
     document_version, drivers_table, instructions_table, serialize_node,
     symbolic_document,
 )
-from .builder import project_build_lock
+from .builder import get_build_dir, project_build_lock
 from .pieces import PieceInventory
 from solid_node.viewers import bundle as viewer_bundle
 
@@ -47,6 +47,16 @@ class WidgetBundleMissing(Exception):
         super().__init__(
             f'{viewer_bundle.missing_bundle_remedy()} Or pass --no-widget '
             'to export only the manifest and models.'
+        )
+
+
+class ExportModelPathError(Exception):
+    """A rigid artifact is outside the build directory that owns it."""
+
+    def __init__(self, artifact, build_dir):
+        super().__init__(
+            f'Cannot export model artifact {artifact}: its canonical path is '
+            f'outside build directory {build_dir}'
         )
 
 
@@ -148,11 +158,17 @@ def _copy_widget(output_dir):
 
 def _model_path(node):
     """The manifest-relative path for a rigid node's STL, preserving
-    its position under the build dir for uniqueness."""
-    build_root = os.path.relpath(
-        os.environ.get('SOLID_BUILD_DIR', '_build')
-    )
+    its position under the selected build dir for uniqueness."""
+    build_root = os.path.realpath(get_build_dir(node.src))
+    artifact = os.path.realpath(node.stl_file)
+    try:
+        contained = os.path.commonpath((artifact, build_root)) == build_root
+    except ValueError:
+        # Different drives on Windows have no common path.
+        contained = False
+    if not contained:
+        raise ExportModelPathError(artifact, build_root)
     return os.path.join(
         'models',
-        os.path.relpath(node.stl_file, build_root),
+        os.path.relpath(artifact, build_root),
     )

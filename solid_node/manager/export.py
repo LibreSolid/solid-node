@@ -5,7 +5,9 @@
 import sys
 import logging
 from solid_node.core.loader import ProjectManifestError, load_node, select_model
-from solid_node.core.export import export_node, WidgetBundleMissing
+from solid_node.core.export import (
+    ExportModelPathError, WidgetBundleMissing, export_node,
+)
 
 
 logger = logging.getLogger('manager.export')
@@ -59,7 +61,7 @@ class Export:
             export_node(node, args.output,
                         fps=args.fps, frames=args.frames,
                         widget=args.widget)
-        except WidgetBundleMissing as e:
+        except (ExportModelPathError, WidgetBundleMissing) as e:
             sys.stderr.write(f'Error: {e}\n')
             sys.exit(1)
 

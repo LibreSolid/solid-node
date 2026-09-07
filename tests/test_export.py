@@ -2,11 +2,14 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 from pathlib import Path
@@ -55,6 +58,143 @@ class Cube(AbstractBaseNode):
     @property
     def mtime(self):
         return 42
+
+
+class ExportPathContainmentTest(TestCase):
+
+    project_source = (
+        'from solid_node.node import Solid2Node\n'
+        'from solid2 import cube\n'
+        'class Part(Solid2Node):\n'
+        '    def render(self):\n'
+        '        return cube(1)\n'
+    )
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix='solid-export-path-')
+        self.addCleanup(self.temporary.cleanup)
+        self.base = Path(self.temporary.name)
+        self.project = self.base / 'project'
+        (self.project / 'design' / 'nested').mkdir(parents=True)
+        (self.project / 'design' / '__init__.py').write_text('')
+        (self.project / 'design' / 'part.py').write_text(self.project_source)
+
+    def _write_manifest(self, body):
+        (self.project / 'pyproject.toml').write_text(
+            f'[tool.solid-node]\n{body}')
+
+    def _export(self, reference, output, extra_env=None):
+        environment = dict(os.environ)
+        environment['PYTHONPATH'] = str(Path(__file__).resolve().parents[1])
+        environment['PYTHONDONTWRITEBYTECODE'] = '1'
+        environment.pop('SOLID_BUILD_DIR', None)
+        environment.update(extra_env or {})
+        return subprocess.run(
+            [
+                sys.executable, '-c',
+                'from solid_node.cli import manage; manage()',
+                'export', reference, '--no-widget', '-o', str(output),
+            ],
+            cwd=self.project / 'design' / 'nested',
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+
+    def assertPortableModel(self, output):
+        manifest = json.loads((output / 'manifest.json').read_text())
+        model = manifest['root']['model']
+        self.assertEqual(Path(model).parts[0], 'models')
+        self.assertNotIn('..', Path(model).parts)
+        target = (output / model).resolve()
+        self.assertTrue(target.is_relative_to((output / 'models').resolve()))
+        self.assertTrue(target.is_file())
+
+    def test_nested_cli_export_stays_inside_output(self):
+        self._write_manifest('model = "design.part:Part"\n')
+        output = self.base / 'exports' / 'portable'
+
+        result = self._export(str(self.project / 'design' / 'part.py'),
+                              output)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertPortableModel(output)
+        self.assertFalse((self.base / 'exports' / '_build').exists())
+
+    def test_relative_configured_build_root_stays_inside_output(self):
+        self._write_manifest('model = "design.part:Part"\n')
+        output = self.base / 'configured-export'
+
+        result = self._export(
+            str(self.project / 'design' / 'part.py'), output,
+            {'SOLID_BUILD_DIR': 'artifacts'},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertPortableModel(output)
+
+    def test_selected_named_model_stays_inside_output(self):
+        self._write_manifest(
+            'model = "machine"\n\n'
+            '[tool.solid-node.models]\n'
+            'machine = "design.part:Part"\n'
+        )
+        output = self.base / 'named-export'
+
+        result = self._export('machine', output)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertPortableModel(output)
+
+    def test_external_artifact_is_rejected_before_output_changes(self):
+        from solid_node.core.export import ExportModelPathError
+
+        build_dir = self.base / 'build'
+        external_dir = self.base / 'external'
+        output = self.base / 'existing-output'
+        output.mkdir()
+        marker = output / 'keep.txt'
+        marker.write_text('keep')
+        node = Cube(str(build_dir))
+        node.stl_file = str(external_dir / 'cube.stl')
+        external_dir.mkdir()
+        Path(node.stl_file).write_text('solid cube\nendsolid cube\n')
+
+        with patch.dict(os.environ, {'SOLID_BUILD_DIR': str(build_dir)}):
+            with patch.object(node, 'build_stls'):
+                with self.assertRaises(ExportModelPathError):
+                    export_node(node, str(output), widget=False)
+
+        self.assertEqual(list(output.iterdir()), [marker])
+        self.assertEqual(marker.read_text(), 'keep')
+
+    def test_cli_reports_external_artifact_error(self):
+        from solid_node.core.export import ExportModelPathError
+        from solid_node.manager.export import Export
+
+        selection = SimpleNamespace(reference='design.part:Part')
+        selection.anchor = lambda: None
+        args = SimpleNamespace(
+            path=None, set=[], output='export', fps=30, frames=360,
+            widget=False,
+        )
+        error = ExportModelPathError('/outside/part.stl', '/project/_build')
+        stderr = io.StringIO()
+
+        with patch('solid_node.manager.export.select_model',
+                   return_value=selection):
+            with patch('solid_node.manager.export.load_node',
+                       return_value=object()):
+                with patch('solid_node.manager.export.export_node',
+                           side_effect=error):
+                    with patch.object(sys, 'stderr', stderr):
+                        with self.assertRaises(SystemExit) as raised:
+                            Export().handle(args)
+
+        self.assertEqual(raised.exception.code, 1)
+        self.assertEqual(stderr.getvalue(), f'Error: {error}\n')
 
 
 class RecreatedAndReboundAssembly(AssemblyNode):

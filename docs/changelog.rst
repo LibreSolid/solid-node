@@ -56,6 +56,14 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Static exports keep every model inside the requested output.** Model paths
+are now derived from the same project-aware, selected build directory that
+owns the artifacts, rather than from the command's working directory. Exporting
+an explicit reference from a nested directory therefore retains the portable
+``models/<source path>/<artifact>.stl`` layout. A custom node whose STL resolves
+outside its build directory is rejected before the output changes, with a
+controlled CLI diagnostic. (OpenSpec change ``confine-export-models``.)
+
 **Build preparation preserves sibling data.** The one-time migration from the
 retired symlink publication layout now moves only the directory referenced by
 the build path. Ordinary preparation and migration leave every other
