@@ -11,7 +11,7 @@ import logging
 import tempfile
 import numpy as np
 from decimal import Decimal
-from subprocess import Popen
+from subprocess import CalledProcessError, Popen
 from solid2 import scad_render, import_stl, color
 from solid_node import currency
 from solid_node.openscad import require_openscad
@@ -1079,8 +1079,19 @@ class StlRenderStart(Exception):
         if os.path.exists(self.lock_file):
             os.remove(self.lock_file)
 
+    def _discard(self):
+        """Remove the private files of a render that cannot be published."""
+        for path in (self.temporary_file, self.lock_file):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+
     def wait(self):
         logger.info(f"waiting for {self.stl_file} ...")
-        self.proc.wait()
+        returncode = self.proc.wait()
+        if returncode:
+            self._discard()
+            raise CalledProcessError(returncode, self.proc.args)
         logger.info(f"{self.stl_file} done!")
         self.finish()

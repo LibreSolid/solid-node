@@ -665,8 +665,12 @@ The system SHALL launch OpenSCAD renders as subprocesses
 (`openscad <scad> -o <stl> --export-format binstl`) signalled by raising
 `StlRenderStart`, which carries the process, target file, mtime, and lock
 file. `build_stls()` SHALL loop, waiting on each started render
-(`job.wait()`), until no renders remain; finishing a render stamps the STL
-mtime and removes the lock. Non-rigid nodes SHALL be skipped.
+(`job.wait()`), until no renders remain. Waiting SHALL inspect the subprocess
+exit status before finishing the render. A zero exit status SHALL finish the
+render by stamping and atomically replacing the target STL and removing the
+lock. A nonzero exit status SHALL remove the temporary output and lock, SHALL
+leave any previously published target and its currency record unchanged, and
+SHALL raise a build failure. Non-rigid nodes SHALL be skipped.
 
 This protocol is one of the paths that require the OpenSCAD binary under the
 `openscad-dependency` capability. Before launching the subprocess for a node
@@ -691,6 +695,19 @@ mesh is of the same quality as the leaves around it.
 - **WHEN** `build_stls()` runs on a tree with several stale rigid nodes
 - **THEN** each stale STL is rendered exactly once and the call returns with
   all locks removed and mtimes stamped
+
+#### Scenario: A cold render fails
+
+- **WHEN** OpenSCAD exits nonzero while rendering a node with no published STL
+- **THEN** the build fails, the temporary STL and render lock are removed, and
+  no target STL or viewer snapshot is published
+
+#### Scenario: A replacement render fails
+
+- **WHEN** OpenSCAD exits nonzero while rendering a replacement for a
+  previously published STL
+- **THEN** the build fails, the temporary STL and render lock are removed, and
+  the previous target STL and viewer snapshot remain unchanged
 
 #### Scenario: An exact fusion renders in process
 

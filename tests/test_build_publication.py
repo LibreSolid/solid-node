@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import threading
+from subprocess import CalledProcessError
 from unittest import TestCase
 
 from solid_node.core.builder import atomic_write, prepare_build_dir
@@ -136,3 +137,30 @@ class RenderVisibilityTest(TestCase):
         with open(node.stl_file) as artifact:
             self.assertEqual(artifact.read(), 'new artifact')
         self.assertFalse(os.path.exists(output))
+
+    def test_failed_render_discards_private_files_and_preserves_artifact(self):
+        from unittest.mock import Mock
+        from solid_node.node.base import StlRenderStart
+
+        target = os.path.join(self.root, 'part.stl')
+        temporary = os.path.join(self.root, '.part.stl.failed.tmp')
+        lock = os.path.join(self.root, 'part.stl.lock')
+        with open(target, 'w') as artifact:
+            artifact.write('previous complete artifact')
+        with open(temporary, 'w') as artifact:
+            artifact.write('failed renderer output')
+        with open(lock, 'w') as handle:
+            handle.write('4321')
+
+        proc = Mock(args=['openscad', 'part.scad'], pid=4321)
+        proc.wait.return_value = 1
+        job = StlRenderStart(proc, target, temporary, 0, lock)
+
+        with self.assertRaises(CalledProcessError) as raised:
+            job.wait()
+
+        self.assertEqual(raised.exception.returncode, 1)
+        with open(target) as artifact:
+            self.assertEqual(artifact.read(), 'previous complete artifact')
+        self.assertFalse(os.path.exists(temporary))
+        self.assertFalse(os.path.exists(lock))

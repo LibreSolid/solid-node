@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from unittest import TestCase
 
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
@@ -89,6 +90,20 @@ def run_solid(*arguments, env=None):
          'from solid_node.cli import manage; manage()',
          *arguments],
         cwd=REPO_DIR, env=env,
+        capture_output=True, text=True, timeout=300,
+    )
+
+
+def run_solid_in(project, *arguments):
+    """Run a command against a self-contained temporary project."""
+    env = dict(os.environ)
+    env.pop('SOLID_BUILD_DIR', None)
+    env['PYTHONPATH'] = REPO_DIR
+    return subprocess.run(
+        [sys.executable, '-c',
+         'from solid_node.cli import manage; manage()',
+         *arguments],
+        cwd=project, env=env,
         capture_output=True, text=True, timeout=300,
     )
 
@@ -754,6 +769,104 @@ class DriverDefaultsMetaTest(TestCase):
             'test_each_scenario_starts_from_the_declared_defaults': 'passed',
         })
         self.assertEqual(run.returncode, 0)
+
+
+class FailedOpenScadRenderMetaTest(TestCase):
+    """A renderer error is a failed build and never a publication."""
+
+    MODEL = (
+        'from solid_node.node import OpenScadNode\n'
+        'class Part(OpenScadNode):\n'
+        '    scad_source = "part.scad"\n'
+    )
+    GOOD = 'module part() { cube(1); }\n'
+    FAILED = (
+        'module part() {\n'
+        '    assert(false, "deliberate render failure");\n'
+        '    cube(2);\n'
+        '}\n'
+    )
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix='solid-node-failed-render-')
+        self.addCleanup(self.temporary.cleanup)
+        self.project = self.temporary.name
+        design = os.path.join(self.project, 'design')
+        os.makedirs(design)
+        with open(os.path.join(self.project, 'pyproject.toml'), 'w') as f:
+            f.write('[tool.solid-node]\nmodel = "design.part:Part"\n')
+        with open(os.path.join(design, '__init__.py'), 'w') as f:
+            f.write('')
+        with open(os.path.join(design, 'part.py'), 'w') as f:
+            f.write(self.MODEL)
+        self.source = os.path.join(design, 'part.scad')
+        self.build_dir = os.path.join(self.project, '_build')
+
+    def write_source(self, source, mtime_ns=None):
+        with open(self.source, 'w') as output:
+            output.write(source)
+        if mtime_ns is not None:
+            os.utime(self.source, ns=(mtime_ns, mtime_ns))
+
+    def private_render_files(self):
+        if not os.path.isdir(self.build_dir):
+            return []
+        return [os.path.join(root, name)
+                for root, _, names in os.walk(self.build_dir)
+                for name in names
+                if name.endswith('.tmp') or name.endswith('.stl.lock')]
+
+    def stl_file(self):
+        files = [os.path.join(root, name)
+                 for root, _, names in os.walk(self.build_dir)
+                 for name in names if name.endswith('.stl')]
+        self.assertEqual(len(files), 1)
+        return files[0]
+
+    def test_cold_failure_publishes_nothing(self):
+        self.write_source(self.FAILED)
+
+        result = run_solid_in(self.project, 'build')
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any(name.endswith('.stl')
+                             for _, _, names in os.walk(self.build_dir)
+                             for name in names))
+        self.assertFalse(os.path.exists(os.path.join(
+            self.build_dir, 'viewer.json')))
+        self.assertTrue(os.path.exists(os.path.join(
+            self.build_dir, 'errors.json')))
+        self.assertEqual(self.private_render_files(), [])
+
+    def test_failed_replacement_preserves_the_published_model(self):
+        self.write_source(self.GOOD)
+        first = run_solid_in(self.project, 'build')
+        self.assertEqual(first.returncode, 0, first.stderr[-2000:])
+        artifact = self.stl_file()
+        viewer = os.path.join(self.build_dir, 'viewer.json')
+        currency_record = artifact + '.sources'
+        with open(artifact, 'rb') as source:
+            previous_artifact = source.read()
+        with open(viewer, 'rb') as source:
+            previous_viewer = source.read()
+        with open(currency_record, 'rb') as source:
+            previous_currency = source.read()
+
+        next_mtime = os.stat(self.source).st_mtime_ns + 1_000_000_000
+        self.write_source(self.FAILED, next_mtime)
+        result = run_solid_in(self.project, 'build')
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        with open(artifact, 'rb') as source:
+            self.assertEqual(source.read(), previous_artifact)
+        with open(viewer, 'rb') as source:
+            self.assertEqual(source.read(), previous_viewer)
+        with open(currency_record, 'rb') as source:
+            self.assertEqual(source.read(), previous_currency)
+        self.assertTrue(os.path.exists(os.path.join(
+            self.build_dir, 'errors.json')))
+        self.assertEqual(self.private_render_files(), [])
 
 
 class FacetedKernelMetaTest(TestCase):

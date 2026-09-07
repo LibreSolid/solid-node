@@ -49,6 +49,17 @@ P1 means data loss, incorrect published geometry, or a broken concurrency/output
 
 **Location:** [solid_node/node/base.py:1075–1086](../../solid_node/node/base.py#L1075), with the temporary file created at [line 856](../../solid_node/node/base.py#L856).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`reject-failed-openscad-render`. A nonzero OpenSCAD exit now fails the build,
+removes its temporary output and lock, and preserves any previously published
+STL and viewer snapshot. Focused unit and real CLI regressions cover cold and
+replacement failures. Validation passed 30 focused tests and the complete
+suite (1,527 passed, 14 skipped, 38 warnings, 258 passing subtests); the saved
+probe now observes exit 1, no STL or viewer snapshot, and an error record. One
+unrelated exact-geometry test failed once in the first full run, passed alone
+and with its 58-test module, and passed in the repeated full suite. The
+original evidence below remains the pre-fix audit record.
+
 `StlRenderStart.wait()` ignores the subprocess return code and always calls `finish()`. The temporary output file already exists because `mkstemp()` created it before OpenSCAD ran. A failed renderer that writes nothing therefore leaves a zero-byte file which is stamped and published as current.
 
 **Reproduction:** Create an `OpenScadNode` whose source contains:

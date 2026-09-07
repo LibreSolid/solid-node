@@ -8,6 +8,13 @@ Changelog
 Unreleased
 ----------
 
+**Failed OpenSCAD renders no longer publish empty geometry.** The asynchronous
+STL render protocol now checks OpenSCAD's exit status before replacing the
+published artifact. A failed render exits the build nonzero, records the
+failure in ``errors.json``, removes its temporary output and render lock, and
+leaves any previously published STL and viewer snapshot intact. (OpenSpec
+change ``reject-failed-openscad-render``.)
+
 **Reading a STEP document's assembly structure, and scaffolding source
 from it.** ``StepAssembly(path)`` reads a document's products and every
 occurrence of them, walked through nested sub-assemblies — each
