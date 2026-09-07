@@ -32,6 +32,7 @@ from collections import namedtuple
 
 from .driver import DriverState
 from .enumeration import qualified_drivers, qualified_instructions
+from .timebase import finite_seconds
 
 
 CadenceCost = namedtuple('CadenceCost', 'period_ticks calls seconds')
@@ -110,6 +111,9 @@ class Sim:
     """
 
     def __init__(self, node, dt, meshes=False):
+        dt = finite_seconds(dt, 'dt')
+        if dt <= 0:
+            raise ValueError(f'dt must be greater than zero, not {dt!r}')
         self.node = node
         self.dt = dt
         self.tick = 0
@@ -178,7 +182,12 @@ class Sim:
 
     def at(self, t):
         """The registrar for instant `t`, in seconds."""
-        return _At(self, self._ticks(t, 'instant'))
+        tick = self._ticks(t, 'instant')
+        if tick < self.tick:
+            raise ValueError(
+                f'instant {t} is before current simulation time '
+                f'{self.time} (tick {self.tick})')
+        return _At(self, tick)
 
     def every(self, period, fn, *args):
         """Call `fn(*args)` every `period` seconds of simulated time.
@@ -212,6 +221,11 @@ class Sim:
         for driver_name, target in instruction.targets.items():
             driver = self._driver('.'.join(path + (driver_name,)), name)
             driver.ramp_to(driver.declaration.native(target), ticks, self.tick)
+        if ticks == 0:
+            # A zero-tick ramp is complete at the trigger instant. Rebind
+            # once after every target has settled so the node sees one
+            # complete, internally consistent snapshot.
+            self.node.set_state(**self._binding())
 
     def run(self, duration):
         """Step for `duration` seconds of simulated time.
@@ -223,6 +237,10 @@ class Sim:
         and only then runs what was scheduled -- an action must see the
         state its tick produced, never the one before it.
         """
+        duration = finite_seconds(duration, 'duration')
+        if duration < 0:
+            raise ValueError(
+                f'duration must be non-negative, not {duration!r}')
         end = self.tick + self._ticks(duration, 'duration')
         self._fire(self.tick)
         while self.tick < end:
@@ -241,6 +259,7 @@ class Sim:
             action(self)
 
     def _ticks(self, value, what):
+        value = finite_seconds(value, what)
         count = round(value / self.dt)
         if abs(count * self.dt - value) > 1e-9:
             raise ValueError(

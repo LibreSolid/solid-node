@@ -27,7 +27,8 @@ the order below.
   — OpenSpec change `continue-all-model-tests-after-build-failure`.
 - [x] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)
   — OpenSpec change `support-empty-assemblies`; ADR-082.
-- [ ] [F11 — Invalid simulation time inputs can silently bypass checks](README.md#f11--invalid-simulation-time-inputs-can-silently-bypass-checks)
+- [x] [F11 — Invalid simulation time inputs can silently bypass checks](README.md#f11--invalid-simulation-time-inputs-can-silently-bypass-checks)
+  — OpenSpec change `validate-simulation-time-boundaries`; ADR-083.
 
 ## Documentation and process inconsistencies
 
@@ -47,4 +48,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **F11**.
+Next framework finding by priority and order: **C01**.

@@ -8,6 +8,15 @@ Changelog
 Unreleased
 ----------
 
+**Simulation time boundaries now fail before effects.** ``Sim`` requires a
+finite positive ``dt`` before binding its node, and instants, cadence periods,
+run durations, and instruction durations require finite real seconds with
+their declared sign and whole-tick constraints. A past absolute instant is
+rejected while the current tick remains schedulable through ``run(0)``.
+Zero-duration instructions now settle and bind every target immediately at
+the current tick without advancing time or adding a trajectory entry.
+(OpenSpec change ``validate-simulation-time-boundaries``; ADR-083.)
+
 **A repeated subexpression is published once, not once per use.** Every
 symbolic value in the framework is a solid2 ``OpenSCADConstant``, and
 ``OpenSCADConstant`` is string-eager: a value used twice is written out

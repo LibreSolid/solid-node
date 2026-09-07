@@ -18,6 +18,8 @@ that is the G-code layer's job -- faking it here would have to be
 unfaked later.
 """
 
+from .timebase import finite_seconds
+
 
 class Instruction:
     """A named event source declared on an assembly.
@@ -30,9 +32,10 @@ class Instruction:
     """
 
     def __init__(self, targets, duration):
+        duration = finite_seconds(duration, 'instruction duration')
         if duration < 0:
             raise ValueError(
-                f'an instruction lasts a non-negative time, not {duration}')
+                f'instruction duration must be non-negative, not {duration}')
         self.targets = dict(targets)
         self.duration = duration
 

@@ -66,6 +66,7 @@ that way.
 - [ADR-079](NODE/ADR-079-reading-a-step-documents-placements-and-scaffolding-source.md) — Reading a STEP document's placements and scaffolding declarative source: `StepAssembly`, `solid import-step` — **Accepted**, extends 078, depends on 077
 - [ADR-081](NODE/ADR-081-per-contributor-metadata-guards-aggregate-mtime-currency.md) — Per-contributor metadata guards aggregate-mtime currency — **Accepted**, amends 060/071, depends on 033/050
 - [ADR-082](NODE/ADR-082-empty-composition-belongs-to-assemblies-not-fusions.md) — Empty composition belongs to assemblies, not fusions — **Accepted**, extends 064, depends on 003/039/061
+- [ADR-083](NODE/ADR-083-simulation-time-is-finite-forward-and-tick-aligned.md) — Simulation time is finite, forward, and tick-aligned — **Accepted**, extends 056
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

@@ -67,6 +67,17 @@ def homing(sim):
 
 class SimConstructionTest(BaseNodeTest):
 
+    def test_invalid_dt_is_rejected_before_binding_the_node(self):
+        for value in (0, -0.1, float('inf'), float('-inf'), float('nan'),
+                      True, '0.1'):
+            with self.subTest(dt=value):
+                node = Carriage()
+
+                with self.assertRaisesRegex(ValueError, 'dt'):
+                    Sim(node, value)
+
+                self.assertEqual(node._states, {})
+
     def test_defaults_bind_before_the_first_render(self):
         node = Carriage()
 
@@ -109,6 +120,20 @@ class SimConstructionTest(BaseNodeTest):
 
 class InstantValidationTest(BaseNodeTest):
 
+    def test_non_finite_time_arguments_are_rejected_by_name(self):
+        sim = Sim(Carriage(), DT)
+        calls = (
+            ('instant', lambda value: sim.at(value)),
+            ('period', lambda value: sim.every(value, lambda: None)),
+            ('duration', lambda value: sim.run(value)),
+        )
+        for what, call in calls:
+            for value in (float('inf'), float('-inf'), float('nan'),
+                          True, '1.0'):
+                with self.subTest(boundary=what, value=value):
+                    with self.assertRaisesRegex(ValueError, what):
+                        call(value)
+
     def test_a_non_whole_instant_is_rejected(self):
         sim = Sim(Carriage(), DT)
 
@@ -139,8 +164,49 @@ class InstantValidationTest(BaseNodeTest):
 
         self.assertEqual(seen, [3])
 
+    def test_an_instant_before_the_current_tick_is_rejected(self):
+        sim = Sim(Carriage(), DT)
+        sim.run(10 * DT)
+        pending = dict(sim._at)
+
+        with self.assertRaisesRegex(ValueError, 'instant.*current'):
+            sim.at(9 * DT)
+
+        self.assertEqual(sim.tick, 10)
+        self.assertEqual(sim._at, pending)
+
+    def test_the_current_tick_can_fire_in_a_zero_duration_run(self):
+        sim = Sim(Carriage(), DT)
+        sim.run(10 * DT)
+        trajectory = list(sim.trajectory)
+        seen = []
+
+        sim.at(10 * DT).run(lambda current: seen.append(current.tick))
+        sim.run(0)
+
+        self.assertEqual(seen, [10])
+        self.assertEqual(sim.tick, 10)
+        self.assertEqual(sim.trajectory, trajectory)
+
 
 class DeferredActionTest(BaseNodeTest):
+
+    def test_a_negative_run_is_rejected_without_firing_or_stepping(self):
+        sim = Sim(Carriage(), DT)
+        seen = []
+        sim.at(0).run(lambda current: seen.append(current.tick))
+        sim.every(DT, lambda: None)
+        state = sim.state
+
+        with self.assertRaisesRegex(ValueError, 'duration'):
+            sim.run(-DT)
+
+        self.assertEqual(sim.tick, 0)
+        self.assertEqual(sim.state, state)
+        self.assertEqual(sim.trajectory, [])
+        self.assertEqual(seen, [])
+        self.assertIn(0, sim._at)
+        self.assertEqual(sim.cadence_costs[0].calls, 0)
 
     def test_a_deferred_action_runs_once_and_sees_the_stepped_state(self):
         sim = Sim(Carriage(), DT)
@@ -240,6 +306,48 @@ class CadenceTest(BaseNodeTest):
 
 
 class InstructionTest(BaseNodeTest):
+
+    def test_invalid_instruction_durations_are_rejected_by_name(self):
+        for duration in (-1, float('inf'), float('-inf'), float('nan'),
+                         True, '1.0'):
+            with self.subTest(duration=duration):
+                with self.assertRaisesRegex(ValueError, 'duration'):
+                    Instruction({'motor': 0}, duration=duration)
+
+    def test_a_zero_duration_instruction_binds_its_target_immediately(self):
+        class InstantCarriage(Carriage):
+            instructions = {
+                'Jump': Instruction({'motor': 0.0}, duration=0),
+            }
+
+        node = InstantCarriage()
+        sim = Sim(node, DT)
+
+        sim.trigger('Jump')
+
+        self.assertEqual(sim.state['motor'], 0)
+        self.assertEqual(node.motor, 0)
+        self.assertEqual(sim.tick, 0)
+        self.assertEqual(sim.trajectory, [])
+
+    def test_a_later_same_tick_action_sees_an_instant_instruction(self):
+        class InstantCarriage(Carriage):
+            instructions = {
+                'Jump': Instruction({'motor': 0.0}, duration=0),
+            }
+
+        sim = Sim(InstantCarriage(), DT)
+        seen = []
+        sim.at(0).trigger('Jump')
+        sim.at(0).run(
+            lambda current: seen.append(
+                (current.state['motor'], current.node.motor)))
+
+        sim.run(0)
+
+        self.assertEqual(seen, [(0, 0)])
+        self.assertEqual(sim.tick, 0)
+        self.assertEqual(sim.trajectory, [])
 
     def test_a_millimetre_target_reaches_an_integer_microstep_driver(self):
         sim = homing(Sim(Carriage(), DT))

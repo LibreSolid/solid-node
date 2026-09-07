@@ -67,10 +67,12 @@ with tempfile.TemporaryDirectory(prefix='solid-audit-more-') as directory:
         # Keep the module distinct from packages loaded elsewhere in this process.
         node=load_node()
         from solid_node.simulation import Sim
-        sim=Sim(node,dt=-.1); called=[]
-        sim.at(.1).run(lambda s:called.append(s.tick))
-        sim.run(1)
-        RESULTS['negative_dt']=dict(tick=sim.tick,checks_run=len(called),scheduled=sorted(sim._at))
-        sim=Sim(node,dt=.1);sim.trigger('Jump');sim.run(0)
-        RESULTS['zero_instruction']=dict(state_at_trigger=sim.state,node_x=node.x)
+        try:
+            Sim(node,dt=-.1)
+        except ValueError as error:
+            RESULTS['negative_dt']=dict(rejected=True,error=str(error))
+        else:
+            RESULTS['negative_dt']=dict(rejected=False)
+        sim=Sim(node,dt=.1);sim.trigger('Jump')
+        RESULTS['zero_instruction']=dict(state_at_trigger=sim.state,node_x=node.x,tick=sim.tick,trajectory=sim.trajectory)
 print(json.dumps(RESULTS,indent=2))

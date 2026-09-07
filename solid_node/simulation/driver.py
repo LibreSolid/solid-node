@@ -181,9 +181,13 @@ class DriverState:
     def ramp_to(self, target, ticks, tick):
         """Start ramping to `target` (in NATIVE units) over `ticks`,
         from wherever this driver stands at `tick`."""
+        self.started = tick
+        if ticks == 0:
+            self.value = target
+            self.program = None
+            return
         self.program = RampProgram(self.value, target, ticks,
                                    self.declaration.dtype)
-        self.started = tick
 
     def advance(self, tick):
         """This driver's value at `tick`, after its program has had its

@@ -491,9 +491,15 @@ qualify by their declaring node's path.
 
 `Sim` is the fixed-`dt` loop: instants become integer tick counts the
 moment they are stated (rejected if not whole — the ADR-050 reasoning
-applied to simulated time); construction enumerates the whole linked
-tree and binds every declared default through `set_state` by qualified
-id before the first render, so a driverless root with driver-declaring
+applied to simulated time). Public time values are finite real seconds,
+excluding booleans; `dt` is strictly positive, while run and instruction
+durations are nonnegative (ADR-083). Those boundaries are validated before
+state changes. Absolute `at(t)` scheduling rejects a tick already passed but
+accepts the current tick, whose deferred actions can fire through `run(0)`.
+A zero-duration instruction settles and binds its complete target snapshot at
+the current tick without adding a trajectory entry. Construction enumerates
+the whole linked tree and binds every declared default through `set_state` by
+qualified id before the first render, so a driverless root with driver-declaring
 children simulates. The bank, trajectory, programs, and instruction
 targets all key by qualified id, and `trigger('x_axis.Home')` ramps
 only that instance. Each tick advances programs and binds the full

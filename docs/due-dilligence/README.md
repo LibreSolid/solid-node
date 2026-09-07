@@ -380,6 +380,20 @@ Supply no `render()` method, as the declarative API permits. `solid build` exits
 
 **Location:** [solid_node/simulation/sim.py:112–115](../../solid_node/simulation/sim.py#L112), [run()](../../solid_node/simulation/sim.py#L216), and [_ticks()](../../solid_node/simulation/sim.py#L243).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`validate-simulation-time-boundaries` and ADR-083. Simulation construction now
+requires finite positive `dt` before binding a node. Every public time value
+uses the same finite-real boundary, negative runs fail before effects, and
+absolute scheduling rejects ticks already passed while preserving current-tick
+execution through `run(0)`. Zero-duration instructions settle every target and
+rebind the complete snapshot immediately without advancing time. The focused
+simulation suite passed 38 tests with 28 subtests; broader simulation coverage
+passed 68 tests with 28 subtests. The saved probe now rejects `dt=-0.1` and
+observes the zero-duration target in both the bank and node at tick zero with
+no trajectory entry. The complete suite passed 1,638 tests with 16 skipped,
+46 warnings, and 302 passing subtests. The original evidence below remains
+the pre-fix audit record.
+
 The constructor accepts `dt` without validating positivity or finiteness. `_ticks()` checks alignment only, so a positive duration with negative `dt` becomes a negative number of ticks. `run()` then skips its stepping loop without reporting an invalid scenario.
 
 **Reproduction:** Construct `Sim(node, dt=-0.1)`, schedule a check at `0.1`, and call `run(1)`. It returns normally with **tick 0**, **zero checks executed**, and the check stranded at tick **-1**.
