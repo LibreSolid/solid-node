@@ -57,17 +57,20 @@ Three architectural commitments shape almost every subsystem:
    for every body — and by nothing else. Both are resolved once per process at
    the point of use and report by name when absent.
 2. **The build artifact is the currency, mtime is its clock**
-   (ADR-006/026/033/050). STLs are cached per parameter-hashed identity and
-   validated by mtime *equality* against the max source mtime, in integer
+   (ADR-006/026/033/050/081). STLs are cached per parameter-hashed identity
+   and validated by mtime *equality* against the max source mtime, in integer
    nanoseconds — never as a float, which cannot survive the `os.utime`
-   round trip off a filesystem coarser than a nanosecond (ADR-050). Caches
+   round trip off a filesystem coarser than a nanosecond (ADR-050). That
+   equality is guarded by a recorded metadata fingerprint of every tracked
+   contributor, so a future-dated source cannot hide an edit to an older one
+   (ADR-081). Caches
    at every layer — meshes, Manifolds, HTTP responses — key on the same
    `(artifact, mtime)` signal, so artifact freshness is the one
    invalidation concept the whole system shares. The source set behind
    that clock is a node's own file plus the project-local modules it
    imports, transitively (ADR-033), so a contributing module edit
    invalidates the nodes that read it — and only those. Beneath the
-   clock, content decides: when the stamp moved, a digest of what the
+   clock, content decides: when the stamp or source fingerprint moved, a digest of what the
    node can see of its sources — its own file minus the sibling node
    classes it never names (ADR-071) — is what says whether the artifact
    is still the one those sources produce.
@@ -548,9 +551,11 @@ rather than place it.
 
 STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 `openscad` process, PID lock files guard concurrency, and
-`build_stls()` loops until nothing is stale. Staleness is **mtime
-equality** — generated files are back-dated with `os.utime` to the max
-source mtime (ADR-006), taken over `node.files`: the node's own source
+`build_stls()` loops until nothing is stale. The metadata-only currency path is
+**artifact mtime equality plus source-set fingerprint equality** — generated
+files are back-dated with `os.utime` to the max source mtime (ADR-006), and a
+sidecar records path, filesystem identity, size, mtime, and change time for
+every member of `node.files` (ADR-081): the node's own source
 plus its project-local import closure, unioned upward from children
 (ADR-033) — and, for an imported mesh, the closure of the wrapper module
 that declares it as well, since the mesh file has no imports of its own to
@@ -560,6 +565,13 @@ Both sides of that equality are integer nanoseconds
 whatever resolution the filesystem stores — a float stamp is not, and on a
 millisecond-resolution filesystem it left every artifact permanently stale
 and this loop non-terminating (ADR-050).
+
+A timestamp or fingerprint mismatch invokes the node-scoped content digest
+(ADR-060/071). Equal content restamps the artifact and refreshes the sidecar
+without rendering, which preserves cheap clone, checkout, relocation, and
+sibling-only changes. A legacy digest-only sidecar follows this path once and
+upgrades in place. Settled checks stat tracked files and read the sidecar, but
+never read source contents or parse Python.
 
 OpenSCAD availability is resolved once per process, at the first operation
 that actually requires it (ADR-046). Mesh-backend STL rendering, faceted
@@ -1164,17 +1176,20 @@ as the documented way through.
 The short list that changes must not silently break:
 
 - An artifact is fresh **iff** its mtime equals the node's max source
-  mtime, compared as integer nanoseconds and never as a float
-  (ADR-050); an exact node requires both STL and BREP current, and every
+  mtime, compared as integer nanoseconds and never as a float, **and** the
+  recorded metadata fingerprint of every tracked source equals its current
+  path identity, size, mtime and change time (ADR-050/081); an exact node
+  requires both STL and BREP current, and every
   cache keys on that signal (ADR-006/028/029/044). Equality, not
   tolerance: a window wide enough to absorb a filesystem's timestamp
   quantum is a window in which a real edit is invisible. When and only
-  when that equality fails, a content-verified fallback compares a digest
+  when either equality fails, a content-verified fallback compares a digest
   of the node's tracked sources against the digest recorded beside the
   artifact when it was written; identical sources restamp rather than
   re-derive, so a clone, a branch switch or a stash pop costs a settled
-  rebuild instead of a full one (ADR-060). The fallback reads nothing on
-  the fresh path and is strictly stricter than the rule it stands behind
+  rebuild instead of a full one (ADR-060). The fresh path reads source
+  metadata and the small sidecar but no source contents; the fallback is
+  strictly stricter than the rule it stands behind
   — byte equality rather than timestamp equality — so it cannot report a
   changed source current. The digest is scoped to the node (ADR-071): a
   file that defines several node classes contributes to each node's digest
@@ -1259,7 +1274,7 @@ The short list that changes must not silently break:
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
-| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 080 |
+| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 080, 081 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |

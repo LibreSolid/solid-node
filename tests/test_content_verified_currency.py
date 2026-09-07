@@ -2,7 +2,7 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""Currency when a timestamp moved and the content did not.
+"""Source-set metadata currency and its content-verified fallback.
 
 build-pipeline's Mtime-equality caching decides currency by comparing an
 artifact's stamp with the maximum mtime across the node's tracked sources.
@@ -13,13 +13,11 @@ and every artifact in the project is re-derived. Measured on a 22-part
 CadQuery project, `touch`ing every source with zero content change turned
 a 6.05 s settled rebuild into 35.66 s.
 
-The requirement now says that when, and only when, mtime equality fails,
-the build compares a digest of the node's tracked sources against the
-digest recorded when the artifact was written. The tests here are the two
-halves of that, and the second half is the one that matters: sparing a
-rebuild is worth nothing if it can ever spare one that was needed. A
-stale model reported as fresh is the failure ADR-006 says the system
-cannot survive.
+The settled path now also compares a recorded fingerprint of every tracked
+source's metadata. When either timestamp or fingerprint equality fails, the
+build compares the node-scoped content digest. The tests here cover both
+layers, and the safety half matters most: sparing a rebuild is worth nothing if
+it can ever spare one that was needed.
 
 The fixture is a project of its own, written to a temporary directory,
 because these tests must edit source files -- and moving a timestamp is
@@ -267,6 +265,38 @@ class ScratchProjectTest(TestCase):
 class ContentVerifiedCurrencyTest(ScratchProjectTest):
     """Task 1.2 and its guards: what the fallback must and must not do."""
 
+    def test_an_older_dependency_edit_is_not_hidden_by_the_maximum_mtime(self):
+        block_source = os.path.join(self.root, self.package, 'block.py')
+        future = time.time_ns() + 60 * 10 ** 9
+        os.utime(block_source, ns=(future, future))
+        node = self.build()
+        self.renders()
+        old_artifact_mtime = os.stat(node.block.stl_file).st_mtime_ns
+
+        self.write('dimensions.py', 'SIZE = 6.0\n')
+        changed = load_node(self.reference)
+
+        self.assertEqual(changed.block.mtime_ns, future)
+        self.assertEqual(os.stat(changed.block.stl_file).st_mtime_ns,
+                         old_artifact_mtime)
+        self.assertFalse(changed.block._up_to_date(changed.block.stl_file))
+
+        self.build()
+        self.assertEqual(self.renders(), ['Block'])
+
+    def test_a_same_size_edit_with_restored_mtime_is_not_current(self):
+        node = self.build()
+        self.renders()
+        helper = os.path.join(self.root, self.package, 'dimensions.py')
+        old_mtime = os.stat(helper).st_mtime_ns
+
+        self.write('dimensions.py', 'SIZE = 6.0\n')
+        os.utime(helper, ns=(old_mtime, old_mtime))
+        changed = load_node(self.reference)
+
+        self.assertEqual(changed.block.mtime_ns, node.block.mtime_ns)
+        self.assertFalse(changed.block._up_to_date(changed.block.stl_file))
+
     def test_a_pure_mtime_rewrite_re_derives_no_geometry(self):
         """The measured case, in one test: every source stamped anew with
         no byte changed must cost nothing."""
@@ -337,18 +367,47 @@ class ContentVerifiedCurrencyTest(ScratchProjectTest):
         self.assertEqual(currency.recorded_digest(rebuilt.stl_file),
                          rebuilt.source_digest)
 
-    def test_the_fast_path_reads_no_source_for_a_digest(self):
-        """When mtime equality succeeds it decides alone, so the common
-        path costs exactly what it always did."""
+    def test_the_settled_path_reads_no_source_content(self):
+        """A settled check may stat sources and read its small sidecar, but
+        must not hash bytes or parse Python source."""
         node = self.build()
 
         with patch('solid_node.currency.source_digest') as digest, \
-             patch('solid_node.currency.recorded_digest') as recorded:
+             patch('solid_node.currency._file_digest') as file_digest, \
+             patch('solid_node.currency._analysis') as analysis:
             self.assertTrue(node.block._up_to_date(node.block.stl_file))
             self.assertTrue(node.block._up_to_date(node.block.brep_file))
 
         digest.assert_not_called()
-        recorded.assert_not_called()
+        file_digest.assert_not_called()
+        analysis.assert_not_called()
+
+    def test_a_legacy_digest_only_sidecar_upgrades_without_rendering(self):
+        node = self.build()
+        self.renders()
+        artifact = node.block.stl_file
+        currency.record(artifact, node.block.source_digest)
+
+        self.assertTrue(node.block._up_to_date(artifact))
+        self.assertEqual(currency.recorded_digest(artifact),
+                         node.block.source_digest)
+        self.assertEqual(currency.recorded_fingerprint(artifact),
+                         node.block.source_fingerprint)
+        self.assertEqual(self.renders(), [])
+
+    def test_every_published_artifact_records_its_source_fingerprint(self):
+        node = self.build()
+        for owner in (node.block, node.pin):
+            for artifact in (owner.scad_file, owner.stl_file, owner.brep_file):
+                self.assertEqual(currency.recorded_fingerprint(artifact),
+                                 owner.source_fingerprint)
+
+    def test_a_malformed_structured_record_never_certifies_an_artifact(self):
+        node = self.build()
+        with open(currency.sidecar(node.block.stl_file), 'w') as record:
+            record.write('{not valid json\n')
+
+        self.assertFalse(node.block._up_to_date(node.block.stl_file))
 
     def test_an_artifact_with_no_recorded_digest_rebuilds_and_gains_one(self):
         """What every build directory produced before this rule looks

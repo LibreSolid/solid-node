@@ -137,13 +137,13 @@ def shape_from_rendered(rendered):
     return cq.Compound.makeCompound(shapes)
 
 
-def _atomic_export(path, mtime_ns, exporter, digest=None):
+def _atomic_export(path, mtime_ns, exporter, digest=None, fingerprint=None):
     """Write, stamp, and vouch for one exact artifact.
 
-    `digest` is the node's source digest, recorded beside the artifact by
-    `currency.publish` in the same step that puts it in place -- an
+    `digest` and `fingerprint` are the node's source record, written beside the
+    artifact by `currency.publish` in the same step that puts it in place -- an
     artifact and the record of what produced it are written together or
-    not at all. Defaulting to None means "no record", which costs a
+    not at all. Defaulting the digest to None means "no record", which costs a
     rebuild and never a stale answer, so a caller outside a node (an
     assertion helper, a test) is served correctly without one.
     """
@@ -155,19 +155,19 @@ def _atomic_export(path, mtime_ns, exporter, digest=None):
     try:
         exporter(temporary)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        currency.publish(temporary, path, digest)
+        currency.publish(temporary, path, digest, fingerprint)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
         raise
 
 
-def write_brep(shape, path, mtime_ns, digest=None):
-    _atomic_export(path, mtime_ns, shape.exportBrep, digest)
+def write_brep(shape, path, mtime_ns, digest=None, fingerprint=None):
+    _atomic_export(path, mtime_ns, shape.exportBrep, digest, fingerprint)
 
 
 def write_stl(shape, path, mtime_ns, linear_deflection, angular_deflection,
-             digest=None):
+             digest=None, fingerprint=None):
     """Tessellate `shape` to an STL artifact without degenerate triangles.
 
     OCCT's mesher emits zero-area triangles on some vendor solids (shafts,
@@ -190,7 +190,7 @@ def write_stl(shape, path, mtime_ns, linear_deflection, angular_deflection,
         mesh.remove_unreferenced_vertices()
         mesh.export(temporary, file_type='stl')
 
-    _atomic_export(path, mtime_ns, export, digest)
+    _atomic_export(path, mtime_ns, export, digest, fingerprint)
 
 
 _DEFLECTION_UNITS = {

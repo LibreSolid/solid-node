@@ -2,12 +2,13 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""The content-verified fallback beneath the mtime-equality rule.
+"""Source-set metadata currency with content verification beneath it.
 
-Currency is mtime equality (ADR-006), and this module does not change
-that: when an artifact's stamp equals the node's mtime nothing here is
-read, computed or opened. What it adds is what happens when the equality
-FAILS.
+Artifact mtime equality remains part of currency (ADR-006), but one maximum
+cannot reveal that an older contributing source changed. A compact fingerprint
+of every tracked source's metadata therefore guards the settled path. Matching
+the artifact stamp and recorded fingerprint requires only stat calls and one
+small sidecar read; source contents and Python structure stay unopened.
 
 It fails constantly for a reason that has nothing to do with the model. A
 clone, a branch switch, a stash pop, a `git restore`, a copy, an agent or
@@ -17,18 +18,17 @@ Measured on a 22-part CadQuery project, rewriting every source mtime with
 zero content change turned a 6.05 s settled rebuild into 35.66 s of
 re-deriving geometry that was already on disk and provably identical.
 
-So when the stamp disagrees, the build asks the question the stamp was
-standing in for: are the sources that produced this artifact the sources
-that are here now? The digest below answers it over `node.files` -- the
+So when the stamp or fingerprint disagrees, the build asks the question those
+metadata were standing in for: are the sources that produced this artifact the
+sources that are here now? The digest below answers it over `node.files` -- the
 exact set `mtime_ns` is the maximum of -- as a sorted sequence of
 (project-relative path, sha256 of bytes). Project-RELATIVE because the
 case this exists for is a project that moved: a fresh clone in a new
 directory must recognise its own artifacts.
 
-ADR-006 considered content hashing as a REPLACEMENT for the mtime check
-and rejected it on cost ("expensive I/O ... slower cache checks ...
-overkill"). That judgement holds and is not disturbed: hashing is paid
-only where a full render would otherwise run, and never on the hit path.
+ADR-006 considered content hashing as a replacement for metadata checks and
+rejected it on cost. Hashing remains confined to fingerprint or timestamp
+misses, where a full render would otherwise run.
 
 The direction of failure is the whole safety argument. A digest match is
 a strictly stronger claim than the mtime equality it stands behind -- it
@@ -42,6 +42,7 @@ uncertain path here resolves toward rebuilding.
 
 import ast
 import hashlib
+import json
 import logging
 import os
 import tempfile
@@ -60,18 +61,30 @@ logger = logging.getLogger('currency')
 SIDECAR_SUFFIX = '.sources'
 
 
-# Per-file digests, keyed on (path, mtime, size) so an edited file is
-# re-read and its stale entry evicted -- the same shape as the base mesh
-# cache in node/base.py and the import cache in node/sources.py. Without
+# Per-file digests, keyed on the complete observable identity returned by
+# `_file_key` so even a same-size edit with restored mtime evicts stale bytes.
+# Without
 # it a tree's digests are quadratic: an internal node's file set is the
 # union of its children's, so the root re-reads every source in the
 # project once per node.
 _file_digests = {}
 
 
+def _file_key(path, stat=None):
+    """Metadata identity used only for in-process source caches.
+
+    Change time and file identity are required beside mtime and size: a
+    same-size rewrite followed by an mtime restoration must evict the bytes
+    cached for the previous file state.
+    """
+    stat = stat or os.stat(path)
+    return (path, stat.st_dev, stat.st_ino, stat.st_size,
+            stat.st_mtime_ns, stat.st_ctime_ns)
+
+
 def _file_digest(path):
     stat = os.stat(path)
-    key = (path, stat.st_mtime_ns, stat.st_size)
+    key = _file_key(path, stat)
     cached = _file_digests.get(key)
     if cached is None:
         for stale in [k for k in _file_digests if k[0] == path]:
@@ -97,7 +110,7 @@ _scoped_digests = {}
 
 def _analysis(path):
     stat = os.stat(path)
-    key = (path, stat.st_mtime_ns, stat.st_size)
+    key = _file_key(path, stat)
     if key not in _analyses:
         for stale in [k for k in _analyses if k[0] == path]:
             del _analyses[stale]
@@ -175,7 +188,7 @@ def _scoped_digest(path, keep):
     scoping existed valid under it.
     """
     stat = os.stat(path)
-    key = (path, stat.st_mtime_ns, stat.st_size, frozenset(keep))
+    key = _file_key(path, stat) + (frozenset(keep),)
     cached = _scoped_digests.get(key)
     if cached is None:
         for stale in [k for k in _scoped_digests if k[0] == path]:
@@ -244,6 +257,36 @@ def source_digest(files, root, scope=None):
     return digest.hexdigest()
 
 
+def source_fingerprint(files, root):
+    """Digest the observable metadata state of every tracked source.
+
+    This is the settled-path guard, not proof that contents agree. It reads
+    metadata only; a disagreement sends currency to `source_digest`, which is
+    the content proof. Paths are project-relative for the same reason as the
+    content digest, while filesystem identity deliberately makes a relocated
+    project verify its contents once before settling again.
+    """
+    try:
+        entries = {}
+        for path in files:
+            real = os.path.realpath(path)
+            stat = os.stat(real)
+            entries[os.path.relpath(real, root)] = (
+                stat.st_dev, stat.st_ino, stat.st_size,
+                stat.st_mtime_ns, stat.st_ctime_ns)
+    except OSError as error:
+        logger.debug('No source fingerprint: %s', error)
+        return None
+
+    fingerprint = hashlib.sha256()
+    for relative, metadata in sorted(entries.items()):
+        fingerprint.update(os.fsencode(relative))
+        fingerprint.update(b'\0')
+        fingerprint.update(','.join(map(str, metadata)).encode('ascii'))
+        fingerprint.update(b'\n')
+    return fingerprint.hexdigest()
+
+
 def sidecar(artifact):
     """The path of the record vouching for `artifact`."""
     return f'{artifact}{SIDECAR_SUFFIX}'
@@ -264,13 +307,36 @@ def describes(name):
     return name[:-len(SIDECAR_SUFFIX)]
 
 
-def recorded_digest(artifact):
-    """The digest recorded when `artifact` was written, or None."""
+def _recorded_source(artifact):
+    """Return `(digest, fingerprint)` from a current or legacy record."""
     try:
         with open(sidecar(artifact)) as stream:
-            return stream.read().strip() or None
+            content = stream.read().strip()
     except OSError:
-        return None
+        return None, None
+    if not content:
+        return None, None
+    if not content.startswith('{'):
+        return content, None
+    try:
+        record = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None, None
+    if (not isinstance(record, dict) or record.get('version') != 2
+            or not isinstance(record.get('digest'), str)
+            or not isinstance(record.get('fingerprint'), str)):
+        return None, None
+    return record['digest'], record['fingerprint']
+
+
+def recorded_digest(artifact):
+    """The content digest recorded for `artifact`, or None."""
+    return _recorded_source(artifact)[0]
+
+
+def recorded_fingerprint(artifact):
+    """The source-set metadata fingerprint recorded for `artifact`, or None."""
+    return _recorded_source(artifact)[1]
 
 
 def drop(artifact):
@@ -284,8 +350,12 @@ def drop(artifact):
                      artifact, error)
 
 
-def record(artifact, digest):
-    """Vouch for `artifact` with `digest`, or for nothing when it is None.
+def record(artifact, digest, fingerprint=None):
+    """Vouch for `artifact`, or for nothing when `digest` is None.
+
+    A fingerprint produces the current versioned record. Omitting it writes the
+    legacy digest form deliberately retained for compatibility and migration
+    tests; such a record cannot take the metadata-only path.
 
     Always drops first, so a failure anywhere in here leaves no record
     rather than a record from a different source state. No record costs a
@@ -301,7 +371,13 @@ def record(artifact, digest):
             prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
         try:
             with os.fdopen(descriptor, 'w') as output:
-                output.write(f'{digest}\n')
+                if fingerprint is None:
+                    output.write(f'{digest}\n')
+                else:
+                    json.dump({'version': 2, 'digest': digest,
+                               'fingerprint': fingerprint}, output,
+                              sort_keys=True, separators=(',', ':'))
+                    output.write('\n')
             os.replace(temporary, path)
         except Exception:
             if os.path.exists(temporary):
@@ -313,9 +389,8 @@ def record(artifact, digest):
         logger.debug('Could not record the sources of %s: %s', artifact, error)
 
 
-def publish(temporary, artifact, digest):
-    """Move a finished artifact into place, with the record that vouches
-    for it.
+def publish(temporary, artifact, digest, fingerprint=None):
+    """Move a finished artifact into place with its source record.
 
     The ordering is the contract: the old record goes BEFORE the new
     artifact appears, and the new record only after it is in place. An
@@ -326,7 +401,7 @@ def publish(temporary, artifact, digest):
     """
     drop(artifact)
     os.replace(temporary, artifact)
-    record(artifact, digest)
+    record(artifact, digest, fingerprint)
 
 
 def restamp(artifact, mtime_ns):

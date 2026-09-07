@@ -39,7 +39,7 @@ def _seconds(mtime_ns):
     return seconds + nanoseconds * 1e-9
 
 
-def _atomic_write_text(path, content, mtime_ns, digest=None):
+def _atomic_write_text(path, content, mtime_ns, digest=None, fingerprint=None):
     directory = os.path.dirname(path) or '.'
     os.makedirs(directory, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
@@ -48,14 +48,15 @@ def _atomic_write_text(path, content, mtime_ns, digest=None):
         with os.fdopen(descriptor, 'w') as output:
             output.write(content)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        currency.publish(temporary, path, digest)
+        currency.publish(temporary, path, digest, fingerprint)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
         raise
 
 
-def _atomic_write_bytes(path, content, mtime_ns, digest=None):
+def _atomic_write_bytes(path, content, mtime_ns, digest=None,
+                        fingerprint=None):
     """`_atomic_write_text` for a binary artifact.
 
     Same contract, and it matters for the same reason: the stamp is
@@ -71,7 +72,7 @@ def _atomic_write_bytes(path, content, mtime_ns, digest=None):
         with os.fdopen(descriptor, 'wb') as output:
             output.write(content)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        currency.publish(temporary, path, digest)
+        currency.publish(temporary, path, digest, fingerprint)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
@@ -746,8 +747,8 @@ class AbstractBaseNode(metaclass=NodeMeta):
         Computed over exactly the set `mtime_ns` is the maximum of, so it
         answers precisely the question the timestamp was standing in for:
         would re-deriving this artifact reproduce it? Recorded beside an
-        artifact when it is written and consulted only when mtime
-        equality has already failed (see `_up_to_date`).
+        artifact when it is written and consulted when either the artifact
+        timestamp or source-set fingerprint differs (see `_up_to_date`).
 
         Scoped to this node: a file in the set that defines other node
         classes contributes only the text this node can depend on, so an
@@ -759,6 +760,16 @@ class AbstractBaseNode(metaclass=NodeMeta):
         """
         return currency.source_digest(self.files, self._project_root,
                                       self.scope)
+
+    @property
+    def source_fingerprint(self):
+        """Observable metadata state of every tracked source.
+
+        This never opens source contents. It guards the settled path against
+        a changed contributor hidden beneath the same maximum mtime; any
+        disagreement falls through to the content digest.
+        """
+        return currency.source_fingerprint(self.files, self._project_root)
 
     @property
     def mtime(self):
@@ -801,7 +812,7 @@ class AbstractBaseNode(metaclass=NodeMeta):
 
     def generate_scad(self):
         _atomic_write_text(self.scad_file, self.scad_code, self.mtime_ns,
-                           self.source_digest)
+                           self.source_digest, self.source_fingerprint)
         logger.info(f"{self.scad_file} generated with {self.mtime}!")
 
     def trigger_stl(self):
@@ -865,7 +876,8 @@ class AbstractBaseNode(metaclass=NodeMeta):
         fh.close()
         logger.info(f'Job started with pid {proc.pid}')
         raise StlRenderStart(proc, self.stl_file, temporary, self.mtime_ns,
-                             self.lock_file, self.source_digest)
+                             self.lock_file, self.source_digest,
+                             self.source_fingerprint)
 
     @property
     def stl_builder_command(self):
@@ -997,29 +1009,36 @@ class AbstractBaseNode(metaclass=NodeMeta):
 
 
     def _up_to_date(self, path):
-        """Exact equality, in integer nanoseconds, and content beneath it.
+        """Exact artifact equality guarded by every source's metadata.
 
         Equality and not tolerance: a window wide enough to absorb a
         filesystem's quantum is exactly a window in which a real edit
         becomes invisible, and ADR-033 ranks a stale model above a
         spurious rebuild for good reason.
 
-        The equality is unchanged and still decides alone whenever it
-        succeeds -- nothing is read, hashed or opened on that path. Only
-        when it fails does the content-verified fallback get a say, and
-        all it can do is answer the same question on stronger evidence.
+        A matching maximum alone loses information about older contributors,
+        so the settled path also requires the source-set fingerprint recorded
+        when the artifact was written. This stats sources and reads one small
+        sidecar, but does not open source contents. Any disagreement invokes
+        the existing stronger content proof.
         """
         if not os.path.exists(path):
             return False
-        if os.stat(path).st_mtime_ns == self.mtime_ns:
+        artifact_mtime_ns = os.stat(path).st_mtime_ns
+        node_mtime_ns = self.mtime_ns
+        fingerprint = self.source_fingerprint
+        if (fingerprint is not None
+                and artifact_mtime_ns == node_mtime_ns
+                and currency.recorded_fingerprint(path) == fingerprint):
             return True
-        return self._content_verified(path)
+        return self._content_verified(path, fingerprint)
 
-    def _content_verified(self, path):
+    def _content_verified(self, path, fingerprint=None):
         """Whether `path` was produced from the sources that are here now.
 
-        The timestamp moved -- a clone, a branch switch, a stash pop, a
-        copy, a formatter rewriting a file byte for byte. If the digest
+        The timestamp or contributor fingerprint moved -- a clone, a branch
+        switch, a stash pop, a copy, a formatter rewriting a file byte for
+        byte, or an edit hidden below the maximum mtime. If the digest
         recorded when this artifact was written is the digest of the
         sources on disk, then re-deriving it would reproduce it, which is
         a strictly stronger claim than the equality that just failed.
@@ -1043,6 +1062,9 @@ class AbstractBaseNode(metaclass=NodeMeta):
         if digest is None or digest != recorded:
             return False
         currency.restamp(path, self.mtime_ns)
+        if fingerprint is None:
+            fingerprint = self.source_fingerprint
+        currency.record(path, digest, fingerprint)
         return True
 
     def _make_build_dirs(self):
@@ -1054,19 +1076,20 @@ class AbstractBaseNode(metaclass=NodeMeta):
 class StlRenderStart(Exception):
 
     def __init__(self, proc, stl_file, temporary_file, mtime_ns, lock_file,
-                 digest=None):
+                 digest=None, fingerprint=None):
         super().__init__()
         self.proc = proc
         self.stl_file = stl_file
         self.temporary_file = temporary_file
         self.mtime_ns = mtime_ns
         self.lock_file = lock_file
-        # The sources this render was started from, carried across the
+        # The source record this render was started from, carried across the
         # subprocess so finish() can vouch for what it publishes. Read
         # when the render began, not when it ended: an edit that lands
         # mid-render must not be recorded as the thing that produced
         # this artifact.
         self.digest = digest
+        self.fingerprint = fingerprint
 
     @property
     def mtime(self):
@@ -1074,7 +1097,8 @@ class StlRenderStart(Exception):
 
     def finish(self):
         os.utime(self.temporary_file, ns=(time.time_ns(), self.mtime_ns))
-        currency.publish(self.temporary_file, self.stl_file, self.digest)
+        currency.publish(self.temporary_file, self.stl_file, self.digest,
+                         self.fingerprint)
         logger.info(f"{self.stl_file} generated with {self.mtime}!")
         if os.path.exists(self.lock_file):
             os.remove(self.lock_file)

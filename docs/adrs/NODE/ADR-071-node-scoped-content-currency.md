@@ -5,6 +5,7 @@
 **Amends:**
 - [ADR-060: Content-Verified Currency Beneath the Mtime Rule](./ADR-060-content-verified-currency-beneath-the-mtime-rule.md)
 - [ADR-033: Import-Closure Source Set and Up-To-Date Leaf Path](./ADR-033-import-closure-source-set-and-up-to-date-leaf-path.md)
+**Amended by:** [ADR-081: Per-Contributor Metadata Guards Aggregate-Mtime Currency](./ADR-081-per-contributor-metadata-guards-aggregate-mtime-currency.md) — source-set metadata guards the path above the scoped digest
 **Depends on:**
 - [ADR-058: Indexed Package Lookup for Source Closures](./ADR-058-indexed-package-lookup-for-source-closures.md)
 - [ADR-067: Fresh-Interpreter Build Subprocesses](../BUILD/ADR-067-fresh-interpreter-build-subprocesses.md)

@@ -68,6 +68,14 @@ artifacts. Recording the digest and fingerprint SHALL happen wherever the
 artifact is stamped, so an artifact and the record that vouches for it are
 written together or not at all.
 
+The fallback SHALL preserve the direction-of-failure guarantee: it SHALL NOT
+report current an artifact whose scoped source contents differ, and SHALL NOT
+weaken any case in which a genuine observable content change already rebuilds.
+Where a restamp cannot achieve equality because the artifact filesystem is
+coarser, the artifact SHALL still be current for that build on the strength of
+the matching digest, and the fallback SHALL be consulted again next time
+rather than looping.
+
 The currency record SHALL live inside the build directory, SHALL NOT be
 referenced by the published viewer document, and SHALL NOT change publication
 semantics. A successful sweep SHALL keep the record belonging to an artifact

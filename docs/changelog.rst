@@ -56,6 +56,15 @@ grasshopper-sized one, because the sharing rule has no size threshold: a
 subexpression as small as ``$t * loop`` reaching two operations is
 already enough. (OpenSpec change ``expression-bindings``, ADR-080.)
 
+**Every tracked source now guards artifact currency.** A settled artifact must
+match both the maximum source timestamp and a recorded metadata fingerprint of
+each contributing file, so an edit to an older dependency cannot be hidden by
+a future-dated source. Fingerprint changes invoke the existing node-scoped
+content digest, preserving no-op timestamp rewrites, relocated projects, and
+unrelated sibling-class edits without regenerating geometry. Legacy
+digest-only sidecars validate and upgrade in place; malformed records rebuild.
+(OpenSpec change ``guard-source-set-currency``; ADR-081.)
+
 **Artifact-producing assembly now holds the project build lock.** Ordinary
 builds acquire their selected build lock before assembly can materialize SCAD,
 BREP, or STL files and keep it through viewer-document publication. The test

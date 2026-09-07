@@ -94,7 +94,7 @@ def _open_edges(mesh):
     return len(trimesh.grouping.group_rows(mesh.edges_sorted, require_count=1))
 
 
-def _write_binary_stl(mesh, path, mtime_ns, digest=None):
+def _write_binary_stl(mesh, path, mtime_ns, digest=None, fingerprint=None):
     """Write the artifact, stamped, in one atomic step.
 
     Temp-file-then-rename, and the stamp applied before the rename, so
@@ -110,7 +110,7 @@ def _write_binary_stl(mesh, path, mtime_ns, digest=None):
     try:
         mesh.export(temporary, file_type='stl')
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        currency.publish(temporary, path, digest)
+        currency.publish(temporary, path, digest, fingerprint)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
@@ -192,7 +192,8 @@ class StlNode(LeafNode):
         # stale, and the SCAD is the same either way.
         if not self._up_to_date(self.stl_file):
             _write_binary_stl(self._materialized_mesh(), self.stl_file,
-                              self.mtime_ns, self.source_digest)
+                              self.mtime_ns, self.source_digest,
+                              self.source_fingerprint)
         return import_stl(self.local_stl)
 
     ##############################################

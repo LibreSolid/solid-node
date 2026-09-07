@@ -83,10 +83,13 @@ class ExactLeafNode(LeafNode):
         """
         shape = shape_from_rendered(rendered)
         digest = self.source_digest
+        fingerprint = self.source_fingerprint
         if not self._up_to_date(self.brep_file):
-            write_brep(shape, self.brep_file, self.mtime_ns, digest)
+            write_brep(shape, self.brep_file, self.mtime_ns, digest,
+                       fingerprint)
         if not self._up_to_date(self.stl_file):
             linear_deflection, angular_deflection = deflections(self)
             write_stl(shape, self.stl_file, self.mtime_ns,
-                     linear_deflection, angular_deflection, digest)
+                      linear_deflection, angular_deflection, digest,
+                      fingerprint)
         return import_stl(self.local_stl)

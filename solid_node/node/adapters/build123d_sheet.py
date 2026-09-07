@@ -12,7 +12,7 @@ from solid_node.node.sheet_leaf import SheetLeafNode
 _PLANE_TOLERANCE = 1e-6
 
 
-def _export_dxf(face, path, mtime_ns, digest=None):
+def _export_dxf(face, path, mtime_ns, digest=None, fingerprint=None):
     """Write one validated planar face as a nominal cut file.
 
     Nominal: the authored profile at model scale, in millimeters, with no
@@ -36,7 +36,7 @@ def _export_dxf(face, path, mtime_ns, digest=None):
 
     exporter = b3d.ExportDXF(unit=b3d.Unit.MM)
     exporter.add_shape(face)
-    _atomic_export(path, mtime_ns, exporter.write, digest)
+    _atomic_export(path, mtime_ns, exporter.write, digest, fingerprint)
 
 
 class Build123dSheetNode(SheetLeafNode):
@@ -114,5 +114,6 @@ class Build123dSheetNode(SheetLeafNode):
 
         return b3d.extrude(face, amount=self.thickness, dir=(0, 0, 1))
 
-    def _write_dxf(self, face, path, mtime_ns, digest=None):
-        _export_dxf(face, path, mtime_ns, digest)
+    def _write_dxf(self, face, path, mtime_ns, digest=None,
+                   fingerprint=None):
+        _export_dxf(face, path, mtime_ns, digest, fingerprint)

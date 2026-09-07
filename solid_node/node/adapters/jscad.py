@@ -64,5 +64,6 @@ class JScadNode(LeafNode):
             os.utime(self.stl_file, ns=(time.time_ns(), self.mtime_ns))
         except FileNotFoundError:
             return import_stl(self.local_stl)
-        currency.record(self.stl_file, self.source_digest)
+        currency.record(self.stl_file, self.source_digest,
+                        self.source_fingerprint)
         return import_stl(self.local_stl)

@@ -75,7 +75,8 @@ class FusionNode(InternalNode):
             return
         shape = self.shape()
         digest = self.source_digest
-        write_brep(shape, self.brep_file, self.mtime_ns, digest)
+        fingerprint = self.source_fingerprint
+        write_brep(shape, self.brep_file, self.mtime_ns, digest, fingerprint)
         linear_deflection, angular_deflection = deflections(self)
         write_stl(shape, self.stl_file, self.mtime_ns,
-                 linear_deflection, angular_deflection, digest)
+                  linear_deflection, angular_deflection, digest, fingerprint)

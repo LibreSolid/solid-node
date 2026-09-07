@@ -210,6 +210,21 @@ The builder calls `node.assemble()` before entering `project_build_lock()`. Exac
 
 **Location:** [solid_node/node/base.py:737–740](../../solid_node/node/base.py#L737) and [1012–1016](../../solid_node/node/base.py#L1012).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`guard-source-set-currency` and ADR-081. Artifact timestamp equality now also
+requires a versioned sidecar fingerprint covering every tracked source's
+project-relative path, filesystem identity, size, mtime, and change time. A
+fingerprint disagreement uses the existing node-scoped content digest, so
+changed content rebuilds while metadata-only and unrelated sibling edits
+refresh the record without regenerating geometry. Legacy digest-only records
+verify and upgrade in place; malformed records certify nothing. The focused
+red run reproduced four intended failures, including the future-maximum and
+same-size restored-mtime cases. After correction, 17 currency tests and a
+296-test publisher/currency set passed; the public probe published 8,000 mm³
+after the helper edit; and the complete suite passed 1,540 tests with 16
+skipped, 38 warnings, and 258 passing subtests. The original evidence below
+remains the pre-fix audit record.
+
 Currency compares the artifact timestamp with the **maximum** timestamp of all tracked sources. If that maximum stays the same, `_up_to_date()` returns `True` without inspecting the recorded source digest. A contributing file can change while remaining older than another tracked source, so the maximum is not a sufficient change detector.
 
 **Reproduction:** A leaf imports `SIZE` from `dimensions.py`. Stamp the leaf file 60 seconds ahead, then build a cube with `SIZE = 1`. Change the helper to `SIZE = 20`, leaving its new timestamp below the leaf's timestamp, and build again. Both builds exit **0**, but the published volume remains **1 mm³** instead of **8,000 mm³**.

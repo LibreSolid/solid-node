@@ -25,6 +25,7 @@ from unittest import TestCase, mock
 
 from solid2 import scad_render
 
+from solid_node import currency
 from .base import BaseNodeTest
 from .utils import edit_source
 from .source_set_project import dimensions
@@ -191,7 +192,7 @@ class UpToDateLeafTest(BaseNodeTest):
         # nothing would fail this test on the missing file rather than
         # on the export.
         def export_stub(shape, path, mtime, linear_deflection,
-                       angular_deflection, digest=None):
+                       angular_deflection, digest=None, fingerprint=None):
             with open(path, 'w') as fh:
                 fh.write('solid empty\nendsolid empty\n')
 
@@ -206,6 +207,8 @@ class UpToDateLeafTest(BaseNodeTest):
         with open(node.stl_file, 'w') as fh:
             fh.write('solid empty\nendsolid empty\n')
         os.utime(node.stl_file, ns=(time.time_ns(), node.mtime_ns))
+        currency.record(node.stl_file, node.source_digest,
+                        node.source_fingerprint)
 
         with mock.patch('solid_node.node.adapters.jscad.Popen') as popen:
             node.as_scad(None)
