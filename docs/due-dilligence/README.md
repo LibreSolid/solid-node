@@ -2,9 +2,53 @@
 
 Reviewed **2026-09-07**, at commit **`fa977ac9f3621e8a56ab33ff3f80ca04e6498089`** (`main`, package metadata version 0.6.0).
 
-The audit reproduced **11 bugs: five high priority and six medium priority**. The most consequential failures are successful builds publishing empty geometry, deletion of unrelated files, exports escaping their output directory, build-lock bypass, and stale geometry being reported current. These remain present even though the existing test suite passes.
+The audit reproduced **11 bugs: five high priority and six medium priority**. The most consequential failures at the reviewed commit were successful builds publishing empty geometry, deletion of unrelated files, exports escaping their output directory, build-lock bypass, and stale geometry being reported current. The existing test suite passed despite all eleven findings; remediation status now lives in [PROGRESS.md](PROGRESS.md).
 
-This report records findings and recommended regression coverage; it implements no framework fixes. Work is isolated on branch `due-dilligence` in `WTs/due-dilligence`, based on the commit above, under the parent workspace's worktree instructions. It has not been integrated into `main`.
+This report records the original findings, evidence, and recommended regression coverage. Fixes are developed on branch `due-dilligence` in `WTs/due-dilligence`, based on the commit above, under the parent workspace's worktree instructions. The branch has not been integrated into `main`.
+
+Remediation status is tracked in [PROGRESS.md](PROGRESS.md). The original
+findings and evidence in this report remain as the audit record even after a
+fix lands; each resolved finding gains a separate resolution note.
+
+## Remediation discipline
+
+Work through one checklist item at a time in the existing `due-dilligence`
+worktree. Unless the pilot chooses a different item, select the first unchecked
+finding in [PROGRESS.md](PROGRESS.md), preserving the P1-first order recorded
+there. Do not combine unrelated findings in one change.
+
+For each item:
+
+1. Re-run or inspect its saved reproduction, then read the relevant baseline
+   specification, architecture synthesis, accepted decisions, source, and
+   tests. Record any difference between the audit evidence and current code.
+2. State the exact scope. Keep adjacent observations outside the change unless
+   they are required for a coherent fix; retain them as later checklist items
+   or review leads.
+3. For a framework behavior change, create a focused OpenSpec change, present
+   its requirements, design, and proof plan, and obtain explicit pilot
+   ratification before implementation. A documentation-only correction that
+   preserves the existing contract may proceed directly.
+4. Add a regression that fails for the recorded reason before changing
+   production code. Prefer the public CLI or originating path where practical,
+   backed by a focused unit test when it pins an important boundary.
+5. Implement the smallest change satisfying the ratified contract. If the
+   evidence contradicts the plan, revise and re-ratify it before continuing.
+6. Run focused tests, the saved probe or representative caller, the complete
+   framework suite, and strict OpenSpec validation when a spec changed. Record
+   skips, intermittent failures, and other limits rather than hiding them.
+7. Update the finding with a resolution note, update the changelog when user
+   behavior changed, archive the completed OpenSpec change when applicable,
+   and mark the item done in [PROGRESS.md](PROGRESS.md).
+8. Commit the planning state and completed implementation as required by the
+   framework-change workflow. A documentation-only item uses one focused
+   commit. Finish with a clean worktree and report commit IDs, validation, ADR
+   disposition, and integration state.
+
+An item is complete only when its regression or documentary proof passes, its
+records are updated, and the corresponding commit exists. Completion does not
+integrate the branch into `main`; integration remains a separate pilot
+decision.
 
 ## Scope and evidence
 
@@ -25,7 +69,7 @@ python docs/due-dilligence/probe_build.py
 python docs/due-dilligence/probe_additional.py
 ```
 
-They create and remove their own temporary projects. Their exit code reports whether the probe completed; the JSON reports whether the defect occurred. They intentionally demonstrate faulty behavior, so they are not passing regression tests. Paths in the recorded JSON identify temporary directories that have since been removed. Watcher evidence is at event-dispatch level; the locking probe uses a real held `flock` and CLI subprocess.
+They create and remove their own temporary projects. Their exit code reports whether the probe completed; the JSON records the behavior observed, so these are observation probes rather than assertion-based regression tests. As fixes land, current probe output can differ from the original [evidence.json](evidence.json). Paths in that recorded evidence identify temporary directories that have since been removed. Watcher evidence is at event-dispatch level; the locking probe uses a real held `flock` and CLI subprocess.
 
 ## Priority overview
 
