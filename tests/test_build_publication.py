@@ -64,10 +64,18 @@ class PreviousPublicationMigrationTest(TestCase):
         self.build_dir = os.path.join(self.root, '_build')
         self.previous = os.path.join(self.root, '_build.previous')
         self.stale = os.path.join(self.root, '_build.stale')
+        self.notes = os.path.join(self.root, '_build.notes')
+        self.lock = os.path.join(self.root, '_build.lock')
         os.makedirs(self.previous)
         os.makedirs(self.stale)
         with open(os.path.join(self.previous, 'viewer.json'), 'w') as output:
             output.write('{}')
+        with open(os.path.join(self.stale, 'keep.txt'), 'w') as output:
+            output.write('unowned sibling')
+        with open(self.notes, 'w') as output:
+            output.write('user notes')
+        with open(self.lock, 'w') as output:
+            output.write('held elsewhere')
         os.symlink(os.path.basename(self.previous), self.build_dir)
 
     def test_symlink_publication_is_converted_once_in_place(self):
@@ -77,7 +85,39 @@ class PreviousPublicationMigrationTest(TestCase):
         self.assertFalse(os.path.islink(self.build_dir))
         self.assertTrue(os.path.isfile(os.path.join(self.build_dir,
                                                     'viewer.json')))
-        self.assertFalse(os.path.exists(self.stale))
+        self.assertFalse(os.path.exists(self.previous))
+        self.assertTrue(os.path.isfile(os.path.join(self.stale, 'keep.txt')))
+        self.assertTrue(os.path.isfile(self.notes))
+        self.assertTrue(os.path.isfile(self.lock))
+
+
+class BuildDirectoryPreparationOwnershipTest(TestCase):
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='solid-node-preparation-')
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.build_dir = os.path.join(self.root, '_build')
+        os.makedirs(self.build_dir)
+
+    def test_ordinary_preparation_preserves_every_sibling(self):
+        notes = os.path.join(self.root, '_build.notes')
+        backup = os.path.join(self.root, '_build.backup')
+        legacy_looking = os.path.join(self.root, '_build.a1b2c3d4')
+        with open(notes, 'w') as output:
+            output.write('user notes')
+        os.makedirs(backup)
+        with open(os.path.join(backup, 'keep.txt'), 'w') as output:
+            output.write('user backup')
+        os.makedirs(legacy_looking)
+        with open(os.path.join(legacy_looking, 'viewer.json'), 'w') as output:
+            output.write('user-controlled data')
+
+        prepare_build_dir(self.build_dir)
+
+        self.assertTrue(os.path.isfile(notes))
+        self.assertTrue(os.path.isfile(os.path.join(backup, 'keep.txt')))
+        self.assertTrue(os.path.isfile(os.path.join(
+            legacy_looking, 'viewer.json')))
 
 
 class RenderVisibilityTest(TestCase):

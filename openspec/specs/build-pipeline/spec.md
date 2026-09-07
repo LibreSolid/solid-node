@@ -191,8 +191,10 @@ property loads the plain `.stl` and applies operations in memory (the
 writes or reads them). Every build directory SHALL be an ordinary directory
 that every builder writes into directly; the system SHALL NOT publish through
 a symlink, a versioned sibling directory, or a private candidate copy. A build
-path left as a symlink by an earlier layout SHALL be converted to an ordinary
-directory holding the artifacts it referenced.
+path left as a symlink by an earlier layout SHALL be converted by moving the
+directory that symlink references into the ordinary build path. Build
+preparation SHALL NOT remove any other path merely because its name begins
+with the build directory's name and a dot.
 
 The `.brep` artifact SHALL be private to the build. No viewer snapshot, export
 manifest, or other published document SHALL reference it, and its presence
@@ -220,8 +222,23 @@ SHALL NOT alter any document's schema.
 
 - **WHEN** a project whose build path is a symlink to a versioned directory is
   built
-- **THEN** the build path becomes an ordinary directory holding those
-  artifacts, and the versioned siblings are removed
+- **THEN** the build path becomes an ordinary directory holding the artifacts
+  from the referenced directory, that referenced sibling is consumed, and
+  every other sibling remains untouched
+
+#### Scenario: Ordinary preparation preserves siblings
+
+- **WHEN** a real build directory has sibling files or directories whose names
+  begin with the build directory's name and a dot
+- **THEN** preparing the build directory leaves every sibling unchanged
+
+#### Scenario: Browser snapshot staging overlaps a build
+
+- **WHEN** a browser snapshot stage beside the build directory remains in use
+  after releasing the project build lock and another build prepares its
+  directory
+- **THEN** the stage and every artifact linked into it remain available to the
+  capture process
 
 #### Scenario: An exact node writes exact geometry beside its mesh
 

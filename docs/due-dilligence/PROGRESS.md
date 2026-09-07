@@ -9,7 +9,8 @@ the order below.
 
 - [x] [F01 — Failed renderer output is committed as successful geometry](README.md#f01--failed-renderer-output-is-committed-as-successful-geometry)
   — planned in `7dee1a7`, fixed in `24a65da`.
-- [ ] [F02 — Build cleanup deletes files it does not own](README.md#f02--build-cleanup-deletes-files-it-does-not-own)
+- [x] [F02 — Build cleanup deletes files it does not own](README.md#f02--build-cleanup-deletes-files-it-does-not-own)
+  — OpenSpec change `preserve-unowned-build-siblings`.
 - [ ] [F03 — Export paths can escape the output directory](README.md#f03--export-paths-can-escape-the-output-directory)
 - [ ] [F04 — Exact geometry bypasses build mutual exclusion](README.md#f04--exact-geometry-bypasses-build-mutual-exclusion)
 - [ ] [F05 — Aggregate timestamp equality hides changed source contents](README.md#f05--aggregate-timestamp-equality-hides-changed-source-contents)
@@ -26,4 +27,12 @@ the order below.
 - [ ] [C02 — Browser capture instructions omit the required opt-in](README.md#c02--browser-capture-instructions-omit-the-required-opt-in)
 - [ ] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
 
-Next by priority and order: **F02**.
+## Cross-repository follow-ups
+
+- [ ] **V01 — Audit the independent viewer's capture behavior when its staged
+  input disappears unexpectedly.** Determine whether `solid-node-viewer`
+  should add its own diagnostic or recovery behavior, and add viewer-owned
+  regressions there if warranted. This is the viewer counterpart noted while
+  resolving F02; it is deliberately outside the framework change.
+
+Next framework finding by priority and order: **F03**.

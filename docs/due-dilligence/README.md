@@ -125,6 +125,19 @@ Run `solid build`. OpenSCAD reports the assertion failure, but the command exits
 
 **Location:** [solid_node/core/builder.py:191–218](../../solid_node/core/builder.py#L191).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`preserve-unowned-build-siblings`. Build preparation now consumes only the
+directory referenced by a legacy build symlink and leaves every other sibling
+untouched. Regression coverage includes ordinary preparation, legacy
+migration, the project lock, and a real browser snapshot stage surviving an
+overlapping preparation. Validation passed 21 focused tests (with the opt-in
+Chromium capture test skipped) and the complete suite (1,527 passed, 16
+skipped, 38 warnings, 258 passing subtests). The saved cleanup probe now
+reports both the notes file and backup surviving. Two of the full-suite skips
+are existing actuator-document proofs whose external vendor STEP file was not
+present; thirteen require Sphinx and one requires the browser E2E opt-in. The
+original evidence below remains the pre-fix audit record.
+
 `prepare_build_dir()` unconditionally removes every sibling named `<build-dir>.*`, except the exact project lock path. The cleanup runs on every build preparation, even when the build directory is already ordinary and there is no old symlink layout to migrate. It does not establish that a matching path is a framework-owned legacy artifact.
 
 **Reproduction:** Beside `_build`, create `_build.notes` containing user notes and `_build.backup/keep.txt` containing a backup. Call `prepare_build_dir()`. Both unrelated paths are deleted. The probe confines this operation to a temporary directory.

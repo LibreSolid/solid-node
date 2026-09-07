@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 from solid_node.viewers import browser as browser_module
 from solid_node.viewers.browser import BrowserRenderer, BrowserSnapshotError
 from solid_node.viewers.bundle import has_bundle
+from solid_node.core.builder import prepare_build_dir
 from solid_node.manager.snapshot import Snapshot
 from tests.test_build_lock import lock_is_held
 from tests.test_export import Cube
@@ -82,6 +83,18 @@ class BrowserStagingTest(TestCase):
         leftovers = [name for name in os.listdir(self.temporary.name)
                      if name.startswith("_build.web-snapshot.")]
         self.assertEqual(leftovers, [])
+
+    def test_stage_survives_overlapping_build_preparation(self):
+        staging = self.renderer.stage(self.node, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+        staged_document = os.path.join(staging, 'viewer.json')
+        staged_model = os.path.join(staging, 'parts', 'cube.stl')
+
+        prepare_build_dir(self.build_dir)
+
+        self.assertTrue(os.path.isfile(staged_document))
+        with open(staged_model, 'rb') as artifact:
+            self.assertIn(b'solid cube', artifact.read())
 
 
 @needs_viewer

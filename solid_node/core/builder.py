@@ -9,7 +9,6 @@ import asyncio
 import traceback
 import logging
 import time
-import shutil
 import tempfile
 import fcntl
 import threading
@@ -192,30 +191,17 @@ def prepare_build_dir(build_dir=None):
     """Migrate an ADR-032 symlink once, then return a real build directory.
 
     The caller holds the project build lock. This one-time conversion has the
-    same bounded migration caveat as the previous publication transition.
+    same bounded migration caveat as the previous publication transition. The
+    referenced target is the only sibling the symlink proves belongs to this
+    build; every other sibling is left alone.
     """
     build_dir = os.path.abspath(build_dir or get_build_dir())
-    parent = os.path.dirname(build_dir) or '.'
     if os.path.islink(build_dir):
         target = os.path.realpath(build_dir)
         os.unlink(build_dir)
         if os.path.exists(target):
             os.replace(target, build_dir)
     os.makedirs(build_dir, exist_ok=True)
-    lock = get_build_lock_path(build_dir)
-    for sibling in os.listdir(parent):
-        path = os.path.join(parent, sibling)
-        # The lock is `<build dir>.lock`, spelled like a versioned sibling,
-        # and the caller holds it: unlinking its path would let the next
-        # builder open a fresh inode and lock nothing.
-        if path == lock:
-            continue
-        if path != build_dir and sibling.startswith(
-                f'{os.path.basename(build_dir)}.'):
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-            else:
-                os.remove(path)
     exclude_build_from_git(build_dir)
     return build_dir
 

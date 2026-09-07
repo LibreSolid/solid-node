@@ -8,6 +8,15 @@ Changelog
 Unreleased
 ----------
 
+**Build preparation preserves sibling data.** The one-time migration from the
+retired symlink publication layout now moves only the directory referenced by
+the build path. Ordinary preparation and migration leave every other
+``<build>.`` sibling untouched, including user notes, backups, legacy-looking
+directories, the project lock, and browser snapshot stages still being
+captured. An orphan from the retired layout can therefore remain on disk when
+its name is the only evidence of ownership. (OpenSpec change
+``preserve-unowned-build-siblings``.)
+
 **Failed OpenSCAD renders no longer publish empty geometry.** The asynchronous
 STL render protocol now checks OpenSCAD's exit status before replacing the
 published artifact. A failed render exits the build nonzero, records the
