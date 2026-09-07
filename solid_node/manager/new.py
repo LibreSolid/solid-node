@@ -6,7 +6,18 @@ import os
 import shutil
 import sys
 import re
+import keyword
 from importlib import resources
+
+
+def _project_identifiers(name):
+    """Return the package and class identifiers for a project basename."""
+    package = re.sub(r'[^0-9A-Za-z_]', '_', name)
+    package = package.strip('_') or 'project'
+    if not package.isidentifier() or keyword.iskeyword(package):
+        package = f'project_{package}'
+    class_name = ''.join(part.capitalize() for part in package.split('_'))
+    return package, class_name
 
 
 class New:
@@ -27,9 +38,7 @@ class New:
         # the one path component (the outer directory) the rest of this
         # method does not otherwise touch, while `myproject/pyproject.toml`
         # still declares the same identifier-safe name everywhere else.
-        package = re.sub(r'[^0-9A-Za-z_]', '_', name)
-        package = package.strip('_') or 'project'
-        class_name = ''.join(part.capitalize() for part in package.split('_'))
+        package, class_name = _project_identifiers(name)
         target = os.path.join(directory, package) if directory else package
 
         if os.path.exists(target):

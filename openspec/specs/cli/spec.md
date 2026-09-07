@@ -428,8 +428,12 @@ fraction as before. Validation of the option does not change.
 ### Requirement: New command
 
 The system SHALL provide `solid new <name>` scaffolding a project offline from
-templates packaged in the wheel. After normalizing `<name>` to an
-identifier-safe package name `<package>` and deriving `<ClassName>`, it SHALL
+templates packaged in the wheel. It SHALL normalize the input basename to an
+ASCII Python package identifier `<package>` by replacing non-alphanumeric or
+underscore characters with underscores, removing boundary underscores, and
+using `project` when nothing remains. If that sanitized name starts with a
+digit or is a Python keyword, the command SHALL prefix it with `project_`.
+After deriving `<ClassName>` from that final package identifier, it SHALL
 create:
 
 - `<package>/pyproject.toml`, declaring
@@ -481,6 +485,20 @@ project.
 
 - **WHEN** the normalized target directory already exists
 - **THEN** `solid new` exits 1 without overwriting it
+
+#### Scenario: Digit-leading project is made identifier-safe
+
+- **WHEN** a user runs `solid new 3d-printer`
+- **THEN** the command creates `project_3d_printer` with package
+  `project_3d_printer`, class `Project3dPrinter`, and a matching manifest
+- **AND** its generated source compiles, builds, and tests without edits
+
+#### Scenario: Python-keyword project is made identifier-safe
+
+- **WHEN** a user runs `solid new class`
+- **THEN** the command creates `project_class` with package `project_class`,
+  class `ProjectClass`, and a matching manifest
+- **AND** its generated source compiles, builds, and tests without edits
 
 ### Requirement: Export command
 

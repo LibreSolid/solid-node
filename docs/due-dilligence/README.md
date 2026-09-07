@@ -292,6 +292,23 @@ subtests. The original evidence below remains the pre-fix audit record.
 
 **Location:** [solid_node/manager/new.py:30–32](../../solid_node/manager/new.py#L30).
 
+**Resolution:** Fixed on the `due-dilligence` branch by OpenSpec change
+`normalize-scaffold-identifiers`. Scaffold naming now produces one final
+package/class pair and uses it consistently for the target, modules, tests,
+template substitutions, and manifest. A sanitized leading-digit or Python
+keyword name gains a `project_` prefix: `3d-printer` becomes
+`project_3d_printer:Project3dPrinter`, while `class` becomes
+`project_class:ProjectClass`; existing `snowman-3` behavior remains
+`snowman_3:Snowman3`. Focused command, CLI, loader, build, compilation, and
+generated-test coverage passed 32 tests with 19 passing subtests. Both edge
+projects build and pass their two generated integrity tests without edits. The
+saved public probe now reports a `project_3d_printer` target and a successful
+first build. No new ADR was needed because this enforces the identifier-safe
+scaffolding contract already recorded by ADR-024. The printed browser URL is
+tracked separately as C04. The complete suite passed 1,551 tests with 16
+skipped, 39 warnings, and 270 passing subtests. The original evidence below
+remains the pre-fix audit record.
+
 Name normalization permits leading digits and derives the class name directly from the normalized package. `3d-printer` becomes package `3d_printer` and class `3dPrinter`.
 
 **Reproduction:** `solid new 3d-printer` exits **0** and writes `class 3dPrinter(Solid2Node):`. Running `solid build` in the generated project exits **1** with `SyntaxError: invalid decimal literal`.

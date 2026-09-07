@@ -11,6 +11,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import TestCase
 from unittest.mock import patch
 
+from solid_node.manager import new as new_manager
 from solid_node.manager.new import New
 
 
@@ -95,6 +96,48 @@ class NewCommandTest(TestCase):
         compile(source, init_path, 'exec')
         self.assertEqual(source, EXPECTED_INIT.replace('DemoProject', 'Myproj2'))
 
+    def test_project_identifiers_cover_invalid_python_spellings(self):
+        cases = {
+            'myproject': ('myproject', 'Myproject'),
+            'snowman-3': ('snowman_3', 'Snowman3'),
+            '3d-printer': ('project_3d_printer', 'Project3dPrinter'),
+            'class': ('project_class', 'ProjectClass'),
+            '---': ('project', 'Project'),
+        }
+
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(new_manager._project_identifiers(raw),
+                                 expected)
+
+    def test_edge_case_scaffolds_compile_and_match_their_manifests(self):
+        cases = {
+            '3d-printer': ('project_3d_printer', 'Project3dPrinter'),
+            'class': ('project_class', 'ProjectClass'),
+        }
+
+        for raw, (package, class_name) in cases.items():
+            with self.subTest(raw=raw):
+                argument = os.path.join(self.tmpdir.name, raw)
+                with redirect_stdout(io.StringIO()):
+                    New().handle(Namespace(name=argument))
+                target = os.path.join(self.tmpdir.name, package)
+                sources = [
+                    (os.path.join(target, package, f'{package}.py'),
+                     f'class {class_name}('),
+                    (os.path.join(target, package, f'test_{package}.py'),
+                     f'class {class_name}Test('),
+                ]
+                for source_path, declaration in sources:
+                    with open(source_path) as stream:
+                        source = stream.read()
+                    compile(source, source_path, 'exec')
+                    self.assertIn(declaration, source)
+                with open(os.path.join(target, 'pyproject.toml')) as stream:
+                    self.assertIn(
+                        f'model = "{package}.{package}:{class_name}"',
+                        stream.read())
+
     def test_refuses_to_overwrite_existing_directory(self):
         target = os.path.join(self.tmpdir.name, 'existing')
         os.makedirs(target)
@@ -145,19 +188,19 @@ class ScaffoldAcceptanceTest(TestCase):
         self.addCleanup(environment.stop)
         os.environ.pop('SOLID_BUILD_DIR', None)
 
-    def test_scaffolded_project_builds_and_tests_without_edits(self):
+    def assert_scaffold_builds_and_tests(self, raw_name, package, class_name):
         os.chdir(self.tmpdir.name)
         with redirect_stdout(io.StringIO()):
-            New().handle(Namespace(name='snowman-3'))
+            New().handle(Namespace(name=raw_name))
 
-        project_dir = os.path.join(self.tmpdir.name, 'snowman_3')
-        node_path = os.path.join(project_dir, 'snowman_3', 'snowman_3.py')
+        project_dir = os.path.join(self.tmpdir.name, package)
+        node_path = os.path.join(project_dir, package, f'{package}.py')
         manifest_path = os.path.join(project_dir, 'pyproject.toml')
 
         self.assertTrue(os.path.isfile(node_path),
                         f'expected {node_path} to exist')
         with open(manifest_path) as stream:
-            self.assertIn('model = "snowman_3.snowman_3:Snowman3"',
+            self.assertIn(f'model = "{package}.{package}:{class_name}"',
                           stream.read())
 
         os.chdir(project_dir)
@@ -183,3 +226,15 @@ class ScaffoldAcceptanceTest(TestCase):
                         'solid build did not publish a build directory')
         self.assertIn('Ran 2 tests', test_output.getvalue())
         self.assertIn('2 passed, 0 failed', test_output.getvalue())
+
+    def test_scaffolded_project_builds_and_tests_without_edits(self):
+        self.assert_scaffold_builds_and_tests(
+            'snowman-3', 'snowman_3', 'Snowman3')
+
+    def test_digit_leading_project_builds_and_tests_without_edits(self):
+        self.assert_scaffold_builds_and_tests(
+            '3d-printer', 'project_3d_printer', 'Project3dPrinter')
+
+    def test_keyword_project_builds_and_tests_without_edits(self):
+        self.assert_scaffold_builds_and_tests(
+            'class', 'project_class', 'ProjectClass')

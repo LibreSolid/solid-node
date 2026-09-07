@@ -61,8 +61,9 @@ with tempfile.TemporaryDirectory(prefix='solid-audit-') as directory:
 
     # Scaffold naming.
     result = cli(base, 'new', '3d-printer')
-    compile_result = cli(base / '3d_printer', 'build')
-    RESULTS['numeric_scaffold'] = dict(new_exit=result.returncode, build_exit=compile_result.returncode, source=(base / '3d_printer/3d_printer/3d_printer.py').read_text(), stderr=compile_result.stderr[-900:])
+    scaffold = base / 'project_3d_printer'
+    compile_result = cli(scaffold, 'build')
+    RESULTS['numeric_scaffold'] = dict(new_exit=result.returncode, build_exit=compile_result.returncode, target=scaffold.name, source=(scaffold / 'project_3d_printer/project_3d_printer.py').read_text(), stderr=compile_result.stderr[-900:])
 
     # Max mtime collision despite a tracked helper's changed contents.
     root = base / 'mtime'; root.mkdir()

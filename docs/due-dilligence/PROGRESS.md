@@ -21,7 +21,8 @@ the order below.
   — OpenSpec change `watch-all-tracked-sources`.
 - [x] [F07 — Successful rebuilds can leave `solid models` reporting failure](README.md#f07--successful-rebuilds-can-leave-solid-models-reporting-failure)
   — OpenSpec change `clear-recovered-build-errors`.
-- [ ] [F08 — `solid new 3d-printer` creates an unusable project](README.md#f08--solid-new-3d-printer-creates-an-unusable-project)
+- [x] [F08 — `solid new 3d-printer` creates an unusable project](README.md#f08--solid-new-3d-printer-creates-an-unusable-project)
+  — OpenSpec change `normalize-scaffold-identifiers`.
 - [ ] [F09 — Multi-model tests stop on build failures despite the continuation contract](README.md#f09--multi-model-tests-stop-on-build-failures-despite-the-continuation-contract)
 - [ ] [F10 — Zero repeated children break the declarative render contract](README.md#f10--zero-repeated-children-break-the-declarative-render-contract)
 - [ ] [F11 — Invalid simulation time inputs can silently bypass checks](README.md#f11--invalid-simulation-time-inputs-can-silently-bypass-checks)
@@ -31,6 +32,10 @@ the order below.
 - [ ] [C01 — Assertion documentation promises more than vertex sampling proves](README.md#c01--assertion-documentation-promises-more-than-vertex-sampling-proves)
 - [ ] [C02 — Browser capture instructions omit the required opt-in](README.md#c02--browser-capture-instructions-omit-the-required-opt-in)
 - [ ] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
+- [ ] **C04 — Audit scaffolded viewer next-step guidance.** The generated
+  success message hard-codes `http://localhost:8000` without considering the
+  configured port or whether the optional browser viewer is available. This
+  is the separate review lead retained from F08.
 
 ## Cross-repository follow-ups
 
@@ -40,4 +45,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **F06**.
+Next framework finding by priority and order: **F09**.
