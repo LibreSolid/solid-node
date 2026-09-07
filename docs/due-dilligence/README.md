@@ -432,6 +432,14 @@ browser (1 test, 1 warning).
 
 ### C03 — The README overstates viewer process isolation
 
+**Resolution:** Corrected on the `due-dilligence` branch. The README and
+contributor briefing now describe the exact boundary: the framework imports
+and calls only the viewer's lightweight entry-point provider to discover its
+bundle metadata, while serving and browser capture run in separate processes
+and their modules are not imported. This aligns the introductions with the
+existing implementation, architecture synthesis, and viewer-distribution
+contract.
+
 The [README's viewer introduction](../../README.rst#L38) says the framework never imports the viewer. [bundle.describe()](../../solid_node/viewers/bundle.py#L50) calls `entry.load()()`, which imports and runs the viewer's entry-point provider in the framework process. The [viewer-distribution spec](../../openspec/specs/viewer-distribution/spec.md#requirement-the-framework-finds-the-installed-viewer-through-its-entry-point) explicitly permits this narrow import and forbids other viewer imports. Align the README with that actual boundary: entry-point metadata runs locally; serving and capture run in separate processes. This observation makes no licensing determination.
 
 The CI lint job additionally marks both Black and Flake8 `continue-on-error: true`, so formatting and lint errors do not block the test/release chain. That is a process gap to assess, rather than evidence of a particular runtime defect.

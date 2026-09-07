@@ -42,8 +42,10 @@ the viewer is **AGPL-3.0-only**. Install ``solid-node`` without the extra and
 the framework is complete with OpenSCAD as its viewer — ``solid develop``
 opens the OpenSCAD GUI, ``solid export --no-widget`` and the default snapshot
 renderer work as before — and the commands that need the browser viewer name
-the extra. The framework never imports the viewer; it runs it as a separate
-process.
+the extra. To discover the installed bundle, the framework imports and calls
+only the viewer's lightweight entry-point provider. It launches the viewer's
+serving and browser-capture code in separate processes and does not import
+those modules.
 
 Upgrading from 0.5.x requires **reinstalling the environment** rather
 than upgrading in place: the shared OCCT binding moves and its versions

@@ -36,7 +36,8 @@ the order below.
   — corrected the assertion descriptions and documented their sampling limit.
 - [x] [C02 — Browser capture instructions omit the required opt-in](README.md#c02--browser-capture-instructions-omit-the-required-opt-in)
   — documented the opt-in command and added a required real-capture CI job.
-- [ ] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
+- [x] [C03 — The README overstates viewer process isolation](README.md#c03--the-readme-overstates-viewer-process-isolation)
+  — aligned README and contributor wording with the entry-point boundary.
 - [ ] **C04 — Audit scaffolded viewer next-step guidance.** The generated
   success message hard-codes `http://localhost:8000` without considering the
   configured port or whether the optional browser viewer is available. This
@@ -50,4 +51,4 @@ the order below.
   regressions there if warranted. This is the viewer counterpart noted while
   resolving F02; it is deliberately outside the framework change.
 
-Next framework finding by priority and order: **C03**.
+Next framework finding by priority and order: **C04**.
