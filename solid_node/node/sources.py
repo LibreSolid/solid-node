@@ -21,6 +21,8 @@ import os
 import sys
 from importlib.util import resolve_name
 
+from solid_node.source_generation import observation_key
+
 
 # The framework is a library, not project source. It normally lives in
 # site-packages, well outside any project, but when the framework tests
@@ -29,9 +31,9 @@ from importlib.util import resolve_name
 FRAMEWORK_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
-# Per-file import lists, keyed on (path, mtime) so an edited file is
-# re-parsed and its stale entry evicted -- the same shape as the base
-# mesh cache in base.py.
+# Per-file import lists, keyed on complete observable identity so an edited or
+# atomically replaced file is re-parsed even when size and mtime are restored.
+# A miss evicts the superseded entry, like the other per-source caches.
 _import_cache = {}
 
 
@@ -60,8 +62,10 @@ def source_closure(src):
 
 
 def _project_imports(path, root):
-    mtime = os.path.getmtime(path) if os.path.exists(path) else None
-    key = (path, mtime)
+    try:
+        key = observation_key(path)
+    except OSError:
+        key = (os.path.realpath(path), None)
     cached = _import_cache.get(key)
     if cached is None:
         for stale in [k for k in _import_cache if k[0] == path]:

@@ -1,0 +1,27 @@
+WP9 sparse statics construction measurement
+source: uncommitted implementation candidate over 4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python workflow/due-dilligence-performance/remediation/wp9_probe.py
+
+{
+  "contact_variables": 1000,
+  "csr_storage_bytes": 180004,
+  "equality_nnz": 13000,
+  "equality_shape": [6000, 13000],
+  "free_bodies": 1000,
+  "historical_dense_coefficient_bytes": 48000000,
+  "historical_dense_slack_identity_bytes": 576000000,
+  "maxrss_after_kib": 246876,
+  "maxrss_before_kib": 246876,
+  "one_dimensional_vector_bytes": 152000,
+  "rows": 6000,
+  "tracemalloc_peak_bytes": 2014128
+}
+
+The construction-only probe replaces linprog after the complete objective,
+bounds and A_eq have been built.  It therefore measures the production matrix
+boundary without paying solver workspace.  The 13,000 stored entries are one
+vertical contact coefficient per free body plus the two 6,000-entry sparse
+slack identities.  CSR storage is 180,004 bytes; the retained 1D objective and
+target vectors are 152,000 bytes.  Tracemalloc peak and process max-RSS are
+host observations, not CI thresholds or universal memory laws.  Structural
+shape, nnz, and array-size accounting are the representation proof.

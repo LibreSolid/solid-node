@@ -126,8 +126,8 @@ class InternalNode(AbstractBaseNode):
         """Renders a scad of the combined children"""
         scads = []
 
+        self._link_children(children)
         for child in children:
-            self._link_child(child)
             scads.append(child.assemble(self.root))
             self.files.update(child.files)
             for path, names in child.scope.items():

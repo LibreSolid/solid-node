@@ -32,6 +32,7 @@ from solid_node.node.base import StlRenderStart
 import solid_node.test as test_module
 from solid_node.test import TestCase as GeometryTestCase, _intersection_stats
 from solid_node.core.builder import Builder
+from tests.exact_test_support import clear_exact_shape_caches
 
 
 class Box(CadQueryNode):
@@ -172,7 +173,7 @@ class ExactArtifactTest(TestCase):
         self.addCleanup(self.directory.cleanup)
         self.old_build_dir = os.environ.get('SOLID_BUILD_DIR')
         os.environ['SOLID_BUILD_DIR'] = self.directory.name
-        _shape_cache.clear()
+        clear_exact_shape_caches()
 
     def tearDown(self):
         if self.old_build_dir is None:

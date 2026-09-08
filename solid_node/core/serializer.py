@@ -378,8 +378,7 @@ def serialize_node(node, model_path, piece_id=None):
     if type(children) not in (list, tuple):
         return data
 
-    for child in children:
-        node._link_child(child)
+    node._link_children(children)
     data['children'] = [
         serialize_node(child, model_path, piece_id) for child in children
     ]

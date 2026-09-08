@@ -63,10 +63,11 @@ Three architectural commitments shape almost every subsystem:
    round trip off a filesystem coarser than a nanosecond (ADR-050). That
    equality is guarded by a recorded metadata fingerprint of every tracked
    contributor, so a future-dated source cannot hide an edit to an older one
-   (ADR-081). Caches
-   at every layer — meshes, Manifolds, HTTP responses — key on the same
-   `(artifact, mtime)` signal, so artifact freshness is the one
-   invalidation concept the whole system shares. The source set behind
+   (ADR-081). Base-mesh and Manifold caches key the path together with its
+   strong observable identity — device, inode, size, integer-nanosecond mtime
+   and ctime — so a same-size restored-mtime replacement cannot serve old
+   faceted geometry (ADR-085). Artifact freshness remains the one invalidation
+   concept the whole system shares. The source set behind
    that clock is a node's own file plus the project-local modules it
    imports, transitively (ADR-033), so a contributing module edit
    invalidates the nodes that read it — and only those. Beneath the
@@ -140,6 +141,16 @@ import path of every node module in every project.
 declarations and `NodeMeta`, and imports the parameter module; the node
 package exports no parameter kind, and `solid_node/math.py` reaches the
 formula algebra sideways rather than down into the node package.
+
+Automatic child names come from one parent-attribute snapshot per traversal.
+Public direct attributes win in insertion order, then the first public
+list/tuple membership supplies `<attr>-<index>`; private attributes and the
+framework's linked `children` list never name. Every returned sibling is
+linked from that common snapshot before recursion, so lookup is constant-time
+per child and user code in an earlier child cannot rename a later sibling
+mid-traversal. Reassignment, replacement and even same-length list reordering
+are visible when the next traversal takes its new snapshot. An explicit
+`name=` still wins and every link refreshes the parent.
 
 On a declarative internal node `render()` places at rest and selects
 and may return nothing, in which case the framework's render wrapper —
@@ -242,9 +253,12 @@ turn a face-only vendor part into one. A subclass that declares no
 `color` takes it from the document's own surface colour (converted from
 XCAF's linear RGB to the framework's sRGB `#RRGGBB`) through a property
 resolved lazily, so a build whose artifacts are current never opens the
-file for it. The XCAF document itself is read and transferred at most
-once per file per process, cached on `(path, mtime_ns)` in the shape of
-`solid_node.exact._shape_cache`, because the read is expensive (11.79 s
+file for it. The XCAF document itself is read and transferred at most once per
+strong source observation per process. The read is bracketed and registered
+with the active source generation, so replacement during transfer cannot enter
+the cache or leave constructor geometry tied to another epoch. The cache uses
+the source census's path/device/inode/size/mtime/ctime identity because the
+read is expensive (11.79 s
 measured on a 35 MB vendor assembly) and a project may hold many leaves
 over one file (ADR-078).
 
@@ -453,8 +467,9 @@ extension ADR-056 reserves).
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because
 operation values can be animated expressions and the operations list
-is mutated by design. The base mesh under it is cached per
-`(stl_file, mtime)`.
+is mutated by design. The base mesh under it is cached per strong artifact
+observation, and each caller still receives a mutable copy (ADR-085, amending
+ADR-028).
 
 ### Simulation (NODE · spec `simulation`)
 
@@ -561,6 +576,19 @@ did. The binding lives in the loader, which may import
 for the simulation layer to register into would hide that dependency
 rather than place it.
 
+Project-local source execution belongs to one request-local **source
+generation** (ADR-084). The loader observes and coherently reads the selected
+entry/facade and every project module before executing its bytes, then requires
+an uncached post-load identity match; it does not trust timestamp-and-size
+`.pyc` validity. Late imports join the same handshake while external packages
+keep Python's ordinary import behavior. Artifact-producing phases share one
+distinct-path source census internally and compare fresh uncached observations
+at their boundaries. Assembly seals the recursively discovered Python and
+foreign SCAD/JS/STL/STEP contributors; later retained passes, asynchronous
+renderer waits and publication must still match that generation. A missing,
+replaced, retargeted, newly selected or changed contributor returns
+`SOURCE_CHANGED` before a stale document can be published.
+
 STL generation is normally asynchronous: `StlRenderStart` carries a spawned
 `openscad` process, PID lock files guard concurrency, and
 `build_stls()` loops until nothing is stale. The metadata-only currency path is
@@ -603,24 +631,39 @@ carries it per binding: mtime equality decides *source* currency within one
 binding exactly as elsewhere, and a different binding is a different file
 rather than a question mtime is asked and cannot answer (ADR-057).
 
-The dev loop (ADR-007) is a **single-shot builder** under watchdog:
-build, watch `node.files` per-file, exit on change, get respawned by
-`solid develop` (which also restarts the viewer process). `solid build`
-uses the same builder passes without a viewer or watch loop. Every one of
-those subprocesses starts from a **fresh interpreter**, not a fork of the
-command process (ADR-067): a command resolves the model in its own process to
-report a missing one, that import runs geometry and leaves OCCT's OpenMP
-worker team live, and a forked child would inherit the team's bookkeeping
-without its threads and stop forever on the first parallel tessellation. A
-fresh child is handed its target instead of inheriting it, so every subprocess
-target is a module-level function taking plain values. Candidate
+`solid build` and the watchdog-driven development loop start one builder per
+sealed source generation (ADR-084, amending ADR-067). Every child still starts
+from a **fresh interpreter**, never a fork of the command process: parent model
+resolution may initialize OCCT's OpenMP team, whose bookkeeping a fork would
+inherit without its threads and then deadlock on parallel tessellation. A fresh
+child receives a module-level target and plain reconstructable values. Within
+one stable generation it retains the same loaded root and complete assembly
+across all sequential artifact passes; source change or failure ends reuse of
+that tree, so the next build attempt again has fresh native and module state.
+A failed development reload writes `errors.json`, releases the build lock and
+performs no more geometry while that same child remains solely as a recovery
+watch over known source locations and the broad Python area; repair ends it
+`SOURCE_CHANGED`. Candidate
 builds publish `viewer.json` with the versioned `solid-node-export` tree
 schema, linked node names, per-node `mtime`, and build-root-relative model
 paths, so private NodeAPI consumers can serve a completed build without
 loading project Python (ADR-031/034). Sharing that schema marker with export
 does not make a build publication portable: it copies no meshes and retains
 its private `viewer.json` document boundary.
-artifacts write directly into one ordinary build directory. Each artifact is
+
+SCAD publication distinguishes time-invariant and state-dependent producers
+(ADR-086). Rigid base SCAD may be reused immediately only when the canonical
+path's *currently published* full timestamp/digest/fingerprint identity
+matches. Every non-rigid, non-flexible instance still renders and composes its
+own model, but its assembly phase keeps only the immutable final desired
+text/stamp/digest/fingerprint per canonical path, ordered by each path's last
+occurrence. After a fresh pre-flush check it compares and atomically publishes
+those final values under the active census and project lock, then checks the
+source generation again. Body/pre-flush failure discards them; flush error
+uses the ordinary assembly failure path. Flexible bindings and direct calls
+outside the assembly phase remain immediate.
+
+Artifacts write directly into one ordinary build directory. Each artifact is
 written to a temporary sibling and replaced with `os.replace`; OpenSCAD renders
 to a temporary STL and publishes it only on completion. `viewer.json` is the
 manifest and is written last, so it never names a partial artifact; a later
@@ -632,8 +675,9 @@ permits a mixed model during a build and a failed build can leave partial new
 work, but no reader sees a torn file (ADR-038, reversing ADR-030 and
 superseding ADR-032). Errors go to an atomically written `errors.json` in the
 build dir — file-based IPC, no broker
-(ADR-018). A broken initial build kills develop; a broken reload falls back to
-a broad recursive watch and keeps the loop alive.
+(ADR-018). A broken initial build kills develop; a broken reload waits outside
+the lock for a relevant repair, then exits `SOURCE_CHANGED` so the supervisor
+starts a fresh child and source generation.
 
 An exact rigid node has a private `.brep` beside its `.stl` (ADR-044). Both
 must match the node mtime for the build to be current; the BREP is spared by
@@ -745,8 +789,9 @@ pair. `volume_epsilon` separates real interference from boolean noise,
 with a deliberately strict default: a flush contact that is non-empty
 at exactly 0.0 mm³ **is** a foul until the test opts into an epsilon.
 
-The shared intersection path (ADR-029/044) caches one Manifold per
-`(stl_file, mtime)`, built at the first faceted read and judged there by
+The shared intersection path (ADR-029/044) caches one Manifold per strong
+artifact observation — canonical path, device, inode, size, nanosecond mtime
+and change time — built at the first faceted read and judged there by
 the engine's own `status()` (ADR-074): a mesh Manifold refuses raises by
 file name with the engine's reason, a mesh trimesh doubts and the engine
 accepts is compared, and selection, the broad phase and the exact path
@@ -767,10 +812,16 @@ near-identical placements are one question is the judgement `volume_epsilon`
 exists to leave with the project. Exact and faceted entries never serve one
 another, a node with no file identity is never cached, and entries are evicted
 when a geometry identity changes, on the same discipline as the Manifold cache.
-Exact placements and bounding boxes are cached alongside per
-`(shape identity, matrix bytes)`. A flexible leaf's geometry follows its
-binding, so its comparisons are uncacheable by construction and remain the
-dominant cost of a swept suite.
+Bounding boxes share those stable geometry identities. Exact placements use a
+512-entry LRU keyed by stable shape identity and the exact placement-matrix
+bytes, with no rounding; eviction merely recomputes the same placement and a
+new managed `solid test` run starts empty. A stock `FlexibleNode` keeps a
+separate 64-entry LRU of evaluated mesh, bounds and Manifold results keyed by
+its full source identity, canonical structural identity, exact binding and
+serialized shape specification. A subclass that overrides the stock flexible
+evaluation seam is conservatively uncached, and flexible intersection verdicts
+remain uncached: the per-instance final binding can still change between
+comparisons.
 
 The root-level integrity boundary is the first rigid node on every branch
 (ADR-039/040). Connectivity is deliberately solid-local.
@@ -778,13 +829,18 @@ The root-level integrity boundary is the first rigid node on every branch
 in a selected subtree is one connected body; it reads each topmost rigid
 node's local STL. `assertNoSolidInterference(node)` is its world-space
 assembly complement: zero or one selected solid passes without geometry work;
-otherwise a sweep-and-prune index over conservative world AABBs emits the
-potentially interacting pairs, and each is settled by an exact same-kernel
+otherwise a sweep-and-prune index estimates interval pressure on X, Y and Z,
+chooses the least-pressure axis (X, then Y, then Z on ties), and emits the
+potentially interacting pairs in the historical X-order before each is settled
+by an exact same-kernel
 intersection — the sole verification path, with no whole-assembly measurement.
 Exact zero-volume boundary contact passes, every positive candidate volume
 fails, and no public volume epsilon or private numerical tolerance is exposed.
 Correctness rests on the broad phase being complete, which is proved by
-framework tests rather than re-checked at runtime (ADR-040). The old all-leaf
+framework tests rather than re-checked at runtime (ADR-040). Up to 8,192
+accepted candidates are buffered to restore that order; at the cap the buffer
+is discarded and the original streaming X sweep is used, preserving bounded
+memory and the same candidate set. The old all-leaf
 `assertNoPairwiseIntersections` sweep remains deprecated and
 behavior-compatible.
 
@@ -813,7 +869,11 @@ When reachability holds, a second phase proves frictionless static equilibrium
 (ADR-049): that push-only normal forces over the detected interfaces balance
 every non-anchored solid's weight and its torque about its own centre of mass,
 decided by one deterministic `scipy.optimize.linprog` HiGHS solve of the
-L1-relaxed feasibility program. Interfaces are extracted by meshing each
+L1-relaxed feasibility program. Its constraint matrix is assembled sparsely:
+each contact or declared wrench contributes only to its affected solid rows,
+per-cell contributions are accumulated in the historical deterministic order,
+and CSR identity and horizontal blocks preserve the same equations and
+diagnostics without allocating the dense mostly-zero matrix. Interfaces are extracted by meshing each
 displaced intersection and classifying its faces to the supporter's boundary by
 nearest surface, so contact points and normals sit on the supporter's real,
 undisplaced surface; gravity-perpendicular faces are discarded as walls the
@@ -873,8 +933,10 @@ original numbers.
 
 The browser snapshot renderer keeps the half that knows what a node is: it
 renders any stale artifact of the photographed node, serializes that node's
-tree into a temporary sibling and hardlinks its artifacts there, all while
-holding the project build lock, then releases the lock and runs the viewer's
+tree into a temporary sibling and copies each artifact from the same pinned,
+strongly observed snapshot used for its piece facts, all while holding the
+project build lock. It validates the observation after each copy, then releases
+the lock and runs the viewer's
 `capture` on that pinned staging directory with the image size, the animation
 instant and the camera it resolved from OpenSCAD's syntax. It never
 republishes or sweeps the build itself: the published document belongs to the
@@ -1099,9 +1161,17 @@ Every producer — export, build snapshot, browser snapshot — also publishes a
 one entry per distinct built artifact content, carrying `id`, `name`,
 contributing `sources` and `models`, `count`, bounding `size`, `volume`, and
 `watertight`, with every rigid node carrying the `piece` id that resolves into
-it. Facts are read from the artifact's own base mesh, so no pose or `$t` leaks
-into them. The section is additive; a consumer reading only the
-tree is unaffected.
+it. Expensive content-derived facts live in a private versioned sidecar keyed
+by the artifact's strong observation and current currency record (ADR-085).
+The internal identity is the full content digest; a collision in its public
+short prefix is refused rather than merged. Current tree metadata is always
+serialized afresh. Facts and any export or snapshot staging bytes are read or
+copied from one pinned artifact snapshot with a fresh post-read identity check,
+so metadata and bytes cannot describe different file generations. Build and
+browser-snapshot producers hold the project lock for that operation; direct
+export relies on the pinned validation and retries without acquiring it. No
+pose or `$t` leaks into the facts. The section is additive; a consumer reading
+only the tree is unaffected.
 
 The Sphinx extension (`.. solid-node:: <export-dir>`) embeds exports
 as iframes, copies them at `html-collect-pages`, and completes missing
@@ -1213,6 +1283,12 @@ The short list that changes must not silently break:
   per file is not a premise of the cache; what remains true of a
   multi-node file is a property of node references (a bare path to it is
   ambiguous), not of currency.
+- A loaded tree belongs to one sealed source generation. Project Python is
+  executed from coherently observed bytes, all consumed Python and foreign
+  contributors retain their canonical targets and strong identities, and
+  every producing phase and asynchronous wait rechecks them before stale work
+  can publish (ADR-084). The F04 project lock spans assembly, artifact work and
+  publication, not callbacks, project tests or development recovery waits.
 - A node's source set is its own file plus the project-local modules it
   imports, transitively — never the `__init__.py` of a package the walk
   merely traverses, which would make every node depend on every file
@@ -1230,8 +1306,9 @@ The short list that changes must not silently break:
   left out (ADR-063). A declaration is realized per parent instance;
   a class body never holds a node instance (ADR-061). Piece identity is the converse: it
   derives from built content only, never from a class, its parameters, or
-  its artifact path — an artifact that cannot be read gets no piece id
-  rather than borrowing one (ADR-043).
+  its artifact path. Piece facts and staged bytes come from one strongly
+  observed pinned artifact snapshot; an artifact that changes or cannot be
+  read gets no piece id rather than borrowing one (ADR-043/085).
 - Re-rendering an instant is absolute, never cumulative; only
   driver-tagged operations are swept (ADR-023).
 - All pose consumers compose own-ops-first, ancestors after, later
@@ -1256,7 +1333,9 @@ The short list that changes must not silently break:
   render that omits a different set of declared children than the
   instance's first render raises (ADR-064). A part whose shape follows machine state is therefore
   not rigid — the one non-rigid leaf kind — and it is fused by nothing,
-  cached as nothing, and printed as nothing (ADR-057).
+  persisted as nothing, and printed as nothing. Its stock evaluated geometry
+  may be memoized only by the complete binding and shape identity; its verdicts
+  are never reused (ADR-057).
 - A topmost rigid node is the boundary of one printed solid, not a guarantee
   that its geometry is connected. Whole-solid integrity is an explicit
   project assertion; connectivity uses the solid-local frame and collision
@@ -1286,9 +1365,9 @@ The short list that changes must not silently break:
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
-| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 080, 081 |
+| Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
 | Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
-| Export | `core/export.py`, `core/serializer.py`, `core/expressions.py` | `export` | 020, 034, 051, 057, 068, 080 |
+| Export | `core/export.py`, `core/serializer.py`, `core/expressions.py` | `export` | 020, 034, 043, 051, 057, 068, 080, 085 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

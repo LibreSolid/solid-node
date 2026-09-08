@@ -16,7 +16,10 @@ from solid_node.node.base import AbstractBaseNode
 from solid_node.node.declarative import parse_overrides
 from solid_node.simulation.enumeration import bind_declared_defaults
 
-__all__ = ['load_node', 'parse_overrides', 'read_project', 'select_model']
+__all__ = [
+    'load_node', 'parse_overrides', 'project_source_generation',
+    'read_project', 'select_model',
+]
 
 
 class ProjectManifestError(Exception):
@@ -278,6 +281,26 @@ def select_model(reference=None, origin=None):
     return Selection(reference, None, None)
 
 
+def project_source_generation(reference=None, origin=None):
+    """Own one explicitly fresh project-source request.
+
+    Ordinary resolver calls retain their historical ``sys.modules`` class
+    identity.  Builders opt into this context in their fresh interpreter, so
+    project-local imports execute through the coherent source loader and later
+    assembly imports can join the same generation.
+    """
+    from solid_node.source_generation import SourceGeneration
+
+    if reference is None:
+        root = read_project(origin).root
+    else:
+        reference = _named_reference(reference, origin)
+        target, _, is_path = _reference_parts(reference)
+        root = project_root(origin or (
+            os.path.abspath(target) if is_path else None))
+    return SourceGeneration(root)
+
+
 def resolve_node(reference=None, origin=None):
     """Resolve a manifest, qualifier, path, or hybrid reference to a class.
 
@@ -335,11 +358,16 @@ def resolve_node(reference=None, origin=None):
     return klass, path, root
 
 
-def load_node(reference=None, overrides=None):
+def load_node(reference=None, overrides=None, generation=None):
     """The root node `reference` names, realized with its defaults --
     or, for a root that declares parameters, with `overrides`: the
     `name=value` words of `--set`, each parsed by the declared kind and
     checked as a Python caller's value would be."""
+    if generation is not None:
+        from solid_node.source_generation import current_generation
+        if current_generation() is not generation:
+            raise RuntimeError(
+                'load_node generation must own the active source context')
     klass, referenced_path, _ = resolve_node(reference)
     node = klass(**parse_overrides(klass, overrides))
     # The named file is part of the selected entry point even when it is a
@@ -355,6 +383,8 @@ def load_node(reference=None, overrides=None):
     # This is the layer that may import the simulation package; the node
     # layer never does.
     bind_declared_defaults(node)
+    if generation is not None:
+        generation.seal_load()
     return node
 
 

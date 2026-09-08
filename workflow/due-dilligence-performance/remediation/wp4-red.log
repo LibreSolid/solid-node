@@ -1,0 +1,26 @@
+Command:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py
+
+Result before WP4 production edits:
+F..FF                                                                    [100%]
+3 failed, 2 passed in 1.04s
+
+Failures:
+- GenerationScadDedupTest::test_repeated_instances_render_user_code_but_generate_base_scad_once
+  expected one base scad_render call, observed two.
+- CompareBeforeReplaceTest::test_equal_text_with_new_metadata_restamps_without_text_replace
+  expected only the sidecar to be replaced, but both SCAD and sidecar were replaced.
+- CompareBeforeReplaceTest::test_identical_text_stamp_and_record_replace_nothing
+  expected no replacement, but both SCAD and sidecar were replaced.
+
+Follow-up flexible-boundary command after the first implementation exposed a
+too-broad cache eligibility rule:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py::GenerationScadDedupTest::test_binding_dependent_non_rigid_scad_is_never_reused_by_path
+
+Result:
+F                                                                        [100%]
+1 failed in 0.27s
+
+The second binding was incorrectly reused by path/source identity (one write
+observed, two required). The final regression uses an actual FlexibleNode
+subclass and three binding-dependent SCAD imports.

@@ -48,6 +48,9 @@ import os
 import tempfile
 import time
 
+from solid_node._artifact import ArtifactChanged, ArtifactSnapshot
+from solid_node.source_generation import current_census
+
 
 logger = logging.getLogger('currency')
 
@@ -70,19 +73,24 @@ SIDECAR_SUFFIX = '.sources'
 _file_digests = {}
 
 
-def _file_key(path, stat=None):
+def _file_key(path, stat=None, census=None):
     """Metadata identity used only for in-process source caches.
 
     Change time and file identity are required beside mtime and size: a
     same-size rewrite followed by an mtime restoration must evict the bytes
     cached for the previous file state.
     """
+    if census is not None:
+        observation = census[path]
+        return (observation.path, *observation.metadata)
     stat = stat or os.stat(path)
     return (path, stat.st_dev, stat.st_ino, stat.st_size,
             stat.st_mtime_ns, stat.st_ctime_ns)
 
 
-def _file_digest(path):
+def _file_digest(path, census=None):
+    if census is not None:
+        return census.digest(path)
     stat = os.stat(path)
     key = _file_key(path, stat)
     cached = _file_digests.get(key)
@@ -108,14 +116,18 @@ _analyses = {}
 _scoped_digests = {}
 
 
-def _analysis(path):
-    stat = os.stat(path)
-    key = _file_key(path, stat)
+def _analysis(path, census=None):
+    stat = None if census is not None else os.stat(path)
+    key = _file_key(path, stat, census)
     if key not in _analyses:
-        for stale in [k for k in _analyses if k[0] == path]:
+        for stale in [k for k in _analyses if k[0] == key[0]]:
             del _analyses[stale]
-        with open(path, 'rb') as stream:
-            _analyses[key] = _analyse(path, stream.read())
+        if census is None:
+            with open(path, 'rb') as stream:
+                data = stream.read()
+        else:
+            data = census.read_bytes(path)
+        _analyses[key] = _analyse(path, data)
     return _analyses[key]
 
 
@@ -179,7 +191,7 @@ def _removed_spans(statements, keep):
             if span is not None and span[0] in removed]
 
 
-def _scoped_digest(path, keep):
+def _scoped_digest(path, keep, census=None):
     """The digest of `path` as a node whose scope there is `keep` sees it.
 
     Identical to `_file_digest` whenever nothing is removed, which is the
@@ -187,16 +199,16 @@ def _scoped_digest(path, keep):
     cannot analyse. That equality is what keeps a digest recorded before
     scoping existed valid under it.
     """
-    stat = os.stat(path)
-    key = _file_key(path, stat) + (frozenset(keep),)
+    stat = None if census is not None else os.stat(path)
+    key = _file_key(path, stat, census) + (frozenset(keep),)
     cached = _scoped_digests.get(key)
     if cached is None:
-        for stale in [k for k in _scoped_digests if k[0] == path]:
+        for stale in [k for k in _scoped_digests if k[0] == key[0]]:
             del _scoped_digests[stale]
-        analysis = _analysis(path)
+        analysis = _analysis(path, census)
         removed = _removed_spans(analysis[1], keep) if analysis else []
         if not removed:
-            cached = _file_digest(path)
+            cached = _file_digest(path, census)
         else:
             lines = analysis[0]
             skipped = set()
@@ -211,7 +223,7 @@ def _scoped_digest(path, keep):
     return cached
 
 
-def source_digest(files, root, scope=None):
+def source_digest(files, root, scope=None, census=None):
     """One digest over a node's tracked sources, or None if any is unreadable.
 
     `files` is the node's own source together with its project-local
@@ -233,17 +245,19 @@ def source_digest(files, root, scope=None):
     is bigger, but it is still bounded by the render this replaces.
     """
     scope = scope or {}
+    census = census or current_census()
     try:
         # Keyed on the relative path, so the same file reached under two
         # spellings -- the loader adds the reference it was given beside
         # the closure's own realpath -- is one entry and not two.
         entries = {}
         for path in files:
-            real = os.path.realpath(path)
+            real = census.realpath(path) if census is not None \
+                else os.path.realpath(path)
             keep = scope.get(real)
             entries[os.path.relpath(real, root)] = (
-                _file_digest(path) if keep is None
-                else _scoped_digest(real, keep))
+                _file_digest(path, census) if keep is None
+                else _scoped_digest(real, keep, census))
     except OSError as error:
         logger.debug('No source digest: %s', error)
         return None
@@ -257,7 +271,7 @@ def source_digest(files, root, scope=None):
     return digest.hexdigest()
 
 
-def source_fingerprint(files, root):
+def source_fingerprint(files, root, census=None):
     """Digest the observable metadata state of every tracked source.
 
     This is the settled-path guard, not proof that contents agree. It reads
@@ -266,6 +280,13 @@ def source_fingerprint(files, root):
     content digest, while filesystem identity deliberately makes a relocated
     project verify its contents once before settling again.
     """
+    census = census or current_census()
+    if census is not None:
+        try:
+            return census.fingerprint(files, root)
+        except OSError as error:
+            logger.debug('No source fingerprint: %s', error)
+            return None
     try:
         entries = {}
         for path in files:
@@ -357,27 +378,38 @@ def record(artifact, digest, fingerprint=None):
     legacy digest form deliberately retained for compatibility and migration
     tests; such a record cannot take the metadata-only path.
 
-    Always drops first, so a failure anywhere in here leaves no record
-    rather than a record from a different source state. No record costs a
+    An identical record is left untouched.  Once a different record is known,
+    the old one is dropped before replacement, so a failure leaves no record
+    rather than a claim from a different source state. No record costs a
     rebuild; a wrong one serves a stale model.
     """
-    drop(artifact)
     if digest is None:
+        drop(artifact)
         return
     directory = os.path.dirname(artifact) or '.'
     path = sidecar(artifact)
+    if fingerprint is None:
+        desired = f'{digest}\n'.encode()
+    else:
+        desired = (json.dumps(
+            {'version': 2, 'digest': digest, 'fingerprint': fingerprint},
+            sort_keys=True, separators=(',', ':')) + '\n').encode()
+    try:
+        with ArtifactSnapshot(path) as existing:
+            if existing.read_bytes() == desired:
+                return
+    except (ArtifactChanged, OSError):
+        pass
+
+    # Once a different record is known, preserve the conservative ordering:
+    # interruption must leave no record rather than the prior source claim.
+    drop(artifact)
     try:
         descriptor, temporary = tempfile.mkstemp(
             prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
         try:
-            with os.fdopen(descriptor, 'w') as output:
-                if fingerprint is None:
-                    output.write(f'{digest}\n')
-                else:
-                    json.dump({'version': 2, 'digest': digest,
-                               'fingerprint': fingerprint}, output,
-                              sort_keys=True, separators=(',', ':'))
-                    output.write('\n')
+            with os.fdopen(descriptor, 'wb') as output:
+                output.write(desired)
             os.replace(temporary, path)
         except Exception:
             if os.path.exists(temporary):

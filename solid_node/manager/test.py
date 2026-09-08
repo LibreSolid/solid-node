@@ -25,6 +25,19 @@ class StopTestRun(Exception):
     when --failfast is set and a test fails."""
 
 
+def _reset_placement_cache_for_run():
+    """Clear exact placement retention without importing the exact kernel.
+
+    A fresh CLI process has no placement cache. This only matters when a
+    managed run is established in an interpreter that already used exact
+    geometry; keep the faceted-only path from loading CadQuery just to clear
+    an absent cache.
+    """
+    exact = sys.modules.get('solid_node.exact')
+    if exact is not None:
+        exact._reset_placement_cache()
+
+
 class Test:
     """Nodes may implement tests by inheriting solid_node.test.TestCaseMixin
     and creating test methods starting with test_.
@@ -70,6 +83,7 @@ class Test:
         except ValueError as error:
             self.fail(str(error))
         set_comparison_policy(self.policy)
+        _reset_placement_cache_for_run()
         if self.policy.kernel == 'faceted':
             sys.stdout.write(
                 'Comparing on the faceted kernel (volume epsilon '

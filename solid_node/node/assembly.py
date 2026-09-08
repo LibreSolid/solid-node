@@ -118,8 +118,7 @@ def _rendered_children(assembly):
     rendered = assembly.render()
     if type(rendered) not in (list, tuple):
         return ()
-    for child in rendered:
-        assembly._link_child(child)
+    assembly._link_children(rendered)
     return rendered
 
 

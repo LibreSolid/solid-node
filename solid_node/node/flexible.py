@@ -58,13 +58,17 @@ module. Sharing the base never makes two adapters interchangeable to a
 type test.
 """
 
+import hashlib
+import json
 import os
 
 from solid2 import import_stl, union
 from solid2.core.object_base import OpenSCADConstant
 from solid2.extensions.greedy_scad_interface import get_animation_time
 
-from solid_node.node.base import _atomic_write_bytes, binding_hash
+from solid_node.node.base import (_atomic_write_bytes, _canonical_serialization,
+                                  binding_hash)
+from solid_node.node.declarative import identity_values, is_declarative
 from solid_node.node.leaf import LeafNode
 from solid_node.node.ports import declared_ports
 
@@ -102,6 +106,19 @@ class FlexibleNode(LeafNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # `uniq_id` is deliberately a short artifact name.  The faceted
+        # working set must instead retain the full canonical structural
+        # identity that produced it.  Declarative nodes have resolved values
+        # by the time the base constructor returns; legacy nodes use the same
+        # arguments that constructed their existing `uniq_id`.
+        if is_declarative(type(self)):
+            self._flexible_structural_identity = _canonical_serialization(
+                type(self), (), identity_values(
+                    type(self), self.__dict__['_parameters']))
+        else:
+            self._flexible_structural_identity = _canonical_serialization(
+                type(self), args, kwargs)
 
         #: The snapshot artifact this node's last `as_scad()` imported,
         #: or None before one ran. Public because the build's post-build
@@ -316,6 +333,43 @@ class FlexibleNode(LeafNode):
         frame -- the same geometry it would have had from an artifact.
         """
         return self._snapshot_mesh(self.current_shape(), self.bound_values())
+
+    def _faceted_cache_snapshot(self):
+        """The coherent current shape and full identity for one faceted read.
+
+        The test framework owns the bounded Manifold cache.  It calls this
+        narrow seam so the spec used to decide a cache hit is exactly the
+        rendered spec used to evaluate a miss; a second ``current_shape()``
+        could otherwise observe a stateful adapter differently.  Source
+        digest calculation reuses the currency module's existing per-file
+        memoization; no new source-byte cache is introduced here.
+        """
+        values = self.bound_values()
+        rendered = self.current_shape()
+        spec = self._shape_spec(rendered)
+        serialized_spec = json.dumps(
+            spec, sort_keys=True, separators=(',', ':'), ensure_ascii=True)
+        fingerprint = self.source_fingerprint
+        digest = self.source_digest
+
+        # A source that cannot be observed cannot safely identify a reusable
+        # entry.  Return a coherent miss rather than turning two unknowns
+        # into a cache hit.
+        if fingerprint is None or digest is None:
+            return None, rendered, values
+
+        identity = (
+            self.tech,
+            type(self).__module__,
+            os.path.realpath(self.src),
+            fingerprint,
+            digest,
+            self._flexible_structural_identity,
+            tuple((name, repr(value)) for name, value in
+                  sorted(values.items())),
+            hashlib.sha256(serialized_spec.encode('utf-8')).hexdigest(),
+        )
+        return identity, rendered, values
 
     def current_shape(self):
         """The validated render result for this instant."""

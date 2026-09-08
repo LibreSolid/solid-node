@@ -6,6 +6,8 @@
 
 **Change:** `printed-piece-identity`
 
+**Amended by:** [ADR-085: Persistent Piece Facts Behind a Verified Artifact Snapshot](ADR-085-persistent-piece-facts-behind-a-verified-artifact-snapshot.md) — reusable content identity and facts require one strongly observed artifact snapshot
+
 **Depends on:**
 - [ADR-026: Node Identity — Parameter-Hashed Artifact Keys vs. Tree-Addressing Names](../NODE/ADR-026-node-identity-parameter-hashed-artifact-keys-vs-tree-names.md)
 - [ADR-034: Shared node-tree document schema across export and build snapshots](ADR-034-shared-node-tree-document-schema.md)

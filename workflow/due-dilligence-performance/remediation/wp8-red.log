@@ -1,0 +1,25 @@
+Command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_exact_placement_cache.py -q
+
+Result before WP8 implementation:
+
+    8 failed, 2 passed, 1 warning in 3.21s
+
+The failures established the missing `_PLACEMENT_CACHE_LIMIT`, missing direct
+reset seam, missing managed-run reset, and collision of `+0.0`/`-0.0` matrix
+bytes.  The seam-absence failures are API red proof, not a direct observation
+of old capacity behavior.  The unchanged planning baseline separately observed
+the actual unbounded path: 4,000 unique transforms retained 4,000 entries.
+
+The final capacity tests use `patch.object(..., create=True)` so that the
+legacy plain dictionary accepts the test limit but ignores it; this makes their
+red failure an over-retention assertion rather than an attribute lookup error.
+
+Isolated legacy-seam confirmation (no source-tree write):
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -c '<load solid_node/exact.py from git show 4bcf4cb into a temporary module; inject _PLACEMENT_CACHE_LIMIT=3; place 10 unique transforms in a temporary BREP>'
+
+    {"baseline": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c", "injected_limit": 3, "unique_transforms": 10, "retained_entries": 10}
+
+The old plain mapping ignored the injected limit and retained all ten entries.

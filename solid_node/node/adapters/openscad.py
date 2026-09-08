@@ -8,6 +8,7 @@ from solid2 import scad_render
 from solid2.core.parse_scad import get_scad_file_as_dict
 from solid2.core.utils import resolve_scad_filename
 from solid_node.node.leaf import LeafNode
+from solid_node.source_generation import coherent_read
 
 
 class OpenScadNode(LeafNode):
@@ -38,7 +39,10 @@ class OpenScadNode(LeafNode):
         basedir = os.path.dirname(module.__file__)
         source_path = os.path.join(basedir, self.scad_source)
         self.openscad_source = os.path.realpath(source_path)
-        self.openscad_code = open(self.openscad_source).read()
+        # This happens during root construction, before the assembly census
+        # exists.  Tie the retained text to the active loader generation so a
+        # replacement between this read and assembly cannot bless old bytes.
+        self.openscad_code = coherent_read(self.openscad_source).decode()
         self.args = args
         self.kwargs = kwargs
         if self.module_name is None:

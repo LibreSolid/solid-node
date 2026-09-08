@@ -1,0 +1,57 @@
+Reproducible probe: `workflow/due-dilligence-performance/remediation/wp8_probe.py`
+
+Both commands ran from the `performance-analysis` framework worktree in
+separate fresh processes. The probe creates and removes one temporary BREP;
+it does not modify a project or historical audit asset. It uses a tiny local
+counter wrapper rather than `Mock`, deletes each returned placed shape, and
+runs `gc.collect()` before every RSS sample. The nearly-flat RSS samples below
+are therefore post-forced-collection observations, not evidence of ordinary
+runtime RSS behavior.
+
+Bounded command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python workflow/due-dilligence-performance/remediation/wp8_probe.py --mode bounded --counts 1000 4000 8000
+
+Bounded stdout:
+
+    {
+      "mode": "bounded",
+      "cache_limit": 512,
+      "counts": [1000, 4000, 8000],
+      "samples": [
+        {"count": 1000, "cache_entries": 512, "rss_kib": 326528, "placement_constructions": 1000},
+        {"count": 4000, "cache_entries": 512, "rss_kib": 326796, "placement_constructions": 4000},
+        {"count": 8000, "cache_entries": 512, "rss_kib": 326812, "placement_constructions": 8000}
+      ],
+      "working_set": {"requests": 12, "placement_constructions": 3, "hits": 9, "cache_entries_after": 512, "rss_kib_after": 327068},
+      "elapsed_s": 1.338990140997339,
+      "probe_sha256": "e3056c094bc839e27a82f411e7eaff35610c187035f4f2b27b7cf097aafe55c4"
+    }
+
+Uncached command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python workflow/due-dilligence-performance/remediation/wp8_probe.py --mode uncached --counts 1000 4000 8000
+
+Uncached stdout:
+
+    {
+      "mode": "uncached",
+      "cache_limit": 512,
+      "counts": [1000, 4000, 8000],
+      "samples": [
+        {"count": 1000, "cache_entries": 0, "rss_kib": 511992, "placement_constructions": 1000},
+        {"count": 4000, "cache_entries": 0, "rss_kib": 512128, "placement_constructions": 4000},
+        {"count": 8000, "cache_entries": 0, "rss_kib": 512128, "placement_constructions": 8000}
+      ],
+      "working_set": {"requests": 12, "placement_constructions": 12, "hits": 0, "cache_entries_after": 0, "rss_kib_after": 512376},
+      "elapsed_s": 1.396939680998912,
+      "probe_sha256": "e3056c094bc839e27a82f411e7eaff35610c187035f4f2b27b7cf097aafe55c4"
+    }
+
+The P07 assertion is bounded retention plus useful hits. RSS is recorded as
+host/process observation only; this sample does not infer why its two fresh
+processes have different starting RSS values or claim a bytes-per-shape law.
+
+Concurrency context: other package agents were active; root advised that WP1
+or flexible-package unit work could overlap. No other benchmark was launched
+by this worker, so elapsed values are not comparative timing evidence.

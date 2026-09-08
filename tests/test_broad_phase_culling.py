@@ -537,7 +537,7 @@ class ExistingFixtureDifferentialTest(BroadPhaseTestCase):
         parts = self.all_fixture_parts()
         placed = []
         for part in parts:
-            manifold, local_bounds, matrix = test_module._fast_geometry(part)
+            manifold, local_bounds, matrix, _ = test_module._fast_geometry(part)
             placement = Placement.__new__(Placement)
             placement.local_bounds = local_bounds
             placement.matrix = matrix

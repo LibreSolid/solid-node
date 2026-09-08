@@ -1,0 +1,18 @@
+Focused WP4 command:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py
+
+Result:
+..........                                                               [100%]
+10 passed in 1.24s
+
+F04/F05, source, SCAD/STL, exact, flexible, imported-adapter, and publication command:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py tests/test_source_census.py tests/test_source_generation.py tests/test_source_set.py tests/test_node_scoped_currency.py tests/test_content_verified_currency.py tests/test_coarse_filesystem_freshness.py tests/test_scad_stl.py tests/test_stl_node.py tests/test_exact_geometry.py tests/test_sheet_leaf.py tests/test_molejo_adapter.py tests/test_openscad_dependency.py tests/test_build_lock.py tests/test_build_publication.py
+
+Result:
+327 passed, 16 warnings in 34.66s
+
+Post-review source/lifecycle integration command:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_source_generation.py tests/test_source_census.py tests/test_builder_reload_resilience.py tests/test_retained_builder_generation.py tests/test_builder_lifecycle.py tests/test_build_lock.py tests/test_build_subprocess_isolation.py tests/test_generation_dedup.py
+
+Result:
+100 passed, 10 subtests passed in 52.19s

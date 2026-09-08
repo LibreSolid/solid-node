@@ -1,0 +1,14 @@
+Focused fixture and regression proof:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_exact_test_isolation.py tests/test_tessellation_precision.py tests/test_exact_geometry.py::ExactArtifactTest -q
+27 passed, 12 subtests passed in 3.96s
+
+Ordered regression command, fresh process, repeat 1:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_persistent_piece_facts.py tests/test_pieces.py tests/test_export.py tests/test_browser_renderer.py tests/test_builder_lifecycle.py tests/test_build_publication.py tests/test_build_lock.py tests/test_content_verified_currency.py tests/test_node_scoped_currency.py tests/test_node_mesh_cache.py tests/test_mesh_import_deferred.py tests/test_manifold_cache.py tests/test_intersection_memo.py tests/test_tessellation_precision.py tests/test_exact_geometry.py tests/test_stl_node.py -q
+306 passed, 1 skipped, 1 warning, 31 subtests passed in 34.79s
+
+Ordered regression command, fresh process, repeat 2:
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_persistent_piece_facts.py tests/test_pieces.py tests/test_export.py tests/test_browser_renderer.py tests/test_builder_lifecycle.py tests/test_build_publication.py tests/test_build_lock.py tests/test_content_verified_currency.py tests/test_node_scoped_currency.py tests/test_node_mesh_cache.py tests/test_mesh_import_deferred.py tests/test_manifold_cache.py tests/test_intersection_memo.py tests/test_tessellation_precision.py tests/test_exact_geometry.py tests/test_stl_node.py -q
+306 passed, 1 skipped, 1 warning, 31 subtests passed in 35.76s
+
+The warning in both runs is the pre-existing `Spinner.render()` FutureWarning
+from `tests/test_export.py::ExportAnimationTest::test_export_leaves_the_node_in_symbolic_time`.

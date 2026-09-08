@@ -63,6 +63,7 @@ from OCP.XCAFDoc import XCAFDoc_ColorSurf, XCAFDoc_DocumentTool
 
 from solid_node.node.exact_leaf import ExactLeafNode
 from solid_node.node.sources import source_closure
+from solid_node.source_generation import consumed_source
 
 
 ##############################################
@@ -305,7 +306,7 @@ def _read_document(path):
     return _Document(doc, path)
 
 
-#: One document per (path, mtime_ns), in the shape of
+#: One document per complete observable source identity, in the shape of
 #: `solid_node.exact._shape_cache` (design D6): a key miss for a path
 #: drops every entry for that path before reading, so at most one live
 #: entry exists per file, and the process pays the read once.
@@ -318,13 +319,12 @@ def _evict_document_cache(path):
 
 
 def cached_document(path):
-    mtime_ns = os.stat(path).st_mtime_ns
-    key = (path, mtime_ns)
-    cached = _document_cache.get(key)
-    if cached is None:
-        _evict_document_cache(path)
-        cached = _document_cache[key] = _read_document(path)
-    return cached
+    with consumed_source(path, label='STEP document read') as key:
+        cached = _document_cache.get(key)
+        if cached is None:
+            _evict_document_cache(key[0])
+            cached = _document_cache[key] = _read_document(path)
+        return cached
 
 
 ##############################################

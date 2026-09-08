@@ -1,0 +1,1226 @@
+{
+  "capture_provenance": {
+    "candidate_planning_head": "2ca4b9f06835d1133b6ad00eceecdee6e29b714c",
+    "current_candidate_v3": {
+      "candidate_identity": "b8b16185cb9e524c8cd119ff291c4a8d206fe4389794ef5293021909db39a4b0",
+      "entry_count": 375
+    },
+    "current_candidate_v4": {
+      "candidate_identity": "d3615253809628a7b9e988354f669da26a0a84ab2ac3855ac8b6cd4d20841250",
+      "entry_count": 375
+    },
+    "planning_baseline_head": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c"
+  },
+  "created_at": "2026-09-07T23:32:30Z",
+  "diagnostic_schema": "solid-node-performance-mm2-manifest-diagnostic-v1",
+  "formal_capture_mutated": false,
+  "formal_capture_policy": "Separate bounded diagnostic; no section is cherry-picked and no current-candidate-v4 raw record is modified.",
+  "framework_origins": {
+    "candidate": {
+      "modules": {
+        "solid_node/__init__.py": "aa371d613da0c0bcc6b81b03952c2df5483b75e91d583b11c6ff2ff707ff9f66",
+        "solid_node/core/builder.py": "62b8044c4b0abf5f67c21c446961ff4e8999960e4c0efb1f7a1f8d8ebe48dea3",
+        "solid_node/core/loader.py": "65546340a825c21d9ab6ab6e2375bd369af96951ade5048ee0fafbd811ff5834",
+        "solid_node/core/pieces.py": "6eb6ac23bb65ec5d289af8eb58aa8345c9e28e7c812a91cd0f11c86ce713c331",
+        "solid_node/core/serializer.py": "722ba885dcdb4037a39e3936c0ec52eb1abfa2b15ed9cc489f8fe23c2ba433a7",
+        "solid_node/node/base.py": "4c9c1d35232ed4590fc0f1fbc000bc30f0755aee843b19f935e22407cf70f9f1"
+      },
+      "root": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+      "solid_node.__file__": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/__init__.py"
+    },
+    "planning_4bc_export": {
+      "modules": {
+        "solid_node/__init__.py": "aa371d613da0c0bcc6b81b03952c2df5483b75e91d583b11c6ff2ff707ff9f66",
+        "solid_node/core/builder.py": "de37e7d2f478d9fdc03fd953e0f2f1f0eedbc97c8171e0fa786267d131e74de5",
+        "solid_node/core/loader.py": "e01883460373a81ab7cdcf0ba60152f17841b377d865213f54d192d4475b0317",
+        "solid_node/core/pieces.py": "eb6ac9345d057e6695045fefdb4f2605433b8f551dc88101b58d925fa6e67a65",
+        "solid_node/core/serializer.py": "92a1c9597ae978a7a1c658b5c5464e845eba567baa6bc7b3ea3a6046cb69aa12",
+        "solid_node/node/base.py": "b50906cc186720dd5f85a55df2ac7915670f8f947eb05c8922953607e8e0f42b"
+      },
+      "root": "/tmp/solid-mm2-manifest-sZpFJOwo/baseline",
+      "solid_node.__file__": "/tmp/solid-mm2-manifest-sZpFJOwo/baseline/solid_node/__init__.py"
+    }
+  },
+  "label": "mm2-manifest-mtime-diagnostic",
+  "manifests": {
+    "planning_and_v3_retained_digest": {
+      "bytes": 173799,
+      "retained_full_bytes": false,
+      "sha256": "d1ba8ddfdfc993b1d56f180877a3715a77e0e536dd6817a5e573928df88ec338"
+    },
+    "preserved_prior_mtime_source": {
+      "bytes": 173776,
+      "path": "/home/asa/devel/libresolid-studio/projects/3D-Printers/Metamaquina2/_build/viewer.json",
+      "serializer_version": 3,
+      "sha256": "70c4f5165bd74ee5463570f9667a78875d2d43d2eb2ba9ea0be86e0004108c08",
+      "use": "Only the recursively aligned root-tree mtime values are read from this document; all other reconstructed fields come from the v4 document."
+    },
+    "reconstructed": {
+      "bytes": 173799,
+      "matches_planning_and_v3_retained_digest": true,
+      "serialization": "json.dumps(document).encode() with Python defaults",
+      "sha256": "d1ba8ddfdfc993b1d56f180877a3715a77e0e536dd6817a5e573928df88ec338"
+    },
+    "v4_formal_and_disposable_reproduction": {
+      "bytes": 173857,
+      "reproduction_path": "/tmp/solid-mm2-manifest-sZpFJOwo/candidate-project/_build/viewer.json",
+      "sha256": "f9f904f826eca8fce579fb6cb440f22342609f3ca8215ef9ac8d4d3be2598919"
+    }
+  },
+  "project": {
+    "catalogue": "/home/asa/devel/libresolid-studio/projects",
+    "formal_original_catalogue_before_after_equal": true,
+    "git_head": "a81f86267329754243b292a8ce83ca6ff8e8d438",
+    "git_status": "",
+    "relative": "3D-Printers/Metamaquina2",
+    "selected_input_file_count": 224,
+    "timestamp_identity_blindspot": "The catalogue identity retains selected input bytes, Git HEAD, and status, but does not retain source mtimes; _build is excluded from selected inputs.",
+    "v4_source_and_copy_selected_input_maps_equal": true
+  },
+  "semantic_comparison": {
+    "aggregate_fields_equal": {
+      "piece_instances": 443,
+      "pieces": 99,
+      "stl_bytes": 47946420,
+      "stl_files": 105
+    },
+    "all_non_mtime_v4_fields_retained_by_reconstruction": true,
+    "complete_v3_v4_stl_filename_sha256_maps_equal": true,
+    "conclusion": "The d1/f9 manifest digest difference is fully accounted for by 226 serialized root-tree mtime values. It is metadata-only evidence from same-byte source timestamp refresh, not a model/piece reference, geometry, P06 naming, or AR08 import-origin delta.",
+    "mtime_changes": [
+      {
+        "path": "$.root.mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[0].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[0].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[0].children[7].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[0].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[1].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[2].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[3].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[4].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[4].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[5].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[6].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[7].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[8].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[9].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[9].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[10].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[10].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[11].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[11].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[12].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[12].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[13].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[13].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[14].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[1].children[14].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[0].children[2].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[0].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[1].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[2].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[3].mtime",
+        "v3_prior_value": 1788429805.0492747,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[4].mtime",
+        "v3_prior_value": 1788429805.0492747,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[5].mtime",
+        "v3_prior_value": 1788523916.0823445,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[6].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[7].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[0].children[8].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[0].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[1].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[2].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[3].mtime",
+        "v3_prior_value": 1788429805.0492747,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[4].mtime",
+        "v3_prior_value": 1788429805.0492747,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.0823445,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[7].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[8].mtime",
+        "v3_prior_value": 1788429805.0502748,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[0].children[2].children[1].children[9].mtime",
+        "v3_prior_value": 1788523916.0823445,
+        "v4_current_value": 1788820489.9584832
+      },
+      {
+        "path": "$.root.children[1].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[1].children[0].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[1].children[0].children[0].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[1].children[0].children[0].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[0].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[0].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[0].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[1].children[0].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[0].children[1].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[1].children[1].mtime",
+        "v3_prior_value": 1788429867.4910436,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[1].children[2].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[1].children[2].children[0].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[1].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0853448,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[1].children[3].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[1].children[3].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[1].children[3].children[1].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[2].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[2].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9674835
+      },
+      {
+        "path": "$.root.children[2].children[0].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[2].children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[0].mtime",
+        "v3_prior_value": 1788429805.058275,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[2].children[1].children[2].mtime",
+        "v3_prior_value": 1788523916.095345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[2].children[0].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[2].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[3].mtime",
+        "v3_prior_value": 1788523916.095345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[3].children[0].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[3].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[4].mtime",
+        "v3_prior_value": 1788523916.095345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[4].children[0].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[4].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.095345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[5].children[0].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[5].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.094345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.094345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[8].mtime",
+        "v3_prior_value": 1788523916.094345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[9].mtime",
+        "v3_prior_value": 1788523916.094345,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[10].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[11].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[12].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[13].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[14].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[15].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[16].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[18].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[18].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[19].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[19].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[20].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[20].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[22].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[22].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[23].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[23].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[24].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[24].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[1].children[25].mtime",
+        "v3_prior_value": 1788523916.0963452,
+        "v4_current_value": 1788820489.9664836
+      },
+      {
+        "path": "$.root.children[2].children[1].children[25].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[2].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[2].children[3].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[2].children[3].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[2].children[3].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[3].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[3].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[3].children[1].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[2].children[3].children[2].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[3].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[3].children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[1].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[2].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[3].mtime",
+        "v3_prior_value": 1788429805.056275,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[0].children[3].children[0].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[3].children[1].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[3].children[2].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[3].children[3].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[1].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[1].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[1].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[0].children[6].children[2].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[1].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[3].children[1].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[1].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[2].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[3].mtime",
+        "v3_prior_value": 1788429805.056275,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[1].children[3].children[0].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[3].children[1].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[3].children[2].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[3].children[3].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[1].children[7].mtime",
+        "v3_prior_value": 1788523916.093345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[1].children[7].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[2].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[1].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[2].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[3].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[4].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[5].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[6].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].children[0].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].children[1].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].children[2].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].children[3].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[0].children[4].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[1].mtime",
+        "v3_prior_value": 1788523916.0893447,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[1].children[0].mtime",
+        "v3_prior_value": 1788523916.0893447,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[2].mtime",
+        "v3_prior_value": 1788523916.090345,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[2].children[2].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[2].children[5].mtime",
+        "v3_prior_value": 1788523916.090345,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[2].children[6].mtime",
+        "v3_prior_value": 1788523916.090345,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[3].mtime",
+        "v3_prior_value": 1788523916.0913448,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[8].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[8].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[8].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[8].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[9].mtime",
+        "v3_prior_value": 1788523916.092345,
+        "v4_current_value": 1788820489.9644835
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[10].mtime",
+        "v3_prior_value": 1788429805.055275,
+        "v4_current_value": 1788820489.9634833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[11].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[8].children[12].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[9].mtime",
+        "v3_prior_value": 1788523916.0883448,
+        "v4_current_value": 1788820489.9624834
+      },
+      {
+        "path": "$.root.children[3].children[2].children[9].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[9].children[4].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[10].mtime",
+        "v3_prior_value": 1788523916.0883448,
+        "v4_current_value": 1788820489.9624834
+      },
+      {
+        "path": "$.root.children[3].children[2].children[10].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[2].children[10].children[4].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[3].children[4].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9654834
+      },
+      {
+        "path": "$.root.children[3].children[4].children[0].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[4].children[1].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[3].children[5].mtime",
+        "v3_prior_value": 1788523916.0843446,
+        "v4_current_value": 1788820489.9614832
+      },
+      {
+        "path": "$.root.children[4].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].mtime",
+        "v3_prior_value": 1788523916.0813446,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[0].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[1].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[2].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[3].mtime",
+        "v3_prior_value": 1788429805.052275,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[8].mtime",
+        "v3_prior_value": 1788523916.0813446,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[9].mtime",
+        "v3_prior_value": 1788523916.0813446,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[10].mtime",
+        "v3_prior_value": 1788523916.0813446,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[0].children[11].mtime",
+        "v3_prior_value": 1788523916.0813446,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[1].mtime",
+        "v3_prior_value": 1788429805.0482748,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[2].mtime",
+        "v3_prior_value": 1788429805.0472746,
+        "v4_current_value": 1788820489.9564831
+      },
+      {
+        "path": "$.root.children[4].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[3].children[1].mtime",
+        "v3_prior_value": 1788429805.0482748,
+        "v4_current_value": 1788820489.9574833
+      },
+      {
+        "path": "$.root.children[4].children[3].children[6].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[3].children[7].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[3].children[8].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[4].children[3].children[9].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].mtime",
+        "v3_prior_value": 1788523916.0873446,
+        "v4_current_value": 1788820489.9624834
+      },
+      {
+        "path": "$.root.children[5].children[2].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[2].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[3].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[3].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[4].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[4].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[5].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[5].children[1].mtime",
+        "v3_prior_value": 1788523916.0833447,
+        "v4_current_value": 1788820489.9604833
+      },
+      {
+        "path": "$.root.children[5].children[11].mtime",
+        "v3_prior_value": 1788523916.0873446,
+        "v4_current_value": 1788820489.9624834
+      }
+    ],
+    "qualification": "The immutable v1/v3 records retained the d1 digest and byte length, not the manifest bytes. This is a cryptographic reconstruction matching that retained digest, using the project _build/viewer.json tree as the preserved old-mtime source.",
+    "root_tree_mtime_fields_changed": 226,
+    "root_tree_mtime_fields_visited": 576
+  }
+}

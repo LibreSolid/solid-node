@@ -1,0 +1,44 @@
+AR-07 phase-coalescing green proof
+Date: 2026-09-07 UTC
+Framework branch: performance-analysis
+Planning HEAD: 2ca4b9f06835d1133b6ad00eceecdee6e29b714c
+Working directory: /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis
+Interpreter: /home/asa/devel/libresolid-studio/.venv/bin/python
+
+Focused command:
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py
+
+Captured stdout excerpt:
+  ........................                                                 [100%]
+  24 passed in 1.34s
+
+Builder/source-race command:
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_retained_builder_generation.py::RetainedGenerationRaceTest::test_source_replaced_during_assembly_stands_down tests/test_source_generation.py -k 'assembly or publication_checks_after_serialization_before_manifest_write'
+
+Captured stdout excerpt:
+  ...                                                                      [100%]
+  3 passed, 12 deselected in 1.20s
+
+F04/F05, source, SCAD/STL, exact, flexible, imported-adapter, and publication
+command:
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py tests/test_source_census.py tests/test_source_generation.py tests/test_source_set.py tests/test_node_scoped_currency.py tests/test_content_verified_currency.py tests/test_coarse_filesystem_freshness.py tests/test_scad_stl.py tests/test_stl_node.py tests/test_exact_geometry.py tests/test_sheet_leaf.py tests/test_molejo_adapter.py tests/test_openscad_dependency.py tests/test_build_lock.py tests/test_build_publication.py
+
+Captured stdout excerpt (warning bodies summarized below):
+  ........................................................................ [ 20%]
+  ........................................................................ [ 41%]
+  ........................................................................ [ 62%]
+  ........................................................................ [ 83%]
+  .......................................................                  [100%]
+  343 passed, 16 warnings in 39.00s
+
+The 16 warnings were the same four build123d deprecations, two intentional
+legacy assembly-render warnings, and ten multiprocessing fork deprecations
+reported by the prior WP4 run.
+
+Post-review source/lifecycle integration command:
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_source_generation.py tests/test_source_census.py tests/test_builder_reload_resilience.py tests/test_retained_builder_generation.py tests/test_builder_lifecycle.py tests/test_build_lock.py tests/test_build_subprocess_isolation.py tests/test_generation_dedup.py
+
+Captured stdout excerpt:
+  ........................................................................ [ 62%]
+  ...........................................                              [100%]
+  115 passed, 10 subtests passed in 68.83s (0:01:08)

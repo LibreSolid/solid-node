@@ -1,0 +1,1136 @@
+{
+  "evidence_schema": "solid-node-performance-remediation-v1",
+  "provenance": {
+    "label": "planning-head-baseline",
+    "section": "build",
+    "command": {
+      "argv": [
+        "/home/asa/devel/libresolid-studio/.venv/bin/python",
+        "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/workflow/due-dilligence-performance/remediation/run_performance_probe.py",
+        "--all",
+        "--label",
+        "planning-head-baseline",
+        "--catalogue",
+        "/home/asa/devel/libresolid-studio/projects"
+      ],
+      "shell_equivalent": "/home/asa/devel/libresolid-studio/.venv/bin/python /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/workflow/due-dilligence-performance/remediation/run_performance_probe.py --all --label planning-head-baseline --catalogue /home/asa/devel/libresolid-studio/projects",
+      "cwd": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+      "required_environment": {
+        "PYTHONPATH": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      }
+    },
+    "framework": {
+      "repository": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+      "commit": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c",
+      "branch": "performance-analysis",
+      "solid_node_tree": "d1481386a91cc1fe5aa40a525c8f1f217fb922ad",
+      "tests_tree": "7c970429e4479ddc68155f68e3fd5ce8436f3415",
+      "production_status": ""
+    },
+    "probe": {
+      "path": "workflow/due-dilligence-performance/performance/probe.py",
+      "sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+      "wrapper_path": "workflow/due-dilligence-performance/remediation/run_performance_probe.py",
+      "wrapper_sha256": "6a30224c0dabbfb87fa57832d2146cc473e3948fb69d15bc1cc62df006219d16",
+      "fixture_input_sha256": {
+        "bench/__init__.py": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "bench/exact.py": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "bench/solid.py": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "pyproject.toml": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1"
+      }
+    },
+    "historical_inventory_before": {
+      "inventory": "workflow/due-dilligence-performance/remediation/historical.sha256",
+      "inventory_sha256": "15a3a0ee77a30442768920bc788c61cfb09b1b9fc4ef1f4c8edf2f916e51b261",
+      "entry_count": 18,
+      "all_match": true,
+      "entries": [
+        {
+          "path": "workflow/due-dilligence-performance/PERFORMANCE.md",
+          "expected_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+          "actual_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/README.md",
+          "expected_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+          "actual_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/algorithms.json",
+          "expected_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+          "actual_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/batch.json",
+          "expected_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+          "actual_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/build.json",
+          "expected_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+          "actual_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/empirical-initial.json",
+          "expected_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+          "actual_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/empirical.json",
+          "expected_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+          "actual_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/__init__.py",
+          "expected_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+          "actual_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/exact.py",
+          "expected_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+          "actual_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/solid.py",
+          "expected_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+          "actual_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/pyproject.toml",
+          "expected_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+          "actual_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/memory.json",
+          "expected_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+          "actual_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/probe.py",
+          "expected_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+          "actual_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/project-inputs.patch",
+          "expected_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+          "actual_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/projects.json",
+          "expected_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+          "actual_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/startup.json",
+          "expected_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+          "actual_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/validation.xml",
+          "expected_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+          "actual_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/verify_evidence.py",
+          "expected_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+          "actual_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+          "matches": true
+        }
+      ]
+    }
+  },
+  "environment": {
+    "utc": "2026-09-07T18:50:07Z",
+    "framework_commit": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "executable": "/home/asa/devel/libresolid-studio/.venv/bin/python",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "solid-node": "0.6.0",
+      "cadquery": "2.7.0",
+      "cadquery-ocp": "7.8.1.1.post1",
+      "build123d": "0.10.0",
+      "trimesh": "4.4.9",
+      "manifold3d": "3.5.2",
+      "molejo": "0.2.0",
+      "numpy": "2.2.6",
+      "scipy": "1.18.1"
+    },
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "load_average": [
+      8.3642578125,
+      6.72509765625,
+      5.4765625
+    ],
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "openscad": "OpenSCAD version 2021.01",
+    "jscad_available": false
+  },
+  "section": "build",
+  "measurements": [
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.8315831079962663,
+        "peak_self_rss_kib": 45308,
+        "peak_child_rss_kib": 111048,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 2.943090237007709,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2267486\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 2267486\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.313183828999172,
+        "peak_self_rss_kib": 45308,
+        "peak_child_rss_kib": 110916,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.4290417169977445,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-0/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "494f9e9a6d1abeebadba1e16835aefd4507accd7d2075316fb6b09079bd607c7",
+        "manifest_mtime_ns": 1788807010376042210,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.509630492000724,
+        "peak_self_rss_kib": 45304,
+        "peak_child_rss_kib": 110824,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 2.62982440199994,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2267646\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 2267646\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.662771661998704,
+        "peak_self_rss_kib": 45180,
+        "peak_child_rss_kib": 110356,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.818722683005035,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-1/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "494f9e9a6d1abeebadba1e16835aefd4507accd7d2075316fb6b09079bd607c7",
+        "manifest_mtime_ns": 1788807014459173100,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 1,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 2,
+        "builder_exitcodes": [
+          10,
+          0
+        ],
+        "elapsed_s": 2.9145948510122253,
+        "peak_self_rss_kib": 45304,
+        "peak_child_rss_kib": 109448,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 3.031822862001718,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2267933\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl by pid 2267933\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Part,size=1.0-7c24f3560064.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.4147476509970147,
+        "peak_self_rss_kib": 45176,
+        "peak_child_rss_kib": 110608,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.5424930320004933,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-1-2/_build/bench/solid-Machine,count=1,distinct=True,explicit=False-37bb22aa7be9.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "494f9e9a6d1abeebadba1e16835aefd4507accd7d2075316fb6b09079bd607c7",
+        "manifest_mtime_ns": 1788807019314328736,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 11.832957195001654,
+        "peak_self_rss_kib": 45304,
+        "peak_child_rss_kib": 110076,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 11.945815961997141,
+        "status": 0,
+        "stderr": "up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2268494\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 2268494\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2268657\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 2268657\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2268708\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 2268708\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2268777\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 2268777\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2268851\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 2268851\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269073\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 2269073\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.3308169079973595,
+        "peak_self_rss_kib": 45184,
+        "peak_child_rss_kib": 110588,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.4408738909987733,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-0/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "409bd34cec14a42929f18a7f05e687fd96173af27d872b3d6aada2566dae2a6e",
+        "manifest_mtime_ns": 1788807032824761804,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 10.663387416992919,
+        "peak_self_rss_kib": 45180,
+        "peak_child_rss_kib": 109624,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 10.773342405998847,
+        "status": 0,
+        "stderr": "up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269405\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 2269405\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269457\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 2269457\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269492\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 2269492\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269531\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 2269531\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269641\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 2269641\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2269675\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 2269675\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.3116578119952464,
+        "peak_self_rss_kib": 45180,
+        "peak_child_rss_kib": 110580,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.420688705999055,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-1/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "409bd34cec14a42929f18a7f05e687fd96173af27d872b3d6aada2566dae2a6e",
+        "manifest_mtime_ns": 1788807045016152565,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 8,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 9,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 10.971447329007788,
+        "peak_self_rss_kib": 45184,
+        "peak_child_rss_kib": 110588,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 11.075511260001804,
+        "status": 0,
+        "stderr": "up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270108\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl by pid 2270108\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.02-a14d6eb089df.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270192\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl by pid 2270192\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.03-cced50ea8cdc.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270231\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl by pid 2270231\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.04-62402e555266.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270339\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl by pid 2270339\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.05-231b5ef56d72.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270393\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl by pid 2270393\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.06-14295e8212b8.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2270427\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl by pid 2270427\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Part,size=1.07-10c4a0518346.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.3000009340030374,
+        "peak_self_rss_kib": 45180,
+        "peak_child_rss_kib": 110080,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.4282045900035882,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-8-2/_build/bench/solid-Machine,count=8,distinct=True,explicit=False-37b5f676818c.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "409bd34cec14a42929f18a7f05e687fd96173af27d872b3d6aada2566dae2a6e",
+        "manifest_mtime_ns": 1788807057528553593,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 29.910190608003177,
+        "peak_self_rss_kib": 45056,
+        "peak_child_rss_kib": 110844,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 30.04192989700823,
+        "status": 0,
+        "stderr": "ting stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2272068\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 2272068\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2272173\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 2272173\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2272212\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 2272212\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.3317591339873616,
+        "peak_self_rss_kib": 45560,
+        "peak_child_rss_kib": 110908,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.445021320003434,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-0/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "f0a635f7f5671eb9965d7a52cf0f95985148d1c4041b911f2eb34ab2a90b256d",
+        "manifest_mtime_ns": 1788807089004562311,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 29.842911931002163,
+        "peak_self_rss_kib": 45308,
+        "peak_child_rss_kib": 110508,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 29.96461953499238,
+        "status": 0,
+        "stderr": "ting stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2273801\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 2273801\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2273835\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 2273835\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2273870\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 2273870\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.468091706992709,
+        "peak_self_rss_kib": 45308,
+        "peak_child_rss_kib": 110284,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.5874209239991615,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-1/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "f0a635f7f5671eb9965d7a52cf0f95985148d1c4041b911f2eb34ab2a90b256d",
+        "manifest_mtime_ns": 1788807120408568584,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "solid",
+      "count": 24,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 25,
+        "builder_exitcodes": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          0
+        ],
+        "elapsed_s": 30.078618460000143,
+        "peak_self_rss_kib": 45176,
+        "peak_child_rss_kib": 111180,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 30.197409742002492,
+        "status": 0,
+        "stderr": "ting stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2275666\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl by pid 2275666\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.21-bf1e20090c15.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2275703\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl by pid 2275703\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.22-a7b645cca6ce.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - Job started with pid 2275757\n INFO -    core.builder - Building /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl by pid 2275757\n INFO -       node.base - waiting for /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl ...\nGeometries in cache: 1\nGeometry cache size in bytes: 728\nCGAL Polyhedrons in cache: 0\nCGAL cache size in bytes: 0\nTotal rendering time: 0:00:00.000\n   Top level object is a 3D object:\n   Facets:          6\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl generated with 1788800920.953826!\n INFO -    core.builder - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Part,size=1.23-9462758df631.stl done!\n INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 1.3685095299879322,
+        "peak_self_rss_kib": 45180,
+        "peak_child_rss_kib": 110492,
+        "module_count": 402,
+        "heavy_imports": [],
+        "wall_s": 1.4849464900034945,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/solid-24-2/_build/bench/solid-Machine,count=24,distinct=True,explicit=False-82665d27b5eb.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "f0a635f7f5671eb9965d7a52cf0f95985148d1c4041b911f2eb34ab2a90b256d",
+        "manifest_mtime_ns": 1788807152209587448,
+        "stl_files": 24,
+        "stl_bytes": 16416,
+        "pieces": 24,
+        "piece_instances": 24
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.802816163995885,
+        "peak_self_rss_kib": 514864,
+        "peak_child_rss_kib": 529440,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.443197875996702,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-0/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-0/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.944271458007279,
+        "peak_self_rss_kib": 480732,
+        "peak_child_rss_kib": 524504,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.5344186529982835,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-0/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "e3e7e33f53f4806a1cb7e8f0f47d167e792b6cd1b369d756784fda585ede25d0",
+        "manifest_mtime_ns": 1788807159183810876,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.855497217999073,
+        "peak_self_rss_kib": 514996,
+        "peak_child_rss_kib": 528308,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.4296983660024125,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-1/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-1/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.663722075012629,
+        "peak_self_rss_kib": 467160,
+        "peak_child_rss_kib": 522892,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.3362399420002475,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-1/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "e3e7e33f53f4806a1cb7e8f0f47d167e792b6cd1b369d756784fda585ede25d0",
+        "manifest_mtime_ns": 1788807172226228690,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 1,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 6.2567655599996215,
+        "peak_self_rss_kib": 515156,
+        "peak_child_rss_kib": 528540,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.920535868994193,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-2/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-2/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 5.967277121002553,
+        "peak_self_rss_kib": 478824,
+        "peak_child_rss_kib": 522740,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.608376989010139,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-1-2/_build/bench/exact-Machine,count=1-7a0f52a27914.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "e3e7e33f53f4806a1cb7e8f0f47d167e792b6cd1b369d756784fda585ede25d0",
+        "manifest_mtime_ns": 1788807185336648663,
+        "stl_files": 1,
+        "stl_bytes": 684,
+        "pieces": 1,
+        "piece_instances": 1
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 0,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 6.0220851650083205,
+        "peak_self_rss_kib": 464240,
+        "peak_child_rss_kib": 530284,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 6.714927335997345,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 6.640849906994845,
+        "peak_self_rss_kib": 515024,
+        "peak_child_rss_kib": 522436,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 7.375253380989307,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-0/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "09a466fc562c5ec579c9208e7017864c97efd5b2ff6883b4c10e2cd451ba6d5a",
+        "manifest_mtime_ns": 1788807198650075119,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 1,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 7.288798893001513,
+        "peak_self_rss_kib": 429180,
+        "peak_child_rss_kib": 526736,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 8.000326363995555,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 6.497526044011465,
+        "peak_self_rss_kib": 483932,
+        "peak_child_rss_kib": 522792,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 7.203664063999895,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-1/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "09a466fc562c5ec579c9208e7017864c97efd5b2ff6883b4c10e2cd451ba6d5a",
+        "manifest_mtime_ns": 1788807213591553700,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    },
+    {
+      "backend": "exact",
+      "count": 8,
+      "repeat": 2,
+      "cold": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 6.121206326992251,
+        "peak_self_rss_kib": 515120,
+        "peak_child_rss_kib": 529200,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 7.575503654996282,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.0-7c24f3560064.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.01-042f62ce44ff.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.02-a14d6eb089df.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.03-cced50ea8cdc.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.04-62402e555266.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.05-231b5ef56d72.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.06-14295e8212b8.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Part,size=1.07-10c4a0518346.scad generated with 1788800920.953826!\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -       node.base - Triggering children\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Triggering children\n INFO -       node.base - Generating stl\n INFO -       node.base - STL up to date\n INFO -       node.base - Generating stl\n INFO -       node.base - Non rigid node, no STL to generate\n",
+        "stdout": ""
+      },
+      "warm": {
+        "builder_processes": 1,
+        "builder_exitcodes": [
+          0
+        ],
+        "elapsed_s": 7.824437057002797,
+        "peak_self_rss_kib": 366752,
+        "peak_child_rss_kib": 519500,
+        "module_count": 2154,
+        "heavy_imports": [
+          "trimesh",
+          "cadquery",
+          "OCP"
+        ],
+        "wall_s": 8.61054327499005,
+        "status": 0,
+        "stderr": " INFO -    core.builder - START\n INFO -       node.base - /tmp/solid-remediation-planning-head-baseline-build-186cj_j6/exact-8-2/_build/bench/exact-Machine,count=8-974e5dab1537.scad generated with 1788800920.953826!\n INFO -    core.builder - Published artifacts are already current\n",
+        "stdout": ""
+      },
+      "manifest_unchanged": true,
+      "artifacts": {
+        "manifest_sha256": "09a466fc562c5ec579c9208e7017864c97efd5b2ff6883b4c10e2cd451ba6d5a",
+        "manifest_mtime_ns": 1788807228072017493,
+        "stl_files": 8,
+        "stl_bytes": 5472,
+        "pieces": 8,
+        "piece_instances": 8
+      }
+    }
+  ],
+  "runner_wall_s": 231.0326147339947,
+  "historical_inventory_after": {
+    "inventory": "workflow/due-dilligence-performance/remediation/historical.sha256",
+    "inventory_sha256": "15a3a0ee77a30442768920bc788c61cfb09b1b9fc4ef1f4c8edf2f916e51b261",
+    "entry_count": 18,
+    "all_match": true,
+    "entries": [
+      {
+        "path": "workflow/due-dilligence-performance/PERFORMANCE.md",
+        "expected_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+        "actual_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/README.md",
+        "expected_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+        "actual_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/algorithms.json",
+        "expected_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+        "actual_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/batch.json",
+        "expected_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+        "actual_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/build.json",
+        "expected_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+        "actual_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/empirical-initial.json",
+        "expected_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+        "actual_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/empirical.json",
+        "expected_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+        "actual_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/__init__.py",
+        "expected_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "actual_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/exact.py",
+        "expected_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "actual_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/solid.py",
+        "expected_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "actual_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/pyproject.toml",
+        "expected_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+        "actual_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/memory.json",
+        "expected_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+        "actual_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/probe.py",
+        "expected_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+        "actual_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/project-inputs.patch",
+        "expected_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+        "actual_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/projects.json",
+        "expected_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+        "actual_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/startup.json",
+        "expected_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+        "actual_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/validation.xml",
+        "expected_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+        "actual_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/verify_evidence.py",
+        "expected_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+        "actual_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+        "matches": true
+      }
+    ]
+  }
+}

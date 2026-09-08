@@ -16,15 +16,19 @@ from contextlib import contextmanager
 from enum import Enum
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from .loader import ProjectManifestError, load_node, project_root, read_project
+from .loader import (ProjectManifestError, load_node,
+                     project_root, project_source_generation, read_project)
 from .serializer import (
     animation_block, bind_document,
     DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
     serialize_node, symbolic_document,
 )
+from . import pieces
 from .pieces import PieceInventory
+from solid_node._artifact import ArtifactChanged
 from solid_node import currency
 from solid_node.node.base import StlRenderStart
+from solid_node.source_generation import (SourceChanged, current_phase)
 
 
 logger = logging.getLogger('core.builder')
@@ -251,6 +255,7 @@ class Builder(FileSystemEventHandler):
 
         self.file_changed = None
         self._watched_sources = set()
+        self._broad_python_watch = None
         self.observer = Observer()
 
     def start(self):
@@ -272,24 +277,76 @@ class Builder(FileSystemEventHandler):
         sys.exit(outcome.value)
 
     async def _start(self):
+        # The public/test-facing coroutine keeps one entry point, while the
+        # recursive call below lets the existing body run wholly inside the
+        # generation context without indenting every outcome path.  A mocked
+        # loader test may name no real project; in that case its old behavior
+        # remains available and the patched load decides the result.
+        if '_source_generation' not in self.__dict__:
+            try:
+                context = project_source_generation(self.path)
+            except ProjectManifestError:
+                context = None
+            if context is None:
+                self._source_generation = None
+                try:
+                    return await self._start()
+                finally:
+                    del self._source_generation
+            with context as generation:
+                self._source_generation = generation
+                try:
+                    return await self._start()
+                finally:
+                    del self._source_generation
+
         logger.info('START')
 
         os.environ['SOLID_BUILD_DIR'] = self.build_dir
 
         try:
-            self.node = load_node(self.path, overrides=self.overrides)
+            self.node = load_node(
+                self.path, overrides=self.overrides,
+                generation=self._source_generation)
+        except SourceChanged:
+            return BuildOutcome.SOURCE_CHANGED
         except Exception as e:
             return await self._on_reload_exception(e, 'load')
 
         # Remember the source state represented by the classes load_node()
         # imported. If this process waits for another producer and those files
         # move meanwhile, it must stand down before the stale classes render.
-        loaded_source_mtime_ns = self.node.mtime_ns
+        try:
+            if self._source_generation is None:
+                loaded_source_mtime_ns = self.node.mtime_ns
+            else:
+                # Freeze the root's complete initially known closure before
+                # this process can wait for the project lock.  A foreign
+                # contributor replaced beneath the same maximum must disagree
+                # with this loaded generation at `after_lock`, not be first
+                # observed there and accidentally blessed.
+                with self._source_generation.phase(
+                        self.node.files, label='loaded_sources'):
+                    loaded_source_mtime_ns = self.node.mtime_ns
+        except SourceChanged:
+            return BuildOutcome.SOURCE_CHANGED
+        except Exception as error:
+            # This source set has not been observed before, so a missing or
+            # unreadable contributor is a load/preflight failure rather than a
+            # change to an established generation.  Preserve the existing
+            # one-shot failure and reload-repair behavior outside the lock.
+            return await self._on_reload_exception(
+                error, 'inspect initial sources')
         assembly_failure = None
         error_message = None
         published = False
         with project_build_lock(self.build_dir):
             prepare_build_dir(self.build_dir)
+            if self._source_generation is not None:
+                try:
+                    self._source_generation.checkpoint('after_lock')
+                except SourceChanged:
+                    return BuildOutcome.SOURCE_CHANGED
             # A process may have waited while a newer edit was built. Never
             # let the model it loaded before waiting render over that result.
             if self.node.mtime_ns != loaded_source_mtime_ns:
@@ -298,7 +355,14 @@ class Builder(FileSystemEventHandler):
             try:
                 # Assembly is artifact production: exact and imported leaves
                 # write BREP/STL here, and every node can write SCAD.
-                self.node.assemble()
+                if self._source_generation is None:
+                    self.node.assemble()
+                else:
+                    with self._source_generation.phase(
+                            self.node.files, label='assembly'):
+                        self.node.assemble()
+            except SourceChanged:
+                return BuildOutcome.SOURCE_CHANGED
             except Exception as error:
                 # A reload failure may wait for a repair. Carry its traceback
                 # out so that wait happens only after the lock is released.
@@ -318,8 +382,19 @@ class Builder(FileSystemEventHandler):
                     self.observer.schedule(self, path, recursive=False)
                 self.observer.start()
 
-            if (assembly_failure is None and
-                    self._published_model_is_current()):
+            current = False
+            if assembly_failure is None:
+                try:
+                    if self._source_generation is None:
+                        current = self._published_model_is_current()
+                    else:
+                        with self._source_generation.phase(
+                                self.node.files, label='artifact_currency'):
+                            current = self._published_model_is_current()
+                except SourceChanged:
+                    return BuildOutcome.SOURCE_CHANGED
+
+            if assembly_failure is None and current:
                 # No artifact needs rendering -- but the document naming them
                 # may still be a build behind, because the pass that rendered
                 # an artifact exits before writing it and the next pass finds
@@ -332,7 +407,14 @@ class Builder(FileSystemEventHandler):
                 # it.
                 logger.info('Published artifacts are already current')
                 try:
-                    published = self._write_viewer_snapshot()
+                    if self._source_generation is None:
+                        published = self._write_viewer_snapshot()
+                    else:
+                        with self._source_generation.phase(
+                                self.node.files, label='publication'):
+                            published = self._write_viewer_snapshot()
+                except SourceChanged:
+                    return BuildOutcome.SOURCE_CHANGED
                 except Exception:
                     error_message = traceback.format_exc()
                     logger.error(error_message)
@@ -342,11 +424,36 @@ class Builder(FileSystemEventHandler):
                 # the develop loop keeps running and the artifacts already in
                 # place stay readable.
                 try:
-                    outcome = await self.generate_stl()
-                    if outcome is BuildOutcome.RENDERED:
-                        return outcome
-                    self._write_viewer_snapshot()
+                    while True:
+                        if self._source_generation is None:
+                            outcome = await self.generate_stl()
+                        else:
+                            # A retained pass gets a new census.  It may reuse
+                            # this loaded and assembled tree, never the prior
+                            # pass's observation of its contributors.
+                            with self._source_generation.phase(
+                                    self.node.files, label='artifact_pass'):
+                                outcome = await self.generate_stl()
+                        if outcome is not BuildOutcome.RENDERED:
+                            break
+                        if not getattr(self, '_artifact_pass_progressed', False):
+                            # `trigger_stl()` also returns without starting a
+                            # renderer while another producer owns the
+                            # per-STL lock.  Retrying that state in this child
+                            # would spin under the project lock.  Preserve the
+                            # supervisor retry boundary for that no-progress
+                            # result; only a renderer this child completed may
+                            # continue the retained generation.
+                            return outcome
+                    if self._source_generation is None:
+                        self._write_viewer_snapshot()
+                    else:
+                        with self._source_generation.phase(
+                                self.node.files, label='publication'):
+                            self._write_viewer_snapshot()
                     published = True
+                except SourceChanged:
+                    return BuildOutcome.SOURCE_CHANGED
                 except Exception:
                     error_message = traceback.format_exc()
                     logger.error(error_message)
@@ -367,9 +474,9 @@ class Builder(FileSystemEventHandler):
     async def _on_reload_exception(self, exc, stage, error_message=None):
         """Handle an exception raised while (re)importing project
         source -- a module-level SyntaxError, NameError, ImportError,
-        anything -- before the observer has had a chance to start (we
-        don't yet know self.node.files: that's exactly what failed to
-        build).
+        anything -- before the observer has had a chance to start.  A load
+        failure has no node/file set; an initial-census failure already has
+        one, including the missing foreign path that a repair may recreate.
 
         On the WATCH-LOOP reload path (self.is_reload) this must NOT
         take the develop process down: fall back to watching the whole
@@ -388,7 +495,8 @@ class Builder(FileSystemEventHandler):
 
         if self.is_reload:
             logger.error(error_message)
-            self._watch_broadly()
+            self._watch_broadly(
+                getattr(getattr(self, 'node', None), 'files', ()))
             self.observer.start()
             return await self.report_error(error_message)
 
@@ -396,19 +504,63 @@ class Builder(FileSystemEventHandler):
         write_error(error_message, self.build_dir)
         return BuildOutcome.FAILED
 
-    def _watch_broadly(self):
+    def _watch_broadly(self, known_sources=()):
         """Fallback watch for when we don't yet know which files back
         the node (the reload itself failed before we could find out):
-        watch the whole project directory recursively so a subsequent
-        fix is still detected."""
-        self._watched_sources.clear()
-        watch_dir = os.path.dirname(os.path.realpath(self.path)) or '.'
-        self.observer.schedule(self, watch_dir, recursive=True)
+        watch the entry directory recursively so a subsequent Python fix is
+        still detected.  An initial-census failure may additionally name a
+        missing foreign contributor outside that subtree; subscribe to the
+        smallest existing parent that can observe its repair, while the event
+        filter continues to admit only that exact foreign path."""
+        self._watched_sources = {
+            os.path.realpath(path) for path in known_sources
+        }
+        self._broad_python_watch = (
+            os.path.dirname(os.path.realpath(self.path)) or '.')
+
+        def existing_parent(path):
+            directory = os.path.dirname(path) or '.'
+            while not os.path.isdir(directory):
+                parent = os.path.dirname(directory)
+                if parent == directory:
+                    break
+                directory = parent
+            return os.path.realpath(directory)
+
+        def covered(path, directory):
+            try:
+                return os.path.commonpath((path, directory)) == directory
+            except ValueError:
+                return False
+
+        candidates = {self._broad_python_watch}
+        candidates.update(existing_parent(path)
+                          for path in self._watched_sources)
+        watch_dirs = []
+        # Shallower candidates cover their descendants.  This matters when a
+        # missing contributor's parent is itself absent: its nearest existing
+        # ancestor may already cover the entry subtree.
+        for candidate in sorted(
+                candidates,
+                key=lambda path: (len(os.path.normpath(path).split(os.sep)),
+                                  path)):
+            if any(covered(candidate, directory)
+                   for directory in watch_dirs):
+                continue
+            watch_dirs.append(candidate)
+        for watch_dir in watch_dirs:
+            self.observer.schedule(self, watch_dir, recursive=True)
 
     async def generate_stl(self):
-        """Trigger the stl generation on the root node, that will recursively render
-        stls in all nodes. If in the middle a STL is built, the builder process
-        exits to be restarted."""
+        """Perform one sequential artifact pass on the assembled root.
+
+        ``RENDERED`` means either that this child completed one asynchronous
+        renderer, in which case ``_start`` may safely continue, or that no
+        renderer could start because a per-STL lock is live.  The private
+        progress bit distinguishes those lifecycle meanings without widening
+        the process-level ``BuildOutcome`` contract.
+        """
+        self._artifact_pass_progressed = False
         try:
             self.node.trigger_stl()
             if not self._artifacts_are_current():
@@ -420,7 +572,9 @@ class Builder(FileSystemEventHandler):
             return BuildOutcome.CURRENT
         except StlRenderStart as job:
             logger.info(f"Building {job.stl_file} by pid {job.proc.pid}")
-            job.wait()
+            phase = current_phase()
+            job.wait(checkpoint=phase.checkpoint if phase is not None else None)
+            self._artifact_pass_progressed = True
             logger.info(f"{job.stl_file} done!")
             return BuildOutcome.RENDERED
 
@@ -448,8 +602,17 @@ class Builder(FileSystemEventHandler):
         makes: the published document describes the machine, not the
         pose whatever bound a snapshot last happened to leave it in.
         """
+        for attempt in range(3):
+            try:
+                with PieceInventory() as inventory:
+                    return self._write_viewer_snapshot_with_inventory(inventory)
+            except ArtifactChanged:
+                if attempt == 2:
+                    raise
+
+    def _write_viewer_snapshot_with_inventory(self, inventory):
+        """Serialize while artifact snapshots stay pinned through publish."""
         os.makedirs(self.build_dir, exist_ok=True)
-        inventory = PieceInventory()
         with symbolic_document(self.node) as (declarations, instructions):
             root = serialize_node(
                 self.node,
@@ -478,6 +641,14 @@ class Builder(FileSystemEventHandler):
         snapshot['root'] = root
         snapshot['pieces'] = inventory.pieces()
         document = json.dumps(snapshot).encode()
+        phase = current_phase()
+        if phase is not None:
+            # Serialization may execute project getters and source-backed
+            # piece work.  Recheck after all of it and immediately before the
+            # manifest becomes externally reachable.
+            phase.checkpoint(
+                self.node.files, label='publication_pre_write')
+        inventory.validate()
         recovered = clear_errors(self.build_dir)
         if self._published_document() == document:
             return recovered
@@ -581,6 +752,8 @@ class Builder(FileSystemEventHandler):
                 # every build working and the content-verified fallback
                 # permanently off, with nothing to notice it by.
                 described = currency.describes(relative)
+                if described is None:
+                    described = pieces.describes(relative)
                 if described is not None:
                     if not kept(described, os.path.basename(described)):
                         os.remove(path)
@@ -607,12 +780,22 @@ class Builder(FileSystemEventHandler):
         if event.is_directory:
             return
         source = os.path.realpath(event.src_path)
-        if (source not in self._watched_sources and
-                (not source.endswith('.py') or '__pycache__' in source)):
+        known_source = source in self._watched_sources
+        broad_python = (source.endswith('.py') and
+                        '__pycache__' not in source)
+        if (broad_python and self._broad_python_watch is not None):
+            try:
+                broad_python = (os.path.commonpath(
+                    (source, self._broad_python_watch)) ==
+                    self._broad_python_watch)
+            except ValueError:
+                broad_python = False
+        if not known_source and not broad_python:
             # A precisely watched path is already known to affect the model,
             # whatever its extension. Events outside that set can only come
-            # from the broad recovery watch, where unrelated files and
-            # bytecode writes must not trigger a reload loop.
+            # from recovery subscriptions, where unrelated foreign files,
+            # Python outside the original broad area, and bytecode writes
+            # must not trigger a reload loop.
             return
         logger.info(f'{event.src_path} changed, reloading')
         self.loop.call_soon_threadsafe(self._resolve_file_changed)

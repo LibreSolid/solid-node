@@ -6,7 +6,7 @@
 AbstractBaseNode.mesh used to reload the STL from disk on EVERY access
 and apply each operation (own + every ancestor's) as a separate
 apply_transform pass. These tests pin the replacement -- a
-module-level base-mesh cache keyed on (stl_file, mtime), plus a SINGLE
+module-level base-mesh cache keyed on strong artifact observation, plus a SINGLE
 composed world matrix applied in one apply_transform -- against the
 OLD per-operation path (reimplemented here directly, since base.py no
 longer has it) and against the caching/copy/liveness contracts the fix
@@ -118,8 +118,8 @@ class MeshCacheTestCase(TestCase):
 
 
 class BaseMeshCacheTest(MeshCacheTestCase):
-    """The module-level (stl_file, mtime) cache: a real disk load must
-    happen at most once per distinct (stl_file, mtime) pair, however
+    """The strong-observation cache: a real disk load must happen at most
+    once per distinct artifact identity, however
     many times .mesh is accessed."""
 
     def test_repeated_mesh_access_loads_stl_from_disk_once(self):

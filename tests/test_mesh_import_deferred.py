@@ -14,7 +14,7 @@ it must still behave exactly as ADR-028 says it does.
 
 The behavioural half matters as much as the import half. Moving an import
 is only safe if nothing about the cache moved with it, so the same
-(stl_file, mtime) keying, the same stale-entry eviction and the same
+strong-observation keying, the same stale-entry eviction and the same
 shared cached object are asserted here beside the import assertions --
 a green import test over a quietly broken cache would be worse than no
 change at all.
@@ -29,6 +29,7 @@ from trimesh.creation import box
 
 from solid_node.node import base
 from solid_node.node.base import cached_base_mesh
+from solid_node._artifact import artifact_cache_key
 
 from .import_probe import probe, probe_import
 
@@ -67,9 +68,9 @@ class MeshLibraryImportTest(TestCase):
 
 
 class CachedBaseMeshUnchangedTest(TestCase):
-    """ADR-028's cache, unchanged by the deferral: one load per
-    (stl_file, mtime), the cached object itself handed back, and any
-    entry under the file's old mtime evicted on the next access."""
+    """ADR-028's cache, unchanged by the deferral: one load per strong
+    artifact observation, the cached object itself handed back, and any entry
+    under the file's old identity evicted on the next access."""
 
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -94,11 +95,12 @@ class CachedBaseMeshUnchangedTest(TestCase):
         self.assertIsInstance(first, trimesh.Trimesh)
         self.assertEqual(
             list(base._base_mesh_cache),
-            [(self.stl_path, os.path.getmtime(self.stl_path))])
+            [artifact_cache_key(self.stl_path)])
 
     def test_a_changed_mtime_evicts_the_stale_entry(self):
         stale = cached_base_mesh(self.stl_path)
         old_mtime = os.path.getmtime(self.stl_path)
+        old_key = artifact_cache_key(self.stl_path)
 
         box((6, 6, 6)).export(self.stl_path)
         newer = old_mtime + 5
@@ -111,6 +113,6 @@ class CachedBaseMeshUnchangedTest(TestCase):
         # A rebuild loop must not accumulate one cached mesh per
         # rebuild: the entry under the old mtime is gone, not merely
         # shadowed by a newer one.
-        self.assertNotIn((self.stl_path, old_mtime), base._base_mesh_cache)
+        self.assertNotIn(old_key, base._base_mesh_cache)
         self.assertEqual(list(base._base_mesh_cache),
-                         [(self.stl_path, newer)])
+                         [artifact_cache_key(self.stl_path)])

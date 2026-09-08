@@ -1,0 +1,54 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ BuilderReloadResilienceTest.test_missing_sibling_foreign_source_reload_waits_for_exact_repair _
+
+self = <tests.test_builder_reload_resilience.BuilderReloadResilienceTest testMethod=test_missing_sibling_foreign_source_reload_waits_for_exact_repair>
+
+    def test_missing_sibling_foreign_source_reload_waits_for_exact_repair(self):
+        models = os.path.join(self.project_root, 'models')
+        os.makedirs(models)
+        with open(os.path.join(models, 'model.py'), 'w') as model:
+            model.write(VANISHING_SIBLING_JSCAD_MODEL)
+        self.write_sibling_jscad_source()
+    
+        proc = self.spawn(is_reload=True, path='models/model.py')
+        self.assertTrue(self.wait_until(
+            lambda: self.read_error() is not None, timeout=15),
+            'sibling source-census failure was not reported')
+        self.assertTrue(proc.is_alive(),
+                        'reload died instead of waiting for sibling repair')
+        self.assertFalse(lock_is_held(self.build_dir),
+                         'sibling recovery waited under the project lock')
+    
+        # The nearest existing ancestor must be watched because construction
+        # removed both the known foreign file and its parent.  That broader
+        # subscription is transport only: unrelated foreign files and Python
+        # outside the entry module's original broad-recovery subtree remain
+        # irrelevant.
+        assets = os.path.join(self.project_root, 'assets')
+        os.makedirs(assets)
+        with open(os.path.join(assets, 'unrelated.js'), 'w') as unrelated:
+            unrelated.write('not a contributor\n')
+        proc.join(timeout=1)
+        self.assertTrue(proc.is_alive(),
+                        'unrelated foreign repair ended the recovery wait')
+    
+        with open(os.path.join(assets, 'unrelated.py'), 'w') as unrelated:
+            unrelated.write('not_a_project_import = True\n')
+        proc.join(timeout=1)
+        self.assertTrue(
+            proc.is_alive(),
+            'sibling Python edit widened the existing broad recovery area')
+    
+        repaired = os.path.join(assets, 'shape.js')
+        with open(repaired, 'w') as source:
+            source.write('return cube({size: 2});\n')
+        proc.join(timeout=15)
+>       self.assertFalse(proc.is_alive(),
+                         'reload did not observe the sibling source repair')
+E       AssertionError: True is not false : reload did not observe the sibling source repair
+
+tests/test_builder_reload_resilience.py:337: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_missing_sibling_foreign_source_reload_waits_for_exact_repair
+1 failed in 18.59s

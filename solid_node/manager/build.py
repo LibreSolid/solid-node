@@ -18,11 +18,13 @@ MODEL_NOT_FOUND = 66
 
 
 def build_once(path, overrides):
-    """One build pass, in its own fresh interpreter.
+    """One stable source generation, in its own fresh interpreter.
 
     Module level, and taking plain values, because the subprocess this runs
     in does not inherit this one's memory -- it is handed this function and
-    its arguments to reconstruct. See `solid_node.core.processes`.
+    its arguments to reconstruct.  The child may finish several sequential
+    artifact passes on its one assembled tree, but source change or failure
+    always ends it.  See `solid_node.core.processes`.
     """
     Builder(
         path,
@@ -94,8 +96,13 @@ class Build:
         sys.exit(1 if failed else 0)
 
     def build(self, path):
-        """One model to completion. Returns 0 when it is current, else
-        the exit status the failure deserves."""
+        """Build source generations until the model is current.
+
+        Normally one fresh child completes every artifact.  ``RENDERED`` is
+        retained as the retry boundary for a no-progress pass (for example a
+        live per-STL lock), and ``SOURCE_CHANGED`` always retries from a new
+        interpreter.  Returns 0 when current, otherwise the failure status.
+        """
         self.path = path
         try:
             resolve_node(self.path)

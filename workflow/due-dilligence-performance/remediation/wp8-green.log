@@ -1,0 +1,18 @@
+Cache-specific command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_exact_placement_cache.py -q
+
+Result:
+
+    10 passed in 2.95s
+
+Combined focused command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_exact_placement_cache.py tests/test_exact_geometry.py tests/test_intersection_memo.py tests/test_manager_test.py tests/test_keyframe_reversal.py -q
+
+Result:
+
+    120 passed, 2 warnings in 4.04s
+
+The warnings were existing `FutureWarning`s from keyframe reversal fixtures:
+legacy render-time driver reads in `Conrod.render()` and `Inner.render()`.

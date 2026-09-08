@@ -553,7 +553,8 @@ class ViewerSnapshotContentTest(TestCase):
              'piece'},
         )
         self.assertEqual(data['animation'], {'fps': 30, 'frames': 360})
-        self.assertEqual(sorted(os.listdir(root)), ['part.stl', 'viewer.json'])
+        self.assertEqual(sorted(os.listdir(root)), [
+            'part.stl', 'part.stl.piece-facts.json', 'viewer.json'])
 
 
 class PublicationOrderingTest(TestCase):
@@ -585,7 +586,8 @@ class PublicationOrderingTest(TestCase):
                                color=None, mtime=0, operations=(),
                                children=children,
                                render=lambda: children,
-                               _link_child=lambda child: None)
+                               _link_child=lambda child: None,
+                               _link_children=lambda children: None)
 
     def test_an_added_artifact_is_readable_before_the_manifest_names_it(self):
         observed = []
@@ -634,7 +636,9 @@ class PublicationOrderingTest(TestCase):
         self.builder._write_viewer_snapshot()
 
         self.assertEqual(sorted(os.listdir(self.root)),
-                         ['new_name.stl', 'part.stl', 'viewer.json'])
+                         ['new_name.stl', 'new_name.stl.piece-facts.json',
+                          'part.stl', 'part.stl.piece-facts.json',
+                          'viewer.json'])
 
     def test_the_sweep_spares_inputs_locks_and_in_flight_temporaries(self):
         self.builder.node = self.node_for('part')

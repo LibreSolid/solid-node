@@ -4,11 +4,13 @@
 
 import os
 import sys
+import tempfile
 import time
 from solid2 import import_stl
-from subprocess import Popen
+from subprocess import CalledProcessError, Popen
 from solid_node import currency
 from solid_node.node.leaf import LeafNode
+from solid_node.source_generation import current_phase
 
 
 class JScadNode(LeafNode):
@@ -46,24 +48,42 @@ class JScadNode(LeafNode):
         if self._up_to_date(self.stl_file):
             return import_stl(self.local_stl)
 
-        cmd = [
-            'jscad',
-            self.jscad_source,
-            '-o', self.stl_file,
-        ]
-        print('\n' + ' '.join(cmd))
-        # Alone among the adapters, jscad writes straight to the published
-        # path, so there is a window in which the artifact is neither the
-        # old one nor the new one. Drop the record first: a digest must
-        # never be able to vouch for a file a killed renderer left
-        # half-written.
-        currency.drop(self.stl_file)
-        proc = Popen(cmd)
-        proc.communicate()
+        directory = os.path.dirname(self.stl_file) or '.'
+        os.makedirs(directory, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f'.{os.path.basename(self.stl_file)}.',
+            suffix='.tmp', dir=directory)
+        os.close(descriptor)
+        # A zero-byte placeholder is not successful renderer output.  The
+        # random name remains private under the project build lock.
+        os.remove(temporary)
         try:
-            os.utime(self.stl_file, ns=(time.time_ns(), self.mtime_ns))
-        except FileNotFoundError:
-            return import_stl(self.local_stl)
-        currency.record(self.stl_file, self.source_digest,
-                        self.source_fingerprint)
+            cmd = [
+                'jscad',
+                self.jscad_source,
+                '-o', temporary,
+            ]
+            print('\n' + ' '.join(cmd))
+            proc = Popen(cmd)
+            proc.communicate()
+            if proc.returncode:
+                raise CalledProcessError(proc.returncode, cmd)
+            if not os.path.exists(temporary):
+                return import_stl(self.local_stl)
+
+            phase = current_phase()
+            if phase is not None:
+                # The foreign renderer consumed the JavaScript asynchronously
+                # with respect to Python.  Certify its source epoch after it
+                # completes and before its output replaces the prior artifact.
+                phase.checkpoint(
+                    (self.jscad_source,), label='jscad_render_post')
+            os.utime(temporary, ns=(time.time_ns(), self.mtime_ns))
+            currency.publish(temporary, self.stl_file, self.source_digest,
+                             self.source_fingerprint)
+        finally:
+            try:
+                os.remove(temporary)
+            except FileNotFoundError:
+                pass
         return import_stl(self.local_stl)

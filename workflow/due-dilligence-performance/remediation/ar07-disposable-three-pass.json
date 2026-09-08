@@ -1,0 +1,64 @@
+{
+  "formal_wp10": false,
+  "label": "ar07-disposable-three-pass",
+  "original_catalogue_unchanged": true,
+  "projects": [
+    {
+      "copy_input_maps_equal": true,
+      "first_to_second": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "manifests_equal": true,
+      "project": "Vibecoded-demos/abacus",
+      "second_to_third": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "stl_maps_equal": true,
+      "workers": [
+        {"pass": "first", "status": 0, "wall_s": 7.67316111800028},
+        {"pass": "second", "status": 0, "wall_s": 7.742785634996835},
+        {"pass": "third", "status": 0, "wall_s": 6.647402922011679}
+      ]
+    },
+    {
+      "copy_input_maps_equal": true,
+      "first_to_second": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "manifests_equal": true,
+      "project": "Vibecoded-demos/v8-engine",
+      "second_to_third": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "stl_maps_equal": true,
+      "workers": [
+        {"pass": "first", "status": 0, "wall_s": 8.401395314998808},
+        {"pass": "second", "status": 0, "wall_s": 8.95010179799283},
+        {"pass": "third", "status": 0, "wall_s": 7.403361488992232}
+      ]
+    },
+    {
+      "copy_input_maps_equal": true,
+      "first_to_second": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "manifests_equal": true,
+      "project": "3D-Printers/Metamaquina2",
+      "second_to_third": {
+        "changed": [],
+        "summary_by_suffix": {}
+      },
+      "stl_maps_equal": true,
+      "workers": [
+        {"pass": "first", "status": 0, "wall_s": 15.436071350995917},
+        {"pass": "second", "status": 0, "wall_s": 15.125849382005981},
+        {"pass": "third", "status": 0, "wall_s": 12.616667027003132}
+      ]
+    }
+  ]
+}

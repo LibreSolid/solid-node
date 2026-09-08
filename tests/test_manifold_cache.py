@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Regression tests for docs/performance-improvement.md fix 3: caching
-one manifold3d.Manifold per (stl_file, mtime) -- admissibility judged
+one manifold3d.Manifold per strong artifact observation -- admissibility judged
 ONCE at cache fill, by the engine's own status -- instead of trimesh.boolean.intersection
 re-checking watertightness and re-converting both meshes on EVERY
 call. Per placement the cached Manifold is transformed (lazy) by the
@@ -82,7 +82,7 @@ class ManifoldCacheTestCase(TestCase):
 
 
 class ManifoldCacheBuiltOnceTest(ManifoldCacheTestCase):
-    """One Manifold built per (stl_file, mtime), shared across every
+    """One Manifold built per strong artifact observation, shared across every
     assertion call and every node instance backed by that file --
     however many pairwise checks touch it."""
 
@@ -101,7 +101,7 @@ class ManifoldCacheBuiltOnceTest(ManifoldCacheTestCase):
         # The engine is now resolved at the point of use rather than
         # bound as a module attribute, so the seam that counts real
         # constructions is the resolver. The contract under test is
-        # unchanged: ONE build per (stl_file, mtime), however many
+        # unchanged: ONE build per artifact observation, however many
         # assertions touch it.
         with patch('solid_node.test.require_mesh_engine',
                    return_value=(counting, original_mesh)):
@@ -216,7 +216,7 @@ class VolumeEpsilonEmptinessSemanticsTest(ManifoldCacheTestCase):
         # manifold's ^ / is_empty / volume are what get exercised.
         bounds = np.array([[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]])
         return patch('solid_node.test._cached_manifold',
-                     return_value=(manifold, bounds))
+                     return_value=(manifold, bounds, None))
 
     def test_truly_empty_manifold_is_empty(self):
         node1 = self._part('A')

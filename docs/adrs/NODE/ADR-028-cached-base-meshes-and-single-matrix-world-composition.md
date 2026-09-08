@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-18
+**Amended by:** [ADR-085: Persistent Piece Facts Behind a Verified Artifact Snapshot](../EXPORT/ADR-085-persistent-piece-facts-behind-a-verified-artifact-snapshot.md) — base-mesh reuse is keyed by a strong artifact observation rather than path and mtime alone
 **Depends on:**
 - [ADR-006: Mtime-Based STL Caching Strategy](./ADR-006-mtime-based-stl-caching-strategy.md)
 - [ADR-023: Kinematic Operations Model and Driver-Tagged Idempotent Renders](./ADR-023-kinematic-operations-and-driver-tagged-idempotent-renders.md)

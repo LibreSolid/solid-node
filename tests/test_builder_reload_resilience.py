@@ -26,6 +26,7 @@ from unittest import TestCase
 from trimesh.creation import box
 
 from solid_node.core.builder import Builder, get_errors_file
+from .test_build_lock import lock_is_held
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLAT_PROJECT = os.path.join(REPO_DIR, 'tests', 'flat_project')
@@ -62,6 +63,33 @@ class SimplePipe(Solid2Node):
 
     def render(self):
         return cylinder(r=10 h=100) - cylinder(r=8, h=100)
+'''
+
+VANISHING_JSCAD_PIPE = '''\
+import os
+from solid_node.node import JScadNode
+
+
+class SimplePipe(JScadNode):
+    jscad_source = "shape.js"
+
+    def __init__(self):
+        super().__init__()
+        os.remove(self.jscad_source)
+'''
+
+VANISHING_SIBLING_JSCAD_MODEL = '''\
+import os
+from solid_node.node import JScadNode
+
+
+class SiblingAsset(JScadNode):
+    jscad_source = "../assets/shape.js"
+
+    def __init__(self):
+        super().__init__()
+        os.remove(self.jscad_source)
+        os.rmdir(os.path.dirname(self.jscad_source))
 '''
 
 
@@ -117,10 +145,10 @@ class BuilderReloadResilienceTest(TestCase):
                 proc.terminate()
             proc.join(timeout=10)
 
-    def spawn(self, is_reload):
+    def spawn(self, is_reload, path='flat_project/simple_pipe.py'):
         proc = multiprocessing.Process(
             target=_run_builder,
-            args=(self.project_root, self.build_dir, is_reload),
+            args=(self.project_root, self.build_dir, is_reload, path),
         )
         proc.start()
         self._procs.append(proc)
@@ -129,6 +157,19 @@ class BuilderReloadResilienceTest(TestCase):
     def write_pipe(self, content):
         with open(self.simple_pipe, 'w') as f:
             f.write(content)
+
+    def write_jscad_source(self):
+        with open(os.path.join(os.path.dirname(self.simple_pipe), 'shape.js'),
+                  'w') as source:
+            source.write('return cube({size: 1});\n')
+
+    def write_sibling_jscad_source(self):
+        assets = os.path.join(self.project_root, 'assets')
+        os.makedirs(assets, exist_ok=True)
+        source_path = os.path.join(assets, 'shape.js')
+        with open(source_path, 'w') as source:
+            source.write('return cube({size: 1});\n')
+        return source_path
 
     def wait_until(self, predicate, timeout=10, interval=0.1):
         deadline = time.monotonic() + timeout
@@ -198,14 +239,26 @@ class BuilderReloadResilienceTest(TestCase):
         self.assertEqual(first.exitcode, 0)
 
         # A fresh reload attempt against the now-fixed file must load
-        # cleanly, clear the error state, and actually build the model.
+        # cleanly, clear the error state, build the complete model, and retain
+        # that one source generation while it watches.  It no longer exits
+        # after an intermediate artifact pass merely to reload the same tree.
         second = self.spawn(is_reload=True)
-        second.join(timeout=60)
+        viewer = os.path.join(self.build_dir, 'viewer.json')
+        self.assertTrue(self.wait_until(
+            lambda: os.path.exists(viewer)
+            and not os.path.exists(self.errors_file), timeout=60))
+        self.assertTrue(second.is_alive(),
+                        'completed generation exited instead of watching')
+        self.assertFalse(lock_is_held(self.build_dir),
+                         'completed generation watches under the build lock')
 
+        # A relevant repair/edit ends the retained generation. Builder.start
+        # maps SOURCE_CHANGED to the legacy direct-call exit 0; Develop uses
+        # lifecycle=True and observes the distinct outcome value instead.
+        self.write_pipe(GOOD_SIMPLE_PIPE + '\n')
+        second.join(timeout=15)
+        self.assertFalse(second.is_alive())
         self.assertEqual(second.exitcode, 0)
-        # This is an intermediate render pass. F2 retains the previous error
-        # until the later pass atomically publishes its viewer manifest.
-        self.assertTrue(os.path.exists(self.errors_file))
 
     def test_startup_failure_does_not_hang_forever(self):
         # The very first attempt (is_reload=False) for an
@@ -220,6 +273,81 @@ class BuilderReloadResilienceTest(TestCase):
         self.assertFalse(proc.is_alive(),
                           "startup attempt hung instead of exiting cleanly")
         self.assertNotEqual(proc.exitcode, 0)
+
+    def test_missing_initial_foreign_source_reload_waits_for_repair(self):
+        self.write_jscad_source()
+        self.write_pipe(VANISHING_JSCAD_PIPE)
+
+        proc = self.spawn(is_reload=True)
+        self.assertTrue(self.wait_until(
+            lambda: self.read_error() is not None, timeout=15),
+            'initial source-census failure was not reported')
+        self.assertTrue(proc.is_alive(),
+                        'reload died instead of waiting for repair')
+        self.assertFalse(lock_is_held(self.build_dir),
+                         'reload recovery waited under the project lock')
+        self.assertIn('FileNotFoundError', self.read_error()['error'])
+
+        self.write_jscad_source()
+        proc.join(timeout=15)
+        self.assertFalse(proc.is_alive(),
+                         'reload did not observe the foreign-source repair')
+        self.assertEqual(proc.exitcode, 0)
+
+    def test_missing_sibling_foreign_source_reload_waits_for_exact_repair(self):
+        models = os.path.join(self.project_root, 'models')
+        os.makedirs(models)
+        with open(os.path.join(models, 'model.py'), 'w') as model:
+            model.write(VANISHING_SIBLING_JSCAD_MODEL)
+        self.write_sibling_jscad_source()
+
+        proc = self.spawn(is_reload=True, path='models/model.py')
+        self.assertTrue(self.wait_until(
+            lambda: self.read_error() is not None, timeout=15),
+            'sibling source-census failure was not reported')
+        self.assertTrue(proc.is_alive(),
+                        'reload died instead of waiting for sibling repair')
+        self.assertFalse(lock_is_held(self.build_dir),
+                         'sibling recovery waited under the project lock')
+
+        # The nearest existing ancestor must be watched because construction
+        # removed both the known foreign file and its parent.  That broader
+        # subscription is transport only: unrelated foreign files and Python
+        # outside the entry module's original broad-recovery subtree remain
+        # irrelevant.
+        assets = os.path.join(self.project_root, 'assets')
+        os.makedirs(assets)
+        with open(os.path.join(assets, 'unrelated.js'), 'w') as unrelated:
+            unrelated.write('not a contributor\n')
+        proc.join(timeout=1)
+        self.assertTrue(proc.is_alive(),
+                        'unrelated foreign repair ended the recovery wait')
+
+        with open(os.path.join(assets, 'unrelated.py'), 'w') as unrelated:
+            unrelated.write('not_a_project_import = True\n')
+        proc.join(timeout=1)
+        self.assertTrue(
+            proc.is_alive(),
+            'sibling Python edit widened the existing broad recovery area')
+
+        repaired = os.path.join(assets, 'shape.js')
+        with open(repaired, 'w') as source:
+            source.write('return cube({size: 2});\n')
+        proc.join(timeout=15)
+        self.assertFalse(proc.is_alive(),
+                         'reload did not observe the sibling source repair')
+        self.assertEqual(proc.exitcode, 0)
+
+    def test_missing_initial_foreign_source_startup_fails(self):
+        self.write_jscad_source()
+        self.write_pipe(VANISHING_JSCAD_PIPE)
+
+        proc = self.spawn(is_reload=False)
+        proc.join(timeout=15)
+
+        self.assertFalse(proc.is_alive())
+        self.assertNotEqual(proc.exitcode, 0)
+        self.assertIsNotNone(self.read_error())
 
 
 class ImportedStlWatchTest(TestCase):

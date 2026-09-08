@@ -1,0 +1,30 @@
+WP7 traversal-snapshot naming red proof
+planning source: 4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c
+candidate test copied into disposable planning-HEAD export:
+  /tmp/solid-node-wp7-red.XmNTy0
+command:
+  /home/asa/devel/libresolid-studio/.venv/bin/pytest -q tests/test_traversal_naming.py
+
+..FFFFFF.F                                                         [100%]
+
+The refined candidate suite failed against the unmodified planning source:
+
+- all 128/512/2,048 automatic-name publication and simulation subtests
+  observed zero batch-index builds instead of one;
+- the 2,048-child, 20-tick proof observed zero batch-index builds instead of
+  20;
+- direct batch-link tests failed because `_link_children` did not exist;
+- removal left the stale automatic name `alias` instead of restoring the
+  `ProbeLeaf` class fallback;
+- STL and qualified traversal mutation tests named both children `parts-0`,
+  proving the second child was rescanned after its sibling reversed the
+  parent's public ownership list.
+
+13 failed, 3 passed in 1.72s
+
+The serializer mutation test passed on planning HEAD because that consumer
+already linked every sibling before its recursive comprehension.  Its wide
+subtests still failed because the legacy pre-recursion loop rescanned the
+whole public list once per child.  The disposable fixture's render returns a
+separate ordinary-list copy, so the failures above isolate naming observation
+timing and do not rely on Python's behavior when a live iterated list mutates.

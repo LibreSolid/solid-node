@@ -1,0 +1,48 @@
+WP5 focused green evidence
+==========================
+
+Commands:
+  PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python \
+    -m pytest -q tests/test_flexible_cache_performance.py \
+    tests/test_molejo_adapter.py::MolejoMeshPathPairTest \
+    tests/test_flexible_node.py
+
+  PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python \
+    -m pytest -q tests/test_intersection_memo.py tests/test_exact_geometry.py
+
+  PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python \
+    -m pytest -q tests/test_molejo_adapter.py tests/test_flexible_document.py \
+    tests/test_exact_geometry.py tests/test_intersection_memo.py \
+    tests/test_broad_phase_culling.py tests/test_assembly_supported.py
+
+Results:
+
+- 75 passed in the final focused rerun: WP5 cache coverage, the existing
+  molejo faceted path, and exact/faceted policy tests.  This includes the
+  coherence proof that one miss renders once and passes that same object to
+  mesh evaluation, an unknown-source no-retention proof, and signed-zero
+  binding identity coverage.
+- 66 passed: intersection memo and exact/faceted kernel policy coverage.
+- 203 passed, 14 subtests passed: flexible/molejo/document, exact and
+  faceted policy, interference broad phase, and assembly-support suites.
+
+The runs emitted only the pre-existing legacy-render FutureWarnings and one
+deprecated assertion warning; they contained no test failures.
+
+Supplement after review
+=======================
+
+Command:
+  PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python \
+    -m pytest -q tests/test_flexible_cache_performance.py \
+    tests/test_molejo_adapter.py::MolejoMeshPathPairTest \
+    tests/test_flexible_node.py
+
+Result: 42 passed, 2 existing legacy-render FutureWarnings in 5.88s.
+
+The supplement adds a 128-distinct-structural-identity trajectory at the
+default 64-entry cap and verifies revisit bounds/volume after eviction. It
+also corrects a compatibility gap found in review: a public `base_mesh()`
+override is used unchanged and uncached when its custom mesh cannot be proven
+by the stock serialized-spec key. The coherent stock path still calls
+`_snapshot_mesh(rendered, values)` exactly once per miss.

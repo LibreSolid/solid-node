@@ -1,0 +1,23 @@
+{
+  "candidate_content_sha256": "d3615253809628a7b9e988354f669da26a0a84ab2ac3855ac8b6cd4d20841250",
+  "entries": [
+    {
+      "bytes": 227112,
+      "path": "workflow/due-dilligence-performance/remediation/ar08-smoke-algorithms.json",
+      "sha256": "249077144868701426b1cd131fc81d5091c89ee09ab258171641173487faf769"
+    },
+    {
+      "bytes": 82749,
+      "path": "workflow/due-dilligence-performance/remediation/ar08-smoke-candidate-identity.json",
+      "sha256": "0827b83beecdfac19ba7c95cbee7360c31f26ac1be1d846ccc938ff849d5f458"
+    },
+    {
+      "bytes": 223119,
+      "path": "workflow/due-dilligence-performance/remediation/ar08-smoke-memory.json",
+      "sha256": "5e46ca7f5196b2428d6493c11f757e95010924fdc5cbaab08dd9e6250c8b9acf"
+    }
+  ],
+  "entry_count": 3,
+  "evidence_inventory_schema": "solid-node-performance-evidence-v2",
+  "label": "ar08-smoke"
+}

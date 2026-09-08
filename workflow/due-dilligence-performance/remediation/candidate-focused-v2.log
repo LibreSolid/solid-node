@@ -1,0 +1,10 @@
+................................................................. [ 49%]
+...................................... [ 78%]
+............................                                   [100%]
+=============================== warnings summary ===============================
+tests/test_flexible_cache_performance.py::FlexibleFacetedCacheTest::test_current_source_identity_change_at_one_binding_is_a_cache_miss
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Valvetrain.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Valvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+131 passed, 1 warning, 51 subtests passed in 42.94s

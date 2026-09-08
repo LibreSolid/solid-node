@@ -12,12 +12,14 @@ import tempfile
 import unittest
 from subprocess import CompletedProcess
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 from solid_node.viewers import browser as browser_module
 from solid_node.viewers.browser import BrowserRenderer, BrowserSnapshotError
 from solid_node.viewers.bundle import has_bundle
 from solid_node.core.builder import prepare_build_dir
+from solid_node.core.pieces import PieceInventory, fact_sidecar
+from solid_node import currency
 from solid_node.manager.snapshot import Snapshot
 from tests.test_build_lock import lock_is_held
 from tests.test_export import Cube
@@ -46,11 +48,14 @@ class BrowserStagingTest(TestCase):
         self.model = self.node.stl_file
         self.renderer = BrowserRenderer()
 
-    def test_stage_hardlinks_every_artifact_and_pins_it(self):
+    def test_stage_copies_every_artifact_from_its_pinned_identity(self):
         staging = self.renderer.stage(self.node, self.build_dir)
         self.addCleanup(self.renderer.remove_stage, staging)
         staged_model = os.path.join(staging, "parts", "cube.stl")
-        self.assertEqual(os.stat(self.model).st_ino, os.stat(staged_model).st_ino)
+        with open(self.model, 'rb') as source, open(staged_model, 'rb') as copy:
+            self.assertEqual(source.read(), copy.read())
+        self.assertNotEqual(os.stat(self.model).st_ino,
+                            os.stat(staged_model).st_ino)
         os.remove(self.model)
         with open(staged_model, "rb") as staged:
             self.assertIn(b"solid cube", staged.read())
@@ -59,6 +64,43 @@ class BrowserStagingTest(TestCase):
         staging = self.renderer.stage(self.node, self.build_dir)
         self.addCleanup(self.renderer.remove_stage, staging)
         self.assertEqual(sorted(os.listdir(staging)), ['parts', 'viewer.json'])
+
+    def test_stage_does_not_create_a_fact_record_in_the_build(self):
+        record = fact_sidecar(self.model)
+        self.assertFalse(os.path.exists(record))
+        staging = self.renderer.stage(self.node, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+        self.assertFalse(os.path.exists(record))
+
+    def test_stage_does_not_restamp_metadata_only_stale_currency(self):
+        """The snapshot read path must not invoke currency's mutating
+        equal-content fallback when source metadata no longer settles."""
+        with PieceInventory() as inventory:
+            inventory.register(self.node, 'parts/cube.stl')
+        fact = fact_sidecar(self.model)
+        currency.record(self.model, 'd' * 64, 'f' * 64)
+        source_record = currency.sidecar(self.model)
+
+        def state(path):
+            stat = os.stat(path)
+            with open(path, 'rb') as stream:
+                return stream.read(), stat.st_mtime_ns, stat.st_ctime_ns
+
+        before = {path: state(path)
+                  for path in (self.model, fact, source_record)}
+        stale_mtime = os.stat(self.model).st_mtime_ns + 1
+        with (patch.object(type(self.node), 'mtime_ns',
+                           new_callable=PropertyMock,
+                           return_value=stale_mtime),
+              patch.object(self.node, '_up_to_date',
+                           side_effect=AssertionError(
+                               'read-only staging called mutating currency'))):
+            staging = self.renderer.stage(self.node, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+
+        self.assertEqual(
+            {path: state(path) for path in (self.model, fact, source_record)},
+            before)
 
     def test_capture_begins_after_the_build_lock_is_released(self):
         node = self.node

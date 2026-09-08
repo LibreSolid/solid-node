@@ -218,6 +218,7 @@ class UpToDateLeafTest(BaseNodeTest):
     def test_jscad_runs_when_the_artifact_is_missing(self):
         node = JsBlock()
         with mock.patch('solid_node.node.adapters.jscad.Popen') as popen:
+            popen.return_value.returncode = 0
             node.as_scad(None)
         popen.assert_called_once()
 

@@ -1,0 +1,10 @@
+Command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_adaptive_broad_phase.py tests/test_broad_phase_culling.py tests/test_assembly_integrity.py tests/test_assembly_supported.py tests/test_exact_geometry.py tests/test_intersection_memo.py tests/test_keyframe_reversal.py -q
+
+Result:
+
+    170 passed, 3 warnings, 38 subtests passed in 4.86s
+
+Warnings were the existing deprecated pairwise-assertion warning and two
+legacy render-time driver-access FutureWarnings in keyframe fixtures.

@@ -620,8 +620,8 @@ class MolejoMeshPathPairTest(BaseNodeTest):
         node = self.assembled(lift=7.25)
 
         with self.faceted(node):
-            with patch.object(node.spring, 'base_mesh',
-                              wraps=node.spring.base_mesh) as evaluated:
+            with patch.object(node.spring, '_snapshot_mesh',
+                              wraps=node.spring._snapshot_mesh) as evaluated:
                 _intersection_stats(node.spring, node.retainer)
                 _intersection_stats(node.spring, node.retainer)
 

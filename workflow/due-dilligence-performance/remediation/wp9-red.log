@@ -1,0 +1,18 @@
+WP9 sparse statics red proof
+source: 4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q tests/test_sparse_statics.py
+
+.....FF                                                        [100%]
+
+SparseAllocationTest.test_one_thousand_bodies_never_attempt_dense_slack_blocks
+  failed at solid_node/test.py:1043: matrix = np.zeros((rows, variables))
+  intercepted allocation: dense coefficient allocation (6000, 0)
+
+SparseAllocationTest.test_production_hands_highs_one_sparse_equality_matrix
+  failed: scipy.sparse.issparse(actual.coefficients) was False
+
+2 failed, 5 passed, 10 subtests passed in 3.43s
+
+This is the actual planning-HEAD production path.  The guard stopped before
+either 6000x6000 dense identity could be allocated, so the red proof did not
+allocate the historical 576,000,000-byte pair of slack identities.

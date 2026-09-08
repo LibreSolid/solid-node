@@ -1,0 +1,41 @@
+WP7 traversal-snapshot naming green proof
+planning source: 4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c
+
+Focused candidate plus publication-lifecycle compatibility fixture:
+  pytest -q tests/test_traversal_naming.py tests/test_builder_lifecycle.py::PublicationOrderingTest
+  16 passed, 10 subtests passed in 1.29s
+
+The six subtests are the 128/512/2,048 widths for each of the serializer and
+driver simulation walks.  The focused suite also runs a 2,048-child tree for
+20 ticks and observes exactly 20 parent index builds, zero calls to the legacy
+per-child scan, and one iteration of an instrumented public sequence per
+parent traversal.
+The four additional subtests prove empty serializer, simulation, STL and
+state-link batches build no unused index.
+
+Combined naming/qualification/state/simulation/declarative/serialization/
+exact-fusion regression:
+  pytest -q tests/test_traversal_naming.py tests/test_node_naming.py \
+    tests/test_driver_ids.py tests/test_state_binding.py \
+    tests/test_simulation_drivers.py tests/test_simulation_enumeration.py \
+    tests/test_simulation_scenario.py tests/test_simulation_sim.py \
+    tests/test_declarative_nodes.py tests/test_declarative_render.py \
+    tests/test_export.py tests/test_document_drivers.py \
+    tests/test_flexible_document.py tests/test_expression_bindings.py \
+    tests/test_expression_corpus.py tests/test_exact_geometry.py \
+    tests/test_connectivity.py tests/test_builder_lifecycle.py
+  396 passed, 20 expected warnings, 50 subtests passed in 13.74s
+
+Context-sample audit, three fresh 2,048-child automatically named machines:
+  env PYTHONPATH=<candidate-worktree> <workspace-venv>/bin/python -c \
+    '<construct Driven; batch link; construct Sim; run 0.2 at dt=0.01>'
+  link samples: 0.001212381, 0.001106918, 0.001133429 s
+  link median: 0.001133429 s
+  20-tick samples: 0.041720395, 0.035981611, 0.036633061 s
+  20-tick median: 0.036633061 s
+  names: parts-0, parts-2047
+
+The planning baseline recorded 0.0558 s automatic linking and 1.180 s for 20
+ticks, versus 0.000179 s and 0.0244 s with explicit names.  Current elapsed
+times are observations from a shared host, not correctness thresholds; the
+operation-count assertions are the structural scaling proof.

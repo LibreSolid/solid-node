@@ -7,18 +7,22 @@ import math
 import os
 import re
 import warnings
-from collections import namedtuple
+from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
+from heapq import heappop, heappush
 import numpy as np
 import trimesh
 from scipy.optimize import linprog
+from scipy.sparse import coo_matrix, eye as sparse_eye
+from scipy.sparse import hstack as sparse_hstack
 from unittest import TestCase as BaseTestCase
 
 from solid_node.mesh_engine import require_mesh_engine
-from solid_node.node.base import (binding_hash, cached_base_mesh,
-                                  _compose_solid_matrix,
+from solid_node._artifact import ArtifactChanged, artifact_cache_key
+from solid_node.node.base import (cached_base_mesh, _compose_solid_matrix,
                                   _compose_world_matrix, _enclosing_solid,
                                   _topmost_rigid_nodes)
+from solid_node.node.flexible import FlexibleNode
 from solid_node.node.operations import Rotation, Translation
 
 
@@ -192,7 +196,7 @@ def _settled(stats):
     return stats
 
 
-# Module-level cache of one manifold3d.Manifold per (stl_file, mtime)
+# Module-level cache of one manifold3d.Manifold per strong artifact identity
 # -- skill-repo docs/performance-improvement.md fix 3. Every
 # trimesh.boolean.intersection call re-checks watertightness of BOTH
 # meshes and re-converts both to Manifold, even when the caller only
@@ -202,41 +206,44 @@ def _settled(stats):
 # with the same stale-entry eviction on rebuild.
 _manifold_cache = {}
 
-# Manifolds for flexible leaves, one per (uniq_id, binding). A flexible
-# leaf has no artifact behind its inherited `stl_file` -- and a stale
-# rigid artifact a predecessor of the node left at that path would
-# answer with the wrong geometry -- so its Manifold is built from
-# `base_mesh()`, the same evaluated-at-this-binding seam `mesh` and
-# `_mesh_in_frame` already read. Keyed by the structural identity plus
-# the binding hash: identical instances at one binding share a build,
-# and rebinding evicts the stale entries the way a rebuilt STL does.
-_flexible_manifold_cache = {}
+# Flexible leaves have no artifact behind their inherited `stl_file` -- and a
+# stale rigid artifact a predecessor left at that path would answer with the
+# wrong geometry.  The flexible cache therefore owns only evaluated mesh,
+# bounds and admitted Manifold entries.  Its keys come from the leaf's full
+# source/spec/binding snapshot, never the shortened display or artifact ids.
+# Access order bounds a long simulation trajectory without changing any
+# Boolean verdict (which remains deliberately uncached for flexible nodes).
+_FLEXIBLE_MANIFOLD_CACHE_LIMIT = 64
+_flexible_manifold_cache = OrderedDict()
 
 # Companion cache holding only what the mesh engine is NOT needed for:
 # a solid's local bounding box, a property of the STL read from the
-# same cached base mesh, so it stays available -- and eager -- for
-# every selected solid whether or not manifold3d is installed. It
+# base mesh under the same strong artifact observation, so it stays available
+# -- and eager -- for every selected solid whether or not manifold3d is
+# installed. It
 # judges nothing: selecting a solid, placing it in the broad phase or
 # comparing it on the exact kernel never asks whether its mesh is one
 # the engine would accept. Only a faceted read asks, below.
 _bounds_cache = {}
 
 
-def _cached_local_bounds(stl_file):
-    """Local bounds for `stl_file`, read once per (stl_file, mtime) from
-    the same trimesh mesh fix 1's cached_base_mesh loads (no extra disk
-    read).
+def _cached_local_bounds(stl_file, observation=None):
+    """Local bounds read once per strong artifact observation.
+
+    The optional observation is propagated into ``cached_base_mesh`` so a
+    replacement between the outer cache lookup and mesh decode cannot store
+    new bounds under an old identity.
 
     This half of the old combined cache deliberately needs no mesh
     engine: it is what lets the spatial index place an exact solid.
     """
-    mtime = os.path.getmtime(stl_file)
-    key = (stl_file, mtime)
+    key = ((os.fspath(stl_file), observation) if observation is not None
+           else artifact_cache_key(stl_file))
     cached = _bounds_cache.get(key)
     if cached is None:
         for stale_key in [k for k in _bounds_cache if k[0] == stl_file]:
             del _bounds_cache[stale_key]
-        cached = cached_base_mesh(stl_file).bounds.copy()
+        cached = cached_base_mesh(stl_file, observation=key[1]).bounds.copy()
         _bounds_cache[key] = cached
     return cached
 
@@ -269,10 +276,13 @@ _FACETED_REASON = ('a part without exact geometry is compared through its '
 
 
 def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
-                     reason=_FACETED_REASON):
-    """(Manifold, local_bounds) for `stl_file`, built once per
-    (stl_file, mtime) from the same trimesh mesh fix 1's
-    cached_base_mesh loads (no extra disk read).
+                     reason=_FACETED_REASON, observation=None):
+    """(Manifold, local_bounds, identity) for one strong observation.
+
+    Bounds, decoded mesh and Manifold all consume the observation that keyed
+    this miss. A supplied observation pins a higher-level placement or verdict
+    to the same geometry; if its cached decode is gone and the path has since
+    changed, rebuilding raises instead of combining identities.
 
     This is the ONE place a Manifold is constructed, and therefore the
     one place the mesh engine is required. It is reached only when a
@@ -280,23 +290,23 @@ def _cached_manifold(stl_file, needed_by=_FACETED_NEEDED_BY,
     a solid was selected -- so an assembly decided entirely by the
     boundary-representation kernel never calls it.
     """
-    mtime = os.path.getmtime(stl_file)
-    key = (stl_file, mtime)
+    key = ((os.fspath(stl_file), observation) if observation is not None
+           else artifact_cache_key(stl_file))
     cached = _manifold_cache.get(key)
     if cached is None:
         Manifold, Mesh = require_mesh_engine(
             needed_by, _engine_reason(reason))
         for stale_key in [k for k in _manifold_cache if k[0] == stl_file]:
             del _manifold_cache[stale_key]
-        bounds = _cached_local_bounds(stl_file)
-        mesh = cached_base_mesh(stl_file)
+        bounds = _cached_local_bounds(stl_file, observation=key[1])
+        mesh = cached_base_mesh(stl_file, observation=key[1])
         manifold = _admitted(Manifold(mesh=Mesh(
             vert_properties=np.asarray(mesh.vertices, np.float32),
             tri_verts=np.asarray(mesh.faces, np.uint32),
         )), mesh, stl_file)
         cached = (manifold, bounds)
         _manifold_cache[key] = cached
-    return cached
+    return cached[0], cached[1], key
 
 
 def _flexible_manifold(node, needed_by=_FACETED_NEEDED_BY,
@@ -305,23 +315,48 @@ def _flexible_manifold(node, needed_by=_FACETED_NEEDED_BY,
     binding, built from ``base_mesh()`` -- never from ``stl_file``,
     which for a flexible leaf names an artifact it does not write.
     """
-    values = node.bound_values()
-    key = (node.uniq_id, binding_hash(values))
-    cached = _flexible_manifold_cache.get(key)
-    if cached is None:
-        Manifold, Mesh = require_mesh_engine(
-            needed_by, _engine_reason(reason))
-        for stale_key in [k for k in _flexible_manifold_cache
-                          if k[0] == node.uniq_id]:
-            del _flexible_manifold_cache[stale_key]
+    # `FlexibleNode.base_mesh()` is the public project seam. Its stock
+    # implementation can use the coherent private snapshot below, but an
+    # override may produce geometry the serialized molejo spec cannot name.
+    # Preserve that override exactly and keep it uncached rather than bless a
+    # cache identity that does not prove the custom mesh current.
+    if getattr(node.base_mesh, '__func__', None) is not FlexibleNode.base_mesh:
         mesh = node.base_mesh()
+        Manifold, Mesh = require_mesh_engine(needed_by, _engine_reason(reason))
         bounds = (mesh.bounds[0].copy(), mesh.bounds[1].copy())
         manifold = _admitted(Manifold(mesh=Mesh(
             vert_properties=np.asarray(mesh.vertices, np.float32),
             tri_verts=np.asarray(mesh.faces, np.uint32),
         )), mesh, f"{node.name} at this binding")
-        cached = (manifold, bounds)
+        return manifold, bounds
+
+    key, rendered, values = node._faceted_cache_snapshot()
+    if key is not None:
+        try:
+            cached = _flexible_manifold_cache.pop(key)
+        except KeyError:
+            pass
+        else:
+            _flexible_manifold_cache[key] = cached
+            return cached
+
+    Manifold, Mesh = require_mesh_engine(needed_by, _engine_reason(reason))
+    # Deliberately bypass the public `base_mesh()` seam: its public contract
+    # is zero-argument and permits subclasses to override it.  The private
+    # snapshot above already supplied the one rendered shape whose serialized
+    # spec keyed this miss, so calling `base_mesh()` here would render a
+    # second, potentially different shape.
+    mesh = node._snapshot_mesh(rendered, values)
+    bounds = (mesh.bounds[0].copy(), mesh.bounds[1].copy())
+    manifold = _admitted(Manifold(mesh=Mesh(
+        vert_properties=np.asarray(mesh.vertices, np.float32),
+        tri_verts=np.asarray(mesh.faces, np.uint32),
+    )), mesh, f"{node.name} at this binding")
+    cached = (manifold, bounds)
+    if key is not None:
         _flexible_manifold_cache[key] = cached
+        while len(_flexible_manifold_cache) > _FLEXIBLE_MANIFOLD_CACHE_LIMIT:
+            _flexible_manifold_cache.popitem(last=False)
     return cached
 
 
@@ -337,7 +372,14 @@ def _body_count(mesh):
 
 
 def _fast_geometry(node, compose_matrix=_compose_world_matrix):
-    """(Manifold, local_bounds, world_matrix) for `node` if it exposes
+    """(Manifold, local_bounds, world_matrix, verdict_identity) for `node`.
+
+    A rigid verdict identity is the exact observation that supplied its
+    Manifold and bounds. Flexible geometry has no artifact identity and is
+    deliberately returned with ``None``, even if a stale file happens to
+    exist at its nominal ``stl_file`` path.
+
+    Returns geometry if `node` exposes
     the attributes the fast path needs (docs/performance-improvement.md
     fixes 2+3) -- an .stl_file readable through the Manifold cache, so
     its cached Manifold and local .bounds come for free. Returns None
@@ -346,12 +388,14 @@ def _fast_geometry(node, compose_matrix=_compose_world_matrix):
     plain boolean over `.mesh` with no caching or culling."""
     if getattr(node, 'flexible', False):
         manifold, bounds = _flexible_manifold(node)
-        return manifold, bounds, compose_matrix(node)
+        return manifold, bounds, compose_matrix(node), None
     stl_file = getattr(node, 'stl_file', None)
     if stl_file is None:
         return None
-    manifold, bounds = _cached_manifold(stl_file)
-    return manifold, bounds, compose_matrix(node)
+    manifold, bounds, identity = _cached_manifold(stl_file)
+    verdict_identity = (None if identity is None else _geometry_identity(
+        stl_file, observation=identity[1]))
+    return manifold, bounds, compose_matrix(node), verdict_identity
 
 
 def _world_bounds(local_bounds, matrix):
@@ -377,29 +421,93 @@ def _boxes_disjoint(box1, box2):
     return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
 
 
-def _bounds_candidates(bounds):
-    """Yield index pairs whose conservative world AABBs overlap.
+# The adaptive sweep buffers only sparse candidates so it can restore the
+# existing X-sweep diagnostic order. Dense candidates stream that X sweep
+# directly instead of retaining a quadratic pair list. This is an internal
+# tuning value, not a public assertion-control knob.
+_ADAPTIVE_CANDIDATE_BUFFER_LIMIT = 8192
 
-    Sweep along X, retaining only intervals that can still reach the current
-    box, then filter that active set on all three axes. The yielded set
-    contains
-    only genuine AABB overlaps and never materializes the N*(N-1)/2 pair set.
-    As with every broad phase the dense worst case remains quadratic, but a
-    sparse assembly keeps only its local neighborhood active.
+
+def _axis_order_and_pressure(bounds, axis):
+    """Return one deterministic interval order and its inclusive pressure.
+
+    The endpoint heap counts active intervals without materializing their
+    pairs. Equal endpoints remain active (only a strictly earlier maximum is
+    popped), preserving touching/degenerate interval semantics in bounded
+    ``O(N log N)`` work.
     """
     order = sorted(range(len(bounds)),
-                   key=lambda index: (bounds[index][0][0],
-                                      bounds[index][1][0], index))
+                   key=lambda index: (bounds[index][0][axis],
+                                      bounds[index][1][axis], index))
+    active_endpoints = []
+    pressure = 0
+    for current in order:
+        current_minimum = bounds[current][0][axis]
+        while (active_endpoints
+               and active_endpoints[0][0] < current_minimum):
+            heappop(active_endpoints)
+        pressure += len(active_endpoints)
+        heappush(active_endpoints, (bounds[current][1][axis], current))
+    return order, pressure
+
+
+def _sweep_candidates(bounds, axis, order):
+    """Yield full-AABB overlaps discovered by one inclusive axis sweep."""
     active = []
     for current in order:
-        current_min_x = bounds[current][0][0]
+        current_minimum = bounds[current][0][axis]
         active = [index for index in active
-                  if bounds[index][1][0] >= current_min_x]
+                  if bounds[index][1][axis] >= current_minimum]
         for candidate in active:
             if _boxes_disjoint(bounds[candidate], bounds[current]):
                 continue
             yield (min(candidate, current), max(candidate, current))
         active.append(current)
+
+
+def _bounds_candidates(bounds):
+    """Yield conservative-AABB overlaps in the legacy X-sweep order.
+
+    X pressure is always measured first. A zero value is the global minimum,
+    so the old X sweep immediately proves there are no candidates without
+    paying two more sorts. Otherwise the least-pressure X/Y/Z interval sweep
+    discovers candidates, and a bounded buffer restores exactly the order the
+    old X sweep emitted. If that sparse buffer fills, its partial result is
+    discarded and the old X sweep streams the dense case without retaining
+    quadratic pair storage.
+    """
+    x_order, x_pressure = _axis_order_and_pressure(bounds, 0)
+    if x_pressure == 0:
+        # No two intervals meet on X, so no full AABB can overlap.  Zero is
+        # the global pressure minimum; avoid both Y/Z estimates and a second
+        # redundant X traversal.
+        return
+
+    y_order, y_pressure = _axis_order_and_pressure(bounds, 1)
+    z_order, z_pressure = _axis_order_and_pressure(bounds, 2)
+    selected_axis, selected_order = min(
+        ((0, x_order, x_pressure), (1, y_order, y_pressure),
+         (2, z_order, z_pressure)),
+        key=lambda item: (item[2], item[0]))[:2]
+    if selected_axis == 0:
+        yield from _sweep_candidates(bounds, 0, x_order)
+        return
+
+    x_rank = {index: rank for rank, index in enumerate(x_order)}
+    buffered = []
+    for pair in _sweep_candidates(bounds, selected_axis, selected_order):
+        if len(buffered) + 1 >= _ADAPTIVE_CANDIDATE_BUFFER_LIMIT:
+            # Do not retain even the partial sparse result while the dense
+            # fallback streams: the X sweep below is the sole output path.
+            buffered.clear()
+            yield from _sweep_candidates(bounds, 0, x_order)
+            return
+        first, second = pair
+        first_rank, second_rank = x_rank[first], x_rank[second]
+        buffered.append(((max(first_rank, second_rank),
+                          min(first_rank, second_rank)), pair))
+    for _, pair in sorted(buffered):
+        yield pair
 
 
 class _DeferredManifold:
@@ -411,19 +519,21 @@ class _DeferredManifold:
     conditional mesh-engine contract: a pair the boundary-representation
     kernel decides never calls ``placed()``, so it never constructs a
     Manifold and never requires manifold3d. Construction still routes
-    through ``_cached_manifold``, so the one-build-per-(stl_file, mtime)
+    through ``_cached_manifold``, so the one-build-per-strong-observation
     guarantee is unchanged however many placements share a file.
     """
 
-    __slots__ = ('stl_file', 'matrix')
+    __slots__ = ('stl_file', 'matrix', 'observation')
 
-    def __init__(self, stl_file, matrix):
+    def __init__(self, stl_file, matrix, observation):
         self.stl_file = stl_file
         self.matrix = matrix
+        self.observation = observation
 
     def placed(self, needed_by, reason):
         """The lazily transformed Manifold, requiring the mesh engine."""
-        manifold, _ = _cached_manifold(self.stl_file, needed_by, reason)
+        manifold, _, _ = _cached_manifold(
+            self.stl_file, needed_by, reason, self.observation)
         return manifold.transform(self.matrix[:3, :4])
 
 
@@ -441,7 +551,7 @@ def _placed_manifold(record, needed_by, reason):
 
 
 def _solid_geometry(solid):
-    """``(stl_file, local bounds, exact shape or None)`` for one
+    """``(stl_file, local bounds, exact shape or None, identity)`` for one
     selected solid: everything a placement needs that does not depend on
     WHERE the solid is being placed. Read once per solid so an assertion
     placing the same solid twice (see ``_dropped_assembly_solids``) pays
@@ -453,12 +563,17 @@ def _solid_geometry(solid):
     the candidate pairs they emit -- do not depend on whether a solid
     carries exact geometry.
     """
-    local_bounds = _cached_local_bounds(solid.stl_file)
+    identity = artifact_cache_key(solid.stl_file)
+    local_bounds = _cached_local_bounds(
+        solid.stl_file, observation=identity[1])
+    identity = _geometry_identity(
+        solid.stl_file, observation=identity[1])
     shape = solid.shape() if _routes_exact(solid) else None
-    return solid.stl_file, local_bounds, shape
+    return solid.stl_file, local_bounds, shape, identity
 
 
-def _place_solid(solid, stl_file, local_bounds, matrix, shape):
+def _place_solid(solid, stl_file, local_bounds, matrix, shape,
+                 faceted_identity):
     """One placed-solid record: ``(solid, deferred_placed_manifold,
     world_bounds, placed_exact_shape_or_None, faceted_identity,
     exact_identity, matrix)``.
@@ -469,10 +584,11 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape):
     record was placed by, so a pair's RELATIVE placement can be formed
     without re-deriving it from the node tree.
     """
-    return (solid, _DeferredManifold(stl_file, matrix),
+    return (solid, _DeferredManifold(
+                stl_file, matrix, faceted_identity[1]),
             _world_bounds(local_bounds, matrix),
             None if shape is None else placed_shape(shape, matrix),
-            _geometry_identity(stl_file),
+            faceted_identity,
             None if shape is None else shape_identity(shape),
             matrix)
 
@@ -488,9 +604,10 @@ def _placed_assembly_solids(node):
     """
     placed = []
     for solid in _topmost_rigid_nodes(node):
-        stl_file, local_bounds, shape = _solid_geometry(solid)
+        stl_file, local_bounds, shape, identity = _solid_geometry(solid)
         placed.append(_place_solid(solid, stl_file, local_bounds,
-                                   _compose_world_matrix(solid), shape))
+                                   _compose_world_matrix(solid), shape,
+                                   identity))
     return placed
 
 
@@ -514,13 +631,14 @@ def _dropped_assembly_solids(solids, offset):
     translation = _translation_matrix(offset)
     resting, dropped = [], []
     for solid in solids:
-        stl_file, local_bounds, shape = _solid_geometry(solid)
+        stl_file, local_bounds, shape, identity = _solid_geometry(solid)
         matrix = _compose_world_matrix(solid)
         resting.append(
-            _place_solid(solid, stl_file, local_bounds, matrix, shape))
+            _place_solid(solid, stl_file, local_bounds, matrix, shape,
+                         identity))
         dropped.append(
             _place_solid(solid, stl_file, local_bounds,
-                         translation @ matrix, shape))
+                         translation @ matrix, shape, identity))
     return resting, dropped
 
 
@@ -950,7 +1068,13 @@ def _unbalanced_bodies(bodies, contacts, declared, unit_gravity):
     row_of = {index: 6 * position for position, index in enumerate(free)}
     rows = 6 * len(free)
     variables = len(contacts) + 6 * len(declared)
-    matrix = np.zeros((rows, variables))
+    coefficients = {}
+
+    def accumulate(row, column, value):
+        """Add one coefficient in the dense formulation's exact order."""
+        cell = (row, column)
+        coefficients[cell] = coefficients.get(cell, 0.0) + value
+
     target = np.zeros(rows)
     tolerance = np.zeros(rows)
     for position, index in enumerate(free):
@@ -967,9 +1091,11 @@ def _unbalanced_bodies(bodies, contacts, declared, unit_gravity):
             if row is None:
                 continue
             force = sign * contact.normal
-            matrix[row:row + 3, column] += force
-            matrix[row + 3:row + 6, column] += np.cross(
-                contact.point - bodies[index].center, force)
+            torque = np.cross(contact.point - bodies[index].center, force)
+            for offset in range(3):
+                accumulate(row + offset, column, force[offset])
+            for offset in range(3):
+                accumulate(row + 3 + offset, column, torque[offset])
     for edge, (supported, supporter) in enumerate(declared):
         first = len(contacts) + 6 * edge
         for index, sign in ((supported, 1.0), (supporter, -1.0)):
@@ -980,14 +1106,28 @@ def _unbalanced_bodies(bodies, contacts, declared, unit_gravity):
             for axis in range(3):
                 unit = np.zeros(3)
                 unit[axis] = 1.0
-                matrix[row:row + 3, first + axis] += sign * unit
-                matrix[row + 3:row + 6, first + axis] += sign * np.cross(
-                    -center, unit)
-                matrix[row + 3:row + 6, first + 3 + axis] += sign * unit
-    identity = np.eye(rows)
+                force = sign * unit
+                torque = sign * np.cross(-center, unit)
+                for offset in range(3):
+                    accumulate(row + offset, first + axis, force[offset])
+                for offset in range(3):
+                    accumulate(row + 3 + offset, first + axis,
+                               torque[offset])
+                for offset in range(3):
+                    accumulate(row + 3 + offset, first + 3 + axis,
+                               force[offset])
+    entries = sorted((cell, value) for cell, value in coefficients.items()
+                     if value != 0.0)
+    matrix = coo_matrix(
+        ([value for _, value in entries],
+         ([row for (row, _), _ in entries],
+          [column for (_, column), _ in entries])),
+        shape=(rows, variables)).tocsr()
+    identity = sparse_eye(rows, format='csr')
     solution = linprog(
         np.concatenate([np.zeros(variables), 1 / tolerance, 1 / tolerance]),
-        A_eq=np.hstack([matrix, identity, -identity]), b_eq=target,
+        A_eq=sparse_hstack([matrix, identity, -identity], format='csr'),
+        b_eq=target,
         bounds=([(0.0, None)] * len(contacts)
                 + [(None, None)] * (6 * len(declared))
                 + [(0.0, None)] * (2 * rows)),
@@ -1031,24 +1171,24 @@ _VERDICT_CACHE_LIMIT = 8192
 
 _verdict_cache = {}
 
-# The mtime last seen for each geometry file, so a rebuild can drop the
-# entries derived from the old content rather than leave them unreachable
-# but resident -- the same eviction discipline the mesh, Manifold and
-# placement caches follow.
-_verdict_mtimes = {}
+# The strong observation last seen for each geometry file, so a rebuild can
+# drop entries derived from old content rather than leave them unreachable but
+# resident -- the same eviction discipline the mesh and Manifold caches follow.
+_verdict_observations = {}
 
 
-def _geometry_identity(path):
-    """``(path, mtime)`` for a geometry file, or None if it has none."""
+def _geometry_identity(path, observation=None):
+    """Strong identity for a geometry file, observing it only if needed."""
     if not path:
         return None
     try:
-        mtime = os.path.getmtime(path)
-    except OSError:
+        identity = ((os.fspath(path), observation) if observation is not None
+                    else artifact_cache_key(path))
+    except (OSError, ArtifactChanged):
         return None
-    identity = (path, mtime)
-    if _verdict_mtimes.get(path) != mtime:
-        _verdict_mtimes[path] = mtime
+    observation = identity[1]
+    if _verdict_observations.get(path) != observation:
+        _verdict_observations[path] = observation
         for key in [key for key in _verdict_cache
                     if key[0][0] == path or key[1][0] == path]:
             del _verdict_cache[key]
@@ -1191,13 +1331,10 @@ def _engine_intersection_stats(node1, node2, compose_matrix):
     fast1 = _fast_geometry(node1, compose_matrix)
     fast2 = _fast_geometry(node2, compose_matrix)
     if fast1 is not None and fast2 is not None:
-        manifold1, bounds1, matrix1 = fast1
-        manifold2, bounds2, matrix2 = fast2
+        manifold1, bounds1, matrix1, identity1 = fast1
+        manifold2, bounds2, matrix2, identity2 = fast2
         return _memoized(
-            _verdict_key(_geometry_identity(getattr(node1, 'stl_file', None)),
-                         matrix1,
-                         _geometry_identity(getattr(node2, 'stl_file', None)),
-                         matrix2, 'faceted'),
+            _verdict_key(identity1, matrix1, identity2, matrix2, 'faceted'),
             lambda: _faceted_verdict(manifold1, bounds1, matrix1,
                                      manifold2, bounds2, matrix2))
     intersection = trimesh.boolean.intersection([node1.mesh, node2.mesh])

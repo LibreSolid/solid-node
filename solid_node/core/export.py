@@ -22,6 +22,7 @@ import logging
 import os
 import shutil
 
+from solid_node._artifact import ArtifactChanged
 from .serializer import (
     DOCUMENT_FORMAT, DOCUMENT_VERSION, animation_block, bind_document,
     document_version, drivers_table, instructions_table, serialize_node,
@@ -97,49 +98,53 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
     with project_build_lock():
         node.build_stls()
 
-    # Maps each rigid node's stl_file to its manifest-relative path
-    models = {}
-    inventory = PieceInventory()
-    with symbolic_document(node) as (declarations, instructions):
-        root = serialize_node(
-            node,
-            lambda rigid_node: models.setdefault(
-                rigid_node.stl_file, _model_path(rigid_node),
-            ),
-            inventory.register,
-        )
-        drivers = drivers_table(declarations)
-        events = instructions_table(instructions)
+    # An external atomic writer is not required to take the project lock.
+    # Retry a changed path from a wholly fresh inventory so copied bytes and
+    # facts can never come from different artifact identities.
+    for attempt in range(3):
+        try:
+            with PieceInventory() as inventory:
+                # Maps each rigid node's stl_file to its manifest-relative path
+                models = {}
+                with symbolic_document(node) as (declarations, instructions):
+                    root = serialize_node(
+                        node,
+                        lambda rigid_node: models.setdefault(
+                            rigid_node.stl_file, _model_path(rigid_node),
+                        ),
+                        inventory.register,
+                    )
+                    drivers = drivers_table(declarations)
+                    events = instructions_table(instructions)
 
-    bindings = bind_document(root, drivers.keys())
+                bindings = bind_document(root, drivers.keys())
+                manifest = {
+                    'format': MANIFEST_FORMAT,
+                    'version': document_version(root, bindings),
+                    'animation': animation_block(node, fps, frames),
+                    'drivers': drivers,
+                    'instructions': events,
+                }
+                if bindings:
+                    manifest['bindings'] = bindings
+                manifest['root'] = root
+                manifest['pieces'] = inventory.pieces()
 
-    manifest = {
-        'format': MANIFEST_FORMAT,
-        'version': document_version(root, bindings),
-        'animation': animation_block(node, fps, frames),
-        'drivers': drivers,
-        'instructions': events,
-    }
-    if bindings:
-        # Beside `drivers` and `instructions`, ahead of `root`: the shape
-        # design.md D3 shows (ADR-080). Omitted entirely, not `[]`, when
-        # nothing repeats, so a document with nothing to share is
-        # byte-identical to the one published before bindings existed.
-        manifest['bindings'] = bindings
-    manifest['root'] = root
-    manifest['pieces'] = inventory.pieces()
+                os.makedirs(output_dir, exist_ok=True)
+                for stl_file, model_path in models.items():
+                    target = os.path.join(output_dir, model_path)
+                    inventory.copy_artifact(stl_file, target)
+                    logger.info(f'{stl_file} -> {target}')
 
-    os.makedirs(output_dir, exist_ok=True)
-    for stl_file, model_path in models.items():
-        target = os.path.join(output_dir, model_path)
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        shutil.copy2(stl_file, target)
-        logger.info(f'{stl_file} -> {target}')
-
-    manifest_path = os.path.join(output_dir, 'manifest.json')
-    with open(manifest_path, 'w') as fh:
-        json.dump(manifest, fh, indent=2)
-    logger.info(f'{manifest_path} written')
+                inventory.validate()
+                manifest_path = os.path.join(output_dir, 'manifest.json')
+                with open(manifest_path, 'w') as fh:
+                    json.dump(manifest, fh, indent=2)
+                logger.info(f'{manifest_path} written')
+            break
+        except ArtifactChanged:
+            if attempt == 2:
+                raise
 
     if widget:
         _copy_widget(output_dir)

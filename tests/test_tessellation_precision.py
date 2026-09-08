@@ -32,9 +32,10 @@ import cadquery as cq
 import trimesh
 
 from solid_node.node import CadQueryNode, FusionNode
-from solid_node.exact import _shape_cache, deflections, write_stl
+from solid_node.exact import deflections, write_stl
 import solid_node.test as test_module
 
+from tests.exact_test_support import clear_exact_shape_caches
 from tests.test_content_verified_currency import (
     DIMENSIONS, TRACE, ScratchProjectTest)
 
@@ -148,7 +149,7 @@ class ExactDeclarationTest(TestCase):
         self.addCleanup(self.directory.cleanup)
         self.old_build_dir = os.environ.get('SOLID_BUILD_DIR')
         os.environ['SOLID_BUILD_DIR'] = self.directory.name
-        _shape_cache.clear()
+        clear_exact_shape_caches()
 
     def tearDown(self):
         if self.old_build_dir is None:
@@ -463,7 +464,7 @@ class FacetedPrecisionTest(TestCase):
         self.addCleanup(self.directory.cleanup)
         self.old_build_dir = os.environ.get('SOLID_BUILD_DIR')
         os.environ['SOLID_BUILD_DIR'] = self.directory.name
-        _shape_cache.clear()
+        clear_exact_shape_caches()
         self.addCleanup(test_module.set_comparison_policy, None)
         test_module._verdict_cache.clear()
 

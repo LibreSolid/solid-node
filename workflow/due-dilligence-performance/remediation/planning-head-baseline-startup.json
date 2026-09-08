@@ -1,0 +1,985 @@
+{
+  "evidence_schema": "solid-node-performance-remediation-v1",
+  "provenance": {
+    "label": "planning-head-baseline",
+    "section": "startup",
+    "command": {
+      "argv": [
+        "/home/asa/devel/libresolid-studio/.venv/bin/python",
+        "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/workflow/due-dilligence-performance/remediation/run_performance_probe.py",
+        "--all",
+        "--label",
+        "planning-head-baseline",
+        "--catalogue",
+        "/home/asa/devel/libresolid-studio/projects"
+      ],
+      "shell_equivalent": "/home/asa/devel/libresolid-studio/.venv/bin/python /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/workflow/due-dilligence-performance/remediation/run_performance_probe.py --all --label planning-head-baseline --catalogue /home/asa/devel/libresolid-studio/projects",
+      "cwd": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+      "required_environment": {
+        "PYTHONPATH": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      }
+    },
+    "framework": {
+      "repository": "/home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis",
+      "commit": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c",
+      "branch": "performance-analysis",
+      "solid_node_tree": "d1481386a91cc1fe5aa40a525c8f1f217fb922ad",
+      "tests_tree": "7c970429e4479ddc68155f68e3fd5ce8436f3415",
+      "production_status": ""
+    },
+    "probe": {
+      "path": "workflow/due-dilligence-performance/performance/probe.py",
+      "sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+      "wrapper_path": "workflow/due-dilligence-performance/remediation/run_performance_probe.py",
+      "wrapper_sha256": "6a30224c0dabbfb87fa57832d2146cc473e3948fb69d15bc1cc62df006219d16",
+      "fixture_input_sha256": {
+        "bench/__init__.py": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "bench/exact.py": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "bench/solid.py": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "pyproject.toml": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1"
+      }
+    },
+    "historical_inventory_before": {
+      "inventory": "workflow/due-dilligence-performance/remediation/historical.sha256",
+      "inventory_sha256": "15a3a0ee77a30442768920bc788c61cfb09b1b9fc4ef1f4c8edf2f916e51b261",
+      "entry_count": 18,
+      "all_match": true,
+      "entries": [
+        {
+          "path": "workflow/due-dilligence-performance/PERFORMANCE.md",
+          "expected_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+          "actual_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/README.md",
+          "expected_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+          "actual_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/algorithms.json",
+          "expected_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+          "actual_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/batch.json",
+          "expected_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+          "actual_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/build.json",
+          "expected_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+          "actual_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/empirical-initial.json",
+          "expected_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+          "actual_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/empirical.json",
+          "expected_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+          "actual_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/__init__.py",
+          "expected_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+          "actual_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/exact.py",
+          "expected_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+          "actual_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/bench/solid.py",
+          "expected_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+          "actual_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/fixtures/pyproject.toml",
+          "expected_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+          "actual_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/memory.json",
+          "expected_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+          "actual_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/probe.py",
+          "expected_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+          "actual_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/project-inputs.patch",
+          "expected_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+          "actual_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/projects.json",
+          "expected_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+          "actual_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/startup.json",
+          "expected_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+          "actual_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/validation.xml",
+          "expected_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+          "actual_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+          "matches": true
+        },
+        {
+          "path": "workflow/due-dilligence-performance/performance/verify_evidence.py",
+          "expected_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+          "actual_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+          "matches": true
+        }
+      ]
+    }
+  },
+  "environment": {
+    "utc": "2026-09-07T18:49:37Z",
+    "framework_commit": "4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "executable": "/home/asa/devel/libresolid-studio/.venv/bin/python",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "packages": {
+      "solid-node": "0.6.0",
+      "cadquery": "2.7.0",
+      "cadquery-ocp": "7.8.1.1.post1",
+      "build123d": "0.10.0",
+      "trimesh": "4.4.9",
+      "manifold3d": "3.5.2",
+      "molejo": "0.2.0",
+      "numpy": "2.2.6",
+      "scipy": "1.18.1"
+    },
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "load_average": [
+      9.29443359375,
+      6.65576171875,
+      5.4111328125
+    ],
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "thread_environment": {
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null
+    },
+    "openscad": "OpenSCAD version 2021.01",
+    "jscad_available": false
+  },
+  "section": "startup",
+  "measurements": {
+    "python_control": {
+      "samples_s": [
+        0.10881114700168837,
+        0.08667058699938934,
+        0.10899065899138805,
+        0.09445058599521872,
+        0.0986458680126816
+      ],
+      "median_s": 0.0986458680126816,
+      "min_s": 0.08667058699938934,
+      "max_s": 0.10899065899138805,
+      "runs": [
+        {
+          "elapsed_s": 1.6210993635468185e-05,
+          "peak_self_rss_kib": 26096,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.10881114700168837,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.557999348733574e-05,
+          "peak_self_rss_kib": 26096,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.08667058699938934,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.5408993931487203e-05,
+          "peak_self_rss_kib": 26096,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.10899065899138805,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.5169993275776505e-05,
+          "peak_self_rss_kib": 26096,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.09445058599521872,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 1.9437007722444832e-05,
+          "peak_self_rss_kib": 26096,
+          "peak_child_rss_kib": 0,
+          "module_count": 181,
+          "heavy_imports": [],
+          "wall_s": 0.0986458680126816,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "cli_import": {
+      "samples_s": [
+        0.09620615300082136,
+        0.1102365950064268,
+        0.10382844299601857,
+        0.106700020012795,
+        0.09448934000101872
+      ],
+      "median_s": 0.10382844299601857,
+      "min_s": 0.09448934000101872,
+      "max_s": 0.1102365950064268,
+      "runs": [
+        {
+          "elapsed_s": 0.0019809180084848776,
+          "peak_self_rss_kib": 26104,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.09620615300082136,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.002082552993670106,
+          "peak_self_rss_kib": 26108,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.1102365950064268,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.0017945830040844157,
+          "peak_self_rss_kib": 26236,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10382844299601857,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.00197325499902945,
+          "peak_self_rss_kib": 26108,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.106700020012795,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.0017037299985531718,
+          "peak_self_rss_kib": 26228,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.09448934000101872,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "parameters_import": {
+      "samples_s": [
+        0.10316278299433179,
+        0.10817050500190817,
+        0.10841866899863817,
+        0.12213403898931574,
+        0.09760576400731225
+      ],
+      "median_s": 0.10817050500190817,
+      "min_s": 0.09760576400731225,
+      "max_s": 0.12213403898931574,
+      "runs": [
+        {
+          "elapsed_s": 0.004824142000870779,
+          "peak_self_rss_kib": 27388,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10316278299433179,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.005754295008955523,
+          "peak_self_rss_kib": 27384,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10817050500190817,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004917148995446041,
+          "peak_self_rss_kib": 27512,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.10841866899863817,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.006048096998711117,
+          "peak_self_rss_kib": 27512,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.12213403898931574,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.004654999997001141,
+          "peak_self_rss_kib": 27280,
+          "peak_child_rss_kib": 0,
+          "module_count": 183,
+          "heavy_imports": [],
+          "wall_s": 0.09760576400731225,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "Solid2Node_import": {
+      "samples_s": [
+        0.28727169400372077,
+        0.27380169100069907,
+        0.25694213299721014,
+        0.23175387000082992,
+        0.3040799239970511
+      ],
+      "median_s": 0.27380169100069907,
+      "min_s": 0.23175387000082992,
+      "max_s": 0.3040799239970511,
+      "runs": [
+        {
+          "elapsed_s": 0.16687958799593616,
+          "peak_self_rss_kib": 41464,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.28727169400372077,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.15125855199585203,
+          "peak_self_rss_kib": 41464,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.27380169100069907,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.14826420100871474,
+          "peak_self_rss_kib": 41592,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.25694213299721014,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.12550291599472985,
+          "peak_self_rss_kib": 41464,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.23175387000082992,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.14838308599428274,
+          "peak_self_rss_kib": 41332,
+          "peak_child_rss_kib": 0,
+          "module_count": 312,
+          "heavy_imports": [],
+          "wall_s": 0.3040799239970511,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "CadQueryNode_import": {
+      "samples_s": [
+        3.9592707300034817,
+        3.926203925992013,
+        3.670243222004501,
+        3.793479740998009,
+        3.3426252670033136
+      ],
+      "median_s": 3.793479740998009,
+      "min_s": 3.3426252670033136,
+      "max_s": 3.9592707300034817,
+      "runs": [
+        {
+          "elapsed_s": 3.146830345998751,
+          "peak_self_rss_kib": 425220,
+          "peak_child_rss_kib": 0,
+          "module_count": 2073,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.9592707300034817,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 3.2692639640008565,
+          "peak_self_rss_kib": 509496,
+          "peak_child_rss_kib": 0,
+          "module_count": 2073,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.926203925992013,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.986130952005624,
+          "peak_self_rss_kib": 511176,
+          "peak_child_rss_kib": 0,
+          "module_count": 2073,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.670243222004501,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 3.097656655998435,
+          "peak_self_rss_kib": 511036,
+          "peak_child_rss_kib": 0,
+          "module_count": 2073,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.793479740998009,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 2.7463120369939134,
+          "peak_self_rss_kib": 510968,
+          "peak_child_rss_kib": 0,
+          "module_count": 2073,
+          "heavy_imports": [
+            "trimesh",
+            "cadquery",
+            "OCP"
+          ],
+          "wall_s": 3.3426252670033136,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "test_import": {
+      "samples_s": [
+        1.0239565989904804,
+        1.0241712190036196,
+        0.9961879030015552,
+        0.9577160709886812,
+        1.1366840150003554
+      ],
+      "median_s": 1.0239565989904804,
+      "min_s": 0.9577160709886812,
+      "max_s": 1.1366840150003554,
+      "runs": [
+        {
+          "elapsed_s": 0.8573169809969841,
+          "peak_self_rss_kib": 106872,
+          "peak_child_rss_kib": 0,
+          "module_count": 1215,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 1.0239565989904804,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.8443532230012352,
+          "peak_self_rss_kib": 107000,
+          "peak_child_rss_kib": 0,
+          "module_count": 1215,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 1.0241712190036196,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.8125588779948885,
+          "peak_self_rss_kib": 106872,
+          "peak_child_rss_kib": 0,
+          "module_count": 1215,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.9961879030015552,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.7961428650014568,
+          "peak_self_rss_kib": 106872,
+          "peak_child_rss_kib": 0,
+          "module_count": 1215,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 0.9577160709886812,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "elapsed_s": 0.9153235319972737,
+          "peak_self_rss_kib": 107004,
+          "peak_child_rss_kib": 0,
+          "module_count": 1215,
+          "heavy_imports": [
+            "trimesh",
+            "solid_node.test"
+          ],
+          "wall_s": 1.1366840150003554,
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        }
+      ]
+    },
+    "viewer_command": {
+      "samples_s": [
+        0.14485284200054593,
+        0.14522519300226122,
+        0.15564321400597692,
+        0.14754552800150122,
+        0.13413898699218407
+      ],
+      "median_s": 0.14522519300226122,
+      "min_s": 0.13413898699218407,
+      "max_s": 0.15564321400597692,
+      "runs": [
+        {
+          "elapsed_s": 0.04985612600285094,
+          "peak_self_rss_kib": 26368,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.14485284200054593,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 7, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.04099569500249345,
+          "peak_self_rss_kib": 26368,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.14522519300226122,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 7, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.04799145000288263,
+          "peak_self_rss_kib": 26364,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.15564321400597692,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 7, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.04597655599354766,
+          "peak_self_rss_kib": 26496,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.14754552800150122,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 7, \"version\": \"0.1.0\"}"
+        },
+        {
+          "elapsed_s": 0.0293493109929841,
+          "peak_self_rss_kib": 26368,
+          "peak_child_rss_kib": 0,
+          "module_count": 191,
+          "heavy_imports": [],
+          "wall_s": 0.13413898699218407,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"path\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/dist/solid-widget.js\", \"index\": \"/home/asa/devel/libresolid-studio/solid-node-viewer/solid_node_viewer/widget/index.html\", \"apiVersion\": 7, \"version\": \"0.1.0\"}"
+        }
+      ]
+    },
+    "models_command": {
+      "samples_s": [
+        0.3029481150006177,
+        0.26807727199047804,
+        0.28877637299592607,
+        0.31062452599871904,
+        0.2769682299986016
+      ],
+      "median_s": 0.28877637299592607,
+      "min_s": 0.26807727199047804,
+      "max_s": 0.31062452599871904,
+      "runs": [
+        {
+          "elapsed_s": 0.1960427419980988,
+          "peak_self_rss_kib": 45056,
+          "peak_child_rss_kib": 0,
+          "module_count": 379,
+          "heavy_imports": [],
+          "wall_s": 0.3029481150006177,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture\", \"build_root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.16141509400040377,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 379,
+          "heavy_imports": [],
+          "wall_s": 0.26807727199047804,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture\", \"build_root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.1854046410007868,
+          "peak_self_rss_kib": 45056,
+          "peak_child_rss_kib": 0,
+          "module_count": 379,
+          "heavy_imports": [],
+          "wall_s": 0.28877637299592607,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture\", \"build_root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.19411893301003147,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 379,
+          "heavy_imports": [],
+          "wall_s": 0.31062452599871904,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture\", \"build_root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        },
+        {
+          "elapsed_s": 0.17088415600301232,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 379,
+          "heavy_imports": [],
+          "wall_s": 0.2769682299986016,
+          "status": 0,
+          "stderr": "",
+          "stdout": "{\"root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture\", \"build_root\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"default\": null, \"models\": [{\"name\": null, \"reference\": \"bench.solid:Machine\", \"default\": true, \"build_dir\": \"/tmp/solid-remediation-planning-head-baseline-startup-ckr5od5i/fixture/_build\", \"state\": \"unbuilt\"}]}"
+        }
+      ]
+    },
+    "build_help": {
+      "samples_s": [
+        0.2720101330050966,
+        0.28642478700203355,
+        0.2899281889986014,
+        0.2918108209996717,
+        0.27644081399193965
+      ],
+      "median_s": 0.28642478700203355,
+      "min_s": 0.2720101330050966,
+      "max_s": 0.2918108209996717,
+      "runs": [
+        {
+          "elapsed_s": 0.1796000789909158,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 385,
+          "heavy_imports": [],
+          "wall_s": 0.2720101330050966,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.18680118401243817,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 385,
+          "heavy_imports": [],
+          "wall_s": 0.28642478700203355,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.18271509199985303,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 385,
+          "heavy_imports": [],
+          "wall_s": 0.2899281889986014,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.19001223899249453,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 385,
+          "heavy_imports": [],
+          "wall_s": 0.2918108209996717,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        },
+        {
+          "elapsed_s": 0.17891635600244626,
+          "peak_self_rss_kib": 44924,
+          "peak_child_rss_kib": 0,
+          "module_count": 385,
+          "heavy_imports": [],
+          "wall_s": 0.27644081399193965,
+          "status": 0,
+          "stderr": "",
+          "stdout": "usage: solid build [-h] [--set NAME=VALUE] [--all] [reference]\n\npositional arguments:\n  reference         Node reference: a declared model name,\n                    package.module:Class, path/to/file.py, or\n                    path/to/file.py:Class\n\noptions:\n  -h, --help        show this help message and exit\n  --set NAME=VALUE  Set a declared parameter of the root node, parsed by its\n                    kind (repeatable)\n  --all             Build every model the project declares, each into its own\n                    build directory"
+        }
+      ]
+    }
+  },
+  "runner_wall_s": 30.33631954799057,
+  "historical_inventory_after": {
+    "inventory": "workflow/due-dilligence-performance/remediation/historical.sha256",
+    "inventory_sha256": "15a3a0ee77a30442768920bc788c61cfb09b1b9fc4ef1f4c8edf2f916e51b261",
+    "entry_count": 18,
+    "all_match": true,
+    "entries": [
+      {
+        "path": "workflow/due-dilligence-performance/PERFORMANCE.md",
+        "expected_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+        "actual_sha256": "744ecf07fc34f7c4817f8182bd313e6fa9ed00de593529b8381aae68e028255a",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/README.md",
+        "expected_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+        "actual_sha256": "e87c6818b9fb42b858defdee11e737d469a6018728f1ac7cf8802931bcee8e92",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/algorithms.json",
+        "expected_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+        "actual_sha256": "59ddfd335494645426ed9bb2c9d169d8e4821a70aee9b28b3dc15b4bb3471bcc",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/batch.json",
+        "expected_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+        "actual_sha256": "f55709d5b7a64bad97b8abc5472d23c1485ddd7c67857551f03937bd47eca79f",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/build.json",
+        "expected_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+        "actual_sha256": "a8e360a0925f7f66381fa2d99a4928510b3ec63ad616d4afb7728aa3b5eede9f",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/empirical-initial.json",
+        "expected_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+        "actual_sha256": "475ef199884807c0776842e1898d6c50bb47a4c7201ea0c1cd743de95e6f5732",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/empirical.json",
+        "expected_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+        "actual_sha256": "39db138311cbb9ba46291eef5368e4e5ec06452086923d211ff1da46b384432d",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/__init__.py",
+        "expected_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "actual_sha256": "908d6194d05f7b4a1d5a0faf4339ad4f9c4adb4c2df2e27f32f381105dcbc567",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/exact.py",
+        "expected_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "actual_sha256": "f3c757dede2e0562baf5fdb593f859be1ffcdff1f7320c6be288d15bb2b9f791",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/bench/solid.py",
+        "expected_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "actual_sha256": "1f9a92f991281bc236cc1d06fdf6ba937cd9bc5f2614f84e419ed9d51c1aa924",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/fixtures/pyproject.toml",
+        "expected_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+        "actual_sha256": "59ccea44b218279420617c3427bc8dca43765fa47c35d8e9964842b8cedee8d1",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/memory.json",
+        "expected_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+        "actual_sha256": "570d23f935498ecf85daec87cc858e533d4ce799baadfc74b085f85c20de291d",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/probe.py",
+        "expected_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+        "actual_sha256": "6136114978e5bc9eb0cf5a0276d5b7b33f036a27c3928cb972c077f1bc727542",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/project-inputs.patch",
+        "expected_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+        "actual_sha256": "3c90c119210a520f7ee08c02ed807856dc3806179bd296e9642244aad8f6a825",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/projects.json",
+        "expected_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+        "actual_sha256": "0a9738fdf3494688c1c0228d2ff0dac4c3fa1297e2ee2ca40def66b1f59b49d8",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/startup.json",
+        "expected_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+        "actual_sha256": "beae82f3f287adcde1fb1ce01ed10a08fa5068efaaaaf055cc1016d4870cccd4",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/validation.xml",
+        "expected_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+        "actual_sha256": "bfb75a3ff399496b91065eaf061876c174a6a10d36136cf845571a3ff030e58b",
+        "matches": true
+      },
+      {
+        "path": "workflow/due-dilligence-performance/performance/verify_evidence.py",
+        "expected_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+        "actual_sha256": "e954ff48dcdc4c631eb5c9fb7b304ba247349b15f0d5e94d5de9bd9cfbcd7260",
+        "matches": true
+      }
+    ]
+  }
+}

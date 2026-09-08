@@ -255,7 +255,7 @@ class JScadDependencyBoundaryTest(TestCase):
             os.environ['SOLID_BUILD_DIR'] = directory
             try:
                 def launch_jscad(command):
-                    process = Mock()
+                    process = Mock(returncode=0)
 
                     def render_jscad():
                         with open(command[-1], 'wb') as output:

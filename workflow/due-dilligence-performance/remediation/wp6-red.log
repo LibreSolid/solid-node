@@ -1,0 +1,19 @@
+Command:
+
+    PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_adaptive_broad_phase.py -q
+
+Result before WP6 implementation:
+
+    4 failed, 4 passed, 4 subtests passed in 7.84s
+
+The scaling assertion failed at every requested size because the unchanged
+X-only sweep called `_boxes_disjoint` for every pair:
+
+    boxes    full-AABB checks
+      128                 8128
+      256                32640
+      512               130816
+     1024               523776
+
+Each fixture has overlapping X intervals and mutually separated Y intervals,
+so the expected adaptive result is no candidates and no full-AABB checks.

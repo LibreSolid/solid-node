@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-05
+**Amended by:** [ADR-084: One Fresh Builder per Sealed Source Generation](ADR-084-one-fresh-builder-per-sealed-source-generation.md) — one fresh process now owns a complete sealed source generation rather than one artifact iteration
 
 **Related to:**
 - [ADR-018: Lean Framework Separation](../IPC/ADR-018-lean-framework-separation.md)

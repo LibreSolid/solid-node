@@ -1,0 +1,38 @@
+Full-suite isolation red proof, 2026-09-07
+
+The original integrated failure is preserved verbatim in candidate-framework.log:
+
+  7 failed, 1749 passed, 16 skipped, 48 warnings, 353 subtests passed
+
+Each representative victim passed when run without a retained-builder prefix:
+
+  PYTHONPATH="$PWD" ../../../.venv/bin/python -B -m pytest -q \
+    tests/test_scad_stl.py::ScadSavingTest::test_scad_file_is_inside_build_dir \
+    tests/test_scad_stl.py::FlatStlTest::test_two_cylinders_first_render \
+    tests/test_snapshot.py::SnapshotBuildLockTest::test_lock_is_held_during_preparation_and_released_before_render \
+    tests/test_source_set.py::UpToDateLeafTest::test_cadquery_does_not_reexport_a_current_artifact \
+    tests/test_source_set.py::UpToDateLeafTest::test_cadquery_exports_when_the_artifact_is_missing \
+    tests/test_source_set.py::UpToDateLeafTest::test_jscad_runs_when_the_artifact_is_missing
+
+  ......                                                                   [100%]
+  6 passed in 3.18s
+
+Before the fixture correction, prepending one in-process retained builder made
+the build-directory and lock victims deterministically fail:
+
+  PYTHONPATH="$PWD" ../../../.venv/bin/python -B -m pytest -q \
+    tests/test_retained_builder_generation.py::RetainedPassLoopTest::test_successful_artifact_passes_continue_on_one_assembled_root \
+    tests/test_scad_stl.py::ScadSavingTest::test_scad_file_is_inside_build_dir \
+    tests/test_scad_stl.py::FlatStlTest::test_two_cylinders_first_render \
+    tests/test_snapshot.py::SnapshotBuildLockTest::test_lock_is_held_during_preparation_and_released_before_render \
+    tests/test_source_set.py::UpToDateLeafTest::test_cadquery_exports_when_the_artifact_is_missing \
+    tests/test_source_set.py::UpToDateLeafTest::test_jscad_runs_when_the_artifact_is_missing
+
+  .F.F..                                                                   [100%]
+  FAILED tests/test_scad_stl.py::ScadSavingTest::test_scad_file_is_inside_build_dir
+  FAILED tests/test_snapshot.py::SnapshotBuildLockTest::test_lock_is_held_during_preparation_and_released_before_render
+  2 failed, 4 passed in 3.21s
+
+The two assertions showed the same leaked state as the original run: the node
+artifact was outside tests/_build and preparation held a lock for a different
+directory.

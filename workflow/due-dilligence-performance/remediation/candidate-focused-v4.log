@@ -1,0 +1,22 @@
+................................................................. [ 42%]
+...................................... [ 67%]
+..................................................             [100%]
+=============================== warnings summary ===============================
+tests/test_flexible_cache_performance.py::FlexibleFacetedCacheTest::test_current_source_identity_change_at_one_binding_is_a_cache_miss
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Valvetrain.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Valvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_missing_initial_foreign_source_reload_waits_for_repair
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_missing_initial_foreign_source_startup_fails
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_missing_sibling_foreign_source_reload_waits_for_exact_repair
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_name_error_reload_stays_alive_and_surfaces_error
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_recovery_reload_clears_error_and_builds
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_recovery_reload_clears_error_and_builds
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_startup_failure_does_not_hang_forever
+tests/test_builder_reload_resilience.py::BuilderReloadResilienceTest::test_syntax_error_reload_stays_alive_and_surfaces_error
+tests/test_builder_reload_resilience.py::ImportedStlWatchTest::test_modifying_tracked_stl_ends_the_builder_watch
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2730964) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+153 passed, 10 warnings, 51 subtests passed in 51.14s

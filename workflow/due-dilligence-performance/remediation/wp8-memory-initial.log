@@ -1,0 +1,25 @@
+Initial P07 trajectory observation — retained for comparison, not a controlled
+runtime-memory conclusion.
+
+This was the first 4,000-transform implementation sample, run before the
+checked-in `wp8_probe.py` existed. It used the same temporary-BREP framework
+worktree setup and a small local construction counter, but did not explicitly
+delete every returned placement or run `gc.collect()` at sample points.
+
+    transform count    retained entries    VmRSS KiB
+                100                 100       513380
+                512                 512       519360
+               1000                 512       526288
+               2000                 512       540424
+               4000                 512       568412
+
+    placement constructions including working-set warmup: 4003
+    trajectory elapsed seconds: 0.5297304549894761
+    three-transform working-set requests: 12
+    three-transform working-set hits: 9
+
+The retained-entry plateau at 512 is valid P07 evidence. The increasing RSS
+must not be attributed to one particular runtime/allocation cause: the later
+checked-in probe differs by fresh-process control, explicit deletion, and
+forced collection. Both samples are retained so that this distinction remains
+visible to review.

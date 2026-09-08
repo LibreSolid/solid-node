@@ -1,0 +1,79 @@
+MM2 manifest timestamp reconstruction, 2026-09-07 UTC
+
+This is a separate read-only diagnostic. It does not alter a formal capture.
+The current input is a disposable reproduction whose hash and byte length are
+identical to the current-candidate-v4 formal MM2 manifest. The prior-mtime
+input is the original project's pre-existing version-3 viewer document; only
+its recursively aligned root-tree mtime values are consumed.
+
+Command:
+
+cd /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis
+python - <<'PY'
+import hashlib
+import json
+from pathlib import Path
+
+current_path = Path(
+    "/tmp/solid-mm2-manifest-sZpFJOwo/"
+    "candidate-project/_build/viewer.json"
+)
+prior_mtime_path = Path(
+    "/home/asa/devel/libresolid-studio/projects/"
+    "3D-Printers/Metamaquina2/_build/viewer.json"
+)
+current = json.loads(current_path.read_text())
+prior = json.loads(prior_mtime_path.read_text())
+changes = []
+visited = 0
+
+
+def replace_mtimes(value, prior_value, path="$"):
+    global visited
+    if isinstance(value, dict) and isinstance(prior_value, dict):
+        result = {}
+        for key, item in value.items():
+            child_path = f"{path}.{key}"
+            if key == "mtime" and key in prior_value:
+                visited += 1
+                replacement = prior_value[key]
+                if item != replacement:
+                    changes.append((child_path, item, replacement))
+                result[key] = replacement
+            elif key in prior_value:
+                result[key] = replace_mtimes(
+                    item, prior_value[key], child_path
+                )
+            else:
+                result[key] = item
+        return result
+    if isinstance(value, list) and isinstance(prior_value, list):
+        return [
+            replace_mtimes(item, prior_value[index], f"{path}[{index}]")
+            if index < len(prior_value)
+            else item
+            for index, item in enumerate(value)
+        ]
+    return value
+
+
+reconstructed = replace_mtimes(current, prior)
+payload = json.dumps(reconstructed).encode()
+print("current", hashlib.sha256(current_path.read_bytes()).hexdigest(),
+      current_path.stat().st_size)
+print("prior-mtime source",
+      hashlib.sha256(prior_mtime_path.read_bytes()).hexdigest(),
+      prior_mtime_path.stat().st_size)
+print("mtime fields", visited, "changed", len(changes))
+print("reconstructed", hashlib.sha256(payload).hexdigest(), len(payload))
+PY
+
+Observed output:
+
+current f9f904f826eca8fce579fb6cb440f22342609f3ca8215ef9ac8d4d3be2598919 173857
+prior-mtime source 70c4f5165bd74ee5463570f9667a78875d2d43d2eb2ba9ea0be86e0004108c08 173776
+mtime fields 576 changed 226
+reconstructed d1ba8ddfdfc993b1d56f180877a3715a77e0e536dd6817a5e573928df88ec338 173799
+
+The 226 exact JSON paths and old/current values, candidate identities, module
+origins, and module hashes are in mm2-manifest-mtime-diagnostic.json.

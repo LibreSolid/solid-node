@@ -1,0 +1,438 @@
+................................................ [  2%]
+...................................................................... [  6%]
+...........................................s............ [  9%]
+............................................................ [ 13%]
+.................................................................................................................... [ 19%]
+........................................................................ [ 23%]
+...................................................................................................................... [ 30%]
+................................................................... [ 34%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+......................................................................................................... [ 48%]
+................................................................... [ 52%]
+........................................................................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................................................................ [ 69%]
+...............................................F........F.F............. [ 73%]
+........................................................................ [ 77%]
+............................................ [ 80%]
+..................................................................F [ 84%]
+......................................FF.F...........sssssssss [ 87%]
+ssss.......................................s........s............... [ 91%]
+........................................................................ [ 95%]
+.............................................. [ 98%]
+..................................                                    [100%]
+=================================== FAILURES ===================================
+______________ ScadSavingTest.test_scad_file_is_inside_build_dir _______________
+
+self = <tests.test_scad_stl.ScadSavingTest testMethod=test_scad_file_is_inside_build_dir>
+
+    def test_scad_file_is_inside_build_dir(self):
+        rel_path = os.path.relpath(self.solid.scad_file,
+                                   self.build_dir)
+    
+>       self.assertFalse(rel_path.startswith('..'))
+E       AssertionError: True is not false
+
+tests/test_scad_stl.py:27: AssertionError
+_________________ FlatStlTest.test_two_cylinders_first_render __________________
+
+self = <tests.test_scad_stl.FlatStlTest testMethod=test_two_cylinders_first_render>
+
+    def test_two_cylinders_first_render(self):
+        self.load_solid(2, 1)
+>       self.assertCode("""
+        union() {
+            import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+            cylinder(h = 10, r = 5);
+        }
+        """)
+
+tests/test_scad_stl.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/base.py:91: in assertCode
+    self.assertEqual(generated.split(), expected.split())
+E   AssertionError: Lists differ: ['uni[117 chars];', 'import(file', '=', '"simple_cylinder-Simp[66 chars] '}'] != ['uni[117 chars];', 'cylinder(h', '=', '10,', 'r', '=', '5);', '}']
+E   
+E   First differing element 9:
+E   'import(file'
+E   'cylinder(h'
+E   
+E   First list contains 1 additional elements.
+E   First extra element 16:
+E   '}'
+E   
+E     ['union()',
+E      '{',
+E      'import(file',
+E      '=',
+E      '"simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl",',
+E      'origin',
+E      '=',
+E      '[0,',
+E      '0]);',
+E   -  'import(file',
+E   +  'cylinder(h',
+E      '=',
+E   -  '"simple_cylinder-SimpleCylinder,5,10-e4399a6a2924.stl",',
+E   -  'origin',
+E   +  '10,',
+E   +  'r',
+E      '=',
+E   -  '[0,',
+E   -  '0]);',
+E   ?   ^^
+E   
+E   +  '5);',
+E   ?   ^
+E   
+E      '}']
+----------------------------- Captured stdout call -----------------------------
+EXPECTED:
+union() {
+    import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+    cylinder(h = 10, r = 5);
+}
+GOT:
+union() {
+    import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+    import(file = "simple_cylinder-SimpleCylinder,5,10-e4399a6a2924.stl", origin = [0, 0]);
+}
+_____________________ FlatStlTest.test_two_cylinders_twice _____________________
+
+self = <tests.test_scad_stl.FlatStlTest testMethod=test_two_cylinders_twice>
+
+    def test_two_cylinders_twice(self):
+        # First cylinder is optimized and loaded twice
+        self.load_solid(3, 1)
+>       self.assertCode("""
+        union() {
+            union() {
+                import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+                cylinder(h = 10, r = 5);
+            }
+            rotate(a = 180, v = [1, 0, 0]) {
+                union() {
+                    import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+                    cylinder(h = 10, r = 5);
+                }
+            }
+        }
+        """)
+
+tests/test_scad_stl.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/base.py:91: in assertCode
+    self.assertEqual(generated.split(), expected.split())
+E   AssertionError: Lists differ: ['uni[133 chars];', 'import(file', '=', '"simple_cylinder-Simp[375 chars] '}'] != ['uni[133 chars];', 'cylinder(h', '=', '10,', 'r', '=', '5);',[243 chars] '}']
+E   
+E   First differing element 11:
+E   'import(file'
+E   'cylinder(h'
+E   
+E   First list contains 2 additional elements.
+E   First extra element 45:
+E   '}'
+E   
+E   Diff is 825 characters long. Set self.maxDiff to None to see it.
+----------------------------- Captured stdout call -----------------------------
+EXPECTED:
+union() {
+    union() {
+        import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+        cylinder(h = 10, r = 5);
+    }
+    rotate(a = 180, v = [1, 0, 0]) {
+        union() {
+            import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+            cylinder(h = 10, r = 5);
+        }
+    }
+}
+GOT:
+union() {
+    union() {
+        import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+        import(file = "simple_cylinder-SimpleCylinder,5,10-e4399a6a2924.stl", origin = [0, 0]);
+    }
+    rotate(a = 180, v = [1, 0, 0]) {
+        union() {
+            import(file = "simple_cylinder-SimpleCylinder,10,5-ca58d4c6134a.stl", origin = [0, 0]);
+            import(file = "simple_cylinder-SimpleCylinder,5,10-e4399a6a2924.stl", origin = [0, 0]);
+        }
+    }
+}
+_ SnapshotBuildLockTest.test_lock_is_held_during_preparation_and_released_before_render _
+
+self = <tests.test_snapshot.SnapshotBuildLockTest testMethod=test_lock_is_held_during_preparation_and_released_before_render>
+
+    def test_lock_is_held_during_preparation_and_released_before_render(self):
+        node = Mock()
+        node.scad_file = '/tmp/test.scad'
+        observed = {}
+        node.assemble.side_effect = lambda: observed.update(
+            held=lock_is_held(BUILD_DIR))
+    
+        self.snapshot.path = 'model.py'
+        self.snapshot.time = 0.0
+    
+        with patch('solid_node.manager.snapshot.load_node', return_value=node):
+            self.snapshot._load_and_prepare_node()
+    
+>       self.assertTrue(
+            observed.get('held'),
+            'node preparation ran without the project build lock held')
+E       AssertionError: False is not true : node preparation ran without the project build lock held
+
+tests/test_snapshot.py:859: AssertionError
+_____ UpToDateLeafTest.test_cadquery_does_not_reexport_a_current_artifact ______
+
+self = <tests.test_source_set.UpToDateLeafTest testMethod=test_cadquery_does_not_reexport_a_current_artifact>
+
+    def test_cadquery_does_not_reexport_a_current_artifact(self):
+        node = Block()
+        node.assemble()
+    
+        again = Block()
+        with mock.patch(
+                'solid_node.node.exact_leaf.write_stl') as export:
+            scad = again.as_scad(again.render())
+    
+        export.assert_not_called()
+>       self.assertEqual(scad_render(scad), scad_render(node.model))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_source_set.py:187: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = None, file_header = ''
+
+    def scad_render(root, file_header = ''):
+        #get a list of all used and included files
+        includes = get_include_string()
+    
+        #call extensions pre_render
+        from .extension_manager import default_extension_manager
+        extensions_header_str = default_extension_manager.call_pre_render(root)
+        extensions_header_str += "\n\n" if extensions_header_str else ''
+    
+        #wrap the extensions around the root node
+        root = default_extension_manager.wrap_root_node(root)
+    
+>       scad_body = root._render()
+                    ^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '_render'
+
+../../../.venv/lib/python3.12/site-packages/solid2/core/scad_render.py:48: AttributeError
+_____ UpToDateLeafTest.test_cadquery_exports_when_the_artifact_is_missing ______
+
+self = <tests.test_source_set.UpToDateLeafTest testMethod=test_cadquery_exports_when_the_artifact_is_missing>
+
+    def test_cadquery_exports_when_the_artifact_is_missing(self):
+        # The stand-in still has to produce the file: the adapter
+        # back-dates the STL it just wrote, and a mock that writes
+        # nothing would fail this test on the missing file rather than
+        # on the export.
+        def export_stub(shape, path, mtime, linear_deflection,
+                       angular_deflection, digest=None, fingerprint=None):
+            with open(path, 'w') as fh:
+                fh.write('solid empty\nendsolid empty\n')
+    
+        node = Block()
+        with mock.patch('solid_node.node.exact_leaf.write_stl',
+                        side_effect=export_stub) as export:
+            node.as_scad(node.render())
+>       export.assert_called_once()
+
+tests/test_source_set.py:203: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='write_stl' id='132164791800160'>
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'write_stl' to have been called once. Called 0 times.
+
+/usr/lib/python3.12/unittest/mock.py:923: AssertionError
+________ UpToDateLeafTest.test_jscad_runs_when_the_artifact_is_missing _________
+
+self = <tests.test_source_set.UpToDateLeafTest testMethod=test_jscad_runs_when_the_artifact_is_missing>
+
+    def test_jscad_runs_when_the_artifact_is_missing(self):
+        node = JsBlock()
+        with mock.patch('solid_node.node.adapters.jscad.Popen') as popen:
+            popen.return_value.returncode = 0
+            node.as_scad(None)
+>       popen.assert_called_once()
+
+tests/test_source_set.py:223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='Popen' id='132164801364576'>
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'Popen' to have been called once. Called 0 times.
+
+/usr/lib/python3.12/unittest/mock.py:923: AssertionError
+=============================== warnings summary ===============================
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1353
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1353: DeprecationWarning: The 'PointArcTangentLine' object is deprecated and will be removed in a future version.
+    class PointArcTangentLine(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1432
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1432: DeprecationWarning: The 'PointArcTangentArc' object is deprecated and will be removed in a future version.
+    class PointArcTangentArc(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1586
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1586: DeprecationWarning: The 'ArcArcTangentLine' object is deprecated and will be removed in a future version.
+    class ArcArcTangentLine(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1682
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1682: DeprecationWarning: The 'ArcArcTangentArc' object is deprecated and will be removed in a future version.
+    class ArcArcTangentArc(BaseEdgeObject):
+
+tests/test_animator_tag.py::AnimatorTagTest::test_render_tags_operations_with_the_animating_assembly
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Inner.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Inner re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_broad_phase_culling.py::DisjointPairCulledTest::test_assert_no_pairwise_intersections_never_calls_the_boolean
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/tests/test_broad_phase_culling.py:162: DeprecationWarning: assertNoPairwiseIntersections is deprecated; use assertNoSolidInterference, which checks topmost rigid solids without a public overlap epsilon
+    asserter.assertNoPairwiseIntersections(Assembly())
+
+tests/test_build_defaults.py::LoaderDefaultBindingTest::test_a_driver_declaring_tree_loads_with_its_defaults_bound
+tests/test_document_drivers.py::SymbolicSerializationTest::test_a_stepped_node_still_serializes_driver_expressions
+tests/test_generate_parity_fixture.py::CoverageAcrossBindingsAndCasesTest::test_the_real_fixture_build_covers_every_emitted_builtin
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_build_defaults.py::LoaderDefaultBindingTest::test_a_root_declared_driver_binds_by_its_bare_name
+tests/test_document_drivers.py::InstructionTableTest::test_a_root_declared_instruction_keeps_its_bare_name
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'x'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_build_lock.py: 10 warnings
+tests/test_builder_reload_resilience.py: 8 warnings
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2474051) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_conrod_symbolic.py::ConrodSymbolicAssemblyTest::test_fresh_assemble_does_not_raise_on_symbolic_time
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Conrod.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Conrod re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_declarative_render.py::RenderReturnsNothingTest::test_positioning_without_a_return_is_absolute_across_keyframes
+tests/test_export.py::ExportAnimationTest::test_export_leaves_the_node_in_symbolic_time
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Spinner.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Spinner re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_declarative_render.py::OmissionTest::test_time_cannot_change_structure
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Blinker.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Blinker re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_driver_attribute_reads.py::DriverAttributeReadTest::test_declared_driver_reads_as_an_attribute
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Lift.render() read driver 'height'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Lift re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::OneSharedSubexpressionTest::test_every_operation_references_it_by_name
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: CrossNodeSharedTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then CrossNodeSharedTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::BareLeavesNotBoundTest::test_neither_a_repeated_literal_nor_a_repeated_driver_id_is_bound
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: BareLeavesRepeatTree.render() read driver 'knob'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then BareLeavesRepeatTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::NamingUnderscoreBTest::test_a_driver_named_b0_gets_a_longer_prefix
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: UnderscoreBDriverTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then UnderscoreBDriverTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::VersionRuleTest::test_a_flexible_tree_with_sharing_declares_four
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Valvetrain.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Valvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::PassThroughTest::test_the_document_still_publishes
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: UnreadableBesideSharedTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then UnreadableBesideSharedTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_flexible_node.py::FlexibleRigidityTest::test_it_generates_no_cached_rigid_artifact
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Rig.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Rig re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_molejo_adapter.py::MolejoTimeFedSnapshotTest::test_a_time_fed_flexible_leaf_assembles
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: TimedValvetrain.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then TimedValvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_ports.py::PortConnectionTest::test_microsteps_drive_the_carriage_in_design_units
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'usteps'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_ports.py::PortAssignmentTest::test_assignment_in_a_render_rebinds_absolutely
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: AssignedAxis.render() read driver 'usteps'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then AssignedAxis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::SimConstructionTest::test_defaults_bind_before_the_first_render
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Carriage.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Carriage re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::InstructionTest::test_a_later_same_tick_action_sees_an_instant_instruction
+tests/test_simulation_sim.py::InstructionTest::test_a_zero_duration_instruction_binds_its_target_immediately
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: InstantCarriage.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then InstantCarriage re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::InstructionTest::test_an_instruction_targeting_an_undeclared_driver_is_reported
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Broken.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Broken re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_state_binding.py::StateBindingTest::test_bound_state_poses_the_meshes_absolutely
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Machine.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Machine re-renders per binding as before.
+    children = _rest(self, render)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 25 durations =============================
+31.74s call     tests/test_retained_builder_generation.py::FreshProcessBatchTest::test_cold_twenty_four_artifact_build_uses_one_spawned_builder
+15.61s call     tests/test_node_lazy_exports.py::NodePackageImportCost::test_naming_an_exact_backend_imports_cadquery
+7.16s call     tests/test_build_lock.py::ArtifactAssemblyContentionTest::test_cadquery_build_materializes_nothing_before_lock_release
+6.45s call     tests/test_lazy_test_framework.py::BuildImportCost::test_a_cadquery_build_still_imports_cadquery
+3.66s call     tests/test_node_lazy_exports.py::NodePackageImportCost::test_naming_step_node_imports_the_step_reader
+3.40s call     tests/test_meta.py::ExactGeometryMetaTest::test_real_subfacet_interference_fails
+3.39s call     tests/test_meta.py::FacetedKernelMetaTest::test_the_environment_selects_the_faceted_kernel
+3.33s call     tests/test_lazy_test_framework.py::TestFrameworkImportCost::test_an_exact_test_run_still_imports_cadquery
+3.27s call     tests/test_meta.py::SolidLocalConnectivityMetaTest::test_one_body_cannot_mask_an_unjoined_pair
+3.26s call     tests/test_lazy_test_framework.py::ExactNamesStayPatchable::test_a_patch_applied_after_resolution_is_used
+3.26s call     tests/test_mesh_engine_dependency.py::ExactPathWithoutMeshEngineTest::test_exact_assembly_asserts_without_the_mesh_engine
+3.25s call     tests/test_meta.py::AssemblySupportMetaTest::test_exact_assembly_support_passes
+3.20s call     tests/test_meta.py::FacetedKernelMetaTest::test_a_zero_clearance_fit_is_interference_on_meshes
+3.20s call     tests/test_mesh_engine_dependency.py::MissingMeshEngineIsActionableTest::test_gravity_support_names_the_missing_mesh_engine
+3.16s call     tests/test_meta.py::SolidLocalConnectivityMetaTest::test_features_of_an_animated_solid_stay_joined
+3.16s call     tests/test_meta.py::ExactGeometryMetaTest::test_rotated_zero_clearance_round_fit_passes
+3.14s call     tests/test_meta.py::FacetedKernelMetaTest::test_a_flag_overrides_the_environment
+3.14s call     tests/test_meta.py::FacetedKernelMetaTest::test_an_epsilon_absorbs_the_tessellation_slivers
+3.10s call     tests/test_build_lock.py::PublishedModelFollowsSourceTest::test_an_edited_model_reaches_the_published_build
+3.09s call     tests/test_sheet_leaf.py::SheetImportCostTest::test_importing_the_node_package_does_not_import_build123d
+2.94s call     tests/test_node_lazy_exports.py::NodePackageExports::test_star_import_binds_every_exported_name
+2.61s call     tests/test_build_subprocess_isolation.py::BuildSubprocessReachesAnOutcomeTest::test_child_of_a_threaded_parent_finishes_its_work
+2.34s call     tests/test_source_closure_index.py::LookupAgreementTest::test_every_loaded_module_file_resolves_as_a_linear_scan_does
+2.23s call     tests/test_meta.py::AssemblySupportMetaTest::test_the_runners_instant_places_the_assembly
+2.00s call     tests/test_lazy_test_framework.py::SimulationPackageExports::test_a_submodule_is_reachable_after_a_bare_package_import
+=========================== short test summary info ============================
+FAILED tests/test_scad_stl.py::ScadSavingTest::test_scad_file_is_inside_build_dir
+FAILED tests/test_scad_stl.py::FlatStlTest::test_two_cylinders_first_render
+FAILED tests/test_scad_stl.py::FlatStlTest::test_two_cylinders_twice - Assert...
+FAILED tests/test_snapshot.py::SnapshotBuildLockTest::test_lock_is_held_during_preparation_and_released_before_render
+FAILED tests/test_source_set.py::UpToDateLeafTest::test_cadquery_does_not_reexport_a_current_artifact
+FAILED tests/test_source_set.py::UpToDateLeafTest::test_cadquery_exports_when_the_artifact_is_missing
+FAILED tests/test_source_set.py::UpToDateLeafTest::test_jscad_runs_when_the_artifact_is_missing
+7 failed, 1749 passed, 16 skipped, 48 warnings, 353 subtests passed in 269.04s (0:04:29)

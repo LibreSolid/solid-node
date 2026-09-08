@@ -1,0 +1,48 @@
+{
+  "candidate_content_sha256": "d3615253809628a7b9e988354f669da26a0a84ab2ac3855ac8b6cd4d20841250",
+  "entries": [
+    {
+      "bytes": 227325,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-algorithms.json",
+      "sha256": "2c10a993b86698d36df2a6ecabcdcf3e018714a2ef37defb50355a5e064e2a0b"
+    },
+    {
+      "bytes": 975465,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-batch.json",
+      "sha256": "9f5163d6a005ff322f3e3ae1398166520ac4f1e9ba284ddf4f80149a2a8606de"
+    },
+    {
+      "bytes": 1209736,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-build.json",
+      "sha256": "52b71cfaca318228e84d388ef2897612b8a056a25c18bb31f5368448a64f8a72"
+    },
+    {
+      "bytes": 82749,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-candidate-identity.json",
+      "sha256": "0827b83beecdfac19ba7c95cbee7360c31f26ac1be1d846ccc938ff849d5f458"
+    },
+    {
+      "bytes": 3551277,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-empirical.json",
+      "sha256": "14a5e4d53ceb8b2d0a9bb2e8d5d42e647badd8e42b16b10e0622d97a95e753ca"
+    },
+    {
+      "bytes": 223315,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-memory.json",
+      "sha256": "cdb10f49906733b10bf6c94570d18f90976eaf6700a70cfc3a96a47da3ca4087"
+    },
+    {
+      "bytes": 4616953,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-projects.json",
+      "sha256": "72c9f6f6991efc716803d8908b3be7bf604912015c4c6f10466904dc6ada5d0e"
+    },
+    {
+      "bytes": 289654,
+      "path": "workflow/due-dilligence-performance/remediation/current-candidate-v4-startup.json",
+      "sha256": "ca82779857537af9f3b870fc682a6edb6be65f8d22fadb97e0fb80fe3698d83e"
+    }
+  ],
+  "entry_count": 8,
+  "evidence_inventory_schema": "solid-node-performance-evidence-v2",
+  "label": "current-candidate-v4"
+}

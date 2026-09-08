@@ -1,0 +1,31 @@
+WP9 sparse statics focused green proof
+source: uncommitted implementation candidate over 4bcf4cb5201d9d4bf25e16f1f950c3c667d6ec3c
+interpreter: /home/asa/devel/libresolid-studio/.venv/bin/python (Python 3.12.3)
+environment: Linux devel 6.8.0-139-generic x86_64; SciPy 1.18.1
+
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q tests/test_sparse_statics.py
+result: 7 passed, 10 subtests passed in 3.19s
+
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q tests/test_assembly_supported.py tests/test_sparse_statics.py tests/test_broad_phase_culling.py tests/test_assembly_integrity.py
+result: 96 passed, 1 warning, 24 subtests passed in 3.85s
+warning: expected DeprecationWarning from the legacy assertNoPairwiseIntersections coverage
+
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q tests/test_meta.py::AssemblySupportMetaTest
+result: 6 passed in 11.68s
+
+command: PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest -q tests/test_mesh_engine_dependency.py
+result: 7 passed in 12.87s
+
+The dedicated suite compares the planning-HEAD dense reference and production
+HiGHS solves on generated feasible, force-infeasible, torque-infeasible,
+declared-wrench, cancellation, deterministic-repeat, and near-tolerance
+systems.  Ten real-geometry fixture subtests cover balanced and one-ended
+bars, offset stacks, counterweights, the drop/lift overhead couple, default
+floor toppling, stability margin, a declared wrench, and exact support-edge
+routing.  Comparisons include coefficient bytes after densifying the sparse
+matrix, objective value, optimized per-row slack, targets, tolerances, ordered
+body failures, and force/torque classification.
+
+Lint note: the workspace venv does not have flake8 installed
+(`/home/asa/devel/libresolid-studio/.venv/bin/python: No module named flake8`).
+`git diff --check` passed for the WP9 source, tests, and probe.

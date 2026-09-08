@@ -1,0 +1,162 @@
+................................................ [  2%]
+...................................................................... [  6%]
+...........................................s............ [  9%]
+............................................................ [ 13%]
+.................................................................................................................... [ 19%]
+........................................................................ [ 23%]
+...................................................................................................................... [ 30%]
+................................................................... [ 34%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+......................................................................................................... [ 48%]
+................................................................... [ 52%]
+........................................................................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+............................................ [ 80%]
+................................................................... [ 83%]
+........................................................ssssss [ 87%]
+sssssss.......................................s........s............ [ 91%]
+........................................................................ [ 95%]
+...................................................................................                                 [100%]
+=============================== warnings summary ===============================
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1353
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1353: DeprecationWarning: The 'PointArcTangentLine' object is deprecated and will be removed in a future version.
+    class PointArcTangentLine(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1432
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1432: DeprecationWarning: The 'PointArcTangentArc' object is deprecated and will be removed in a future version.
+    class PointArcTangentArc(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1586
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1586: DeprecationWarning: The 'ArcArcTangentLine' object is deprecated and will be removed in a future version.
+    class ArcArcTangentLine(BaseEdgeObject):
+
+../../../.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1682
+  /home/asa/devel/libresolid-studio/.venv/lib/python3.12/site-packages/build123d/objects_curve.py:1682: DeprecationWarning: The 'ArcArcTangentArc' object is deprecated and will be removed in a future version.
+    class ArcArcTangentArc(BaseEdgeObject):
+
+tests/test_animator_tag.py::AnimatorTagTest::test_render_tags_operations_with_the_animating_assembly
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Inner.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Inner re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_broad_phase_culling.py::DisjointPairCulledTest::test_assert_no_pairwise_intersections_never_calls_the_boolean
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/tests/test_broad_phase_culling.py:162: DeprecationWarning: assertNoPairwiseIntersections is deprecated; use assertNoSolidInterference, which checks topmost rigid solids without a public overlap epsilon
+    asserter.assertNoPairwiseIntersections(Assembly())
+
+tests/test_build_defaults.py::LoaderDefaultBindingTest::test_a_driver_declaring_tree_loads_with_its_defaults_bound
+tests/test_document_drivers.py::SymbolicSerializationTest::test_a_stepped_node_still_serializes_driver_expressions
+tests/test_generate_parity_fixture.py::CoverageAcrossBindingsAndCasesTest::test_the_real_fixture_build_covers_every_emitted_builtin
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_build_defaults.py::LoaderDefaultBindingTest::test_a_root_declared_driver_binds_by_its_bare_name
+tests/test_document_drivers.py::InstructionTableTest::test_a_root_declared_instruction_keeps_its_bare_name
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'x'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_build_lock.py: 10 warnings
+tests/test_builder_reload_resilience.py: 9 warnings
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2582958) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_conrod_symbolic.py::ConrodSymbolicAssemblyTest::test_fresh_assemble_does_not_raise_on_symbolic_time
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Conrod.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Conrod re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_declarative_render.py::RenderReturnsNothingTest::test_positioning_without_a_return_is_absolute_across_keyframes
+tests/test_export.py::ExportAnimationTest::test_export_leaves_the_node_in_symbolic_time
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Spinner.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Spinner re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_declarative_render.py::OmissionTest::test_time_cannot_change_structure
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Blinker.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Blinker re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_driver_attribute_reads.py::DriverAttributeReadTest::test_declared_driver_reads_as_an_attribute
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Lift.render() read driver 'height'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Lift re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::OneSharedSubexpressionTest::test_every_operation_references_it_by_name
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: CrossNodeSharedTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then CrossNodeSharedTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::BareLeavesNotBoundTest::test_neither_a_repeated_literal_nor_a_repeated_driver_id_is_bound
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: BareLeavesRepeatTree.render() read driver 'knob'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then BareLeavesRepeatTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::NamingUnderscoreBTest::test_a_driver_named_b0_gets_a_longer_prefix
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: UnderscoreBDriverTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then UnderscoreBDriverTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::VersionRuleTest::test_a_flexible_tree_with_sharing_declares_four
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Valvetrain.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Valvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_expression_bindings.py::PassThroughTest::test_the_document_still_publishes
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: UnreadableBesideSharedTree.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then UnreadableBesideSharedTree re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_flexible_node.py::FlexibleRigidityTest::test_it_generates_no_cached_rigid_artifact
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Rig.render() read driver 'lift'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Rig re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_molejo_adapter.py::MolejoTimeFedSnapshotTest::test_a_time_fed_flexible_leaf_assembles
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: TimedValvetrain.render() read time 'time'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then TimedValvetrain re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_ports.py::PortConnectionTest::test_microsteps_drive_the_carriage_in_design_units
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Axis.render() read driver 'usteps'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Axis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_ports.py::PortAssignmentTest::test_assignment_in_a_render_rebinds_absolutely
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: AssignedAxis.render() read driver 'usteps'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then AssignedAxis re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::SimConstructionTest::test_defaults_bind_before_the_first_render
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Carriage.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Carriage re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::InstructionTest::test_a_later_same_tick_action_sees_an_instant_instruction
+tests/test_simulation_sim.py::InstructionTest::test_a_zero_duration_instruction_binds_its_target_immediately
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: InstantCarriage.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then InstantCarriage re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_simulation_sim.py::InstructionTest::test_an_instruction_targeting_an_undeclared_driver_is_reported
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Broken.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Broken re-renders per binding as before.
+    children = _rest(self, render)
+
+tests/test_state_binding.py::StateBindingTest::test_bound_state_poses_the_meshes_absolutely
+  /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis/solid_node/node/assembly.py:85: FutureWarning: Machine.render() read driver 'motor'. Reading drivers, time or ports in render(), or binding a port there, is deprecated: render() builds the machine at rest and the framework runs it once per instance. Move the read or binding and the operations it feeds into simulate(), which runs on every instant. Until then Machine re-renders per binding as before.
+    children = _rest(self, render)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 25 durations =============================
+34.26s call     tests/test_retained_builder_generation.py::FreshProcessBatchTest::test_cold_twenty_four_artifact_build_uses_one_spawned_builder
+17.56s call     tests/test_node_lazy_exports.py::NodePackageImportCost::test_naming_an_exact_backend_imports_cadquery
+6.83s call     tests/test_lazy_test_framework.py::BuildImportCost::test_a_cadquery_build_still_imports_cadquery
+6.24s call     tests/test_build_lock.py::ArtifactAssemblyContentionTest::test_cadquery_build_materializes_nothing_before_lock_release
+3.96s call     tests/test_meta.py::AssemblySupportMetaTest::test_exact_assembly_support_passes
+3.72s call     tests/test_node_lazy_exports.py::NodePackageImportCost::test_naming_step_node_imports_the_step_reader
+3.65s call     tests/test_meta.py::FacetedKernelMetaTest::test_an_epsilon_absorbs_the_tessellation_slivers
+3.57s call     tests/test_meta.py::ExactGeometryMetaTest::test_rotated_zero_clearance_round_fit_passes
+3.56s call     tests/test_meta.py::SolidLocalConnectivityMetaTest::test_features_of_an_animated_solid_stay_joined
+3.54s call     tests/test_meta.py::SolidLocalConnectivityMetaTest::test_one_body_cannot_mask_an_unjoined_pair
+3.48s call     tests/test_meta.py::FacetedKernelMetaTest::test_the_environment_selects_the_faceted_kernel
+3.45s call     tests/test_meta.py::FacetedKernelMetaTest::test_a_zero_clearance_fit_is_interference_on_meshes
+3.44s call     tests/test_mesh_engine_dependency.py::MissingMeshEngineIsActionableTest::test_gravity_support_names_the_missing_mesh_engine
+3.38s call     tests/test_node_lazy_exports.py::NodePackageExports::test_star_import_binds_every_exported_name
+3.31s call     tests/test_meta.py::ExactGeometryMetaTest::test_real_subfacet_interference_fails
+3.31s call     tests/test_meta.py::FacetedKernelMetaTest::test_a_flag_overrides_the_environment
+3.28s call     tests/test_lazy_test_framework.py::TestFrameworkImportCost::test_an_exact_test_run_still_imports_cadquery
+3.22s call     tests/test_mesh_engine_dependency.py::ExactPathWithoutMeshEngineTest::test_exact_assembly_asserts_without_the_mesh_engine
+2.96s call     tests/test_lazy_test_framework.py::ExactNamesStayPatchable::test_a_patch_applied_after_resolution_is_used
+2.93s call     tests/test_sheet_leaf.py::SheetImportCostTest::test_importing_the_node_package_does_not_import_build123d
+2.83s call     tests/test_build_lock.py::PublishedModelFollowsSourceTest::test_an_edited_model_reaches_the_published_build
+2.49s call     tests/test_meta.py::AssemblySupportMetaTest::test_the_runners_instant_places_the_assembly
+2.24s call     tests/test_build_subprocess_isolation.py::BuildSubprocessReachesAnOutcomeTest::test_child_of_a_threaded_parent_finishes_its_work
+2.18s call     tests/test_meta.py::FailedOpenScadRenderMetaTest::test_failed_replacement_preserves_the_published_model
+2.15s call     tests/test_source_closure_index.py::LookupAgreementTest::test_every_loaded_module_file_resolves_as_a_linear_scan_does
+1759 passed, 16 skipped, 49 warnings, 353 subtests passed in 278.57s (0:04:38)

@@ -18,6 +18,7 @@ import shutil
 import tempfile
 from subprocess import run
 
+from solid_node._artifact import ArtifactChanged
 from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
 from solid_node.core.pieces import PieceInventory
@@ -58,61 +59,60 @@ class BrowserRenderer:
         that model, sweep the artifacts it still references, and discard any
         recorded build error. A snapshot only reads.
         """
+        for attempt in range(3):
+            try:
+                return self._stage(node, build_dir)
+            except ArtifactChanged:
+                if attempt == 2:
+                    raise
+
+    def _stage(self, node, build_dir):
+        """Perform one coherent read-only staging attempt."""
         if not viewer_bundle.has_bundle():
             raise BrowserSnapshotError(viewer_bundle.missing_bundle_remedy())
 
         artifacts = {}
-        inventory = PieceInventory()
-        root = serialize_node(
-            node,
-            lambda rigid_node: artifacts.setdefault(
-                rigid_node.stl_file,
-                self.artifact_path(rigid_node.stl_file, build_dir),
-            ),
-            inventory.register,
-        )
-        document = {
-            "format": DOCUMENT_FORMAT,
-            # Read off the tree, as every producer of this document does:
-            # a snapshot of a project holding a flexible part still needs
-            # the version that knows the shape, even though the part is
-            # photographed at one numeric instant like everything else.
-            "version": document_version(root),
-            # Empty by construction, and not an oversight: this producer
-            # photographs ONE instant, so it serializes the node exactly
-            # as the caller posed it -- animation time keyframed, drivers
-            # numerically bound -- and the resulting document names no
-            # driver at all. Publishing a table the document never
-            # references would only tell a viewer to refuse a picture it
-            # can render perfectly well.
-            "drivers": {},
-            # Empty for the same reason, and necessarily: an instruction
-            # moves a driver, and this document names none.
-            "instructions": {},
-            "animation": animation_block(node),
-            "root": root,
-            "pieces": inventory.pieces(),
-        }
+        # A snapshot is a read-only consumer of the build. It may reuse a
+        # valid fact record, but never creates or repairs one there.
+        with PieceInventory(publish_facts=False) as inventory:
+            root = serialize_node(
+                node,
+                lambda rigid_node: artifacts.setdefault(
+                    rigid_node.stl_file,
+                    self.artifact_path(rigid_node.stl_file, build_dir),
+                ),
+                inventory.register,
+            )
+            document = {
+                "format": DOCUMENT_FORMAT,
+                "version": document_version(root),
+                "drivers": {},
+                "instructions": {},
+                "animation": animation_block(node),
+                "root": root,
+                "pieces": inventory.pieces(),
+            }
 
-        staging = tempfile.mkdtemp(
-            prefix=f"{os.path.basename(build_dir)}.web-snapshot.",
-            dir=os.path.dirname(build_dir),
-        )
-        try:
-            with open(os.path.join(staging, "viewer.json"), "w") as output:
-                json.dump(document, output)
-            for source, relative in artifacts.items():
-                if not os.path.isfile(source):
-                    raise BrowserSnapshotError(
-                        f"Build artifact is missing: {relative}"
-                    )
-                target = os.path.join(staging, relative)
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-                os.link(source, target)
-            return staging
-        except Exception:
-            self.remove_stage(staging)
-            raise
+            staging = tempfile.mkdtemp(
+                prefix=f"{os.path.basename(build_dir)}.web-snapshot.",
+                dir=os.path.dirname(build_dir),
+            )
+            try:
+                for source, relative in artifacts.items():
+                    if not os.path.isfile(source):
+                        raise BrowserSnapshotError(
+                            f"Build artifact is missing: {relative}")
+                    target = os.path.join(staging, relative)
+                    inventory.copy_artifact(source, target)
+                inventory.validate()
+                # Document last: a successful staged directory never names a
+                # missing or incoherent model.
+                with open(os.path.join(staging, "viewer.json"), "w") as output:
+                    json.dump(document, output)
+                return staging
+            except Exception:
+                self.remove_stage(staging)
+                raise
 
     def artifact_path(self, stl_file, build_dir):
         """The staged, build-relative location of one artifact."""

@@ -1,0 +1,21 @@
+WP5 red-first evidence
+======================
+
+Command:
+  PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python \
+    -m pytest -q tests/test_flexible_cache_performance.py
+
+Executed before the WP5 production patch, at planning HEAD plus only the new
+red tests.  Result: 5 failed.
+
+- The 80-read, three-binding workload constructed 80 meshes instead of 3.
+- A forced source/structural `uniq_id` collision served the first mesh to the
+  second definition.
+- A forced shortened binding-hash collision served the first mesh.
+- A serialized-spec change at the same binding was incorrectly a hit.
+- The legacy single-binding cache retained 1 entry after four bindings,
+  rather than the injected bounded working set of 3.
+
+The failures were the intended existing implementation behavior:
+`_flexible_manifold_cache` was keyed by `(uniq_id, binding_hash)` and removed
+every entry for that `uniq_id` on each miss.

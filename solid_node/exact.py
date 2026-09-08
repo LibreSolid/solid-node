@@ -4,8 +4,10 @@
 
 """Exact B-rep geometry shared by nodes and geometric assertions."""
 
+from collections import OrderedDict
 import math
 import os
+import struct
 import tempfile
 import time
 
@@ -33,13 +35,28 @@ _shape_cache = {}
 # shape would serve one part's placement for another's.
 _shape_keys = {}
 
-# One placed shape per (shape cache key, matrix), and one bounding box per
+# One placed shape per (shape cache key, exact matrix bytes), and one bounding box per
 # shape cache key. `placed_shape` runs a full `BRepBuilderAPI_Transform`
 # over the B-rep -- 6-19 ms on real parts -- and an animated assertion
 # places the same solid by the same matrix at every candidate pair it
 # visits.
-_placement_cache = {}
+#
+# This is deliberately access ordered and bounded. A trajectory can contain
+# indefinitely many distinct poses, so insertion-order-only eviction would
+# unnecessarily discard a useful working set and unbounded retention would
+# retain every old OCCT shape for the lifetime of the process.
+_PLACEMENT_CACHE_LIMIT = 512
+_placement_cache = OrderedDict()
 _bounds_cache = {}
+
+
+def _reset_placement_cache():
+    """Drop retained exact placements for direct isolation or a new run.
+
+    This is intentionally an internal seam: callers can clear a process-local
+    working set, but cannot configure or inspect cache policy as public API.
+    """
+    _placement_cache.clear()
 
 
 def _evict(brep_file):
@@ -237,10 +254,11 @@ def _place(shape, values):
 def placed_shape(shape, matrix):
     """Place a local shape using the framework's composed 4x4 matrix.
 
-    Cached per ``(shape cache key, matrix)``, so a solid placed by the same
-    matrix twice is transformed once. The matrix is compared by its exact
-    values: a placement difference too small to see is still a different
-    placement, and this cache introduces no tolerance of its own. A shape
+    Cached per ``(shape cache key, exact matrix bytes)``, so a solid placed by
+    the same matrix twice while retained is transformed once. The matrix is
+    compared by the exact IEEE-754 values sent to OCCT: a placement difference
+    too small to see (including signed zero) is still a different placement,
+    and this cache introduces no tolerance or rounding of its own. A shape
     with no cache identity is placed uncached, exactly as before.
     """
     values = tuple(float(matrix[row, column])
@@ -248,11 +266,15 @@ def placed_shape(shape, matrix):
     key = _shape_keys.get(id(shape))
     if key is None:
         return _place(shape, values)
-    placement = (key, values)
+    placement = (key, struct.pack('!12d', *values))
     placed = _placement_cache.get(placement)
     if placed is None:
         placed = _place(shape, values)
+        while len(_placement_cache) >= _PLACEMENT_CACHE_LIMIT:
+            _placement_cache.popitem(last=False)
         _placement_cache[placement] = placed
+    else:
+        _placement_cache.move_to_end(placement)
     return placed
 
 

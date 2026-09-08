@@ -1,0 +1,13 @@
+Command (before the fixture correction, fresh Python process):
+PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -m pytest tests/test_exact_test_isolation.py -q
+
+Result:
+F                                                                        [100%]
+E   AssertionError: {131368319545664: ('/tmp/tmpz61im78e/fixture-shape.brep', 1.0)} != {}
+E   - {131368319545664: ('/tmp/tmpz61im78e/fixture-shape.brep', 1.0)}
+E   + {}
+1 failed in 3.05s
+
+The test executed the old fixture seam, `_shape_cache.clear()`, after
+populating the shape identity, bounds, and placement caches. The remaining
+`_shape_keys` entry is the orphan that makes a later object-id reuse unsafe.

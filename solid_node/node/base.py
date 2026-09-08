@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import io
 import re
 import time
 import inspect
@@ -14,7 +15,12 @@ from decimal import Decimal
 from subprocess import CalledProcessError, Popen
 from solid2 import scad_render, import_stl, color
 from solid_node import currency
+from solid_node._artifact import (ArtifactChanged, ArtifactSnapshot,
+                                  artifact_cache_key)
 from solid_node.openscad import require_openscad
+from solid_node.source_generation import (
+    current_census, current_generation, current_phase, track_sources,
+)
 from .sources import source_closure, source_scope
 from . import phase as _phase
 from .declarative import (ChildDeclaration, NodeMeta, StructureError,
@@ -40,19 +46,44 @@ def _seconds(mtime_ns):
 
 
 def _atomic_write_text(path, content, mtime_ns, digest=None, fingerprint=None):
+    desired = content.encode()
+    try:
+        with ArtifactSnapshot(path) as existing:
+            unchanged = existing.read_bytes() == desired
+            existing_mtime_ns = existing.observation.mtime_ns
+    except (ArtifactChanged, OSError):
+        unchanged = False
+        existing_mtime_ns = None
+
+    if unchanged:
+        if existing_mtime_ns != mtime_ns:
+            currency.restamp(path, mtime_ns)
+        currency.record(path, digest, fingerprint)
+        return
+
     directory = os.path.dirname(path) or '.'
     os.makedirs(directory, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
         prefix=f'.{os.path.basename(path)}.', suffix='.tmp', dir=directory)
     try:
-        with os.fdopen(descriptor, 'w') as output:
-            output.write(content)
+        with os.fdopen(descriptor, 'wb') as output:
+            output.write(desired)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
         currency.publish(temporary, path, digest, fingerprint)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
         raise
+
+
+def _publish_scad(path, content, mtime_ns, digest, fingerprint):
+    """Publish one captured SCAD state and update process-local currentness."""
+    _atomic_write_text(path, content, mtime_ns, digest, fingerprint)
+    generation = current_generation()
+    if generation is not None:
+        generation.remember_scad_artifact(
+            path, (mtime_ns, digest, fingerprint))
+    logger.info('%s generated with %s!', path, _seconds(mtime_ns))
 
 
 def _atomic_write_bytes(path, content, mtime_ns, digest=None,
@@ -80,14 +111,16 @@ def _atomic_write_bytes(path, content, mtime_ns, digest=None,
 
 
 # Module-level cache of loaded base meshes (no operations applied),
-# keyed on (stl_file, mtime) -- skill-repo docs/performance-improvement.md
+# keyed on the STL's complete observable filesystem identity --
+# skill-repo docs/performance-improvement.md
 # fix 1. Before this cache, AbstractBaseNode.mesh called trimesh.load()
 # on EVERY access; a single real STL can take over a second to load
 # (the v8-engine camshaft, 660k faces), and a test suite hits `.mesh`
 # thousands of times. Keying on mtime (not just path) means a rebuilt
 # STL is picked up automatically -- and any stale entry under the
-# file's OLD mtime is evicted on the next access under its new one, so
-# a rebuild loop doesn't accumulate one cached mesh per rebuild.
+# file's old strong observation is evicted on the next access under its new
+# one, so even same-size content replacement with a restored mtime cannot
+# reuse stale geometry and a rebuild loop cannot accumulate stale entries.
 _base_mesh_cache = {}
 
 
@@ -126,22 +159,30 @@ def __getattr__(name):
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
-def cached_base_mesh(stl_file):
+def cached_base_mesh(stl_file, observation=None):
     """The node's immutable base mesh (STL geometry, no operations
-    applied), loaded once per (stl_file, mtime) and shared across every
-    caller. Returns the cached object itself -- callers that need a
+    applied), loaded once per strong artifact observation and shared across
+    every caller. Returns the cached object itself -- callers that need a
     mutable copy (AbstractBaseNode.mesh) must .copy() it; callers that
-    only read it (e.g. the AABB broad-phase's local .bounds, or
-    solid_node/core/pieces.py's per-artifact geometry facts) can use it
-    directly. Public: core/pieces.py reads the same cache a build or
-    test may already have populated, rather than loading independently."""
-    mtime = os.path.getmtime(stl_file)
-    key = (stl_file, mtime)
+    only read it (e.g. the AABB broad-phase's local .bounds) can use it
+    directly. ``observation`` lets a higher cache require the decode to come
+    from exactly the identity that keyed its own miss; a mismatch raises
+    rather than storing mixed geometry under the earlier identity."""
+    key = (os.fspath(stl_file), observation) if observation is not None \
+        else artifact_cache_key(stl_file)
     cached = _base_mesh_cache.get(key)
     if cached is None:
         for stale_key in [k for k in _base_mesh_cache if k[0] == stl_file]:
             del _base_mesh_cache[stale_key]
-        cached = _mesh_library().load(stl_file)
+        # The cache identity and decoded geometry must describe one open file,
+        # not two resolutions of a path an atomic publisher can replace.
+        with ArtifactSnapshot(stl_file) as snapshot:
+            if snapshot.observation != key[1]:
+                raise ArtifactChanged(
+                    f'Artifact changed before mesh decode: {stl_file}')
+            cached = _mesh_library().load(
+                io.BytesIO(snapshot.read_bytes()), file_type='stl')
+            snapshot.validate()
         _base_mesh_cache[key] = cached
     return cached
 
@@ -633,6 +674,10 @@ class AbstractBaseNode(metaclass=NodeMeta):
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""
+        # A builder phase shares one distinct-path census across this whole
+        # recursive call.  Register each nested producer's known closure before
+        # its render/as_scad work can consume a foreign contributor.
+        track_sources(self.files)
         if self._assembled:
             return self._assembled
 
@@ -735,10 +780,10 @@ class AbstractBaseNode(metaclass=NodeMeta):
         (ADR-006). An integer read from the filesystem and written back
         unchanged is a fixed point at any resolution.
         """
-        return max([
-            os.stat(path).st_mtime_ns
-            for path in self.files
-        ])
+        census = current_census()
+        if census is not None:
+            return max(census[path].mtime_ns for path in self.files)
+        return max(os.stat(path).st_mtime_ns for path in self.files)
 
     @property
     def source_digest(self):
@@ -811,9 +856,28 @@ class AbstractBaseNode(metaclass=NodeMeta):
         return code
 
     def generate_scad(self):
-        _atomic_write_text(self.scad_file, self.scad_code, self.mtime_ns,
-                           self.source_digest, self.source_fingerprint)
-        logger.info(f"{self.scad_file} generated with {self.mtime}!")
+        mtime_ns = self.mtime_ns
+        digest = self.source_digest
+        fingerprint = self.source_fingerprint
+        identity = (mtime_ns, digest, fingerprint)
+        generation = current_generation()
+        shareable = self.rigid and generation is not None
+        if (shareable
+                and generation.has_scad_artifact(self.scad_file, identity)):
+            logger.info('%s reused in this source generation', self.scad_file)
+            return
+
+        content = self.scad_code
+        phase = current_phase()
+        if (not self.rigid and not self.flexible and phase is not None
+                and phase.coalesces_scad):
+            phase.defer_scad(
+                self.scad_file, content, mtime_ns, digest, fingerprint,
+                _publish_scad)
+            return
+
+        _publish_scad(
+            self.scad_file, content, mtime_ns, digest, fingerprint)
 
     def trigger_stl(self):
         self.assemble()
@@ -899,9 +963,9 @@ class AbstractBaseNode(metaclass=NodeMeta):
     # derived from the attribute name the PARENT instance holds it
     # under -- introspected off the parent's __dict__ -- unless an
     # explicit name= was given (that always wins) or the child cannot
-    # be found in the parent's __dict__ at all (then it just keeps its
-    # current name, the class-name default).
-    def _link_child(self, child):
+    # be found in the parent's __dict__ at all (then it receives its
+    # class-name fallback afresh).
+    def _link_child(self, child, name_index=None):
         """Link `child` to this node as its parent, and derive its
         name from the attribute holding it. Called from the same spot
         the tree links parent/child today (InternalNode.as_scad) and
@@ -913,9 +977,41 @@ class AbstractBaseNode(metaclass=NodeMeta):
         child._parent = self
         if child._explicit_name:
             return
-        found = self._attr_name_for(child)
-        if found is not None:
-            child.name = found
+        found = (self._attr_name_for(child) if name_index is None
+                 else name_index.get(id(child)))
+        child.name = found if found is not None else type(child).__name__
+
+    def _link_children(self, children):
+        """Link one sibling batch from one parent-attribute snapshot."""
+        if not children:
+            return
+        name_index = self._child_name_index()
+        for child in children:
+            self._link_child(child, name_index)
+
+    def _child_name_index(self):
+        """Map child identity to its name from one attribute snapshot.
+
+        Public direct attributes are indexed first, in insertion order, so
+        they beat every sequence alias.  Public list/tuple contents are
+        copied while taking the snapshot and indexed second, also first-win.
+        The copy fixes the naming observation for the whole sibling batch if
+        recursive user code later mutates the live sequence.
+        """
+        attributes = []
+        for attr, value in self.__dict__.items():
+            if attr.startswith('_') or attr == 'children':
+                continue
+            members = tuple(value) if isinstance(value, (list, tuple)) else ()
+            attributes.append((attr, value, members))
+
+        found = {}
+        for attr, value, _ in attributes:
+            found.setdefault(id(value), attr)
+        for attr, _, members in attributes:
+            for index, item in enumerate(members):
+                found.setdefault(id(item), f'{attr}-{index}')
+        return found
 
     def _attr_name_for(self, child):
         """The attribute name (or `<attr>-<index>` for a list/tuple
@@ -930,19 +1026,7 @@ class AbstractBaseNode(metaclass=NodeMeta):
         otherwise be renamed `children-<index>`. Returns None if
         `child` isn't referenced by any (non-private) attribute at
         all."""
-        for attr, value in self.__dict__.items():
-            if attr.startswith('_') or attr == 'children':
-                continue
-            if value is child:
-                return attr
-        for attr, value in self.__dict__.items():
-            if attr.startswith('_') or attr == 'children':
-                continue
-            if isinstance(value, (list, tuple)):
-                for index, item in enumerate(value):
-                    if item is child:
-                        return f'{attr}-{index}'
-        return None
+        return self._child_name_index().get(id(child))
 
     ##############################################
     # Transformations that can be applied to Node
@@ -979,7 +1063,8 @@ class AbstractBaseNode(metaclass=NodeMeta):
         """The node's mesh in WORLD coordinates: its own operations
         applied first, then each ancestor's, up the assembled tree —
         the same composition the viewer renders. The base geometry is
-        loaded once per (stl_file, mtime) (see _cached_base_mesh) and
+        loaded once per strong artifact observation (see
+        ``cached_base_mesh``) and
         always returned as a fresh COPY with a single composed world
         matrix applied (see _compose_world_matrix) -- callers are free
         to mutate the result; the cached base mesh never is."""
@@ -1111,11 +1196,28 @@ class StlRenderStart(Exception):
             except FileNotFoundError:
                 pass
 
-    def wait(self):
+    def wait(self, checkpoint=None):
         logger.info(f"waiting for {self.stl_file} ...")
+        changed = None
+        if checkpoint is not None:
+            try:
+                checkpoint(label='render_wait_pre')
+            except Exception as error:
+                # The subprocess is already running.  Reap it before carrying
+                # the source-change outcome out, but never publish its output.
+                changed = error
         returncode = self.proc.wait()
+        if changed is not None:
+            self._discard()
+            raise changed
         if returncode:
             self._discard()
             raise CalledProcessError(returncode, self.proc.args)
+        if checkpoint is not None:
+            try:
+                checkpoint(label='render_wait_post')
+            except Exception:
+                self._discard()
+                raise
         logger.info(f"{self.stl_file} done!")
         self.finish()

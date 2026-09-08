@@ -272,8 +272,8 @@ def drive_tree(root, resolve, visit=None):
         rendered = node.render()
         if type(rendered) not in (list, tuple):
             return
+        node._link_children(rendered)
         for child in rendered:
-            node._link_child(child)
             walk(child, path + (child.name,))
 
     walk(root, ())

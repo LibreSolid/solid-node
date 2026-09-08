@@ -37,6 +37,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from solid_node import currency
+from solid_node.core import pieces
 from solid_node.core.builder import Builder, BuildOutcome
 from solid_node.core.loader import load_node
 
@@ -227,6 +228,7 @@ class ScratchProjectTest(TestCase):
         for root, _, names in os.walk(self.build_dir):
             for name in names:
                 if (name.endswith(currency.SIDECAR_SUFFIX)
+                        or name.endswith(pieces._FACT_SUFFIX)
                         or name in ('viewer.json', 'errors.json')):
                     continue
                 path = os.path.join(root, name)

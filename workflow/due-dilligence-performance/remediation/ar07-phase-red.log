@@ -1,0 +1,32 @@
+AR-07 phase-coalescing red proof
+This is a command/result summary transcribed from the captured pytest output,
+not the raw output stream. The full failure output remains in the agent tool
+transcript; production was edited only after that run completed.
+Date: 2026-09-07 UTC
+Framework branch: performance-analysis
+Planning HEAD: 2ca4b9f06835d1133b6ad00eceecdee6e29b714c
+Working directory: /home/asa/devel/libresolid-studio/solid-node/WTs/performance-analysis
+Interpreter: /home/asa/devel/libresolid-studio/.venv/bin/python
+
+Command:
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /home/asa/devel/libresolid-studio/.venv/bin/python -B -m pytest -q tests/test_generation_dedup.py
+
+Result before production correction:
+  11 failed, 12 passed in 1.97s
+
+Failing regressions:
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_alternating_full_identities_follow_current_artifact
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_binding_dependent_assemblies_keep_distinct_compositions
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_body_failure_discards_pending_scad_without_generated_log
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_flush_failure_clears_pending_requests_after_partial_progress
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_generated_log_is_emitted_only_for_the_flushed_value
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_last_desired_values_are_captured_and_flushed_in_path_order
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_non_flexible_assembly_instances_share_base_scad_path
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_postflush_source_failure_propagates_after_atomic_publication
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_preflush_source_failure_discards_pending_scad
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_second_and_third_stable_phase_preserve_file_identities
+  tests/test_generation_dedup.py::GenerationScadDedupTest::test_unknown_identity_invalidates_rigid_current_artifact
+
+The direct/non-assembly and flexible-immediate exclusions passed before the
+production correction. The preserved earlier two-failure transcript remains
+unchanged at ar07-red.log.

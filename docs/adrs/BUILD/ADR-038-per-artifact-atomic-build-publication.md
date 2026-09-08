@@ -6,6 +6,7 @@
 - **Change:** `per-file-build-publication`
 - **Supersedes:** [ADR-032](ADR-032-symlink-swap-build-publication.md)
 - **Reverses:** [ADR-030](ADR-030-complete-build-publication-boundary.md)
+- **Extended by:** [ADR-086](ADR-086-state-dependent-scad-publishes-at-assembly-phase-completion.md) — state-dependent non-rigid SCAD becomes visible at assembly completion while per-artifact atomicity remains
 
 ## Context
 
