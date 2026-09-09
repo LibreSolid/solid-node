@@ -900,3 +900,12 @@ before the project is refactored around its absence.
   and pulleys are one joint each, so the composition contract is again the
   one thing missing; the delta law itself (three drivers to each rod) is
   the multi-source relation already recorded. Deferred at stage A.
+- **A bare number cannot be added to a dimensioned token.** The
+  Pascaline's slide span, `CHANNEL_Y[1] - CHANNEL_Y[0] - SLIDE_WIDTH - 2 * clearance`
+  with `clearance` a declared `Length`, is refused at class definition
+  (`DimensionError: 27.0 is dimensionless and <L> is L`): the parameter
+  algebra lets a number MULTIPLY a token but not add to or subtract from
+  one, so a layout constant in millimetres must be wrapped as
+  `Length(...)` before it meets a token. Met writing a `ratio=` and a
+  joint `range=`; not a motion-layer gap but the first time the algebra
+  was asked this in a class body rather than in `render()`.
