@@ -909,3 +909,10 @@ before the project is refactored around its absence.
   `Length(...)` before it meets a token. Met writing a `ratio=` and a
   joint `range=`; not a motion-layer gap but the first time the algebra
   was asked this in a class body rather than in `render()`.
+- **Declaration-site joint, sharpest form: the Prusa i3's Z screws.** Each
+  screw's anchor is `(±17, 0, 0)` by the PARENT's `left` flag, so neither
+  an own-placed-origin mode nor a callable of the realized child can
+  state it, and giving `ZScrew` a parameter for it would mint a second
+  cached exact ISO thread. The two screws keep a port and one `rotate`
+  each. Wanted, as before: `screw = ZScrew(turn=Revolute(axis=(0, 0, 1), at=(side * 17, 0, 0)))`
+  resolved against the declaring parent's parameters.
