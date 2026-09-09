@@ -707,3 +707,40 @@ were bit-identical before and after in both projects.
   same 29/2 on the primary checkout at main cb474e3 with Thor's committed
   code, so it predates the motion branch (an exact-boolean or seats change
   since Thor's last green run, not investigated here).
+
+# Motion catalogue refactor (2026-09-09, every project onto `solid_node.motion`)
+
+Found while moving the rest of the project catalogue onto joints and
+couplings after the ports move broke every unmigrated import. Tracker:
+`libresolid-studio/docs/motion-general-refactor.md`. Pilot's rule for this
+campaign: a missing primitive defers the project and is recorded here first,
+with the sentence the project wants to write, so the primitive is built
+before the project is refactored around its absence.
+
+- **A joint's axis and anchor belong to the declaration site as often as
+  to the class.** Two more sightings of the first 2026-09-09 finding, from
+  the opposite side: not a design-placed part whose origin is unknown, but
+  a shared or catalogue class whose placement is the PARENT's knowledge.
+  Poseidon's `ThreadedRod` and `ShaftCoupling` are bought-hardware
+  envelopes; to turn on the drive axis each must now carry
+  `turn = Revolute(axis=(1, 0, 0), at=(LEADSCREW_START_X, *DRIVE_AXIS_YZ))`
+  with the pump's layout constants inside the hardware module, even though
+  both anchors are exactly the rods' own placed origins.
+  OpenMANIPULATOR-X's seven mesh packs share one `VisualPack` class; the two
+  gripper fingers slide on mirrored axes, so the project needs two
+  three-line subclasses whose only content is one `Prismatic` each, and
+  every arm link writes its URDF origin twice — in the parent's
+  `render().translate()` and again as the joint's `at`. The sentences the
+  projects want:
+
+      leadscrew = ThreadedRod(turn=Revolute(axis=(1, 0, 0), at=(LEADSCREW_START_X, *DRIVE_AXIS_YZ)))
+      left_finger = VisualPack('gripper_left_palm.stl', travel=Prismatic(axis=(0, 1, 0), range=(-11, 20), unit='mm'))
+      base_yaw = Revolute(axis=(0, 0, 1), unit='deg')      # anchored at my own placed origin, no `at`
+
+  Neither project is deferred: the motion is fully stated either way, and
+  the cost is duplication and ceremony, not hand-written motion. Candidate
+  fixes, complementary: (a) the own-placed-origin anchor mode already
+  proposed above, which removes every `at` that repeats the parent's
+  translate; (b) a joint passed as a declaration keyword, resolved on the
+  child like a wiring is today but declaring a freedom rather than binding
+  one, so a shared class can be given a joint where it is placed.
