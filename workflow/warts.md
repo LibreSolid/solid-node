@@ -833,3 +833,17 @@ before the project is refactored around its absence.
   along the channel — two joints on one body whose order matters
   (`T(slide)·R(turn)`), the third sighting of the composition-order gap.
   Deferred at stage A on both.
+- **A path on one body, per repeated copy: fender-bender's bracket
+  release.** One freedom, `lift`, realized as `T(dx, dz, 0)·Rz(-tilt)` in
+  each channel's own frame from nine measured waypoints, on five channels
+  held by `.repeat()`. It hits three of the findings above at once —
+  several joints composing on one body, an anchor at the copy's own
+  placed origin (`channel_y(index)`), and a relation fanning out over a
+  repeated child with a per-copy law. Wanted, either three joints with a
+  stated composition order, or
+
+      release = Path(RELEASE_WAYPOINTS, at=OWN_PLACED_ORIGIN, unit='mm')
+
+  Deferred at stage A. The two motions the API states today — the
+  filament wheel's spin and the lock pin's draw — wait with it; the
+  loop's `drop` port feeds molejo geometry and is not a forwarder.
