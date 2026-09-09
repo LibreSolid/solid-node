@@ -946,3 +946,14 @@ before the project is refactored around its absence.
   pin>)` plus its own `Revolute`, or as two joints under the declaration
   order contract. Deferred at stage A. The four timing gears are the
   eighth own-placed-origin sighting (one class, four anchors).
+- **An ancestor's relation cannot SOURCE from a coordinate a descendant's
+  relations solve.** The mirror of reaching by path: OpenFlexure's root
+  stated `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=...)`,
+  but the column's travel is bound by `Axis`'s own relations, which run
+  after the root's, so the root's solve found it unreached at every
+  pose. The four flexure laws had to be re-sourced from the root's
+  `z_motor` driver with the step-to-travel conversion composed into each
+  law. Same root cause as the one-class-body rule (no whole-tree
+  fixpoint); the candidate fix already listed — defer an unreached
+  relation until the descendants have solved, then re-run once — would
+  make the sentence as written work.
