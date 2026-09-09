@@ -51,6 +51,40 @@ class SidewaysReadError(AttributeError):
 
 
 ##############################################
+# Coordinates, recognized without importing them
+
+# `solid_node.motion.ports` imports `solid_node.node.phase`, and
+# `solid_node.motion.joints` imports ports, so this module -- which the
+# node package imports while it is still initializing -- cannot import
+# either at module scope in every import order. It does not need to:
+# what makes a value a coordinate is that it IS a port declaration
+# (a domain, a direction marker and a scale) or that it OWNS one as its
+# `coordinate`. That is the same duck-typed seam `declared_ports` uses
+# to report a joint's coordinate, stated once more here rather than
+# turned into an import cycle or a registry.
+
+def _is_port_declaration(value):
+    return (getattr(value, 'domain', None) is not None
+            and hasattr(value, 'scale') and hasattr(value, 'out'))
+
+
+def _coordinate_of(value):
+    """The port `value` offers as a coordinate: itself when it is a
+    port declaration, its `coordinate` when it is a joint, else None."""
+    if _is_port_declaration(value):
+        return value
+    owned = getattr(value, 'coordinate', None)
+    if _is_port_declaration(owned):
+        return owned
+    return None
+
+
+def _is_joint(value):
+    return (not _is_port_declaration(value)
+            and _coordinate_of(value) is not None)
+
+
+##############################################
 # Child declarations
 
 class ChildDeclaration:
@@ -69,10 +103,59 @@ class ChildDeclaration:
     def __init__(self, node_class, args, kwargs):
         self.node_class = node_class
         self.args = tuple(args)
-        self.kwargs = dict(kwargs)
+        # A keyword whose VALUE is a coordinate -- a port or a joint
+        # declared on the class whose body this is -- is a WIRING, not a
+        # parameter: it says which value reaches the child at each
+        # instant, not what geometry is built. Deciding on the value
+        # rather than on the name is what keeps the parameter path
+        # untouched: wirings never reach resolve_parameters, so they
+        # never enter the child's construction or its identity, and
+        # every other keyword keeps the meaning it has today.
+        self.wiring = {key: value for key, value in kwargs.items()
+                       if _coordinate_of(value) is not None}
+        self.kwargs = {key: value for key, value in kwargs.items()
+                       if key not in self.wiring}
 
     def __set_name__(self, owner, name):
         self._name = name
+        if self.wiring:
+            self._check_wiring(owner)
+
+    def _check_wiring(self, owner):
+        """Refuse a wiring at CLASS DEFINITION, where both ends are
+        known: the value has to be a coordinate this class declares, and
+        the keyword has to name a port or a joint the child declares.
+
+        The same moment the sideways-read error fires, so a wiring
+        mistake reads like the other class-body mistakes rather than
+        surfacing as an unbound value somewhere down a render.
+        """
+        from solid_node.motion.joints import declared_joints
+        from solid_node.motion.ports import declared_ports
+
+        ours = {id(port) for port in declared_ports(owner).values()}
+        ours.update(id(joint) for joint in declared_joints(owner).values())
+        theirs = declared_ports(self.node_class)
+        for keyword, source in self.wiring.items():
+            if id(source) not in ours:
+                elsewhere = getattr(source, 'owner', None)
+                belongs = (f'{elsewhere.__name__} declares it'
+                           if elsewhere is not None
+                           else 'it is declared on no class here')
+                raise TypeError(
+                    f"{owner.__name__}.{self._name}: the coordinate wired "
+                    f"as '{keyword}' is not declared on "
+                    f"{owner.__name__} -- {belongs}. A wiring hands a "
+                    f"parent's OWN coordinate to a child; declare it on "
+                    f"{owner.__name__} and wire that.")
+            if keyword not in theirs:
+                declared = ', '.join(sorted(theirs)) or 'none'
+                raise TypeError(
+                    f"{owner.__name__}.{self._name}: "
+                    f"{self.node_class.__name__} cannot receive a "
+                    f"coordinate as '{keyword}', because it declares no "
+                    f"port or joint of that name; it declares: "
+                    f"{declared}.")
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -99,7 +182,24 @@ class ChildDeclaration:
         args = [evaluate(arg, values) for arg in self.args]
         kwargs = {key: evaluate(arg, values)
                   for key, arg in self.kwargs.items()}
-        return self.node_class(*args, **kwargs)
+        child = self.node_class(*args, **kwargs)
+        if self.wiring:
+            self._record_wiring(child, owner)
+        return child
+
+    def _record_wiring(self, child, owner):
+        """Record on the realized child which of its coordinates a
+        wiring feeds, so the parent binds them on every simulate()
+        without re-deriving the mapping, and so a hand binding of a
+        wired coordinate is refused where it happens."""
+        from solid_node.motion.ports import declared_ports
+
+        ports = declared_ports(type(child))
+        recorded = child.__dict__.setdefault('_wired_from', {})
+        for keyword, source in self.wiring.items():
+            recorded[keyword] = source
+            slot = ports[keyword].__get__(child)
+            slot.wired_from = (owner, self._name, keyword)
 
     def __repr__(self):
         return f'<declared {self.node_class.__name__} {self._name or ""}>'
@@ -117,6 +217,7 @@ class RepeatDeclaration:
 
     def __set_name__(self, owner, name):
         self._name = name
+        self._adopt(owner, name)
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -124,6 +225,12 @@ class RepeatDeclaration:
         raise AttributeError(
             f"children '{self._name}' of {type(instance).__name__} are not "
             f"realized on this instance")
+
+    def _adopt(self, owner, name):
+        # The held declaration never reached the class namespace under
+        # its own name, so it is named and validated through this one.
+        self.declaration._name = name
+        self.declaration.__set_name__(owner, name)
 
     @property
     def node_class(self):
@@ -176,6 +283,9 @@ class _DeclaringNamespace(dict):
         super().__setitem__(_BODY_KEY, _BODY)
 
     def __setitem__(self, key, value):
+        shadowed = self.get(key)
+        if shadowed is not None and shadowed is not value:
+            _refuse_coordinate_clash(self, key, shadowed, value)
         if isinstance(value, (Declaration, ChildDeclaration,
                               RepeatDeclaration)):
             if isinstance(value, Declaration) and value._name is None:
@@ -183,6 +293,28 @@ class _DeclaringNamespace(dict):
             elif not isinstance(value, Declaration):
                 value._name = key
         super().__setitem__(key, value)
+
+
+def _refuse_coordinate_clash(namespace, key, shadowed, value):
+    """A name declared as both a joint and a port in one class body.
+
+    The second assignment would simply replace the first in the
+    namespace, leaving one declaration and no sign of the other, so the
+    clash is only visible here -- while the body runs -- and is refused
+    where it was written.
+    """
+    if _coordinate_of(shadowed) is None or _coordinate_of(value) is None:
+        return
+    if _is_joint(shadowed) == _is_joint(value):
+        return
+    joint, port = ((shadowed, value) if _is_joint(shadowed)
+                   else (value, shadowed))
+    owner = namespace.get('__qualname__', '<class>')
+    raise TypeError(
+        f"'{key}' on {owner} is declared twice, as the joint {joint!r} "
+        f"and as the port {port!r}. A joint already owns one coordinate, "
+        f"which IS a port of that name, so the two cannot share it: "
+        f"drop the port, or rename one of them.")
 
 
 def in_class_body():

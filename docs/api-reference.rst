@@ -243,6 +243,24 @@ parent assembly binds it every ``simulate()`` with
 
 .. autofunction:: solid_node.motion.ports.declared_ports
 
+Joints
+======
+
+The one-coordinate lower pairs, importable from
+``solid_node.motion.joints``. A joint is declared as a class attribute of
+the node it moves and states where that node may move, in the frame its
+parent places it in; reading it gives its coordinate, which is a port,
+and binding that coordinate places the body. See
+:doc:`Driving a machine <driving>`.
+
+.. autoclass:: solid_node.motion.joints.Revolute
+
+.. autoclass:: solid_node.motion.joints.Prismatic
+
+.. autoexception:: solid_node.motion.joints.JointRangeError
+
+.. autofunction:: solid_node.motion.joints.declared_joints
+
 Simulation
 ==========
 

@@ -76,16 +76,13 @@ class MotionSubmodulesTest(TestCase):
     nothing -- the two cycles that fill them start from a clean module,
     not a guess."""
 
-    def test_the_submodules_import_and_are_empty(self):
+    def test_the_unfilled_submodule_imports_and_is_empty(self):
         import solid_node.motion.couplings as couplings
-        import solid_node.motion.joints as joints
 
-        for module in (joints, couplings):
-            with self.subTest(module=module.__name__):
-                self.assertTrue(module.__doc__ and module.__doc__.strip())
-                public = [name for name in vars(module)
-                         if not name.startswith('_')]
-                self.assertEqual(public, [])
+        self.assertTrue(couplings.__doc__ and couplings.__doc__.strip())
+        public = [name for name in vars(couplings)
+                  if not name.startswith('_')]
+        self.assertEqual(public, [])
 
 
 class MotionPackageExportsNothingTest(TestCase):
@@ -183,10 +180,13 @@ class MotionImportCostTest(TestCase):
     """`solid_node.motion` and its submodules stay as cheap to import as
     `solid_node.node` -- no CAD backend, no exact-geometry stack."""
 
-    def test_the_empty_submodules_pull_in_no_other_solid_node_module(self):
+    def test_the_empty_package_pulls_in_no_other_solid_node_module(self):
+        """The package and `couplings` are still free. `joints` is not:
+        cycle 2 filled it, and a joint owns a port as its coordinate, so
+        it costs what `solid_node.motion.ports` costs (see
+        tests/test_joints.py, which pins that equality)."""
         result = probe(
             'import solid_node.motion\n'
-            'import solid_node.motion.joints\n'
             'import solid_node.motion.couplings\n'
             'import sys\n'
             "solid_modules = sorted(\n"
@@ -199,7 +199,6 @@ class MotionImportCostTest(TestCase):
             'solid_node',
             'solid_node.motion',
             'solid_node.motion.couplings',
-            'solid_node.motion.joints',
         ])
         self.assertFalse(result.imported('cadquery'))
         self.assertFalse(result.imported('OCP'))

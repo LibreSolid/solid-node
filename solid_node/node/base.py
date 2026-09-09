@@ -304,27 +304,64 @@ def _compose_solid_matrix(node):
 _render_stack = _phase._stack
 
 
-def _place_operation(node, operation):
-    phase = _phase.current()
-    if phase is None:
-        node.operations.append(operation)
-        return
-    if phase.kind == _phase.SIMULATE:
-        operation._motion = True
-        index = 0
-        for existing in node.operations:
-            if not getattr(existing, '_motion', False):
-                break
-            index += 1
-        node.operations.insert(index, operation)
-    else:
-        node.operations.append(operation)
+def _insert_motion(node, operation):
+    """Put `operation` at the end of the node's motion block: after the
+    motion already applied, before every rest operation, so the part
+    moves in its own frame and is then carried by its placement, and so
+    successive calls keep their call order at the head of the list."""
+    operation._motion = True
+    index = 0
+    for existing in node.operations:
+        if not getattr(existing, '_motion', False):
+            break
+        index += 1
+    node.operations.insert(index, operation)
+
+
+def _tag_operation(node, operation, phase):
     assembly = phase.assembly
     operation._animator = assembly
     if not hasattr(assembly, '_animated_nodes'):
         assembly._animated_nodes = set()
     assembly._animated_nodes.add(node)
     phase.applied.append(operation)
+
+
+def _place_operation(node, operation):
+    phase = _phase.current()
+    if phase is None:
+        node.operations.append(operation)
+        return
+    if phase.kind == _phase.SIMULATE:
+        _insert_motion(node, operation)
+    else:
+        node.operations.append(operation)
+    _tag_operation(node, operation, phase)
+
+
+def apply_motion(node, operation):
+    """Place `operation` on `node` as MOTION whatever phase is current,
+    and return it. The joint seam, and nothing else's.
+
+    `_place_operation` appends when no lifecycle phase is running, which
+    is right for a placement stated in the parent's frame and wrong for
+    a joint: a joint's axis and anchor were carried into the node's own
+    frame, so an operation appended after the rest placement would be
+    read in the parent's frame instead -- a body turned about the wrong
+    line, silently. A joint therefore never goes through the plain
+    rotate()/translate() path.
+
+    Under a simulate phase nothing else changes: the operation is tagged
+    with the simulating assembly and swept before its next run, exactly
+    as a hand-written rotation there is. Outside any phase it is marked
+    as motion but untagged, so no sweep touches it and re-binding the
+    joint is what keeps it absolute.
+    """
+    _insert_motion(node, operation)
+    phase = _phase.current()
+    if phase is not None:
+        _tag_operation(node, operation, phase)
+    return operation
 
 
 # Filesystem-safe charset for the readable prefix: anything outside this
@@ -510,6 +547,17 @@ class AbstractBaseNode(metaclass=NodeMeta):
                 identity_values(type(self), self.__dict__['_parameters']))
         else:
             self.uniq_id = _build_uniq_id(self.__class__, args, kwargs)
+
+        # Where this node may move, resolved against this instance:
+        # after its parameters and its check(), and before any child is
+        # realized (below), so a joint argument that cannot resolve
+        # names the class, the joint and the argument at the earliest
+        # point a value could be wrong and a refused instance has built
+        # nothing. Imported here rather than at module scope:
+        # solid_node.motion.joints imports solid_node.motion.ports,
+        # which imports this package.
+        from solid_node.motion.joints import resolve_declared_joints
+        resolve_declared_joints(self)
 
         # A list of rotations and translations to be applied to object
         # after rendering. Operations done this way will be applied after

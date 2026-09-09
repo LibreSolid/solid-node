@@ -185,6 +185,110 @@ gets its shape — the chain is *driver → port → geometry* — and a
 port-bound value is deliberately **not** part of a part's build
 identity, so driving a machine never mints new cached artifacts.
 
+Joints: where a part may move
+=============================
+
+A port carries a value; a **joint** says *where a body may move*, next
+to the body, once. The two one-coordinate lower pairs come from
+``solid_node.motion.joints``:
+
+.. code-block:: python
+
+    from solid_node.motion.joints import Prismatic, Revolute
+
+    class Forearm(AssemblyNode):
+        reach = Length(160.0, min=0)
+
+        elbow = Revolute(axis=(0, 0, 1), at=(0, reach, 68),
+                         range=(-135, 135), unit='deg')
+
+    class Carriage(Solid2Node):
+        travel = Prismatic(axis=(1, 0, 0), range=(0, 200), unit='mm')
+
+`axis` and `at` are stated in the **parent's frame** — the frame the
+parent's `render()` places this node in, which is where MuJoCo and
+Modelica state them too. `at` defaults to that frame's origin, which is
+the case of a wheel turning on its own bearing; `range` is a `(lo, hi)`
+pair in `unit`. Each component may be a number, a declared parameter,
+or a formula over them, and the whole argument may instead be a
+callable of the realized node — for a position that comes out of a
+library object your node builds rather than out of a formula. They are
+resolved once, when the node is realized, and a joint argument never
+enters a part's build identity.
+
+A joint owns exactly **one coordinate, and that coordinate is a port**.
+Reading the joint on an instance gives that port slot; assigning to it
+binds through the same path `connect()` uses, and `declared_ports`
+reports it under the joint's name, so anything that enumerates a node's
+connection points sees a joint without knowing what a joint is.
+
+**Binding the joint moves the body.** The parent binds it in
+`simulate()`, and the framework composes the motion onto the node's rest
+placement:
+
+.. code-block:: python
+
+    class Arm(AssemblyNode):
+        angle = Driver(default=0.0, unit='deg')
+
+        forearm = Forearm()
+
+        def render(self):
+            self.forearm.rotate(90, [1, 0, 0])
+            self.forearm.translate([0, 241.5, 68])
+
+        def simulate(self):
+            self.forearm.elbow = self.angle
+
+This is the case worth reading twice: the elbow does **not** run through
+the forearm's own origin — it is 81.5 mm up the arm — so turning the
+part about its own z would be wrong. Motion composes innermost, in the
+node's own frame, so the framework inverts the rest placement and
+carries the parent-frame axis and anchor into the forearm's
+coordinates: the line becomes `[0, 1, 0]` through `[0, 0, 81.5]`, and
+the part is placed `translate([0, 0, -81.5])`, `rotate(angle,
+[0, 1, 0])`, `translate([0, 0, 81.5])`. That arithmetic — the thing
+every robot arm in the wild writes by hand — is what a joint declaration
+replaces. When the line does run through the node's placed origin the
+two centring translations disappear and one rotation is left.
+
+The operations are ordinary rotations and translations, so a symbolic
+binding publishes a symbolic angle and the viewer evaluates it exactly
+as it evaluates any other expression. A binding outside a declared
+`range` is refused by name, with the node, the joint, the value and the
+range; a symbolic binding is not checked, because its value is not known
+at bind time. Nothing here is deprecated: a project that turns its parts
+by hand in `simulate()` keeps working, and both forms may sit on one
+node.
+
+Passing a coordinate down
+-------------------------
+
+Several parts often turn as one body. Hand the child the parent's
+coordinate in the class body, by naming a port or joint the child
+declares:
+
+.. code-block:: python
+
+    class Arbor(AssemblyNode):
+        index = Count(0, min=0)
+
+        turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+        wheel = Wheel(turn=turn)
+        pinion = Pinion(turn=turn)
+
+That keyword is a **wiring**, not a parameter: it says which value
+reaches the child at each instant, never what geometry is built, so it
+is absent from the child's parameters and from its identity — two arbors
+turning differently are still one printed wheel. The framework rebinds
+it from the parent's end after every `simulate()` of the parent, applying
+the child end's declared scale as any binding does. A wiring the child
+cannot receive fails at class definition, naming both classes; an
+unbound source fails when it is bound; and a wired coordinate has exactly
+one binder, so binding the child's end by hand in the declaring parent is
+refused rather than silently overwritten.
+
 Instructions
 ============
 

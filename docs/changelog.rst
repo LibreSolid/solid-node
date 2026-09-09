@@ -8,6 +8,37 @@ Changelog
 Unreleased
 ----------
 
+**A joint says where a body may move.** ``solid_node.motion.joints`` now
+holds the two one-coordinate lower pairs, ``Revolute`` and ``Prismatic``,
+declared as a class attribute of the node they move:
+``elbow = Revolute(axis=(0, 0, 1), at=(0, 160, 68), range=(-135, 135),
+unit='deg')``. ``axis`` and ``at`` are stated in the PARENT's frame — the
+frame the parent's ``render()`` places the node in, where MuJoCo and
+Modelica state them too — and each component may be a number, a declared
+parameter, a formula over them, or, for the whole argument, a callable of
+the realized node; they resolve at realization and never enter a part's
+build identity. A joint owns exactly one coordinate and that coordinate
+is a port: reading the joint gives the port slot, ``declared_ports``
+reports it under the joint's name, and assigning to it binds through the
+one binding path ``connect()`` uses. Binding it PLACES the body: the
+framework inverts the node's rest placement to carry the parent-frame
+axis and anchor into the node's own frame and applies ordinary rotations
+and translations there, so an axis that does not run through the moving
+part's origin no longer needs the frame arithmetic every robot arm writes
+by hand, and nothing new travels on the wire. A parent may hand one of
+its coordinates down to a child declaration by naming a port or joint the
+child declares — ``wheel = Arbor(index=index, turn=turn)`` — which is a
+wiring rather than a parameter: absent from the child's parameters and
+identity, rebound from the parent's end on every ``simulate()``, refused
+at class definition when the child cannot receive it, and the coordinate's
+one binder. A numeric binding outside a declared ``range`` raises
+``JointRangeError`` naming the node, the joint, the value and the range;
+a symbolic binding is not checked, because its value is not known at bind
+time. Nothing is deprecated: a project goes on turning its parts by hand
+in ``simulate()`` for as long as it likes, and both forms may sit on one
+node. (OpenSpec change ``joints``; ADR-088, extending ADR-056 and
+ADR-066.)
+
 **Ports and the declared time base moved to a new** ``solid_node.motion``
 **package.** ``solid_node.motion.ports`` is now the one home for
 ``Port``, ``BoundPort``, ``RotationalPort``, ``TranslationalPort``,

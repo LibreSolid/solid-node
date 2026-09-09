@@ -7,7 +7,7 @@ from solid2 import get_animation_time
 from . import phase as _phase
 from .internal import InternalNode
 from .qualified import declared_drivers_of, driver_id
-from solid_node.motion.ports import declared_time
+from solid_node.motion.ports import declared_time, wiring_binding
 
 
 def _sweep(assembly):
@@ -64,6 +64,37 @@ def _rest(assembly, render):
     return rendered
 
 
+def _bind_wirings(assembly):
+    """Bind every wiring this assembly's declarations recorded, source
+    to sink.
+
+    At the END of the assembly's simulate phase: the author's own
+    simulate() has had its chance to bind the coordinate being handed
+    down, and the phase is still this assembly's, so a wired joint's
+    motion is tagged with the assembly that stated the wiring. Every run
+    rebinds, so a wiring is as absolute as every other port binding.
+    """
+    from .declarative import declared_child_nodes
+
+    for child in declared_child_nodes(assembly):
+        wiring = child.__dict__.get('_wired_from')
+        if not wiring:
+            continue
+        for keyword, source in wiring.items():
+            slot = source.__get__(assembly)
+            if slot.value is None:
+                raise ValueError(
+                    f"cannot wire {type(assembly).__name__}."
+                    f"{source.name} into '{keyword}' of "
+                    f"{child.name}: nothing has bound it. A wiring "
+                    f"delivers the parent's value to the child, so the "
+                    f"parent's own coordinate has to be bound first -- "
+                    f"in {type(assembly).__name__}.simulate(), before "
+                    f"it returns.")
+            with wiring_binding():
+                setattr(child, keyword, slot)
+
+
 def _lifecycle_render(render):
     """Wraps an AssemblyNode subclass render() into the lifecycle every
     tree walker sees as one call: sweep the operations this assembly
@@ -86,6 +117,7 @@ def _lifecycle_render(render):
         _phase.push(self, _phase.SIMULATE)
         try:
             self.simulate()
+            _bind_wirings(self)
         finally:
             _phase.pop()
         return children

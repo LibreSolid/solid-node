@@ -100,7 +100,8 @@ A node is authored in one of two forms, freely mixed in one tree. The
 parameters to `super().__init__()`. The **declarative form** states
 them in the class body: typed parameters (`Length`, `Angle`, `Count`,
 `Ratio`, `Flag`, `Scalar`), derived parameters as bare formulas over
-them, and children as calls — because every node class carries
+them, children as calls, ports, and **joints** — where the node itself
+may move (ADR-088) — because every node class carries
 `NodeMeta`, a call inside a node class body yields a `ChildDeclaration`
 rather than an instance, recognized by the body's marked namespace on
 the stack (ADR-061). Each parent instance realizes its own children
@@ -126,7 +127,14 @@ rules and its compositions inheriting theirs, and a project free to
 subclass `Quantity` with new exponents (ADR-062). By the time any `render()` runs every parameter is a plain
 value; backends, `uniq_id` and the serializer never see a token. Reading
 a parameter off a sibling declaration is refused: shared values are
-declared on the ancestor and passed down.
+declared on the ancestor and passed down. A keyword argument to a child
+declaration whose VALUE is a port or joint declared on the same class is
+a **wiring**, not a parameter (ADR-088): it never reaches
+`resolve_parameters`, the child's construction or its identity, it is
+validated against both ends at class definition, and the framework
+rebinds the child's end from the parent's after every `simulate()` of
+the parent. Every other keyword keeps the meaning it has, including the
+`TypeError` an unknown one raises.
 
 The public surface is split by concern above the node package, so an
 import line says what each name is for: build parameters come from
@@ -472,6 +480,36 @@ scaled by the sink; no flow variable exists yet (the bond-graph
 extension ADR-056 reserves). The declared time base, `Time`, lives in
 the same module for the same reason `Port` does: it is a declaration
 descriptor with a per-instance value.
+
+**Joints** (spec `joints`) are the two one-coordinate lower pairs,
+`Revolute` and `Prismatic`, exported from `solid_node/motion/joints.py`
+and declared as a class attribute of the node they move (ADR-088). A
+joint states `axis` and `at` in the **parent's** frame — the frame the
+parent's `render()` places the node in, where MuJoCo and Modelica state
+them — with an optional `(lo, hi)` `range` and a `unit`; the arguments
+resolve per instance at realization, from numbers, tokens, derived
+formulas, or a callable of the realized node, and are outside identity.
+A joint OWNS one coordinate and that coordinate is a **port**: `Joint`
+holds a `Port` rather than subclassing one, `declared_ports()` reports
+the coordinate under the joint's name through a duck-typed `coordinate`
+attribute (ports cannot import joints, which import ports), and
+`declared_joints()` is the sibling enumerator for the axis and the
+anchor. Binding the coordinate PLACES the body, at the binding: the
+framework composes the node's non-motion operations, inverts that rest
+placement to carry the axis and anchor into the node's own frame,
+snaps the inversion's residue to exact 0/1/−1, and applies ordinary
+`Rotation`/`Translation` objects — `translate(-anchor)`,
+`rotate(value, axis)`, `translate(anchor)` for a revolute, the two
+centring translations omitted when the line runs through the placed
+origin, and one `translate(value * axis)` for a prismatic. They are
+always placed as motion, whatever phase is current (`apply_motion` in
+`node/base.py`, the joint's own seam, because `_place_operation`
+appends outside a phase and a carried line must stay innermost);
+under a `simulate()` phase they are tagged and swept like any motion.
+A rest placement that is not numeric is refused by name rather than
+placing the body about a wrong line, a numeric binding outside the
+declared range raises `JointRangeError`, and hand-written motion and
+joint motion coexist on one node — nothing is deprecated.
 
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because
@@ -1372,8 +1410,8 @@ The short list that changes must not silently break:
 |---|---|---|---|
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
-| Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087 |
-| Motion | `solid_node/motion/` | `ports` | 056, 072, 087 |
+| Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088 |
+| Motion | `solid_node/motion/` | `ports`, `joints` | 056, 072, 087, 088 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |

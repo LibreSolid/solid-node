@@ -289,6 +289,21 @@ named `<attr>-<index>`. Realization SHALL proceed top-down from the root's
 bound values in declaration order, and by the time any `render()` runs
 every parameter SHALL be a plain value.
 
+A keyword argument whose VALUE is a port or joint declaration SHALL be a
+WIRING rather than a parameter: it SHALL NOT be resolved as a parameter,
+SHALL NOT be passed to the child's construction, and SHALL NOT enter the
+child's identity, because it states which value reaches the child at each
+instant and not what geometry is built. Every keyword whose value is not
+such a declaration SHALL keep the meaning it has today, including the
+`TypeError` an unknown one raises.
+
+A wiring SHALL be validated at class definition, where both ends are
+known: the value SHALL be a port or joint declared on the class whose body
+holds the declaration, and the keyword SHALL name a port or a joint the
+child class declares. A wiring failing either test SHALL be refused at
+class definition, naming the declaring class, the child class, the keyword,
+and the ports and joints the child does declare.
+
 Two parent instances SHALL never share a realized child. A declared child
 whose class is a non-declarative node SHALL be realized by calling its
 constructor with the resolved arguments. Reading an attribute off a
@@ -347,6 +362,36 @@ SHALL be enumerable off the class without instantiating it.
 - **THEN** class definition raises naming both attributes and advising that
   the shared parameter be declared on this class and passed to both children
 
+#### Scenario: A wired coordinate is not a parameter
+
+- **WHEN** a class declaring `turn = Revolute(axis=(0, 0, 1), unit='deg')`
+  and `index = Count(0)` declares `wheel = Arbor(index=index, turn=turn)`,
+  where `Arbor` declares a `Count` parameter `index` and a
+  `RotationalPort` `turn`
+- **THEN** the realized `Arbor` was constructed with `index` only, its
+  resolved parameters carry no `turn`, and two such parents differing only
+  in what they bind to `turn` realize arbors sharing one `uniq_id`
+
+#### Scenario: A wiring the child cannot receive fails at class definition
+
+- **WHEN** a class body declares `wheel = Arbor(turn=turn)` where `Arbor`
+  declares neither a port nor a joint named `turn`
+- **THEN** class definition raises naming the declaring class, `Arbor`,
+  `turn`, and the ports and joints `Arbor` declares
+
+#### Scenario: A coordinate of another class is refused
+
+- **WHEN** a class body declares `wheel = Arbor(turn=elsewhere)` where
+  `elsewhere` is a port declared on an unrelated class
+- **THEN** class definition raises naming the declaring class, the
+  keyword and the class the coordinate belongs to
+
+#### Scenario: An unknown keyword is still a TypeError
+
+- **WHEN** a class body declares `wheel = Arbor(spin=1.0)` where `Arbor`
+  declares no parameter `spin`
+- **THEN** realization raises the `TypeError` it raises today, naming the
+  class, the unknown keyword and the declared parameters
 ### Requirement: Realization at the root and framework-owned identity
 
 The system SHALL realize a declarative root with its defaults when

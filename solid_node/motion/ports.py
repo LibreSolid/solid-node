@@ -57,6 +57,7 @@ why it lives in this module rather than beside it.
 """
 
 import math
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from solid_node.node.phase import note_read
@@ -72,6 +73,13 @@ class BoundPort:
     reported to the lifecycle phase, so a render() that reads a port is
     known for the legacy render it is.
     """
+
+    # The wiring that owns this slot, as (declaring class, child
+    # attribute, keyword), or None. A wired coordinate has exactly one
+    # binder: the wiring rebinds it at the end of every simulate() of
+    # the parent that declared it, so a hand binding of the same slot
+    # would be silently overwritten and is refused instead.
+    wired_from = None
 
     def __init__(self, declaration, node):
         self.declaration = declaration
@@ -125,6 +133,11 @@ class Port:
     # Set by each subclass: what kind of quantity this port carries.
     domain = None
 
+    # The class the declaration was made on, set by __set_name__. A
+    # wiring error has to be able to say which class a coordinate
+    # belongs to when it is not the one wiring it.
+    owner = None
+
     def __init__(self, unit=None, out=False, scale=None):
         # `scale` is design units per native unit of whatever drives
         # this port -- millimetres per microstep, say. It belongs to
@@ -137,6 +150,7 @@ class Port:
 
     def __set_name__(self, owner, name):
         self.name = name
+        self.owner = owner
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -162,6 +176,28 @@ class Port:
         return f'<{self.domain} port declaration {self.name}>'
 
 
+_wiring_depth = 0
+
+
+@contextmanager
+def wiring_binding():
+    """The wiring's own turn to bind: inside this, a wired coordinate
+    accepts the binding it otherwise refuses.
+
+    A wired coordinate has one binder, and it is the wiring. Everything
+    else that reaches `bind` for such a slot -- an author's
+    `self.wheel.turn = ...` in the parent that declared the wiring, a
+    `connect()` into it -- is refused by name rather than silently
+    overwritten at the end of the phase.
+    """
+    global _wiring_depth
+    _wiring_depth += 1
+    try:
+        yield
+    finally:
+        _wiring_depth -= 1
+
+
 def bind(sink, source):
     """Bind `sink`'s value from `source`, converting through the sink's
     declared scale. The one binding path: `connect()` and port
@@ -174,6 +210,15 @@ def bind(sink, source):
     a once-only render() would bind once and never rebind.
     """
     note_read('bound port', sink.name)
+    if sink.wired_from is not None and not _wiring_depth:
+        parent, attribute, keyword = sink.wired_from
+        raise ValueError(
+            f"cannot bind '{keyword}' of {attribute}: {parent} declares "
+            f"{attribute} = ...({keyword}=...), and that wiring binds it "
+            f"at the end of every simulate() of {parent}. A wired "
+            f"coordinate has one binder, so a binding here would be "
+            f"overwritten; bind {parent}'s own coordinate instead, or "
+            f"drop the wiring.")
     if isinstance(source, BoundPort):
         if source.value is None:
             # An unbound source is a wiring order mistake -- the
@@ -221,12 +266,23 @@ def declared_ports(node_class):
     and no __get__ runs: a consumer can enumerate a mechanism's
     connection points from the class alone. Walked base-first so a
     subclass redeclaring an inherited port wins.
+
+    A JOINT's coordinate is reported here too, under the joint's name,
+    so every consumer of a node's connection points sees it without
+    knowing what a joint is. The seam is the duck-typed `coordinate`
+    attribute rather than an `isinstance` check on `Joint`, because
+    `solid_node.motion.joints` imports THIS module -- a joint owns a
+    port -- and importing it back would close the cycle. A registry
+    would be state where none is needed; one attribute is the whole
+    contract, and a project adding a joint kind of its own inherits it.
     """
     ports = {}
     for klass in reversed(node_class.__mro__):
         for name, value in vars(klass).items():
             if isinstance(value, Port):
                 ports[name] = value
+            elif isinstance(getattr(value, 'coordinate', None), Port):
+                ports[name] = value.coordinate
     return ports
 
 

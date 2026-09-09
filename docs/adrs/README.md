@@ -49,7 +49,7 @@ that way.
 - [ADR-053](NODE/ADR-053-authored-profile-as-the-sheet-part-source-of-truth.md) — Authored profile as a sheet part's source of truth — **Accepted**
 - [ADR-054](NODE/ADR-054-imported-meshes-admitted-selected-and-corrected-explicitly.md) — An imported mesh is admitted, selected and corrected explicitly — **Accepted**
 - [ADR-055](NODE/ADR-055-wrapper-module-in-the-imported-part-source-set.md) — The wrapper module joins an imported part's tracked source set — **Accepted**
-- [ADR-056](NODE/ADR-056-signals-drivers-ports-and-stepped-simulation.md) — Signals, drivers, ports, and stepped simulation — **Proposed** (design draft, pre-OpenSpec), amended 2026-08-27, amended by 087
+- [ADR-056](NODE/ADR-056-signals-drivers-ports-and-stepped-simulation.md) — Signals, drivers, ports, and stepped simulation — **Proposed** (design draft, pre-OpenSpec), amended 2026-08-27, amended by 087, extended by 088
 - [ADR-057](NODE/ADR-057-the-flexible-leaf-and-spec-carried-geometry.md) — The flexible leaf, whose geometry travels as a spec — **Accepted**
 - [ADR-058](NODE/ADR-058-indexed-package-lookup-for-source-closures.md) — Indexed package lookup for source closures — **Accepted**
 - [ADR-060](NODE/ADR-060-content-verified-currency-beneath-the-mtime-rule.md) — Content-verified currency beneath the mtime rule — **Accepted**, amends 006, amended by 071/081
@@ -58,7 +58,7 @@ that way.
 - [ADR-063](NODE/ADR-063-identity-from-resolved-declared-values.md) — Identity from resolved declared values — **Accepted**, extends 026
 - [ADR-064](NODE/ADR-064-an-internal-render-that-returns-nothing.md) — An internal render() that returns nothing, and structural omission — **Accepted**, extends 002, extended by 082
 - [ADR-065](NODE/ADR-065-instance-checks-after-resolution.md) — Instance checks after resolution: `check()` on a declarative node — **Accepted**, extends 062
-- [ADR-066](NODE/ADR-066-render-at-rest-simulate-per-instant.md) — render() builds the machine at rest, simulate() moves it — **Accepted**, extends 002, 023
+- [ADR-066](NODE/ADR-066-render-at-rest-simulate-per-instant.md) — render() builds the machine at rest, simulate() moves it — **Accepted**, extends 002, 023, extended by 088
 - [ADR-071](NODE/ADR-071-node-scoped-content-currency.md) — Node-scoped content currency — **Accepted**, amends 060/033, amended by 081
 - [ADR-072](NODE/ADR-072-a-declared-time-base.md) — A declared time base: `time = Time(loop=…)`, seconds on every path — **Accepted**, extends 008, amended by 087
 - [ADR-077](NODE/ADR-077-declared-tessellation-precision.md) — Declared tessellation precision: `linear_deflection` / `angular_deflection` — **Accepted**, depends on 026/044/045/047/063/071
@@ -68,6 +68,7 @@ that way.
 - [ADR-082](NODE/ADR-082-empty-composition-belongs-to-assemblies-not-fusions.md) — Empty composition belongs to assemblies, not fusions — **Accepted**, extends 064, depends on 003/039/061
 - [ADR-083](NODE/ADR-083-simulation-time-is-finite-forward-and-tick-aligned.md) — Simulation time is finite, forward, and tick-aligned — **Accepted**, extends 056
 - [ADR-087](NODE/ADR-087-one-module-one-question.md) — One module, one question: ports and the declared time base move to `solid_node.motion.ports` — **Accepted**, amends 056/072 (export location only)
+- [ADR-088](NODE/ADR-088-a-joint-owns-one-coordinate.md) — A joint owns one coordinate: `Revolute` and `Prismatic`, stated in the parent's frame — **Accepted**, extends 056/066, depends on 023/028/061/063/087
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073
