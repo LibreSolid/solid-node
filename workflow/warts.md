@@ -938,3 +938,11 @@ before the project is refactored around its absence.
   cannot see from their own classes. Deferred at stage A on the
   composition contract; the tendon ratios (`-50/FINGER_CLOSED` and
   siblings) and the 11:20 wrist train are ready to be sentences.
+- **Composition order, seventh sighting: the V8's connecting rods.** Each
+  rod is `T(crank pin)·R(rod angle)` on one body, eight of them on
+  `.repeat()` units driven through a per-unit phase; the pistons, valves,
+  camshafts (`cam = crankshaft.turn / 2`, a derived coordinate) and the
+  crank itself are statable today. The rod reads as `Orbit(axis, at=<the
+  pin>)` plus its own `Revolute`, or as two joints under the declaration
+  order contract. Deferred at stage A. The four timing gears are the
+  eighth own-placed-origin sighting (one class, four anchors).
