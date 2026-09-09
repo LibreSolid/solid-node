@@ -116,7 +116,7 @@ that proves it, or stays empty.
 | Cycle | Proposed | Ratified | Applied | Integrated into main | Released |
 |---|---|---|---|---|---|
 | 1 `motion-package` | 2026-09-09 · `motion-package` | 2026-09-09 · review | 2026-09-09 · `motion-package` | | |
-| 2 `joints` | | | | | |
+| 2 `joints` | 2026-09-09 · `joints` | 2026-09-09 · review | | | |
 | 3 `couplings` | | | | | |
 
 Projects migrated to the `solid_node.motion` paths, and to joints and
