@@ -778,3 +778,15 @@ before the project is refactored around its absence.
 
   where the law is handed the copy (its index) as the driven node. Second
   reason OpenCycloid is deferred.
+- **Two smaller sightings from OpenTorque (planetary reducer, not
+  deferred).** (a) The one-class-body rule again: the root cannot say
+  `reducer.planet_1.orbit.drives(output_stack.planet_carrier_b.turn)`
+  because the reducer's own relations have not run when the root solves,
+  so the 1:8 carrier ratio is stated twice from one constant, once in the
+  reducer and once at the root. (b) Relations are additive through
+  inheritance, so a preview subclass that wants the same coordinate driven
+  from a different source (`motor_rotor.spin = input_angle + 360 * time`)
+  cannot restate the base's relation; the base binds the rotor in one
+  `simulate()` line instead of stating `input_angle.drives(motor_rotor.spin)`.
+  Wanted: a subclass may replace a NAMED relation of its base, the way a
+  redeclared port wins.
