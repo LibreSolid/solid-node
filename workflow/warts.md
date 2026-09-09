@@ -969,3 +969,51 @@ before the project is refactored around its absence.
   masked by a zero default. Candidate fixes: clear an author-bound
   joint's value with its swept motion, or refuse the read of a stale
   value by name.
+
+# 3DPrintedClocks wall clock 02 (2026-09-09, exact sweep cost)
+
+Measured on `solid test wall_clock_02` under the exact kernel, at the
+primary's 1822221: 1175 s for 16 tests, of which the two sweeps
+(`@testing_steps(48)` over the swing, `@testing_steps(32)` over the great
+wheel's turn, each calling `assertNoUnintendedSolidInterference`) are
+~18.5 min. A sweep instant costs ~19 s, essentially all of it in
+`BRepAlgoAPI_Common`: 53 topmost rigid solids, ~118 candidate pairs from
+the world-AABB broad phase, ~110 booleans re-run per instant, every one
+of them empty. Placement, BREP copies and keyframe binding are under
+0.3 s per instant. Findings, in order of leverage:
+
+- **The verdict memo misses co-moving pairs on float noise.** The key
+  is the exact bytes of `inv(M1) @ M2` (ADR-070). Of the 118 pairs, 30
+  are carried together (pendulum, motion works, weight and its line) and
+  differ between instants by ~1e-13 — the noise of composing a rotation
+  through a parent — so a question the memo already holds is re-asked
+  at every instant. Only 5 pairs hit. The pilot has chosen a quantised
+  key, a run-level option defaulting to 1e-9 mm that a run may change or
+  remove; ADR-070's rejection of a tolerance on the key stands as the
+  reason it must be visible and overridable, not silent. **Filed:**
+  cycle `quantise-verdict-memo`.
+- **A common rigid turn inflates every world box.** The clock declares
+  `facing = 45°` on its root and the movement's AABBs are taken on world
+  axes, so every box grows by up to √2 and pairs that never meet
+  overlap. At `--set facing=0` the same model yields 69 candidate pairs
+  and 6.4 s per instant, three times fewer. The broad phase should take
+  its boxes in the root's frame (the placement common to every solid
+  stripped), which cannot change which pairs meet. **Filed:** cycle
+  `broad-phase-in-the-root-frame`.
+- **One enclosing solid defeats whole-solid boxes.** The fused frame
+  (both plates and their pillars, one solid) sits in 40 of the 118 pairs;
+  its box encloses the whole movement, so nothing is culled against it,
+  and plates × wheel booleans cost 0.5–2.2 s each, ~8 s of the 19. A
+  finer exact-negative tier — the world boxes of the solids' exact
+  faces, culling a pair when no face box of one meets any face box of
+  the other — decides a wheel between two plates without a boolean.
+  **Filed:** cycle `face-box-broad-phase`.
+- **A mesh-distance exact-negative tier** (distance above twice the
+  declared linear deflection proves the exact solids disjoint) and
+  **parallel pair booleans** (the run used 225 % of 1600 % CPU; OCCT's
+  `SetRunParallel` thread pool deadlocks under `fork`, so workers must
+  spawn) are the two remaining framework levers. Deferred until the three
+  above land and are measured.
+- Not a framework fix: fusing the plates and pillars into one solid is
+  the project's choice, and `cProfile` over `solid test` reports garbage
+  totals (instrument directly).
