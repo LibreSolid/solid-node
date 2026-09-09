@@ -819,3 +819,17 @@ before the project is refactored around its absence.
   a loop in `Column.simulate()` and a joints-only refactor would be
   cosmetic; the abacus is deferred at stage A on the same primitive as
   OpenCycloid's bearings and pins.
+- **A carried body: the orbit primitive, second sighting.** YouCanBuildDog's
+  five lower-leg parts per leg translate by `R(θ)·s − s` with their
+  attitude fixed — one coordinate, but not one coordinate on one axis.
+  With the API as it stands each would need two prismatics and two trig
+  laws with no inverse (forty joints and forty laws for four freedoms).
+  Wanted, exactly OpenCycloid's:
+
+      carried = Orbit(axis=(1, 0, 0), radius=40.0, phase=-55.0, unit='deg')
+      swing.drives(carried.orbit)
+
+  The dog's `MovingHalf` also turns about the joint centre and slides
+  along the channel — two joints on one body whose order matters
+  (`T(slide)·R(turn)`), the third sighting of the composition-order gap.
+  Deferred at stage A on both.
