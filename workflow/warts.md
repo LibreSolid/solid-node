@@ -790,3 +790,20 @@ before the project is refactored around its absence.
   `simulate()` line instead of stating `input_angle.drives(motor_rotor.spin)`.
   Wanted: a subclass may replace a NAMED relation of its base, the way a
   redeclared port wins.
+- **A floating body's attitude is the same composition gap, from the
+  other side.** The hexapod's chassis has four freedoms against the
+  ground — roll, pitch, yaw, lift — and its inverse kinematics hand-invert
+  exactly `R_roll · R_pitch · R_yaw · T_height`. Four joints on the chassis
+  would put that composition at the mercy of binding order. Wanted:
+
+      class Chassis(AssemblyNode):
+          roll  = Revolute(axis=(1, 0, 0), unit='deg')
+          pitch = Revolute(axis=(0, 1, 0), unit='deg')
+          yaw   = Revolute(axis=(0, 0, 1), unit='deg')
+          lift  = Prismatic(axis=(0, 0, 1), unit='mm')
+
+  composed innermost-first in DECLARATION order whatever order the
+  coordinates are bound in — or the `Free` joint the design note listed
+  for later. Second sighting of the OpenCycloid finding; the hexapod is
+  deferred at stage A on it, so one primitive unblocks both. Its eighteen
+  leg joints are statable today and wait with it.
