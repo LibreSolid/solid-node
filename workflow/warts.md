@@ -807,3 +807,15 @@ before the project is refactored around its absence.
   for later. Second sighting of the OpenCycloid finding; the hexapod is
   deferred at stage A on it, so one primitive unblocks both. Its eighteen
   leg joints are statable today and wait with it.
+- **Fan-out over a repeated child, second sighting: the abacus.** Each
+  column's five beads are one `Bead` class repeated; the heaven bead is
+  one relation with a clamp law, but the four earth beads each need the
+  column's `earth` value clamped against their own rank in the stack, so
+  the law must read the copy's index. Wanted:
+
+      earth.drives(earth_beads.travel, law=earth_lift)   # law(column, bead) reads bead.index
+
+  With the relation refused through `.repeat()`, all four stay bound in
+  a loop in `Column.simulate()` and a joints-only refactor would be
+  cosmetic; the abacus is deferred at stage A on the same primitive as
+  OpenCycloid's bearings and pins.
