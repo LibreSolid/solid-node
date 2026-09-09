@@ -865,3 +865,17 @@ before the project is refactored around its absence.
   project is the fourth sighting of the declaration-site joint: two `Link`
   subclasses exist only to carry a joint, and `CameraArm` needs callables
   because its anchor's sign is the PARENT's handedness times its own.
+- **A relation reads one coordinate; the Pascaline's pawl reads two.**
+  The pawl's swing is `PAWL_DEFLECTION * (climbing(count) + ratchet(next_count) * (1 - pushing(count)))`,
+  bilinear in this digit's drum and the next one's. Wanted:
+
+      (count, next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
+
+  a relation with several sources, its law handed all of them. Today the
+  pawl is a declared joint bound from that expression in one line of
+  `Digit.simulate()`; the project proceeds. The same machine adds the
+  sharpest own-placed-origin sighting yet — `Pawl.swing`'s anchor must
+  re-evaluate the `profiles.hinge(...)` formula `Sautoir.render()`
+  already computed — and a fan-out over LIST-HELD children where each
+  copy gets a structurally different expression (the root's eight-way
+  carry binding), which no single per-copy law would state either.
