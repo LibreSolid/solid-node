@@ -892,3 +892,11 @@ before the project is refactored around its absence.
   preferred `Orbit` form, if one is built, anchors the carried point
   (`Orbit(axis, at=<carried point>)`) rather than taking a radius and a
   phase, because the eccentricity is a derived value there.
+- **Composition order, fifth sighting: a delta printer's rods.** The Mini
+  Kossel's six rods each hang between a carriage and the effector; a rod's
+  pose is a spin, a lean, a swing and a rise — four joints on one body
+  whose order is the whole of its attitude and which a reader of the class
+  cannot see. The effector's three prismatics commute and the carriages
+  and pulleys are one joint each, so the composition contract is again the
+  one thing missing; the delta law itself (three drivers to each rod) is
+  the multi-source relation already recorded. Deferred at stage A.
