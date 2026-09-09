@@ -926,3 +926,15 @@ before the project is refactored around its absence.
   one level into `Axis`. The four flexure legs (two rotations each, on
   repeated bodies, from a multi-source law) stay hand-written as
   followers; the principal chains are statable and the project proceeds.
+- **Composition order, sixth sighting, and a joint under a conditional
+  placement: the InMoov hand.** Eight phalanx bodies (middle phalanges,
+  fingertips, thumb tip, the `dip` fasteners) each carry two
+  non-commuting rotations, and the fingers are `.repeat(4)`; nesting the
+  phalanges or naming the fingers one by one would state the motion
+  today but renames every leaf and breaks six tests, which is refactoring
+  around the gap. New form of the declaration-site joint: `Forearm.render()`
+  applies `present()` conditionally to its direct children, so the wrist
+  group's parent-frame axis depends on a flag the gear, clevis and bolt
+  cannot see from their own classes. Deferred at stage A on the
+  composition contract; the tendon ratios (`-50/FINGER_CLOSED` and
+  siblings) and the 11:20 wrist train are ready to be sentences.
