@@ -890,12 +890,15 @@ A **MolejoNode** is that kind of part. It is a **flexible** leaf: instead
 of returning a finished solid, `render()` returns a swept shape —  a
 closed profile carried along a path — described analytically with
 `molejo <https://molejo.readthedocs.io>`_, with the moving
-dimensions left as *parameters*:
+dimensions left as *parameters*, fed through ports declared from
+``solid_node.motion.ports``, the module that answers what moves and
+what drives what:
 
 .. code-block:: python
 
     from molejo import Circle, Helix, P, Shape
-    from solid_node.node import MolejoNode, TranslationalPort
+    from solid_node.node import MolejoNode
+    from solid_node.motion.ports import TranslationalPort
 
     class ValveSpring(MolejoNode):
 

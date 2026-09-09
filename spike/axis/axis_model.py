@@ -21,7 +21,8 @@ named and this package closes.
 
 from solid2 import cube, cylinder, rotate, translate
 
-from solid_node.node import AssemblyNode, Solid2Node, TranslationalPort
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.ports import TranslationalPort
 from solid_node.simulation import Driver, Instruction
 
 # GT2 belt on a 20-tooth pulley: 40 mm/rev; 200 full steps x 16 microsteps.

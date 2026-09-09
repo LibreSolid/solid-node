@@ -28,7 +28,13 @@ exported by `solid_node.parameters`, so that an import line says which of
 its names is a node kind and which is a knob on the machine. Only the
 structural half of the declaration layer -- `declared_children` -- is a
 node export. Do not re-export a parameter kind here: a second working
-path restores exactly the ambiguity the split removed.
+path restores exactly the ambiguity the split removed. Ports and the
+declared time base are deliberately NOT here either, for the same
+reason: `Port`, `RotationalPort`, `TranslationalPort`, `SignalPort`,
+`declared_ports` and `Time` answer "what moves, and what drives what",
+not "what has shape", so they are exported by `solid_node.motion.ports`
+(OpenSpec change `motion-package`). Do not re-add a port or time-base
+name here: `_MOVED` below exists precisely to keep that door shut.
 """
 
 __author__ = """Luis Fagundes"""
@@ -46,12 +52,6 @@ from .base import StlRenderStart
 # the two cannot drift apart.
 _EXPORTS = {
     'AssemblyNode': 'assembly',
-    'Port': 'ports',
-    'RotationalPort': 'ports',
-    'TranslationalPort': 'ports',
-    'SignalPort': 'ports',
-    'declared_ports': 'ports',
-    'Time': 'timebase',
     'declared_children': 'declarative',
     'FusionNode': 'fusion',
     'CadQueryNode': 'adapters.cadquery',
@@ -66,6 +66,22 @@ _EXPORTS = {
     'StlNode': 'adapters.stl',
     'StepNode': 'adapters.step',
     'property_as_number': 'decorators',
+}
+
+# Names, and the two submodules, that used to live here and now answer
+# only from `solid_node.motion.ports` -- the module that answers "what
+# moves, and what drives what". No re-export, no alias, no deprecation
+# shim: a project that has not migrated fails at its import line, and
+# the message it gets names where the name went.
+_MOVED = {
+    'Port': 'solid_node.motion.ports',
+    'RotationalPort': 'solid_node.motion.ports',
+    'TranslationalPort': 'solid_node.motion.ports',
+    'SignalPort': 'solid_node.motion.ports',
+    'declared_ports': 'solid_node.motion.ports',
+    'Time': 'solid_node.motion.ports',
+    'ports': 'solid_node.motion.ports',
+    'timebase': 'solid_node.motion.ports',
 }
 
 __all__ = ['StlRenderStart', *_EXPORTS]
@@ -111,6 +127,26 @@ def _submodule(name):
 
 
 def __getattr__(name):
+    new_home = _MOVED.get(name)
+    if new_home is not None:
+        # ImportError, deliberately, not AttributeError: CPython's `from
+        # X import Y` catches an AttributeError raised by module
+        # `__getattr__` and DISCARDS its message, substituting its own
+        # generic "cannot import name" text -- verified against this
+        # interpreter, not assumed. Only an exception that is not an
+        # AttributeError survives `hasattr()`'s probe inside the import
+        # machinery's fromlist handling and reaches the caller unmodified,
+        # so this is the only way `from solid_node.node import
+        # RotationalPort` can carry a message naming the new module. The
+        # same choice already governs a broken backend import (see
+        # `_load`): a name that used to resolve and now cannot must not
+        # be reported as a plain missing attribute.
+        raise ImportError(
+            f"module {__name__!r} has no attribute {name!r}: ports and "
+            f"the declared time base moved to {new_home!r}. Write "
+            f"`from {new_home} import {name}`. {__name__} answers what "
+            f"has shape; solid_node.motion answers what moves.")
+
     module_name = _EXPORTS.get(name)
     if module_name is None:
         # The eager re-exports used to bind every submodule as a side

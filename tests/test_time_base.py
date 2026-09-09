@@ -27,8 +27,8 @@ from unittest.mock import patch
 from solid_node.core.builder import Builder
 from solid_node.core.export import export_node
 from solid_node.core.serializer import animation_block
-from solid_node.node import AssemblyNode, Solid2Node, Time
-from solid_node.node.timebase import declared_time
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.ports import Time, declared_time
 from solid_node.test import testing_steps as steps_of
 from solid2 import cube
 
@@ -150,10 +150,13 @@ class DeclarationTest(TestCase):
         with self.assertRaisesRegex(AttributeError, 'set_keyframe'):
             clock.time = 3.0
 
-    def test_time_is_exported_from_the_node_package(self):
-        from solid_node import node
-        self.assertIs(node.Time, Time)
-        self.assertIn('Time', node.__all__)
+    def test_time_is_exported_from_the_motion_package_not_the_node_one(self):
+        from solid_node.motion import ports
+        self.assertIs(ports.Time, Time)
+        moved_name = 'Time'
+        with self.assertRaises(ImportError) as raised:
+            exec(f'from solid_node.node import {moved_name}\n', {})
+        self.assertIn('solid_node.motion.ports', str(raised.exception))
 
 
 class SymbolicTimeTest(BaseNodeTest):

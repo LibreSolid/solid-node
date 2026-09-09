@@ -6,7 +6,7 @@ import sys
 import logging
 from subprocess import run, CalledProcessError
 from solid_node.core.loader import ProjectManifestError, load_node, select_model
-from solid_node.node.timebase import declared_time
+from solid_node.motion.ports import declared_time
 from solid_node.core.builder import project_build_lock
 from solid_node.viewers.openscad import OpenScadRenderer
 from solid_node.openscad import OpenScadUnavailable

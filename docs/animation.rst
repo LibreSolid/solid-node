@@ -214,9 +214,14 @@ The timeline is a loop from 0 to 1, and nothing above says how long a
 turn of it *is*. A machine modelled in real time declares that on its
 root:
 
+Node classes come from ``solid_node.node``; the time base comes from
+``solid_node.motion.ports``, the module that answers what moves and what
+drives what:
+
 .. code-block:: python
 
-    from solid_node.node import AssemblyNode, Time
+    from solid_node.node import AssemblyNode
+    from solid_node.motion.ports import Time
 
     class WallClock(AssemblyNode):
 

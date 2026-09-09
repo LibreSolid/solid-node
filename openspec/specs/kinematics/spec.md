@@ -96,7 +96,9 @@ base mesh itself is never mutated.
 ### Requirement: Declared time base
 
 A root assembly MAY declare its time base as a class attribute named `time`
-holding a `Time(loop=<seconds>)` declaration, exported from `solid_node.node`.
+holding a `Time(loop=<seconds>)` declaration, exported from
+`solid_node.motion.ports` — the module that answers what moves, alongside
+the port kinds — and no longer from `solid_node.node`.
 `loop` SHALL be a positive finite number of seconds: the span of machine time
 one turn of the animation timeline covers. The declaration SHALL be frozen
 class metadata readable off the class (`Root.time.loop`); assigning
@@ -180,6 +182,15 @@ of the "Normalized animation time" requirement unchanged.
 - **WHEN** a root declares no time base
 - **THEN** `self.time` is bare `$t` unbound and the keyframed fraction when
   bound, exactly as before
+
+#### Scenario: The time base is imported from the motion package
+
+- **WHEN** a root's module writes
+  `from solid_node.motion.ports import Time` and declares
+  `time = Time(loop=43200)`
+- **THEN** the declaration behaves exactly as it did when `Time` came from
+  `solid_node.node`, and `from solid_node.node import Time` raises
+  `ImportError` naming `solid_node.motion.ports`
 
 ### Requirement: Normalized animation time
 

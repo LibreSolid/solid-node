@@ -70,7 +70,7 @@ from solid_node.node.base import (_atomic_write_bytes, _canonical_serialization,
                                   binding_hash)
 from solid_node.node.declarative import identity_values, is_declarative
 from solid_node.node.leaf import LeafNode
-from solid_node.node.ports import declared_ports
+from solid_node.motion.ports import declared_ports
 
 
 def _names(names):

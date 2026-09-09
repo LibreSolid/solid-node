@@ -180,7 +180,7 @@ Internal nodes
 .. autoclass:: solid_node.node.AssemblyNode
    :members: simulate, set_state, set_keyframe, clear_keyframe, time
 
-.. autoclass:: solid_node.node.Time
+.. autoclass:: solid_node.motion.ports.Time
 
 .. autoclass:: solid_node.node.FusionNode
    :members: time
@@ -228,20 +228,20 @@ Ports
 =====
 
 Domain-typed connection points between nodes, importable from
-``solid_node.node``. A port is declared as a class attribute; the
+``solid_node.motion.ports``. A port is declared as a class attribute; the
 parent assembly binds it every ``simulate()`` with
 :meth:`~solid_node.node.internal.InternalNode.connect`. See
 :doc:`Driving a machine <driving>`.
 
-.. autoclass:: solid_node.node.Port
+.. autoclass:: solid_node.motion.ports.Port
 
-.. autoclass:: solid_node.node.RotationalPort
+.. autoclass:: solid_node.motion.ports.RotationalPort
 
-.. autoclass:: solid_node.node.TranslationalPort
+.. autoclass:: solid_node.motion.ports.TranslationalPort
 
-.. autoclass:: solid_node.node.SignalPort
+.. autoclass:: solid_node.motion.ports.SignalPort
 
-.. autofunction:: solid_node.node.declared_ports
+.. autofunction:: solid_node.motion.ports.declared_ports
 
 Simulation
 ==========

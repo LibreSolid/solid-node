@@ -7,7 +7,7 @@ import functools
 from .base import AbstractBaseNode
 from .declarative import (StructureError, declared_child_nodes,
                           declared_children)
-from .ports import bind
+from solid_node.motion.ports import bind
 from solid2 import union
 
 

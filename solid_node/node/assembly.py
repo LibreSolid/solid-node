@@ -7,7 +7,7 @@ from solid2 import get_animation_time
 from . import phase as _phase
 from .internal import InternalNode
 from .qualified import declared_drivers_of, driver_id
-from .timebase import declared_time
+from solid_node.motion.ports import declared_time
 
 
 def _sweep(assembly):

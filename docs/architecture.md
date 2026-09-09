@@ -130,9 +130,13 @@ declared on the ancestor and passed down.
 
 The public surface is split by concern above the node package, so an
 import line says what each name is for: build parameters come from
-`solid_node/parameters.py`, node classes from `solid_node/node/`,
-runtime inputs from `solid_node/simulation/`, the test case from
-`solid_node/test.py` (ADR-062, amended). The parameter module holds the
+`solid_node/parameters.py`, node classes from `solid_node/node/`, ports
+and the declared time base from `solid_node/motion/ports.py`, runtime
+inputs from `solid_node/simulation/`, the test case from
+`solid_node/test.py` (ADR-062, amended). One module answers one question,
+and a name is imported from the module that answers it (ADR-087) — the
+rule the parameter split establishes and the motion package (below) is
+built on. The parameter module holds the
 declaration descriptor every other declaration follows, the exponent
 algebra, the kinds and the parameter enumerator, and imports nothing at
 all — not the framework, not a third party — because it is on the
@@ -456,13 +460,18 @@ walked.
 
 **Ports** (spec `ports`) are domain-typed connection points declared
 as class attributes (`RotationalPort`, `TranslationalPort`,
-`SignalPort`): stateless declarations carrying domain, unit, direction,
+`SignalPort`), exported from `solid_node/motion/ports.py` — the module
+that answers what moves and what drives what, not `solid_node.node`,
+which has no port or time-base export (ADR-087): stateless declarations
+carrying domain, unit, direction,
 and an optional design-units-per-native-unit scale, discoverable off
 the class via `declared_ports()`, with per-instance value slots
 materialized by descriptor. `connect(source, sink)` on internal nodes
 is causal, immediate, per-render rebinding — value flows one way,
 scaled by the sink; no flow variable exists yet (the bond-graph
-extension ADR-056 reserves).
+extension ADR-056 reserves). The declared time base, `Time`, lives in
+the same module for the same reason `Port` does: it is a declaration
+descriptor with a per-instance value.
 
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because
@@ -1363,7 +1372,8 @@ The short list that changes must not silently break:
 |---|---|---|---|
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
-| Kinematics | `node/operations.py`, `node/assembly.py`, `math.py` | `kinematics` | 008, 022, 023, 028 |
+| Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087 |
+| Motion | `solid_node/motion/` | `ports` | 056, 072, 087 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |

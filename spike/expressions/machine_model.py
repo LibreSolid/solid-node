@@ -33,7 +33,8 @@ without it both instances would write one another's Axis-level .scad.
 from solid2 import cube, cylinder, rotate, translate
 
 import solid_node.math as sn_math
-from solid_node.node import AssemblyNode, Solid2Node, TranslationalPort
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.ports import TranslationalPort
 from solid_node.simulation import Driver, Instruction
 
 # GT2 belt on a 20-tooth pulley: 40 mm/rev; 200 full steps x 16 microsteps.

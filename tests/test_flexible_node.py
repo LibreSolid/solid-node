@@ -25,8 +25,8 @@ from unittest.mock import patch
 import trimesh
 from solid2 import cube
 
-from solid_node.node import (AssemblyNode, FusionNode, Solid2Node,
-                             TranslationalPort)
+from solid_node.node import AssemblyNode, FusionNode, Solid2Node
+from solid_node.motion.ports import TranslationalPort
 from solid_node.node.base import _topmost_rigid_nodes
 from solid_node.node.flexible import FlexibleNode
 from solid_node.node.leaf import LeafNode

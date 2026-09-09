@@ -116,9 +116,10 @@ A parameter is declared with a typed kind:
 
 Every kind, the ``Quantity`` base below and the errors a bad declaration
 raises come from ``solid_node.parameters``, and nothing else does. Node
-classes come from ``solid_node.node``, drivers from
+classes come from ``solid_node.node``, ports and the declared time base
+from ``solid_node.motion.ports``, drivers from
 ``solid_node.simulation``, so a module's import block says which of its
-names build the machine and which drive it:
+names build the machine, which move it, and which drive it:
 
 .. code-block:: python
 

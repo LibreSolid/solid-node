@@ -157,11 +157,13 @@ Ports: how parts talk
 
 A driver is an *input to the machine*. A **port** is a connection
 point *between parts*: a unit-tagged value slot a node declares, that
-its parent binds on every `simulate()` with `connect()`:
+its parent binds on every `simulate()` with `connect()`. Ports come
+from ``solid_node.motion.ports``, the module that answers what moves and
+what drives what:
 
 .. code-block:: python
 
-    from solid_node.node import TranslationalPort
+    from solid_node.motion.ports import TranslationalPort
 
     class SteppedAxis(AssemblyNode):
         motor = Driver(default=800, range=(0, 100), unit='ustep', dtype=int,

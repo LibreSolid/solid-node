@@ -47,7 +47,7 @@ expensive to defer.
 The two declarations a class body makes that are NOT parameters live in
 `solid_node.node.declarative`, which imports this module: the children a
 class declares, and the metaclass that makes a class body recognizable.
-`solid_node.node.ports` holds the third, and `DriverDeclaration` in
+`solid_node.motion.ports` holds the third, and `DriverDeclaration` in
 `solid_node.node.qualified` the runtime one; all four follow the same
 descriptor discipline defined here by `Declaration`.
 """

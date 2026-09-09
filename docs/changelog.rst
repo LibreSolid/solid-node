@@ -8,6 +8,22 @@ Changelog
 Unreleased
 ----------
 
+**Ports and the declared time base moved to a new** ``solid_node.motion``
+**package.** ``solid_node.motion.ports`` is now the one home for
+``Port``, ``BoundPort``, ``RotationalPort``, ``TranslationalPort``,
+``SignalPort``, ``bind``, ``declared_ports``, ``Time`` and
+``declared_time`` — the module that answers what moves and what drives
+what, alongside the empty ``solid_node.motion.joints`` and
+``solid_node.motion.couplings`` two later cycles will fill.
+``solid_node.node`` no longer exports any of those six names and no
+longer has ``ports`` or ``timebase`` submodules; there is no shim, alias,
+or deprecation warning. ``from solid_node.node import RotationalPort,
+SignalPort, Time`` now raises ``ImportError`` naming
+``solid_node.motion.ports``; migrate to ``from solid_node.motion.ports
+import RotationalPort, SignalPort, Time``. (OpenSpec change
+``motion-package``; ADR-087, amending ADR-056 and ADR-072 on export
+location only.)
+
 **Simulation time boundaries now fail before effects.** ``Sim`` requires a
 finite positive ``dt`` before binding its node, and instants, cadence periods,
 run durations, and instruction durations require finite real seconds with

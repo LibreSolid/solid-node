@@ -18,9 +18,10 @@ serialized operation is that fact without an openscad build.
 
 from solid2 import cube
 
-from solid_node.node import (AssemblyNode, RotationalPort, SignalPort,
-                             Solid2Node, TranslationalPort)
-from solid_node.node.ports import BoundPort, Port, declared_ports
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
+                                     SignalPort, TranslationalPort,
+                                     declared_ports)
 from solid_node.simulation import Driver
 
 from .base import BaseNodeTest

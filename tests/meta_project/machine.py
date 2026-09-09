@@ -20,7 +20,8 @@ the build/test loader binds them from the declarations.
 """
 
 import solid_node.math as sn_math
-from solid_node.node import AssemblyNode, TranslationalPort
+from solid_node.node import AssemblyNode
+from solid_node.motion.ports import TranslationalPort
 from solid_node.simulation import Driver, Instruction
 
 from .parts import Cube

@@ -22,7 +22,8 @@ import warnings
 import numpy as np
 from solid2 import cube
 
-from solid_node.node import AssemblyNode, RotationalPort, Solid2Node
+from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.ports import RotationalPort
 from solid_node.node.base import _compose_world_matrix
 from solid_node.node.declarative import StructureError
 from solid_node.parameters import Flag, Length

@@ -37,12 +37,6 @@ import solid_node.node
 EXPECTED_EXPORTS = {
     'StlRenderStart': 'solid_node.node.base',
     'AssemblyNode': 'solid_node.node.assembly',
-    'Port': 'solid_node.node.ports',
-    'RotationalPort': 'solid_node.node.ports',
-    'TranslationalPort': 'solid_node.node.ports',
-    'SignalPort': 'solid_node.node.ports',
-    'declared_ports': 'solid_node.node.ports',
-    'Time': 'solid_node.node.timebase',
     'FusionNode': 'solid_node.node.fusion',
     'CadQueryNode': 'solid_node.node.adapters.cadquery',
     'Build123dNode': 'solid_node.node.adapters.build123d',
@@ -69,6 +63,13 @@ EXPECTED_EXPORTS = {
 # a re-export here would quietly restore the ambiguity.
 PARAMETER_NAMES = ('Quantity', 'Length', 'Angle', 'Count', 'Ratio', 'Scalar',
                    'Flag', 'declared_parameters')
+
+# The names and the two submodules `motion-package` moved out of the node
+# package entirely, each now answering for `solid_node.motion.ports`
+# instead. No re-export, no alias, no shim: reading any of these off
+# `solid_node.node` must fail naming the new home.
+MOVED_NAMES = ('Port', 'RotationalPort', 'TranslationalPort', 'SignalPort',
+              'declared_ports', 'Time', 'ports', 'timebase')
 
 # The exports whose submodule reaches `solid_node.exact` -> `cadquery`.
 EXACT_EXPORTS = ('FusionNode', 'CadQueryNode', 'Build123dNode',
@@ -245,7 +246,7 @@ class NodePackageSubmodules(TestCase):
     """
 
     def test_a_submodule_is_reachable_after_a_bare_package_import(self):
-        for submodule in ('assembly', 'ports', 'operations', 'adapters'):
+        for submodule in ('assembly', 'operations', 'adapters'):
             with self.subTest(submodule=submodule):
                 result = probe(
                     'import solid_node.node\n'
@@ -266,6 +267,42 @@ class NodePackageSubmodules(TestCase):
         self.assertEqual(result.stdout.strip(), 'DONE', result.stderr)
         self.assertFalse(result.imported('cadquery'),
                          'reading one submodule imported the exact stack')
+
+
+class NodePackageMovedNames(TestCase):
+    """Ports and the declared time base answer from `solid_node.motion.ports`
+    now, not from this package -- `motion-package`'s deliberate,
+    unshimmed break. `tests/test_motion_package.py` owns the fuller
+    behavioural pin; this class keeps the moved names inside the same
+    export-table discipline as every other name here.
+    """
+
+    def test_a_moved_name_is_not_in_all(self):
+        for name in MOVED_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, solid_node.node.__all__)
+
+    def test_reading_a_moved_name_names_its_new_home(self):
+        # ImportError, not AttributeError: CPython's `from X import Y`
+        # discards an AttributeError's message and substitutes its own
+        # generic "cannot import name" text, so only an exception outside
+        # AttributeError's hierarchy can carry this message all the way
+        # through the import line below.
+        for name in MOVED_NAMES:
+            with self.subTest(name=name):
+                with self.assertRaises(ImportError) as raised:
+                    getattr(solid_node.node, name)
+                self.assertIn('solid_node.motion.ports', str(raised.exception))
+
+    def test_importing_a_moved_name_raises_import_error(self):
+        for name in ('Port', 'RotationalPort', 'TranslationalPort',
+                     'SignalPort', 'declared_ports', 'Time'):
+            with self.subTest(name=name):
+                result = probe(
+                    f'from solid_node.node import {name}\n'
+                    "print('NO_ERROR')\n")
+                self.assertNotEqual(result.stdout.strip(), 'NO_ERROR')
+                self.assertIn('solid_node.motion.ports', result.stderr)
 
 
 class NodePackageBrokenBackend(TestCase):

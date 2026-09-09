@@ -181,9 +181,12 @@ structure that depends on time. It SHALL NOT recommend placement in
 or list-held child and that ports are the drive path for identical units.
 
 Every example that declares a parameter SHALL import the kinds from the
-dedicated build-parameter module, and the page SHALL state that build
+dedicated build-parameter module, and every example that declares a port
+or a time base SHALL import them from `solid_node.motion.ports`. The page
+SHALL state that build
 parameters come from that module while node classes come from the node
-package and drivers from the simulation package. The animation, driving,
+package, ports and the declared time base from the motion package, and
+drivers from the simulation package. The animation, driving,
 assemblies, testing and API pages SHALL read
 drivers and time in `simulate()`, the node-tree, assemblies, leaf-node and
 CLI pages SHALL cross-reference the declaring page, and the changelog SHALL
@@ -192,7 +195,8 @@ record the lifecycle with the deprecation.
 The API reference SHALL document the build-parameter module: the kinds, the
 `Quantity` base a project subclasses, and the enumerator over a class's
 declarations, in a section of its own beside the node, port, simulation and
-testing sections.
+testing sections. Its port section SHALL state `solid_node.motion.ports`
+as the import path for the port kinds and the time base.
 
 #### Scenario: A reader learns where a kind comes from
 
@@ -250,6 +254,13 @@ testing sections.
 - **WHEN** a reader's build prints the deprecation warning
 - **THEN** the page shows the warning, the `render()` that caused it, and
   the same class with the read and its operations moved to `simulate()`
+
+#### Scenario: A reader learns where a port comes from
+
+- **WHEN** a reader looks up how to declare a port or a time base
+- **THEN** the import line in the example names `solid_node.motion.ports`,
+  and the page says which module answers for parameters, for node classes,
+  for ports and the time base, and for drivers
 
 ### Requirement: The viewer's provenance and installation are stated
 

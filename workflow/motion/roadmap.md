@@ -115,7 +115,7 @@ that proves it, or stays empty.
 
 | Cycle | Proposed | Ratified | Applied | Integrated into main | Released |
 |---|---|---|---|---|---|
-| 1 `motion-package` | 2026-09-09 · `motion-package` | | | | |
+| 1 `motion-package` | 2026-09-09 · `motion-package` | 2026-09-09 · review | 2026-09-09 · `motion-package` | | |
 | 2 `joints` | | | | | |
 | 3 `couplings` | | | | | |
 

@@ -76,7 +76,7 @@ from solid_node.core.expressions import bind_expressions
 from solid_node.node.qualified import (
     DriverToken, declared_drivers_of, driver_id, drive_tree,
 )
-from solid_node.node.timebase import declared_time
+from solid_node.motion.ports import declared_time
 from solid_node.simulation.enumeration import tree_declares_drivers
 
 
