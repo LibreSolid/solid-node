@@ -117,7 +117,7 @@ that proves it, or stays empty.
 |---|---|---|---|---|---|
 | 1 `motion-package` | 2026-09-09 · `motion-package` | 2026-09-09 · review | 2026-09-09 · `motion-package` | | |
 | 2 `joints` | 2026-09-09 · `joints` | 2026-09-09 · review | 2026-09-09 · `joints` | | |
-| 3 `couplings` | | | | | |
+| 3 `couplings` | 2026-09-09 · `couplings` | 2026-09-09 · review | | | |
 
 Projects migrated to the `solid_node.motion` paths, and to joints and
 couplings where they apply. A project is listed when its imports come from
