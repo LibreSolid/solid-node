@@ -957,3 +957,15 @@ before the project is refactored around its absence.
   fixpoint); the candidate fix already listed — defer an unreached
   relation until the descendants have solved, then re-run once — would
   make the sentence as written work.
+- **An author-bound joint keeps its value but loses its motion between
+  runs.** A standalone root that binds its own joint in `simulate()` as a
+  rest default with `if value is None: bind` stands correctly once, then
+  at rest forever: the joint's operations are swept at the start of the
+  next run as every simulate-phase motion is, but the coordinate's VALUE
+  survives, so the guard skips the rebind and nothing re-applies the
+  motion. Prusa i3's X and Y axes and extruder showed it as 37.5 mm,
+  70.4 mm and 0.05 mm pose deviations on a second render; the fix is to
+  rebind unconditionally. The hangprinter's winches carry the same guard,
+  masked by a zero default. Candidate fixes: clear an author-bound
+  joint's value with its swept motion, or refuse the read of a stale
+  value by name.
