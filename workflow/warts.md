@@ -879,3 +879,16 @@ before the project is refactored around its absence.
   already computed — and a fan-out over LIST-HELD children where each
   copy gets a structurally different expression (the root's eight-way
   carry binding), which no single per-copy law would state either.
+- **Composition order, fourth sighting, and the minimal unblocker.** The
+  Internal Cycloidal Actuator's two disks each want `orbit` (about the
+  drive axis, 1:1 with the eccentric shaft) and `spin` (about their own
+  bore, `ratio=-1/8` with a mesh-phase offset) on ONE body: the tree is
+  `solid import-step` output mirroring the document one-for-one, so there
+  is no carrier body to hang the orbit on and inventing one would break
+  the one-to-one reading and sixteen tests. It is blocked on the
+  composition-order contract alone — joints of one class compose in
+  declaration order, innermost first — which is therefore the smallest
+  primitive that unblocks it, OpenCycloid and the hexapod at once. Its
+  preferred `Orbit` form, if one is built, anchors the carried point
+  (`Orbit(axis, at=<carried point>)`) rather than taking a radius and a
+  phase, because the eccentricity is a derived value there.
