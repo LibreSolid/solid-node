@@ -30,7 +30,9 @@ later tooling (simulation, UI) can enumerate them without
 instantiating behavior. That enumeration SHALL also report the
 coordinate of every joint the class declares, under the joint's name,
 so a consumer of a node's connection points sees a joint's coordinate
-without knowing what a joint is.
+without knowing what a joint is, AND every derived coordinate the class
+declares — a linear formula over other coordinates — under its own
+name, carrying the domain and unit its terms share.
 
 Ports in this version are kinematic only: a port SHALL NOT expose a
 flow variable (torque, force). The declaration shape reserves that
@@ -62,6 +64,13 @@ extension per ADR-056; introducing it is a future spec change.
   declares one port and one joint
 - **THEN** both appear by name, the joint's entry carrying the joint's
   domain and unit, and the enumeration constructed no instance
+
+#### Scenario: A derived coordinate is among the declared ports
+
+- **WHEN** a consumer enumerates the declared ports of a class that
+  declares two joints and `relative = a - b` over them
+- **THEN** three entries appear by name, `relative` carrying the domain
+  and unit its terms share, and the enumeration constructed no instance
 ### Requirement: Per-render causal port binding
 
 The system SHALL let the assembly that owns the simulation bind port values
@@ -200,21 +209,23 @@ import line names the kind of thing it brings in:
   declarations, their bound value slot, the binding helper, the
   declaration enumerator, and the root's own time channel (`Time`, and
   the enumerator that reads a class's time declaration);
-- `solid_node.motion.joints` — a pair that places a body;
-- `solid_node.motion.couplings` — a law between two coordinates.
+- `solid_node.motion.joints` — a pair that places a body: `Revolute` and
+  `Prismatic`, their error kind and their enumerator (capability
+  `joints`);
+- `solid_node.motion.couplings` — a law between two coordinates: `Affine`,
+  the relation and derived-coordinate kinds, their error kinds and their
+  enumerators (capability `couplings`).
 
-`solid_node.motion.joints` and `solid_node.motion.couplings` SHALL exist
-and SHALL export no name in this version; each SHALL carry a docstring
-stating what it will hold. The package `__init__` SHALL export no name
-of its own and SHALL NOT resolve a submodule's names as attributes of
-the package, so there is exactly one import path for each name.
+The package `__init__` SHALL export no name of its own and SHALL NOT
+resolve a submodule's names as attributes of the package, so there is
+exactly one import path for each name.
 
-#### Scenario: The submodules exist and are empty
+#### Scenario: The submodules hold their kinds
 
 - **WHEN** a consumer imports `solid_node.motion.joints` and
   `solid_node.motion.couplings`
-- **THEN** both modules import successfully, each carries a docstring
-  naming what it will hold, and neither exports a public name
+- **THEN** `Revolute` and `Prismatic` are read off the first and `Affine`
+  off the second, and each module's docstring states its subject
 
 #### Scenario: The package itself exports nothing
 
@@ -223,6 +234,78 @@ the package, so there is exactly one import path for each name.
 - **THEN** `AttributeError` is raised, so
   `from solid_node.motion import RotationalPort` fails at the import and
   the submodule path is the only path
+
+### Requirement: A port takes part in a relation
+
+The system SHALL give every port declaration the verb that states a
+relation between two coordinates, so a class body may write
+`elbow_pulley.turn.drives(elbow_belt.travel, ratio=pitch_arc(117))`. A
+port SHALL be usable as either end of a relation, whether it is
+declared on the class stating the relation or reached by path on a
+declared descendant.
+
+A relation SHALL bind its driven end through the ONE binding path a
+port assignment and `connect()` already take, so the sink's declared
+scale is applied exactly once and an unbound source is refused by the
+same rule. The framework SHALL perform no unit conversion of its own on
+behalf of a relation: what converts is the ratio or law the author
+wrote.
+
+A WIRING SHALL be solved together with the relations of the class that
+declared it, as a forward-only relation carrying the identity law from
+the parent's coordinate to the child's end: it SHALL bind once its
+source coordinate holds a value, whether the author's `simulate()`
+bound it or a relation of the same class solved it, rather than at a
+fixed point before the relations run. The wiring's own rules are
+otherwise unchanged: the child end's declared scale applies, an
+unbound source when propagation has finished is refused by name, and
+binding a wired child end by hand is refused.
+
+A coordinate SHALL have exactly one binder during one enumeration of
+the tree. A relation that would bind a coordinate an author's
+`simulate()`, a wiring or another relation already bound SHALL be
+refused by name.
+
+Because a value slot keeps what was bound into it, an assembly SHALL
+clear, at the start of its simulate phase and before the author's
+`simulate()` runs, the value and the binder record of every coordinate
+it bound through a wiring or a relation in its previous run, so that
+each run's solve sees only values bound during the current walk. A
+value the author's own code bound in an earlier run SHALL NOT be
+cleared.
+
+#### Scenario: A port drives a port
+
+- **WHEN** an assembly states `pulley.turn.drives(belt.travel,
+  ratio=1.2)` and `pulley.turn` is bound to `30`
+- **THEN** `belt.travel` holds `36`, in the belt's own unit
+
+#### Scenario: A relation into a scaled port converts once
+
+- **WHEN** a relation drives a port declaring a scale
+- **THEN** the port holds the relation's result multiplied by that
+  scale, exactly as `connect()` gives, and nothing else was converted
+
+#### Scenario: A wiring binds after the relation that solves its source
+
+- **WHEN** an assembly's relation solves its own joint's coordinate and
+  that same class wires that coordinate down into two children
+- **THEN** both children are bound from the solved value in the same
+  run, and the wiring did not refuse an unbound source
+
+#### Scenario: A wiring is cleared and rebound each run
+
+- **WHEN** the same assembly is enumerated at three successive instants
+- **THEN** each run cleared what it bound in the previous one before
+  the author's `simulate()` ran, and each child holds the current
+  instant's value with nothing refused as doubly bound
+
+#### Scenario: A wiring and a relation cannot both bind one coordinate
+
+- **WHEN** a class wires its coordinate into a child's port and also
+  states a relation driving that same port
+- **THEN** solving raises naming the wiring and the relation as the two
+  binders, and the wiring's own hand-binding refusal is unchanged
 
 ### Requirement: Ports and the time base are not node exports
 

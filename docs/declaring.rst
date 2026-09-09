@@ -281,6 +281,16 @@ declared on the root and reached with ``--set``. Siblings do not reach
 into each other: ``ConRod(pin_bore=piston.pin_bore)`` in a class
 body raises, with the advice to declare ``pin_bore`` on the parent.
 
+Siblings do not reach into each other for a *value*, but they do name
+each other's *places*. Reading a port, a joint or another child off a
+declaration yields a **path reference** — ``anchor.turn``,
+``motion_works.cannon.turn``, ``shoulder.art2.art3.wrist`` — which names
+a coordinate in the tree and is what a relation between two coordinates
+is written over (:doc:`Driving a machine <driving>`). Every segment is
+checked against the class the previous one names, so a misspelling is a
+class-definition error; a path through a repeated or list-held child is
+refused, because it names many coordinates and a relation has one end.
+
 A child's class need not itself be declarative. A legacy class with an
 ordinary ``__init__`` is realized by calling that constructor with the
 resolved arguments, so the two styles mix freely in one tree.
@@ -494,6 +504,16 @@ The crank turns about its own axis at rest height: the rotation from
 carries it. A part that does not move needs no ``simulate()``; a pure
 grouping node needs neither method. ``super().simulate()`` chains as
 ``super().render()`` does.
+
+A class body may also state a **relation** between two coordinates —
+``power.drives(centre, law=going_train)``, ``relative = art3.elbow -
+shoulder`` — and the framework solves those at the end of the assembly's
+simulate phase, after the author's ``simulate()`` has bound whatever it
+binds. A child declaration named as an end stands for its class's ONE
+joint, so a class with none or several is refused where the relation is
+written, with the advice to name the coordinate. The whole verb, its
+laws, its derived coordinates and its three refusals are in
+:doc:`Driving a machine <driving>`.
 
 Ports are bound in ``simulate()`` too — ``connect()`` and port
 assignment alike — because a binding made in ``render()`` would be made

@@ -644,6 +644,15 @@ class AbstractBaseNode(metaclass=NodeMeta):
         if declarative:
             realize_children(self)
 
+        # Every relation this class states, resolved against this
+        # instance, and every law= callable called once -- at the END of
+        # construction, after the children are realized, because an end
+        # may be a child or a descendant of one. Imported here for the
+        # reason the joints import is: solid_node.motion.couplings
+        # imports solid_node.motion.ports, which imports this package.
+        from solid_node.motion.couplings import resolve_declared_relations
+        resolve_declared_relations(self)
+
     def check(self):
         """Refuse this instance by raising.
 

@@ -581,6 +581,22 @@ tagged with the assembly whose `simulate()` is running and swept with the
 rest of that assembly's motion, whether the joint is that assembly's own or
 one of a node below it.
 
+The simulate phase of one assembly SHALL run in a fixed order: FIRST
+the framework clears the value and the binder record of every
+coordinate this assembly bound through a wiring or a relation in its
+previous run, so the run that follows sees only values bound in the
+current walk; THEN the author's `simulate()` runs; THEN the wirings and
+the relations the class declared are solved together, each wiring
+binding once its source is bound and each relation applied from
+whichever of its ends is. All of it happens while the phase is still
+that assembly's, so every motion it causes carries that assembly's tag
+and is swept before its next run. A value the author's own code bound
+in an earlier run and not in this one SHALL NOT be cleared: it is the
+author's, as it is today. Because each class solves its own relations
+in its own instance's phase, a relation stated on an ancestor and
+reaching a descendant's coordinate by path SHALL be solved before that
+descendant's own relations are.
+
 An assembly whose first `render()` read nothing SHALL run that `render()`
 once per instance: later calls SHALL return the same children and SHALL NOT
 re-run the author's `render()`, and the operations it applied SHALL persist
@@ -621,6 +637,32 @@ unswept. `omit()` called during `simulate()` SHALL raise `StructureError`.
 - **THEN** the child carries one joint motion for the current instant,
   tagged with that assembly, and the rest placement its parent applied is
   untouched
+
+#### Scenario: The phase solves the wirings and the relations together
+
+- **WHEN** an assembly binds one joint in `simulate()`, declares a
+  wiring whose source another relation of the same class solves, and
+  states that relation
+- **THEN** the relation is applied and the wiring binds from its solved
+  source in the same solve, all the motion is tagged with that
+  assembly, and all of it is swept before its next run
+
+#### Scenario: A phase clears what it bound last run
+
+- **WHEN** an assembly whose relations solve a train from one binding
+  in `simulate()` is enumerated at three successive instants
+- **THEN** each run cleared the coordinates it had bound in the
+  previous one before the author's `simulate()` ran, and each run's
+  solve produced that instant's angles rather than refusing or
+  repeating the first instant's
+
+#### Scenario: An ancestor's relation binds before the descendant solves
+
+- **WHEN** a root states a relation reaching a joint declared two levels
+  down, and that level's own class states relations over the same joint's
+  neighbours
+- **THEN** the root's relation bound the joint before the descendant's
+  relations were solved, and the descendant solved against that value
 
 #### Scenario: Structure cannot move
 

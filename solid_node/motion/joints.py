@@ -49,8 +49,9 @@ at binding time, inside a live render where geometry is loaded anyway.
 
 import math
 
-from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
-                                     TranslationalPort, bind)
+from solid_node.motion.ports import (BoundPort, Coordinate, Port,
+                                     RotationalPort, TranslationalPort,
+                                     bind)
 
 
 __all__ = ['Joint', 'JointRangeError', 'Prismatic', 'Revolute',
@@ -102,7 +103,7 @@ def _where(node):
     return f'{node.name} ({type(node).__name__})'
 
 
-class Joint:
+class Joint(Coordinate):
     """The shared base of the one-coordinate lower pairs.
 
     A data descriptor, so an assignment binds the coordinate instead of

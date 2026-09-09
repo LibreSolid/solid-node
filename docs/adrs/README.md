@@ -69,6 +69,7 @@ that way.
 - [ADR-083](NODE/ADR-083-simulation-time-is-finite-forward-and-tick-aligned.md) — Simulation time is finite, forward, and tick-aligned — **Accepted**, extends 056
 - [ADR-087](NODE/ADR-087-one-module-one-question.md) — One module, one question: ports and the declared time base move to `solid_node.motion.ports` — **Accepted**, amends 056/072 (export location only)
 - [ADR-088](NODE/ADR-088-a-joint-owns-one-coordinate.md) — A joint owns one coordinate: `Revolute` and `Prismatic`, stated in the parent's frame — **Accepted**, extends 056/066, depends on 023/028/061/063/087
+- [ADR-089](NODE/ADR-089-drives-relates-two-coordinates.md) — `drives` relates two coordinates: one verb, a law passed in, and a solve oriented from the bound side — **Accepted**, extends 061/066, depends on 022/056/076/080/087/088
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

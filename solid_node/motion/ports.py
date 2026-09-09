@@ -81,6 +81,13 @@ class BoundPort:
     # would be silently overwritten and is refused instead.
     wired_from = None
 
+    # What bound the value this slot holds, for the current enumeration
+    # of the tree: None for the author's own code, and otherwise
+    # whatever the framework was binding as -- a wiring, a relation, a
+    # derived coordinate. A coordinate has exactly one binder per
+    # enumeration, and this is what a double binding is refused by.
+    binder = None
+
     def __init__(self, declaration, node):
         self.declaration = declaration
         self.node = node
@@ -120,7 +127,56 @@ class BoundPort:
                 f'{getattr(self.node, "name", self.node)}: {self.value}>')
 
 
-class Port:
+class Coordinate:
+    """What a port and a joint share as an END of a relation.
+
+    `drives` is framework vocabulary and needs no import, so it lives on
+    the declaration itself; the arithmetic is what builds a derived
+    coordinate, `wrist + 2 * tool`. Both delegate to
+    `solid_node.motion.couplings` through a local import: couplings
+    imports THIS module (a relation relates two ports), so the edge only
+    goes one way at module scope.
+    """
+
+    def drives(self, other, ratio=None, offset=None, law=None):
+        from solid_node.motion.couplings import relate
+
+        return relate(self, other, ratio, offset, law)
+
+    def _ref(self):
+        from solid_node.motion.couplings import coordinate_ref
+
+        return coordinate_ref(self)
+
+    def __add__(self, other):
+        return self._ref() + other
+
+    def __radd__(self, other):
+        return self._ref() + other
+
+    def __sub__(self, other):
+        return self._ref() - other
+
+    def __rsub__(self, other):
+        return (-self._ref()) + other
+
+    def __neg__(self):
+        return -self._ref()
+
+    def __mul__(self, other):
+        return self._ref() * other
+
+    def __rmul__(self, other):
+        return self._ref() * other
+
+    def __truediv__(self, other):
+        return self._ref() / other
+
+    def __float__(self):
+        return float(self._ref())
+
+
+class Port(Coordinate):
     """A port declaration, made as a class attribute on a node.
 
     A descriptor rather than an attribute created in __init__: the
@@ -177,6 +233,25 @@ class Port:
 
 
 _wiring_depth = 0
+
+# What the framework is currently binding AS, or None when the binding
+# is the author's own. Module state of exactly the same shape as
+# `_wiring_depth` above, and for the same reason: `bind` is the one
+# binding path, and what reaches it has to be able to say who it is
+# without every caller threading an argument through.
+_binder = None
+
+
+@contextmanager
+def binding_as(binder):
+    """Inside this, every binding records `binder` as what bound it."""
+    global _binder
+    previous = _binder
+    _binder = binder
+    try:
+        yield
+    finally:
+        _binder = previous
 
 
 @contextmanager
@@ -235,6 +310,7 @@ def bind(sink, source):
     if sink.scale is not None:
         value = value * sink.scale
     sink.value = value
+    sink.binder = _binder
     return sink
 
 
@@ -275,6 +351,10 @@ def declared_ports(node_class):
     port -- and importing it back would close the cycle. A registry
     would be state where none is needed; one attribute is the whole
     contract, and a project adding a joint kind of its own inherits it.
+    A DERIVED COORDINATE -- a linear formula over other coordinates,
+    declared in a class body -- is reported here for the same reason and
+    through the same seam: it owns a port carrying the domain and unit
+    its terms share.
     """
     ports = {}
     for klass in reversed(node_class.__mro__):

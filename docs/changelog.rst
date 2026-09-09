@@ -8,6 +8,73 @@ Changelog
 Unreleased
 ----------
 
+**One coordinate can drive another.** A class body may now state a
+relation between two coordinates, wherever they are in the tree::
+
+    class Movement(AssemblyNode):
+        power = TrainArbor(index=0)
+        centre = TrainArbor(index=1)
+
+        power.drives(centre, law=going_train)
+
+``drives`` needs no import, and it is the ONLY vocabulary for relating
+two coordinates: the framework looks up no method, attribute or hook of
+any name on a project's class to discover what a relation means. Written
+bare it is a statement, recorded on the class; assigned
+(``great = power.drives(centre)``) it is additionally named, so a test
+can reach it and every message about it can say its name. Either end may
+be a port, a joint, a child declaration standing for its class's ONE
+joint, a path through declared children (``motion_works.cannon.turn``,
+``shoulder.art2.art3.wrist``), a derived coordinate, or — as the source
+only — a ``Driver``, so a root driver reaches a joint at any depth
+without a port forwarded at every level in between.
+
+``drives`` states the MECHANICAL direction; which way the framework
+SOLVES it is decided per run from whichever end is actually bound —
+forward through the law, backward through its inverse — so a going train
+written from the power arbor forwards is solved backwards from the one
+arbor its ``simulate()`` bound, with nothing reordered.
+``Affine(ratio, offset)``, the one new importable name in
+``solid_node.motion.couplings``, is that law's usual shape, and
+``ratio=``/``offset=`` on ``drives`` are its shorthand; ``law=`` takes a
+CALLABLE of the two realized coordinate owners, called once per instance
+at realization, so a project's own function reads the tooth counts and
+the registration off the two arbors it is handed and returns the law.
+Everything stays symbolic: a driver read or ``$t`` rides through a
+relation into the published expressions the viewer already evaluates,
+and is a plain number under ``set_state``.
+
+A **derived coordinate** — a linear formula over coordinates, written in
+the class body: ``relative_elbow = art3.elbow - shoulder``,
+``left = wrist + 2 * tool`` — is itself a coordinate of the class. It
+reads on an instance as a bound port slot, ``declared_ports`` reports it
+under its name, it can drive and be driven, and it solves backwards
+through exactly one unbound term. Anything that is not linear is a
+``law=``, and a product of two coordinates is refused where it is
+written.
+
+Reading a port, a joint or another child off a child declaration in a
+class body now yields a PATH REFERENCE instead of raising: naming a
+place in the tree is what a declaration has always done. Reading a
+declared PARAMETER sideways is still refused with the same message, and
+so is reading a ``Driver``.
+
+Three refusals keep a wrong drive network from becoming a pose, each its
+own error kind exported from ``solid_node.motion.couplings`` and each
+naming the node paths, the relation as written and the ends:
+``UnreachedCoordinate``, ``DoublyBound`` (an author's binding, a wiring
+or another relation already bound that coordinate — including two
+relations that would agree, because the framework does not compare two
+symbolic expressions to decide whether they do) and ``NotInvertible``.
+Wirings are now solved together with the relations, in one fixpoint at
+the end of the simulate phase, so a wiring whose source a relation
+solves binds after it instead of refusing an unbound source; and at the
+START of that phase the framework clears what it bound through a wiring
+or a relation in the previous run, so each instant re-solves from the
+author's fresh binding. Nothing an author's own code bound is ever
+cleared. (OpenSpec change ``couplings``; ADR-089, extending ADR-061 and
+ADR-066.)
+
 **A joint says where a body may move.** ``solid_node.motion.joints`` now
 holds the two one-coordinate lower pairs, ``Revolute`` and ``Prismatic``,
 declared as a class attribute of the node they move:

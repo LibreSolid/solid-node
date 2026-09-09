@@ -306,10 +306,33 @@ and the ports and joints the child does declare.
 
 Two parent instances SHALL never share a realized child. A declared child
 whose class is a non-declarative node SHALL be realized by calling its
-constructor with the resolved arguments. Reading an attribute off a
-declaration in a class body SHALL raise advising that the shared parameter
-be declared on this class and passed to both children. Declared children
-SHALL be enumerable off the class without instantiating it.
+constructor with the resolved arguments. Declared children SHALL be
+enumerable off the class without instantiating it.
+
+Reading an attribute off a declaration in a class body SHALL depend on
+what that attribute IS on the declared class:
+
+- a PORT, a JOINT or another CHILD DECLARATION SHALL yield a PATH
+  REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
+  `shoulder.art2.art3.wrist` — which names a place in the tree rather
+  than a value, is resolved per parent instance at realization to the
+  coordinate of the realized descendant, and may be either end of a
+  relation between coordinates. A path reference SHALL be readable to
+  any depth, each segment checked against the class the previous
+  segment names, and a segment naming an attribute no class along the
+  path declares SHALL be refused at class definition naming the path,
+  the segment and what that class declares;
+- a REPEATED or LIST-HELD child declaration SHALL be refused, because
+  such a path names many coordinates and a relation has one end;
+- a DECLARED PARAMETER, or anything else, SHALL keep raising as it does
+  today, advising that the shared parameter be declared on this class
+  and passed to both children. A parameter is a value belonging to a
+  realized instance, and a class body has none.
+
+A child declaration SHALL additionally carry the verb that states a
+relation between two coordinates, so a class body may write
+`power.drives(centre, law=going_train)`, the declaration standing for
+its class's one joint.
 
 #### Scenario: Each parent realizes its own child
 
@@ -358,9 +381,40 @@ SHALL be enumerable off the class without instantiating it.
 #### Scenario: A sideways read is refused
 
 - **WHEN** a class body declares `piston = Piston()` and then
-  `con_rod = ConRod(pin_bore=piston.pin_bore)`
+  `con_rod = ConRod(pin_bore=piston.pin_bore)`, where `pin_bore` is a
+  declared parameter of `Piston`
 - **THEN** class definition raises naming both attributes and advising that
   the shared parameter be declared on this class and passed to both children
+
+#### Scenario: A port read off a declaration is a path reference
+
+- **WHEN** a class body declares `anchor = TrainArbor(index=4)` and
+  `pendulum = Pendulum()`, and states
+  `anchor.turn.drives(pendulum.swing)`
+- **THEN** class definition succeeds, and on each realized parent the
+  relation's ends are the realized anchor's and pendulum's own
+  coordinates
+
+#### Scenario: A path reaches through several declarations
+
+- **WHEN** a class body reads `shoulder.art2.art3.wrist`, each segment
+  naming a child declaration of the previous segment's class and the
+  last naming a joint
+- **THEN** the read yields a path reference, and on each realized parent
+  it resolves to that descendant's coordinate
+
+#### Scenario: A path naming nothing is refused at class definition
+
+- **WHEN** a class body reads `shoulder.art2.wist`, misspelling a joint
+- **THEN** class definition raises naming the path, the segment and the
+  ports, joints and children that class declares
+
+#### Scenario: A path through a repeated child is refused
+
+- **WHEN** a class declaring `units = Unit().repeat(count)` reads
+  `units.turn`
+- **THEN** class definition raises naming the repeated declaration and
+  advising that the relation be stated inside the repeated class
 
 #### Scenario: A wired coordinate is not a parameter
 

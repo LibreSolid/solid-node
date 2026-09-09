@@ -261,6 +261,31 @@ and binding that coordinate places the body. See
 
 .. autofunction:: solid_node.motion.joints.declared_joints
 
+Couplings
+=========
+
+The relation between two coordinates, importable from
+``solid_node.motion.couplings``. ``drives`` itself needs no import — it
+is on every declaration that can name a coordinate — and this module
+holds the law it carries, the errors it refuses with, and the
+enumerator. See :doc:`Driving a machine <driving>`.
+
+.. autoclass:: solid_node.motion.couplings.Affine
+
+.. autoclass:: solid_node.motion.couplings.Relation
+
+.. autoclass:: solid_node.motion.couplings.DerivedCoordinate
+
+.. autoexception:: solid_node.motion.couplings.CouplingError
+
+.. autoexception:: solid_node.motion.couplings.UnreachedCoordinate
+
+.. autoexception:: solid_node.motion.couplings.DoublyBound
+
+.. autoexception:: solid_node.motion.couplings.NotInvertible
+
+.. autofunction:: solid_node.motion.couplings.declared_relations
+
 Simulation
 ==========
 

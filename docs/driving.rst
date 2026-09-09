@@ -289,6 +289,147 @@ unbound source fails when it is bound; and a wired coordinate has exactly
 one binder, so binding the child's end by hand in the declaring parent is
 refused rather than silently overwritten.
 
+Relations: one coordinate drives another
+========================================
+
+A joint says where a body may move; a **relation** says that one
+coordinate's motion *is* another's. It is written as a statement in a
+class body, and it needs no import:
+
+.. code-block:: python
+
+    class Movement(AssemblyNode):
+        power  = TrainArbor(index=0)
+        centre = TrainArbor(index=1)
+        escape = TrainArbor(index=2)
+
+        power.drives(centre, law=going_train)
+        centre.drives(escape, law=going_train)
+
+        def simulate(self):
+            self.escape.turn = escape_angle(self.time)
+
+Either end may be a port, a joint, a **child declaration** — which
+stands for its class's one joint, as ``power`` and ``centre`` do above —
+a **path** through declared children, a **derived coordinate**, or, as
+the source only, a ``Driver``:
+
+.. code-block:: python
+
+    anchor.turn.drives(pendulum.swing)
+    centre.turn.drives(motion_works.cannon.turn, offset=hand_setting)
+    elbow_pulley.turn.drives(elbow_belt.travel, ratio=PITCH_ARC)
+    art3.drives(shoulder.art2.art3.elbow)          # a root Driver
+
+Reading a port, a joint or another child off a declaration is what makes
+a path: ``shoulder.art2.art3.wrist`` names a place in the tree, checked
+against the classes where you write it, so a misspelt segment is a
+class-definition error rather than a mystery at runtime. Reading a
+declared *parameter* off a declaration is still refused — a parameter is
+a value, and a class body has none. A ``Driver`` may drive, but nothing
+may drive a ``Driver``: its value belongs to the bound snapshot.
+
+**Direction is mechanical; solving is not.** ``a.drives(b)`` says what
+turns what. Which way the framework *solves* it is decided on every run,
+from whichever end is bound at that instant: forward through the law
+when the driver end is bound, backward through its inverse when the
+driven one is. The train above is written power-first and solved
+escape-first, because that is the end ``simulate()`` bound, and nothing
+had to be reordered to make it so. Every relation of a class is solved
+at the end of that instance's simulate phase, so a relation stated on an
+ancestor and reaching a coordinate by path binds it before the
+descendant's own relations run.
+
+The law
+-------
+
+``ratio=`` and ``offset=`` are the shorthand for ``Affine``, the one new
+name to import when you want it explicitly::
+
+    from solid_node.motion.couplings import Affine
+
+    Affine(ratio, offset)   # driven = ratio * driver + offset
+
+Both faces are ordinary arithmetic, so a symbolic driver read or ``$t``
+produces an expression and a number produces a number, and it inverts
+itself: you never write the reverse reading.
+
+Anything else is a ``law=`` **callable of your own**, called once per
+realized parent with the two realized nodes that own the coordinates,
+driver first, and returning the law:
+
+.. code-block:: python
+
+    def going_train(driver, driven):
+        return Affine(ratio=-driver.wheel_teeth / driven.pinion_teeth,
+                      offset=registration(driver, driven))
+
+Because it is handed the realized nodes, it reads whatever they have —
+a built library object, an index, a resolved parameter. The framework
+looks nothing up: there is no hook on your class, no registry of
+mechanism shapes, and no vocabulary of gears. A returned object needs a
+``forward(x)``, and an ``inverse(y)`` if the relation may ever be read
+backwards; a plain function is taken as forward-only.
+
+Derived coordinates
+-------------------
+
+A linear formula over coordinates is itself a coordinate of the class:
+
+.. code-block:: python
+
+    class Art2(AssemblyNode):
+        shoulder = Revolute(axis=(0, 0, 1), unit='deg')
+        art3     = Art3()
+
+        relative_elbow = art3.elbow - shoulder     # the belt is anchored
+        relative_elbow.drives(elbow_pulley.turn)   # on the housing
+
+    class Art56(AssemblyNode):
+        wrist = Revolute(axis=(0, 0, 1), unit='deg')
+        tool  = Revolute(axis=(0, 1, 0), unit='deg')
+
+        left  = wrist + 2 * tool
+        right = wrist - 2 * tool
+
+``+``, ``-``, unary ``-`` and scaling by a number or a declared
+parameter are all it does; a product of two coordinates, or any other
+function of one, is refused where it is written and pointed at ``law=``.
+The result reads on an instance as a bound port slot, is reported by
+``declared_ports`` under its name, takes its domain and unit from its
+terms, and solves in both directions: from its terms when they are all
+bound, and for its one remaining term when it is bound itself.
+
+When it refuses
+---------------
+
+Solving refuses by name rather than posing a machine it cannot justify.
+Each of the three is its own error kind in
+``solid_node.motion.couplings``, and each message names the node paths,
+the relation as written and the ends:
+
+``UnreachedCoordinate``
+    nothing bound either end of a relation, and nothing reached it —
+    or a derived coordinate is bound while two of its terms are not.
+
+``DoublyBound``
+    something else already bound the coordinate this relation would
+    bind: your own ``simulate()``, a wiring, or another relation. Two
+    relations that would give the *same* value are refused too — the
+    framework cannot compare two symbolic expressions to decide whether
+    they agree, and a silent first-writer-wins would hide a real
+    modelling mistake.
+
+``NotInvertible``
+    the driven end is the bound one, so the law has to be read
+    backwards, and it offers no inverse.
+
+Wirings take part in the same solve, so passing a coordinate down from a
+coordinate a relation solves works without ordering anything by hand;
+and at the start of each run the framework clears what it bound through
+a wiring or a relation last time, so every instant re-solves from your
+fresh binding. What your own code bound is never cleared: that is yours.
+
 Instructions
 ============
 

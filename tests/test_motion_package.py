@@ -72,17 +72,21 @@ class MotionPortsExportsTest(BaseNodeTest):
 
 
 class MotionSubmodulesTest(TestCase):
-    """`joints` and `couplings` exist, are documented, and export
-    nothing -- the two cycles that fill them start from a clean module,
-    not a guess."""
+    """`joints` and `couplings` exist and are documented. Both are
+    filled now -- cycle 2 put the lower pairs in one and cycle 3 the
+    relation in the other -- so what this pins is the module's own
+    named surface, not its emptiness."""
 
-    def test_the_unfilled_submodule_imports_and_is_empty(self):
+    def test_the_couplings_module_names_the_relation(self):
         import solid_node.motion.couplings as couplings
 
         self.assertTrue(couplings.__doc__ and couplings.__doc__.strip())
-        public = [name for name in vars(couplings)
-                  if not name.startswith('_')]
-        self.assertEqual(public, [])
+        for name in ('Affine', 'Relation', 'DerivedCoordinate',
+                     'UnreachedCoordinate', 'DoublyBound', 'NotInvertible',
+                     'declared_relations'):
+            with self.subTest(name=name):
+                self.assertIn(name, couplings.__all__)
+                self.assertTrue(hasattr(couplings, name))
 
 
 class MotionPackageExportsNothingTest(TestCase):
@@ -181,13 +185,14 @@ class MotionImportCostTest(TestCase):
     `solid_node.node` -- no CAD backend, no exact-geometry stack."""
 
     def test_the_empty_package_pulls_in_no_other_solid_node_module(self):
-        """The package and `couplings` are still free. `joints` is not:
-        cycle 2 filled it, and a joint owns a port as its coordinate, so
-        it costs what `solid_node.motion.ports` costs (see
-        tests/test_joints.py, which pins that equality)."""
+        """The package itself is still free. Neither submodule is:
+        cycle 2 filled `joints` and cycle 3 filled `couplings`, and both
+        cost what `solid_node.motion.ports` costs, because a joint owns
+        a port and a relation relates two of them (see
+        tests/test_joints.py and tests/test_couplings.py, which pin that
+        equality)."""
         result = probe(
             'import solid_node.motion\n'
-            'import solid_node.motion.couplings\n'
             'import sys\n'
             "solid_modules = sorted(\n"
             "    m for m in sys.modules\n"
@@ -198,7 +203,6 @@ class MotionImportCostTest(TestCase):
         self.assertEqual(modules, [
             'solid_node',
             'solid_node.motion',
-            'solid_node.motion.couplings',
         ])
         self.assertFalse(result.imported('cadquery'))
         self.assertFalse(result.imported('OCP'))

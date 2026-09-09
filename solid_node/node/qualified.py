@@ -130,6 +130,18 @@ class DriverDeclaration:
             f"assigned: its value belongs to the bound snapshot. Use "
             f"set_state({self._name}={value!r}).")
 
+    def drives(self, other, ratio=None, offset=None, law=None):
+        """This driver drives `other`: a root driver reaches a joint at
+        any depth without every class between them forwarding a port.
+
+        A driver is a SOURCE only -- naming one as the DRIVEN end is
+        refused where it is written, for the reason an assignment to one
+        is refused: its value belongs to the bound snapshot.
+        """
+        from solid_node.motion.couplings import relate
+
+        return relate(self, other, ratio, offset, law)
+
 
 # A segment of a qualified id must be a name in every runtime that
 # evaluates the expression it lands in -- jokenizer in the widget,

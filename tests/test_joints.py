@@ -1008,8 +1008,11 @@ class JointImportCostTest(TestCase):
             with self.subTest(absent=absent):
                 self.assertFalse(result.imported(absent))
 
-    def test_couplings_still_costs_nothing(self):
-        modules, _ = self.modules('import solid_node.motion.couplings\n')
+    def test_couplings_costs_what_ports_costs_too(self):
+        """Cycle 3 filled `couplings`, and a relation relates two ports,
+        so it costs exactly what `joints` costs (tests/test_couplings.py
+        pins it from that side as well)."""
+        ports, _ = self.modules('import solid_node.motion.ports\n')
+        couplings, _ = self.modules('import solid_node.motion.couplings\n')
 
-        self.assertEqual(modules, {'solid_node', 'solid_node.motion',
-                                   'solid_node.motion.couplings'})
+        self.assertEqual(couplings, ports | {'solid_node.motion.couplings'})

@@ -165,14 +165,30 @@ class ChildDeclaration:
             f"realized on this instance")
 
     def __getattr__(self, attribute):
+        """What reading an attribute off a declaration means.
+
+        A PORT, a JOINT, a derived coordinate or another CHILD
+        DECLARATION yields a path reference: a place in the tree, which
+        a class body may name, resolved per parent instance at
+        realization. Everything else -- a declared parameter above all
+        -- keeps the `SidewaysReadError` it has always raised, with the
+        same advice. ADR-061's rule is extended, not reversed: a class
+        body still may not read a sibling's VALUE.
+        """
         if attribute.startswith('_'):
             raise AttributeError(attribute)
+        from solid_node.motion.couplings import PathRef, read_through
+
         held = f'{self._name}.{attribute}' if self._name else attribute
-        raise SidewaysReadError(
-            f"cannot read '{attribute}' off the {self.node_class.__name__} "
-            f"declaration ({held}): a sibling's parameter is not a value in "
-            f"a class body; declare the shared parameter on this class and "
-            f"pass it to both children.")
+        found = read_through(self.node_class, attribute, held)
+        return PathRef(self, (attribute,), found)
+
+    def drives(self, other, ratio=None, offset=None, law=None):
+        """This child's ONE joint drives `other`: an arbor is one body
+        turning at one bearing, and a class that is not is refused."""
+        from solid_node.motion.couplings import relate
+
+        return relate(self, other, ratio, offset, law)
 
     def repeat(self, count):
         """Count-many identical instances of this declaration."""
@@ -226,6 +242,20 @@ class RepeatDeclaration:
             f"children '{self._name}' of {type(instance).__name__} are not "
             f"realized on this instance")
 
+    def __getattr__(self, attribute):
+        """A path through a repeated declaration names many
+        coordinates, and a relation has one end."""
+        if attribute.startswith('_'):
+            raise AttributeError(attribute)
+        held = f'{self._name}.{attribute}' if self._name else attribute
+        raise SidewaysReadError(
+            f"cannot read '{attribute}' through {held}: "
+            f"'{self._name}' is a repeated declaration, so it names "
+            f"{self.declaration.node_class.__name__} many times and the "
+            f"path names many coordinates. State the relation inside "
+            f"{self.declaration.node_class.__name__} instead, where it "
+            f"applies per instance.")
+
     def _adopt(self, owner, name):
         # The held declaration never reached the class namespace under
         # its own name, so it is named and validated through this one.
@@ -268,6 +298,13 @@ def _is_child_list(value):
 _BODY_KEY = '__solid_node_body__'
 _BODY = object()
 
+# Where a class body's relations accumulate while it runs. The list is
+# created ONCE, in __init__, and only ever appended to: inside a PEP 709
+# inlined comprehension the frame reports a plain dict COPY of the
+# namespace, and the copy holds the same list OBJECT, so an append there
+# lands on the real one. Rebinding the key would silently lose it.
+_RELATIONS_KEY = '__solid_node_relations__'
+
 
 class _DeclaringNamespace(dict):
     """The namespace a node class body executes in.
@@ -281,6 +318,7 @@ class _DeclaringNamespace(dict):
     def __init__(self):
         super().__init__()
         super().__setitem__(_BODY_KEY, _BODY)
+        super().__setitem__(_RELATIONS_KEY, [])
 
     def __setitem__(self, key, value):
         shadowed = self.get(key)
@@ -292,6 +330,12 @@ class _DeclaringNamespace(dict):
                 value._name = key
             elif not isinstance(value, Declaration):
                 value._name = key
+        elif getattr(value, '_names_in_body', False) and value._name is None:
+            # A relation and a derived coordinate are named here for the
+            # same reason a declaration is: an error raised while the
+            # body still runs can then say `great` or `relative`, and
+            # __set_name__ is too late for that.
+            value._name = key
         super().__setitem__(key, value)
 
 
@@ -315,6 +359,43 @@ def _refuse_coordinate_clash(namespace, key, shadowed, value):
         f"and as the port {port!r}. A joint already owns one coordinate, "
         f"which IS a port of that name, so the two cannot share it: "
         f"drop the port, or rename one of them.")
+
+
+def executing_body():
+    """The node class body executing up the stack, or None.
+
+    The namespace itself when the frame is the class statement's own,
+    and the plain dict COPY of it inside an inlined comprehension (see
+    `_BODY_KEY`) -- the copy shares the relations list, so recording
+    through it lands on the real one.
+    """
+    frame = sys._getframe(1)
+    while frame is not None:
+        found = frame.f_locals
+        if (isinstance(found, _DeclaringNamespace)
+                or (type(found) is dict and found.get(_BODY_KEY) is _BODY)):
+            return found
+        frame = frame.f_back
+    return None
+
+
+def record_relation(relation):
+    """Record `relation` on the class body that is executing.
+
+    A relation is a STATEMENT: `power.drives(centre)` written bare is
+    recorded here, and assigning its result only additionally names it.
+    Called with no node class body executing, it is refused by name --
+    there is no instance-time `drives` to mistake it for.
+    """
+    namespace = executing_body()
+    if namespace is None:
+        raise TypeError(
+            f'{relation!r} was stated with no node class body executing: a '
+            f'relation is declared in a class body and is class metadata, '
+            f'like a port or a child. Write a.drives(b) in the body of the '
+            f'assembly that owns the relation.')
+    namespace[_RELATIONS_KEY].append(relation)
+    return relation
 
 
 def in_class_body():
@@ -355,7 +436,29 @@ class NodeMeta(type):
         # The body has finished running: the mark has done its job and
         # is not an attribute of the class.
         namespace.pop(_BODY_KEY, None)
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
+        relations = namespace.pop(_RELATIONS_KEY, None)
+        cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        if relations:
+            # A local import, taken only by a class that carries
+            # relations, exactly as `Time.__set_name__` reaches
+            # AssemblyNode: no import edge is added for anything else.
+            from solid_node.node.assembly import AssemblyNode
+
+            if not issubclass(cls, AssemblyNode):
+                raise TypeError(
+                    f'{name} states {len(relations)} relation(s) and is not '
+                    f'an assembly: a relation is solved at the end of a '
+                    f'simulate phase, and only an AssemblyNode has one. '
+                    f'Declare the relation on the assembly that owns the '
+                    f'coordinates.')
+            cls._declared_relations = tuple(relations)
+            for relation in relations:
+                # The class exists now, so its own ports, joints,
+                # drivers and children can be enumerated: an end that
+                # belongs to some other class is refused here rather
+                # than resolving to a slot nothing ever binds.
+                relation.check_declared_on(cls)
+        return cls
 
 
 ##############################################

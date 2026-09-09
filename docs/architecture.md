@@ -511,6 +511,42 @@ placing the body about a wrong line, a numeric binding outside the
 declared range raises `JointRangeError`, and hand-written motion and
 joint motion coexist on one node — nothing is deprecated.
 
+**A relation** (spec `couplings`) says that one coordinate's motion IS
+another's: `a.drives(b, ratio=…, offset=…, law=…)`, written as a
+STATEMENT in a class body and recorded on the class (ADR-089). Its ends
+are coordinates of five kinds — a port or joint of the declaring class, a
+child declaration standing for its class's one joint, a path reference
+through declared children (`shoulder.art2.art3.wrist`), a `Driver`
+(a source only), and a derived coordinate. `drives` states the
+MECHANICAL direction; which way the framework SOLVES it is decided per
+run from whichever end is bound. The law is project code handed in:
+`law=` is a callable of the two realized coordinate OWNERS, called once
+per instance at realization and returning anything with `forward` and
+optionally `inverse` — the framework looks up no hook on any class and
+never learns what a gear is. A **derived coordinate**, a linear formula
+over coordinates (`art3.elbow - shoulder`, `wrist + 2 * tool`), is
+itself a coordinate: it owns a `Port` as a joint does, reads on an
+instance as a bound slot, is reported by `declared_ports()`, and solves
+in both directions through its one unknown.
+
+**The simulate phase runs in a fixed order** (ADR-089 over ADR-066):
+first the framework CLEARS the value and binder record of every
+coordinate this assembly bound through a wiring or a relation in its
+previous run — without which a value slot would still hold the last
+instant's value and the solve would find nothing to do; then the
+author's `simulate()`; then the class's wirings and relations, solved
+TOGETHER to a fixpoint, each relation applied from whichever end is
+bound and each wiring binding as soon as its source is, so a wiring whose
+source a relation solves no longer finds it unbound. All of it happens
+while the phase is still that assembly's, so a relation's motion is
+tagged and swept exactly as a hand-written rotation is. Each instance
+solves its own relations in its own phase, so an ancestor's relation
+reaching a coordinate by path binds it before the descendant's own
+relations run. Three refusals keep a wrong drive network from becoming a
+pose — `UnreachedCoordinate`, `DoublyBound`, `NotInvertible` — and two
+relations that would agree are refused as well, because the framework
+cannot compare two symbolic expressions to decide whether they do.
+
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because
 operation values can be animated expressions and the operations list
@@ -1239,6 +1275,17 @@ ADR-056 stage 3b the same semantics govern **driver expressions** too: a
 qualified id resolves through a nested driver map, needing no grammar
 extension.
 
+A relation lowers into that same arithmetic: `Affine(ratio, offset)`
+computes `ratio * driver + offset` and `(driven - offset) / ratio` with
+ordinary operators, so a `DriverToken` or `$t` rides through either face
+as the wire expression solid2 builds and a plain number stays a number
+(ADR-089). The backward face uses more of solid2's operator surface than
+the forward one — a number on the left, `/`, unary negation — and that
+dependency is pinned by a test evaluating the PUBLISHED string through
+the same parity helper as the rest of this section. A chain solved
+backwards through several stages nests one wrapping per stage, and
+ADR-080's interner publishes each distinct subexpression once.
+
 The module is split in two, and the split is load-bearing.
 **Primitives** are what it emits as an OpenSCAD call: the degree
 trigonometry, `sqrt`, and the direct builtins `abs`, `floor`, `ceil`,
@@ -1299,6 +1346,13 @@ gear object. And there is **no declared face**: the laws carry degree
 literals the ADR-062 algebra cannot type as angles, so a declared token
 reaching one raises `DimensionError` at class definition, with `.value`
 as the documented way through.
+
+These laws are the arithmetic a project's `law=` callable COMPOSES when
+it states a relation (ADR-089) — `meshed_angle` and `driving_angle` are
+one affine pair, which is why a project that adopts `drives` writes only
+the forward reading and lets the framework invert it. That does not make
+them vocabulary: the framework still looks nothing up here, and a law is
+a value the project passes in.
 
 ## Load-bearing invariants
 
@@ -1411,7 +1465,7 @@ The short list that changes must not silently break:
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088 |
-| Motion | `solid_node/motion/` | `ports`, `joints` | 056, 072, 087, 088 |
+| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
