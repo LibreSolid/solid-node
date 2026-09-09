@@ -664,3 +664,46 @@ the project rather than fixed there.
   still covers exact source evaluation and placement. Candidate wart, not
   filed: expose an explicit indeterminate pair verdict or a supported
   exact-to-faceted fallback for interference inventory contracts.
+
+# 3DPrintedClocks wall clock 01 and Thor (2026-09-09, motion layer refactors)
+
+Found while moving the two originating projects onto `solid_node.motion`
+(cycles `motion-package`, `joints`, `couplings`, branch `motion`). Poses
+were bit-identical before and after in both projects.
+
+- **A joint cannot be anchored at a design-placed part's own origin.**
+  `resolve_declared_joints()` runs in `AbstractBaseNode.__init__`, before
+  the parent's `render()` has placed the node, so a joint's `at` has no
+  way to say "the line through this part's own placed origin". Thor's
+  thirteen catalogue parts that spin on their own bearings (pinions,
+  pulleys, optodisk, ball cage, bevels) therefore keep one hand-written
+  `rotate` each with the sign from `placing.axis_sign`; every sub-assembly
+  freedom became a joint. Candidate fix: an anchor mode meaning the node's
+  own placed origin (resolved at first bind from the rest placement), or
+  lazy resolution of joint arguments at first bind with the eager pass
+  kept for tokens and callables that do not touch the placement.
+- **A relation chain must be stated in one class body.** Relations are
+  solved per instance at the end of its own simulate phase, and a child's
+  relations solve after its parent's. Clock 01 binds `escape.turn` in
+  `Movement.simulate()`; stating `centre.drives(third)` inside `Train`
+  while `power.drives(train.centre)` stays in `Movement` is refused with
+  `UnreachedCoordinate` at `Movement`'s end, because `Train`'s relations
+  have not run yet. The message names both ends, so the constraint is
+  visible, but it forces every chain into the class that binds its known
+  end. Candidate fix: let a parent's fixpoint defer an unreached relation
+  until its descendants have solved, then re-run once.
+- **A node's own derived coordinate is unbound inside its own
+  `simulate()`.** `clear_solved()` runs before the author's `simulate()`
+  and the fixpoint after it, so `Art4.left = art56.wrist + 2 * tool` reads
+  as an unbound slot in `Art4.simulate()` and a hand-written rotate from it
+  silently turns nothing (Thor's two motor pulleys, caught by the pose
+  comparison). Coordinates bound by an ancestor's relation are fine.
+  Candidate fix: refuse the read by name rather than yield an empty slot,
+  or state the two-phase order in the read's error.
+- Thor's exact suite has two failures that pre-exist this work on this
+  framework tree (`seats.assert_inventory`: 260 of 272 overlapping pairs
+  not in the seats inventory, in `test_assembly_integrity` and the
+  scenario test); byte-identical with the unrefactored model, and the
+  same 29/2 on the primary checkout at main cb474e3 with Thor's committed
+  code, so it predates the motion branch (an exact-boolean or seats change
+  since Thor's last green run, not investigated here).
