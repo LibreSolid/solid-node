@@ -45,8 +45,9 @@ a status line will be read as settled and it is not.
 
 These documents are revised as the thinking moves, and superseded rather than
 deleted. A note that supersedes an earlier one says what it keeps of it — as
-`joints-and-couplings.md` does for `mechanics-ontology.md`, keeping the
-survey as a coverage checklist while setting its class catalogue aside. When
+`joints-and-couplings.md` did for `mechanics-ontology.md` (both now under
+`archive/motion-layer-2026-09-09/`), keeping the survey as a coverage
+checklist while setting its class catalogue aside. When
 a plan is taken up, the OpenSpec change becomes the authority and the note
 stays as the context the change was cut from.
 

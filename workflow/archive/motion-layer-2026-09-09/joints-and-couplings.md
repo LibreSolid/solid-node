@@ -46,7 +46,7 @@ Modelica. So the layer is Reuleaux's two categories, stated the way those
 systems state them: a **joint** that is a pair, and a **coupling** that
 relates two joint coordinates. Not a catalogue of mechanisms.
 
-The research note `../docs/mujoco-viability.md` (2026-09-06) reached the same first
+The research note `../../docs/mujoco-viability.md` (2026-09-06) reached the same first
 step from the other side: there is no joint topology to export from a
 solid-node tree today, because a revolute joint is "an emergent property of
 the author having written `self.rotate(self.angle, [0, 0, 1])`", and its
@@ -479,7 +479,7 @@ and the named compositions in the table above, mass and density,
 non-holonomic contact (a wheel on ground), and any flow variable on ports.
 Each has a place to go later without reshaping the three concepts above, and
 each is named as an exclusion in the ports spec, ADR-056 or
-`../docs/mujoco-viability.md` already.
+`../../docs/mujoco-viability.md` already.
 
 ## Relationship to `mechanics-ontology.md`
 

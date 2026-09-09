@@ -1,5 +1,11 @@
 # Motion layer: roadmap and progress
 
+**Archived 2026-09-09: implemented.** All three cycles are integrated into
+main at 09b7c7a; the baseline specs `ports`, `joints` and `couplings` and
+ADR-087 to ADR-089 are the authority now, and this folder is the record
+the changes were cut from. `PROGRESS.md` beside this file is the execution
+index.
+
 The declarative mechanics layer of solid-node: joints that place a body,
 ports that carry a value, and `a.drives(b)` between coordinates. This
 folder is the durable record of that work, independent of any conversation.
@@ -11,7 +17,7 @@ folder is the durable record of that work, independent of any conversation.
   kinds of motion the local project catalogue contains. Its class catalogue
   was set aside on 2026-09-09; it stays as evidence and as a checklist the
   primitive must eventually satisfy.
-- `../docs/mujoco-viability.md` is the 2026-09-06 research on exporting a
+- `../../docs/mujoco-viability.md` is the 2026-09-06 research on exporting a
   solid-node tree to MuJoCo. It is cited by the design as a fit check and is
   kept for the future discussion, not for a cycle here.
 
@@ -115,9 +121,9 @@ that proves it, or stays empty.
 
 | Cycle | Proposed | Ratified | Applied | Integrated into main | Released |
 |---|---|---|---|---|---|
-| 1 `motion-package` | 2026-09-09 · `motion-package` | 2026-09-09 · review | 2026-09-09 · `motion-package` | | |
-| 2 `joints` | 2026-09-09 · `joints` | 2026-09-09 · review | 2026-09-09 · `joints` | | |
-| 3 `couplings` | 2026-09-09 · `couplings` | 2026-09-09 · review | 2026-09-09 · `couplings` | | |
+| 1 `motion-package` | 2026-09-09 · `motion-package` | 2026-09-09 · review | 2026-09-09 · 11401bb | 2026-09-09 · 09b7c7a | |
+| 2 `joints` | 2026-09-09 · `joints` | 2026-09-09 · review | 2026-09-09 · 4952231 | 2026-09-09 · 09b7c7a | |
+| 3 `couplings` | 2026-09-09 · `couplings` | 2026-09-09 · review | 2026-09-09 · 5e0e5a6 | 2026-09-09 · 09b7c7a | |
 
 Projects migrated to the `solid_node.motion` paths, and to joints and
 couplings where they apply. A project is listed when its imports come from
@@ -126,14 +132,14 @@ named.
 
 | Project | Paths | Joints | Couplings | Evidence |
 |---|---|---|---|---|
-| 3DPrintedClocks (wall clock 01) | | | | |
-| Thor | | | | |
+| 3DPrintedClocks (wall clock 01) | yes | yes | yes | 5bd67db on `solid-node-simulation`; poses bit-identical, faceted 7/7; other ten clocks on the old assemblies |
+| Thor | yes | 6 sub-assembly joints; 13 catalogue parts still by hand | yes | 4e6f134 on `main`; poses bit-identical before the art3 correction, 31/33 (2 pre-existing) |
 | (others as they migrate) | | | | |
 
 ## Future, not scheduled
 
 - **MuJoCo and Modelica emission.** Mechanically simple once cycles 2 and
-  3 exist (see the design's fit table and `../docs/mujoco-viability.md`),
+  3 exist (see the design's fit table and `../../docs/mujoco-viability.md`),
   but meaningless without mass and inertia, and a prescribed law such as
   the escapement has no constraint form. The pilot wants this discussed
   before anything is built.
