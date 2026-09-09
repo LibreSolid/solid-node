@@ -916,3 +916,13 @@ before the project is refactored around its absence.
   cached exact ISO thread. The two screws keep a port and one `rotate`
   each. Wanted, as before: `screw = ZScrew(turn=Revolute(axis=(0, 0, 1), at=(side * 17, 0, 0)))`
   resolved against the declaring parent's parameters.
+- **OpenFlexure: two lighter sightings.** (a) Fan-out over `.repeat()`
+  with the IDENTITY law: the three stage nuts and the gear lock screws
+  simply follow one coordinate each, so a `.repeat(n, travel=column.travel)`
+  wiring would do without any per-copy law — the weakest form of the
+  fan-out finding, worth building first. (b) The third 2026-09-09 limit
+  again: a coordinate a class's own relation binds is unbound inside that
+  class's own `simulate()`, which forced the actuator's thread ratio up
+  one level into `Axis`. The four flexure legs (two rotations each, on
+  repeated bodies, from a multi-source law) stay hand-written as
+  followers; the principal chains are statable and the project proceeds.
