@@ -847,3 +847,21 @@ before the project is refactored around its absence.
   Deferred at stage A. The two motions the API states today — the
   filament wheel's spin and the lock pin's draw — wait with it; the
   loop's `drop` port feeds molejo geometry and is not a forwarder.
+- **A joint on a child built from data, not from a class body.** OpenVMP
+  Don1's links realize their parts in a loop from PartCAD `.assy`
+  blueprints, one generic `StepPart` per entry named by the file. A joint
+  is class metadata and a relation path is checked against declared
+  children, so none of the 82 drive-train parts that visibly turn — worms,
+  worm gears, shafts, sprockets — can carry a joint or be reached by a
+  relation; nine `spin()` call sites stay hand-written, each with its own
+  frame inversion. Wanted:
+
+      front.yaw.drives(base['motion-front-wormgear/worm'].spin, ratio=WORM_GEAR_TEETH)
+
+  a joint declared on a child a parent realized from data, and a relation
+  that can reach it by name. The 24 declared freedoms are statable today,
+  so the project proceeds; this is transmission, not dressing, and a
+  later primitive adds to the refactor rather than redoing it. The same
+  project is the fourth sighting of the declaration-site joint: two `Link`
+  subclasses exist only to carry a joint, and `CameraArm` needs callables
+  because its anchor's sign is the PARENT's handedness times its own.
