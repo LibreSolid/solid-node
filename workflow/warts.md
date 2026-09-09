@@ -744,3 +744,37 @@ before the project is refactored around its absence.
   translate; (b) a joint passed as a declaration keyword, resolved on the
   child like a wiring is today but declaring a freedom rather than binding
   one, so a shared class can be given a joint where it is placed.
+
+- **Two joints on one body compose in binding order, which a relation
+  cannot see.** OpenCycloid's cycloidal disks orbit the main axis at the
+  eccentric radius while spinning at the reduced rate about their own
+  centre: `R(in)·T(d)·R(out−in)`. Two `Revolute` joints on the disk state
+  it — `orbit` about the parent's axis and `spin` about the disk's own
+  placed origin — but the pose is right only when `spin` is applied inside
+  `orbit`, and the joints spec composes joint motion in the order the
+  coordinates were BOUND. Bound by relations, that is the solver's pass
+  order, which the couplings spec fixes as declaration order within a pass
+  but which a reader of the class cannot see and a derived coordinate
+  would silently change. The sentences the project wants, either:
+
+      orbit = Orbit(axis=(0, 0, 1), radius=ECCENTRIC_RADIUS, phase=-90.0, unit='deg')
+      eccentric_shaft.spin.drives(stage_one.orbit)
+      eccentric_shaft.spin.drives(stage_one.spin, ratio=-1.0 / REDUCTION)
+
+  (a carried body whose attitude the orbit leaves alone, so the spin is
+  absolute and the `-1` term vanishes), or a stated contract that the
+  joints of one class compose in their DECLARATION order, innermost first,
+  whatever order they are bound in. OpenCycloid is deferred at stage A
+  until one exists.
+- **A relation cannot fan out over a repeated child.** The same actuator's
+  four eccentric bearings and six output pins are `.repeat()` children with
+  a per-copy sign or phase; the couplings spec refuses a path through a
+  repeated declaration and advises stating the relation inside the repeated
+  class, which cannot read the parent's coordinate. They stay bound in a
+  `for` loop in `simulate()`. Wanted:
+
+      eccentric_bearings = RadialBearing(...).repeat(4, orbit=eccentric_shaft.spin)
+      eccentric_shaft.spin.drives(eccentric_bearings.orbit, law=per_copy_sign)
+
+  where the law is handed the copy (its index) as the driven node. Second
+  reason OpenCycloid is deferred.
