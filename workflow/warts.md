@@ -1136,3 +1136,35 @@ of them empty. Placement, BREP copies and keyframe binding are under
 - Not a framework fix: fusing the plates and pillars into one solid is
   the project's choice, and `cProfile` over `solid test` reports garbage
   totals (instrument directly).
+
+# Inmoov-sim stage B (2026-09-10, first project on ADR-093)
+
+Found resuming the InMoov hand and forearm on the composition-order
+contract. Stage B went through unchanged: eighteen `Revolute`s on twelve
+classes, twenty relations, poses max deviation 0 on both models, both
+suites green with no test edited. Two findings, neither blocking.
+
+- **A subclass cannot put its own joint INSIDE an inherited one.** ADR-093
+  orders a class's joints base-first and a redeclaration keeps the base's
+  slot, so a `ThumbFingertip(Fingertip)` inheriting `dip, pip, mcp` in
+  slots 0-2 gets its own `tj` in slot 3 — outside `mcp`, which is the
+  wrong side of the knuckle — and redeclaring cannot move it. The project
+  restructured: both tips now subclass a jointless `GluedTip` and declare
+  their own stacks. Same node names, children and paths, so the cost was
+  one class, not a hack; but a body whose subclass adds an INNER freedom
+  has no way to say so short of re-parenting. Candidate fix, if a project
+  ever needs it: an explicit slot keyword, rejected by ADR-093 for lack of
+  a sighting — this is the first, and it was absorbed.
+- **Declaration-site joint, third direction: a parent whose own frame is
+  conditional.** `Forearm.render()` applies `present()` to its direct
+  children only when `self.presented` is true, so the wrist group's
+  parent-frame axis (gear, clevis, axle, hand) depends on a flag none of
+  their classes can see; they stay hand-written in `Forearm.simulate()`
+  with `_about_axis`. Wanted, as the earlier sightings:
+
+      gear = WristGear(turn=Revolute(axis=wrist_axis, at=wrist_anchor, unit='deg'))
+
+  with the callables evaluated against the realized PARENT. The wrist
+  pinion did escape (`wrist.drives(drive.pinion.spin, offset=...)`)
+  because `WristDrive` is built in the pinion's frame. `Hand.simulate()`'s
+  ten `connect()` calls remain on the `.repeat()` fan-out finding.

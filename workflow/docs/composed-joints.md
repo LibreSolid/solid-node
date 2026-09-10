@@ -6,7 +6,8 @@ baseline spec or an accepted ADR disagree, the spec and the ADR are right
 and this note is stale. It does *not* claim that any of the three
 primitives exists, that the interfaces below are settled, or that the
 projects named have been refactored. Cycle 1 (`joint-composition-order`)
-is cut from §4 of this note; §5 and §6 are designs, not proposals.
+is cut from §4 of this note and cycle 2 (`orbit-joint`) from §5; §6 is
+still a design, not a proposal.
 
 ---
 
@@ -391,7 +392,30 @@ warts entries marked resolved on archival.
 
 ---
 
-## 5. Cycle 2 — `orbit-joint` (design, not a proposal)
+## 5. Cycle 2 — `orbit-joint`
+
+> **Taken up, 2026-09-10.** This section has been cut into the OpenSpec
+> change `orbit-joint`, which is now the AUTHORITY for everything below:
+> its `proposal.md`, `design.md`, `tasks.md` and the delta on
+> `openspec/specs/joints/spec.md`, with ADR-094 to record the decision.
+> Where this section and those artifacts disagree, they are right and
+> this section is the older draft they were cut from. Three points the
+> change settled that this draft states differently:
+>
+> - the carried point defaults to the body's own placed origin, which in
+>   the body's OWN frame is exactly `(0, 0, 0)` — so the default is not a
+>   derivation from the rest placement at all, it is the origin, and it
+>   carries no floating-point residue (change `design.md` §3);
+> - the on-axis refusal happens at the FIRST BINDING, not at realization,
+>   because the radius depends on a placement that does not exist when
+>   joint arguments resolve (`design.md` §4);
+> - the placement is computed entirely in the body's own frame from the
+>   already-carried axis, anchor and carried point; "carried into the
+>   node's own frame through the ROTATION part of the inverted rest
+>   placement" below is the same vector by a different route, proved
+>   identical in `design.md` §2, and needs no second inversion.
+>
+> §6 (`free-joint`) remains provisional: nothing has been proposed for it.
 
 ### 5.1 Interface
 
@@ -531,18 +555,36 @@ contract); symbolic bindings publish expressions.
 
 **Cycle 2**
 
-5. *`carries=` versus `at=<carried point>`.* The ratified spelling keeps
-   `at` meaning a point on the axis and adds `carries`. The Internal
-   Cycloidal Actuator's proposal spells it `Orbit(axis, at=<carried
-   point>)`. The divergence looks harmless there — its form 2 writes
-   `orbit = Revolute(axis=(0, 1, 0), unit='deg')` with no `at`, so the
-   actuator axis passes through the parent's origin and
-   `Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE)` states it with no
-   extra constant. What would settle it for good: reading OpenCycloid's
-   and the V8's axis lines the same way. See §8.
+5. *`carries=` versus `at=<carried point>`.* **CLOSED, 2026-09-10, in
+   favour of `carries=`** — the change `orbit-joint` owns it, and its
+   `design.md` §7 states what each of the four projects then writes,
+   checked against that project's own axis line as this question asked:
+   - Internal Cycloidal Actuator — `carries=DISK_1_BORE_CENTRE`, no `at`.
+     Its actuator axis is `+Y` through the parent's origin (its fallback
+     form writes `orbit = Revolute(axis=(0, 1, 0))` with no `at`), so the
+     spelling costs it one renamed keyword.
+   - OpenCycloid — no `carries` at all. Its plan moves the eccentricity
+     into the rest placement, so the disk's own placed origin IS the
+     eccentric centre and the DEFAULT derives both the 2.5 mm radius and
+     the −90° phase it wanted to type.
+   - v8-engine — `carries=(0, 0, CRANK_RADIUS)`, `at` default. One
+     renamed keyword. **Its `at` was never a point on the axis**: the
+     proposal's own prose says `(0, 0, 15)` is the crank pin's
+     top-dead-centre position, i.e. the carried point. Its rod's own
+     placed origin is ON the crank axis, so it MUST state `carries` and
+     the on-axis refusal is what says so if it forgets.
+   - YouCanBuildDog — `at=(0, *SHORT_PIVOT)` unchanged, plus
+     `carries=(0, *KNEE_PIVOT)`. **The default is not enough here**: the
+     five carried bodies per leg have five different rest placements but
+     are all carried by ONE offset, so the knee pivot must be named. It
+     is `SHORT_PIVOT + LINK_SPANS[leg]`, which the layout already
+     measures, so the per-leg `radius=40.0000 / 39.9239` and
+     `phase=-55.000 / -55.104` it typed are derived instead — the
+     0.076 mm short leg included.
 6. *Export target.* Neither MuJoCo nor Modelica has a native carried-body
    element; an `Orbit` exports as a massless carrier body plus a hinge,
-   or as a tendon. The mapping is not designed here.
+   or as a tendon. The mapping is not designed here. **Still open**, and
+   now carried by the change's own open questions.
 
 **Cycle 3**
 
@@ -562,13 +604,30 @@ contract); symbolic bindings publish expressions.
 
 Recorded plainly rather than reconciled:
 
-- **`Orbit`'s anchor spelling** (open question 5). Two of the three
+- **`Orbit`'s anchor spelling** (open question 5). Two of the four
   projects that asked for an orbit wrote a radius and a phase, which the
-  direction refuses; the third wrote `at=<carried point>`, which the
-  direction re-spells as `carries=`. No project wrote the ratified
-  spelling. It is believed to cost them nothing, and that belief is
-  checkable by reading each project's axis line — but it is a belief, not
-  evidence, until it is checked.
+  direction refuses; two wrote `at=<carried point>`, which the direction
+  re-spells as `carries=`. **No project wrote the ratified spelling**,
+  and that remains true: the question was closed by DECISION, not by
+  evidence. What the check added, 2026-09-10, is the cost to each — one
+  renamed keyword for the actuator and the V8, nothing at all for
+  OpenCycloid (the default derives both numbers), and one derived point
+  for the dog in place of two typed ones. The reason the direction wins
+  is not that a project asked for it but that the two spellings the
+  projects asked for cannot both be served: `at` cannot mean the line for
+  a `Revolute` and the carried point for an `Orbit`, and the dog needs
+  BOTH a line that is not the parent origin AND a carried point, which
+  `at`-as-carried-point cannot express.
+- **The V8's `at` was misread in the campaign's own briefing** as "the
+  crank centre, a point ON the axis". It is not: the project's proposal
+  says in prose that `(0, 0, CRANK_RADIUS)` is the crank pin's
+  top-dead-centre position — the carried point. The conclusion (one
+  renamed keyword) survives; the reason given for it did not.
+- **The dog's radius does not come out of the placement for free.** The
+  briefing's expectation that the default `carries` would derive the
+  per-leg 40.0000 / 39.9239 mm is wrong: five bodies per leg, five rest
+  placements, one shared offset. The numbers are still derived rather
+  than typed, but from a named knee pivot, not from the default.
 - **Nothing in the evidence contradicts the composition-order
   direction.** All seven sightings ask for declaration order,
   innermost-first, and all seven wrote their declarations that way.
