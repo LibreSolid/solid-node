@@ -1,0 +1,7 @@
+# The probes in this directory build real node trees, and the framework
+# discovers a project root through a manifest. This one exists so the
+# probes can run in place, exactly as `tests/pyproject.toml` exists for
+# the fixture projects. It declares no model of its own.
+
+[tool.solid-node]
+model = "probe_order:Root"
