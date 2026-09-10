@@ -535,7 +535,9 @@ module, so a project or a test can catch exactly one.
 
 ### Requirement: Each end of a relation resolves to a coordinate, or to one per copy of a repeated child
 
-The system SHALL resolve both ends of a relation to a coordinate. The
+The system SHALL resolve both ends of a relation to a coordinate — the
+driven end to ONE COORDINATE PER REALIZED COPY when it passes through a
+repeated child, which makes the relation a BROADCAST. The
 kinds of end SHALL be:
 
 - a PORT or JOINT declared on the class stating the relation, resolving
@@ -545,6 +547,10 @@ kinds of end SHALL be:
 - a PATH REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
   `shoulder.art2.art3.wrist` — resolving to the coordinate of the
   realized descendant the path names;
+- a BROADCAST — a path one of whose segments is a REPEATED child
+  declaration, `eccentric_bearings.orbit`, `column.beads.travel`,
+  `legs.femur.lift` — resolving to ONE coordinate PER REALIZED COPY,
+  and permitted as the DRIVEN end only;
 - a `Driver` declaration, resolving to the driver's value, which SHALL
   be a SOURCE only;
 - a DERIVED COORDINATE of the class.
@@ -556,6 +562,23 @@ or the coordinate of a joint that owns one, and two for a coordinate of a
 joint that owns several — `chassis.pose.roll` names the realized child
 `chassis` and its coordinate `pose.roll`. Every segment before those
 SHALL be a child the previous segment's class declares, as it is today.
+
+A path MAY pass through AT MOST ONE repeated child declaration, at any
+position, and a path that does SHALL be a BROADCAST: it names the same
+coordinate of every copy that repeat realized, in copy order. A repeated
+declaration named as an end without a further segment SHALL mean the ONE
+joint of the repeated class, by the same rule a child declaration does.
+A path through TWO repeated declarations SHALL be refused at class
+definition, naming both repeated segments and saying that a broadcast
+fans out over one repeat. A path through a LIST-HELD child SHALL stay
+refused as it is today, naming the list and saying that its children are
+named one by one.
+
+A BROADCAST SHALL be refused at class definition when it is named as the
+SOURCE end, naming the path as written, the repeated declaration and its
+class, and saying that a relation's source is one value while the copies
+hold one each. A BROADCAST SHALL likewise be refused as a term of a
+derived coordinate, naming the formula and the path.
 
 A path that STOPS on a joint owning several coordinates — `chassis.pose`
 — SHALL be refused at class definition naming the joint and listing its
@@ -585,7 +608,8 @@ construction and after its children are realized, since an end may be a
 child or a descendant of one. Whatever the classes alone decide SHALL
 be refused AT CLASS DEFINITION — an attribute no class along a path
 declares, a node end with the wrong number of joints, a driver as a
-driven end, a path through a repeated or list-held child, `ratio=` or
+driven end, a path through a list-held child, a broadcast named as the
+source end, a path through two repeated children, `ratio=` or
 `offset=` given together with `law=` — and whatever depends on the
 instance SHALL be refused AT REALIZATION, naming the relation, the path
 as written, the node the walk stopped at and what that node declares.
@@ -623,9 +647,47 @@ as written, the node the walk stopped at and what that node declares.
 #### Scenario: A path through a repeated child is refused
 
 - **WHEN** a class declaring `units = Unit().repeat(count)` states
-  `power.drives(units.turn)`
-- **THEN** class definition raises naming the repeated declaration and
-  advising that the relation be stated inside the repeated class
+  `units.turn.drives(power)`, naming the repeated child as the SOURCE
+- **THEN** class definition raises naming the path as written, the
+  repeated declaration and its class, and saying that a relation's source
+  is one value while the copies hold one each
+
+#### Scenario: A repeated driven end is one relation per copy
+
+- **WHEN** a class declaring `beads = Bead().repeat(4)` and a coordinate
+  `earth` states `earth.drives(beads.travel)`, and `earth` is bound
+- **THEN** four relations are solved, one per realized copy, each copy's
+  `travel` holds the value and each copy's body is placed by it
+
+#### Scenario: A repeated node end is the copies' one joint
+
+- **WHEN** the same class states `earth.drives(beads)`, `Bead` declaring
+  exactly one joint
+- **THEN** the relation's driven ends are the four realized copies'
+  coordinates, exactly as if the joint had been named
+
+#### Scenario: A repeat one level down is one fan-out
+
+- **WHEN** a root declaring `column = Column()`, `Column` declaring
+  `beads = Bead().repeat(4)`, states `drive.drives(column.beads.travel)`
+- **THEN** class definition succeeds and four relations are solved, one
+  per copy of that realized column
+
+#### Scenario: Two repeated segments in one path are refused
+
+- **WHEN** a class states `yaw.drives(legs.joints.spin)`, where `legs`
+  and `joints` are both repeated declarations
+- **THEN** class definition raises naming both repeated segments and
+  saying that a broadcast fans out over one repeat
+
+#### Scenario: A list-held child is still refused
+
+- **WHEN** a class states `power.drives(plates)`, or
+  `power.drives(frame.plates.turn)` reaching a list-held declaration one
+  level down
+- **THEN** class definition raises naming the list-held declaration and
+  saying its children carry their own arguments and are named one by
+  one, and the message is not the two-repeat one
 
 #### Scenario: A path that does not resolve on the instance fails at realization
 
@@ -648,4 +710,3 @@ as written, the node the walk stopped at and what that node declares.
   `tilt.drives(chassis.pose.twist)`
 - **THEN** class definition raises naming the joint and listing the
   coordinates it owns, with the advice to name one of them
-
