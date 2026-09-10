@@ -631,6 +631,49 @@ assertion's own ``volume_epsilon`` still filters on top of it, and the
 warning that an epsilon was ignored never fires under the faceted kernel,
 where no comparison routes exact.
 
+.. _placement-quantum:
+
+The placement quantum
+======================
+
+Every intersection verdict above is asked once per run and remembered
+(:ref:`comparison-kernel`'s memo, ADR-070) — two comparisons of the same
+pair in the same relative placement are one question. "Same placement" is
+decided by comparing the pair's relative matrix — one part's composed
+world matrix inverted and applied to the other's. When a rigid parent
+carries several children together, each child's world matrix is composed
+through its own chain of operations, and recomposing the SAME rigid
+motion by two different multiplication orders leaves float noise between
+the two results — around 1e-13 on a real assembly — even though nothing
+about the pair's placement changed. Keyed on exact bytes, that noise reads
+as a different question every time, and a sweep that carries a pendulum,
+a motion works or a weight through dozens of instants re-asks a question
+it already answered at a quarter of the run's cost.
+
+The **placement quantum** absorbs that noise: the relative matrix is
+divided by the quantum and rounded to integer cell indices, and two
+placements landing in the same cell are one question. It is selected the
+same way as the kernel and the epsilon — ``solid test
+--placement-quantum MM``, else ``SOLID_TEST_PLACEMENT_QUANTUM`` in
+``.env``, else the framework's default of ``1e-9`` mm — and, unlike the
+volume epsilon, it applies under BOTH kernels: it identifies a question,
+not a quantity of material, and both kernels' verdicts pass through the
+same memo. ``--placement-quantum 0`` restores the exact-bytes key exactly
+as ADR-070 specified it, with no cell arithmetic at all.
+
+This is not a tolerance on any assertion. At the default quantum, two
+placements sharing a cell move every point of one solid, in the other's
+frame, by at most a few nanometres at metre scale — far below the exact
+kernel's own precision, OCCT's ``Precision::Confusion``, or any clearance
+a machine is designed to hold. A pair that straddles a cell boundary
+simply misses and recomputes, exactly as today, so the quantum can only
+ADD cache hits, never blur a verdict at the boundary. Raising it well
+past the default is a real judgement about arithmetic noise, not about
+material, and the run says so: a non-default quantum is named on the
+summary line, beside the faceted label and epsilon when the run is
+faceted, so a green run at a widened quantum is never mistaken for one at
+the default in a log or a commit message.
+
 Testing motion: scenarios
 =========================
 

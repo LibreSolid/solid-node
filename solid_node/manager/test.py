@@ -16,8 +16,8 @@ from solid_node.core.loader import (
 )
 from solid_node.core.builder import project_build_lock
 from solid_node.node.base import AbstractBaseNode
-from solid_node.test import (ComparisonPolicy, resolve_comparison_policy,
-                             set_comparison_policy)
+from solid_node.test import (ComparisonPolicy, DEFAULT_PLACEMENT_QUANTUM,
+                             resolve_comparison_policy, set_comparison_policy)
 
 
 class StopTestRun(Exception):
@@ -71,6 +71,13 @@ class Test:
             help='Under --faceted, report an intersection of at most this '
                  'volume as empty (default SOLID_TEST_VOLUME_EPSILON, else '
                  '0). The exact kernel refuses it.')
+        parser.add_argument(
+            '--placement-quantum', type=float, default=None, metavar='MM',
+            help='Merge two relative placements into one verdict-memo '
+                 'question when they differ by less than this (default '
+                 'SOLID_TEST_PLACEMENT_QUANTUM, else '
+                 f'{DEFAULT_PLACEMENT_QUANTUM:g}). Accepted by both '
+                 'kernels; 0 restores the exact-bytes key.')
         parser.add_argument('--all', action='store_true',
                             help='Test every model the project declares, '
                                  'as one run.')
@@ -79,7 +86,8 @@ class Test:
         try:
             self.policy = resolve_comparison_policy(
                 getattr(args, 'kernel', None),
-                getattr(args, 'volume_epsilon', None))
+                getattr(args, 'volume_epsilon', None),
+                getattr(args, 'placement_quantum', None))
         except ValueError as error:
             self.fail(str(error))
         set_comparison_policy(self.policy)
@@ -279,10 +287,17 @@ class Test:
         summary = (f"Ran {self.num_tests} tests in {total_time:.2f} seconds: "
                    f"{self.num_passed} passed, {self.num_failed} failed")
         policy = getattr(self, 'policy', ComparisonPolicy('exact', 0.0))
+        notes = []
         if policy.kernel == 'faceted':
             # A green fast run must never read as an exact one in a log.
-            summary += (f" (faceted kernel, volume epsilon "
-                        f"{policy.volume_epsilon:g} mm³)")
+            notes.append(f"faceted kernel, volume epsilon "
+                        f"{policy.volume_epsilon:g} mm³")
+        if policy.placement_quantum != DEFAULT_PLACEMENT_QUANTUM:
+            # The default run's output must stay byte-for-byte what it is
+            # today (ADR-090); only a non-default quantum is worth a line.
+            notes.append(f"placement quantum {policy.placement_quantum:g} mm")
+        if notes:
+            summary += f" ({', '.join(notes)})"
         sys.stdout.write(f"\n{summary}\n")
 
     def run_tests(self):

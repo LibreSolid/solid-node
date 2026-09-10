@@ -99,31 +99,77 @@ class IntersectionStats:
 # volume epsilon that exists only for it: meshes touch where solids
 # only meet, and the epsilon is the developer's stated size for that.
 #
+# The run also carries a placement quantum (ADR-090, amending ADR-070).
+# It is a different kind of judgement from the volume epsilon: not how
+# much shared material a project tolerates, but below what difference
+# two COMPUTED matrices are the same rigid placement -- a property of
+# double-precision arithmetic, not of any project's manufacturing
+# intent, which is why it may have a default where the epsilon may not.
+# It applies under both kernels, unlike the epsilon.
+#
 # `solid test` resolves the policy from its flags and the environment
 # and sets it before the first build; any other entry (a ScenarioTest
 # under pytest, an assertion driven directly) resolves it from the
 # environment at the first comparison. Resolved once per process: a run
 # does not change kernel halfway.
 
-ComparisonPolicy = namedtuple('ComparisonPolicy', 'kernel volume_epsilon')
+# ADR-090: the default is far below any placement difference a design
+# could mean, and far above the float noise of composing one rigid
+# motion by two different routes (~1e-13 measured; see _verdict_key).
+DEFAULT_PLACEMENT_QUANTUM = 1e-9
+
+ComparisonPolicy = namedtuple(
+    'ComparisonPolicy', 'kernel volume_epsilon placement_quantum',
+    defaults=(DEFAULT_PLACEMENT_QUANTUM,))
 
 KERNELS = ('exact', 'faceted')
 
 _policy = None
 
 
-def resolve_comparison_policy(kernel=None, volume_epsilon=None, environ=None):
+def resolve_comparison_policy(kernel=None, volume_epsilon=None,
+                              placement_quantum=None, environ=None):
     """The run's comparison policy from explicit values, then the
     environment, then the defaults.
 
     An explicit `kernel` (a flag) beats `SOLID_TEST_KERNEL`; an explicit
-    `volume_epsilon` beats `SOLID_TEST_VOLUME_EPSILON`. The epsilon exists
-    only for the faceted kernel: offered explicitly to the exact kernel it
-    is refused, and the environment's value is not even read there, so a
-    checkout's `.env` may carry both lines while CI overrides the kernel
-    alone.
+    `volume_epsilon` beats `SOLID_TEST_VOLUME_EPSILON`; an explicit
+    `placement_quantum` beats `SOLID_TEST_PLACEMENT_QUANTUM`. The epsilon
+    exists only for the faceted kernel: offered explicitly to the exact
+    kernel it is refused, and the environment's value is not even read
+    there, so a checkout's `.env` may carry both lines while CI overrides
+    the kernel alone. The placement quantum is resolved and validated
+    before the kernel is even branched on, and BOTH kernels carry it: it
+    identifies a question, not a quantity of material, and both kernels'
+    verdicts pass through the same memo.
     """
     environ = os.environ if environ is None else environ
+    if placement_quantum is None:
+        quantum_source = 'SOLID_TEST_PLACEMENT_QUANTUM'
+        raw = environ.get('SOLID_TEST_PLACEMENT_QUANTUM')
+        if not raw:
+            placement_quantum = DEFAULT_PLACEMENT_QUANTUM
+        else:
+            try:
+                placement_quantum = float(raw)
+            except ValueError:
+                raise ValueError(
+                    f'SOLID_TEST_PLACEMENT_QUANTUM must be a length in '
+                    f'mm, not {raw!r}') from None
+    else:
+        quantum_source = '--placement-quantum'
+    placement_quantum = float(placement_quantum)
+    if not math.isfinite(placement_quantum):
+        # inf divides every relative matrix down to the same all-zero
+        # cell, serving one verdict for every pair in the run; nan
+        # reaches astype(np.int64) undefined. Both parse as valid
+        # floats, so this must be checked here, not left to _verdict_key.
+        raise ValueError(
+            f'{quantum_source} must be a finite length in mm, not '
+            f'{placement_quantum}')
+    if placement_quantum < 0:
+        raise ValueError(
+            f'{quantum_source} must not be negative ({placement_quantum})')
     if kernel is None:
         kernel = environ.get('SOLID_TEST_KERNEL') or 'exact'
         if kernel not in KERNELS:
@@ -137,7 +183,7 @@ def resolve_comparison_policy(kernel=None, volume_epsilon=None, environ=None):
             raise ValueError(
                 'the exact kernel has nothing for a volume epsilon to '
                 'absorb: drop --volume-epsilon or select --faceted')
-        return ComparisonPolicy('exact', 0.0)
+        return ComparisonPolicy('exact', 0.0, placement_quantum)
     if volume_epsilon is None:
         raw = environ.get('SOLID_TEST_VOLUME_EPSILON') or '0'
         try:
@@ -150,7 +196,7 @@ def resolve_comparison_policy(kernel=None, volume_epsilon=None, environ=None):
     if volume_epsilon < 0:
         raise ValueError(
             f'the volume epsilon must not be negative ({volume_epsilon})')
-    return ComparisonPolicy('faceted', volume_epsilon)
+    return ComparisonPolicy('faceted', volume_epsilon, placement_quantum)
 
 
 def set_comparison_policy(policy):
@@ -1200,12 +1246,41 @@ def _verdict_key(identity1, matrix1, identity2, matrix2, path):
 
     None means "do not cache": one of the compared solids has no stable
     geometry identity, so nothing about a later comparison can be known to
-    be the same question.
+    be the same question, OR the relative matrix carries a non-finite
+    entry (a degenerate composed transform), so no cell index can be
+    trusted.
+
+    The placement term is the run's PLACEMENT QUANTUM's integer cell
+    indices of the relative matrix -- ``inv(matrix1) @ matrix2`` divided
+    by the quantum and rounded to the nearest integer (ADR-090, amending
+    ADR-070) -- not the rounded floats themselves: `-0.0` and `0.0` divide
+    to distinct floats but `np.rint(...).astype(np.int64)` maps both to
+    the integer `0`, so a translation that lands on a cell boundary from
+    either side is one key, not two. Two relative matrices are the same
+    question iff their quantum and their integer cells are equal, which
+    is why the quantum sits in the key beside `path`: two entries built
+    under different quanta can then never compare equal, even if their
+    cell indices happen to coincide.
+
+    A quantised hit can only ever ADD a cache hit, never remove a
+    verdict's correctness margin: two placements that land in the same
+    cell differ per entry by less than the quantum, so at the default
+    quantum every point of one solid in the other's frame moves by at
+    most a few nanometres -- far below any tolerance this framework's
+    assertions or OCCT's own precision distinguish (ADR-090). A quantum
+    of `0` restores the exact-bytes key ADR-070 specified, keying on
+    `relative.tobytes()` with no cell arithmetic at all.
     """
     if identity1 is None or identity2 is None:
         return None
     relative = np.linalg.inv(matrix1) @ matrix2
-    return (identity1, identity2, path, relative.tobytes())
+    if not np.all(np.isfinite(relative)):
+        return None
+    quantum = comparison_policy().placement_quantum
+    if quantum == 0:
+        return (identity1, identity2, path, quantum, relative.tobytes())
+    cells = np.rint(relative / quantum).astype(np.int64)
+    return (identity1, identity2, path, quantum, cells.tobytes())
 
 
 def _record_key(first, second, identity_index, path):

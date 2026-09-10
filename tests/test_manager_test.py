@@ -589,23 +589,27 @@ class ComparisonKernelSelectionTest(TestCase):
 
     def test_the_default_is_the_exact_kernel(self):
         policy = framework.resolve_comparison_policy(environ={})
-        self.assertEqual(policy, ('exact', 0.0))
+        self.assertEqual(policy, ('exact', 0.0,
+                                  framework.DEFAULT_PLACEMENT_QUANTUM))
 
     def test_faceted_without_an_epsilon_is_strict(self):
         policy = framework.resolve_comparison_policy('faceted', environ={})
-        self.assertEqual(policy, ('faceted', 0.0))
+        self.assertEqual(policy, ('faceted', 0.0,
+                                  framework.DEFAULT_PLACEMENT_QUANTUM))
 
     def test_the_environment_selects_the_faceted_kernel(self):
         policy = framework.resolve_comparison_policy(
             environ={'SOLID_TEST_KERNEL': 'faceted',
                      'SOLID_TEST_VOLUME_EPSILON': '0.25'})
-        self.assertEqual(policy, ('faceted', 0.25))
+        self.assertEqual(policy, ('faceted', 0.25,
+                                  framework.DEFAULT_PLACEMENT_QUANTUM))
 
     def test_a_flag_beats_the_environment(self):
         policy = framework.resolve_comparison_policy(
             'exact', environ={'SOLID_TEST_KERNEL': 'faceted',
                               'SOLID_TEST_VOLUME_EPSILON': '0.25'})
-        self.assertEqual(policy, ('exact', 0.0))
+        self.assertEqual(policy, ('exact', 0.0,
+                                  framework.DEFAULT_PLACEMENT_QUANTUM))
 
     def test_an_unknown_kernel_name_is_refused_naming_the_variable(self):
         with self.assertRaisesRegex(
@@ -636,7 +640,113 @@ class ComparisonKernelSelectionTest(TestCase):
     def test_the_environment_epsilon_is_not_read_by_the_exact_kernel(self):
         policy = framework.resolve_comparison_policy(
             environ={'SOLID_TEST_VOLUME_EPSILON': 'tiny'})
-        self.assertEqual(policy, ('exact', 0.0))
+        self.assertEqual(policy, ('exact', 0.0,
+                                  framework.DEFAULT_PLACEMENT_QUANTUM))
+
+    def test_a_two_argument_construction_means_the_default_quantum(self):
+        # The seven positional two-argument ComparisonPolicy(...) sites in
+        # solid_node/test.py, solid_node/manager/test.py and this repo's
+        # own tests are none of them edited to pass a quantum (design.md
+        # §6); this is what makes that mean "at the default quantum".
+        self.assertEqual(
+            framework.ComparisonPolicy('exact', 0.0).placement_quantum,
+            framework.DEFAULT_PLACEMENT_QUANTUM)
+
+    def test_the_placement_quantum_flag_parses(self):
+        args = self.parser().parse_args(['--placement-quantum', '1e-6'])
+        self.assertEqual(args.placement_quantum, 1e-6)
+        args = self.parser().parse_args([])
+        self.assertIsNone(args.placement_quantum)
+
+    def test_the_placement_quantum_is_not_in_the_kernel_group(self):
+        args = self.parser().parse_args(
+            ['--exact', '--placement-quantum', '1e-6'])
+        self.assertEqual((args.kernel, args.placement_quantum),
+                         ('exact', 1e-6))
+
+    def test_the_default_placement_quantum(self):
+        policy = framework.resolve_comparison_policy(environ={})
+        self.assertEqual(policy.placement_quantum,
+                         framework.DEFAULT_PLACEMENT_QUANTUM)
+
+    def test_the_environment_selects_a_placement_quantum(self):
+        policy = framework.resolve_comparison_policy(
+            environ={'SOLID_TEST_PLACEMENT_QUANTUM': '1e-6'})
+        self.assertEqual(policy.placement_quantum, 1e-6)
+
+    def test_a_placement_quantum_flag_beats_the_environment(self):
+        policy = framework.resolve_comparison_policy(
+            placement_quantum=0,
+            environ={'SOLID_TEST_PLACEMENT_QUANTUM': '1e-6'})
+        self.assertEqual(policy.placement_quantum, 0.0)
+
+    def test_a_zero_placement_quantum_is_the_exact_bytes_key(self):
+        policy = framework.resolve_comparison_policy(
+            placement_quantum=0, environ={})
+        self.assertEqual(policy.placement_quantum, 0.0)
+
+    def test_the_exact_kernel_accepts_a_placement_quantum(self):
+        # Unlike --volume-epsilon, refused by the exact kernel.
+        policy = framework.resolve_comparison_policy(
+            'exact', placement_quantum=1e-6, environ={})
+        self.assertEqual(policy, ('exact', 0.0, 1e-6))
+
+    def test_the_environment_quantum_is_read_under_both_kernels(self):
+        exact_policy = framework.resolve_comparison_policy(
+            environ={'SOLID_TEST_PLACEMENT_QUANTUM': '1e-6'})
+        faceted_policy = framework.resolve_comparison_policy(
+            'faceted', environ={'SOLID_TEST_PLACEMENT_QUANTUM': '1e-6'})
+        self.assertEqual(exact_policy.placement_quantum, 1e-6)
+        self.assertEqual(faceted_policy.placement_quantum, 1e-6)
+
+    def test_a_negative_placement_quantum_is_refused(self):
+        # Unlike the epsilon's negative-value error, the spec requires
+        # this one to name the flag or the variable that supplied the
+        # value (design.md Sec 3 "Errors").
+        with self.assertRaisesRegex(ValueError,
+                                    r'--placement-quantum.*negative'):
+            framework.resolve_comparison_policy(
+                placement_quantum=-1.0, environ={})
+        with self.assertRaisesRegex(
+                ValueError, r'SOLID_TEST_PLACEMENT_QUANTUM.*negative'):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_PLACEMENT_QUANTUM': '-1'})
+
+    def test_a_non_finite_placement_quantum_is_refused(self):
+        # inf collapses every relative matrix to the same all-zero cell
+        # (one verdict served for every pair in the run); nan reaches
+        # astype(np.int64) undefined. Both parse as valid floats, so
+        # resolve_comparison_policy must check finiteness itself.
+        with self.assertRaisesRegex(ValueError,
+                                    r'--placement-quantum.*finite'):
+            framework.resolve_comparison_policy(
+                placement_quantum=float('inf'), environ={})
+        with self.assertRaisesRegex(ValueError,
+                                    r'--placement-quantum.*finite'):
+            framework.resolve_comparison_policy(
+                placement_quantum=float('nan'), environ={})
+        with self.assertRaisesRegex(
+                ValueError, r'SOLID_TEST_PLACEMENT_QUANTUM.*finite'):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_PLACEMENT_QUANTUM': 'inf'})
+        with self.assertRaisesRegex(
+                ValueError, r'SOLID_TEST_PLACEMENT_QUANTUM.*finite'):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_PLACEMENT_QUANTUM': 'nan'})
+
+    def test_a_non_numeric_environment_quantum_is_refused(self):
+        with self.assertRaisesRegex(
+                ValueError, r'SOLID_TEST_PLACEMENT_QUANTUM.*length.*mm'):
+            framework.resolve_comparison_policy(
+                environ={'SOLID_TEST_PLACEMENT_QUANTUM': 'tight'})
+
+    def test_an_empty_environment_quantum_means_unset(self):
+        # Matches the kernel's and epsilon's siblings: environ.get(...)
+        # or default, so a blank line in .env is unset, not an error.
+        policy = framework.resolve_comparison_policy(
+            environ={'SOLID_TEST_PLACEMENT_QUANTUM': ''})
+        self.assertEqual(policy.placement_quantum,
+                         framework.DEFAULT_PLACEMENT_QUANTUM)
 
     def test_the_runner_refuses_before_building_anything(self):
         stdout, stderr = io.StringIO(), io.StringIO()
@@ -656,7 +766,8 @@ class ComparisonKernelSelectionTest(TestCase):
         with patch.dict(os.environ, {'SOLID_TEST_KERNEL': 'faceted',
                                      'SOLID_TEST_VOLUME_EPSILON': '0.5'}):
             self.assertEqual(framework.comparison_policy(),
-                             ('faceted', 0.5))
+                             ('faceted', 0.5,
+                              framework.DEFAULT_PLACEMENT_QUANTUM))
         # Resolved once: the environment changing afterwards does not
         # move a run that has already chosen.
         with patch.dict(os.environ, {'SOLID_TEST_KERNEL': 'exact'}):
@@ -678,7 +789,8 @@ class ComparisonKernelSelectionTest(TestCase):
             with redirect_stdout(stdout), redirect_stderr(stderr):
                 with self.assertRaises(SystemExit):
                     Runner().handle(args)
-        self.assertEqual(seen['policy'], ('faceted', 0.5))
+        self.assertEqual(seen['policy'], ('faceted', 0.5,
+                                          framework.DEFAULT_PLACEMENT_QUANTUM))
         self.assertIn('faceted kernel', stdout.getvalue())
         self.assertIn('0.5', stdout.getvalue())
 
@@ -712,6 +824,39 @@ class ComparisonKernelSelectionTest(TestCase):
         self.assertEqual(
             stdout.getvalue(),
             '\nRan 0 tests in 1.00 seconds: 0 passed, 0 failed\n')
+
+    def test_the_summary_line_is_unchanged_at_the_default_quantum(self):
+        runner = Runner()
+        runner.policy = framework.ComparisonPolicy('exact', 0.0)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            runner.report(1.0)
+        self.assertEqual(
+            stdout.getvalue(),
+            '\nRan 0 tests in 1.00 seconds: 0 passed, 0 failed\n')
+
+    def test_the_summary_line_names_a_non_default_quantum(self):
+        runner = Runner()
+        runner.policy = framework.ComparisonPolicy('exact', 0.0, 1e-06)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            runner.report(1.0)
+        self.assertRegex(
+            stdout.getvalue(),
+            r'Ran 0 tests in 1\.00 seconds: 0 passed, 0 failed '
+            r'\(placement quantum 1e-06 mm\)')
+
+    def test_the_summary_line_names_the_quantum_beside_the_faceted_label(self):
+        runner = Runner()
+        runner.policy = framework.ComparisonPolicy('faceted', 0.5, 1e-06)
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            runner.report(1.0)
+        self.assertRegex(
+            stdout.getvalue(),
+            r'Ran 0 tests in 1\.00 seconds: 0 passed, 0 failed '
+            r'\(faceted kernel, volume epsilon 0\.5 mm³, '
+            r'placement quantum 1e-06 mm\)')
 
 
 ROBOT_SOURCE = '''from solid_node.node import Solid2Node

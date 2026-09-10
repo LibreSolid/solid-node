@@ -982,16 +982,21 @@ the world-AABB broad phase, ~110 booleans re-run per instant, every one
 of them empty. Placement, BREP copies and keyframe binding are under
 0.3 s per instant. Findings, in order of leverage:
 
-- **The verdict memo misses co-moving pairs on float noise.** The key
-  is the exact bytes of `inv(M1) @ M2` (ADR-070). Of the 118 pairs, 30
-  are carried together (pendulum, motion works, weight and its line) and
-  differ between instants by ~1e-13 — the noise of composing a rotation
-  through a parent — so a question the memo already holds is re-asked
-  at every instant. Only 5 pairs hit. The pilot has chosen a quantised
-  key, a run-level option defaulting to 1e-9 mm that a run may change or
-  remove; ADR-070's rejection of a tolerance on the key stands as the
-  reason it must be visible and overridable, not silent. **Filed:**
-  cycle `quantise-verdict-memo`.
+- **The verdict memo misses co-moving pairs on float noise. Fixed** by
+  cycle `quantise-verdict-memo` (ADR-090, amending ADR-070). The key was
+  the exact bytes of `inv(M1) @ M2`. Of the 118 pairs, 30 are carried
+  together (pendulum, motion works, weight and its line) and differ
+  between instants by ~1e-13 — the noise of composing a rotation through
+  a parent — so a question the memo already held was re-asked at every
+  instant. The key now quantises the relative matrix to a run-level
+  placement quantum (default 1e-9 mm, `--placement-quantum`/
+  `SOLID_TEST_PLACEMENT_QUANTUM`, `0` restoring the exact-bytes key).
+  Measured on the same test (`wall_clock_02`,
+  `test_movement_runs_free_through_a_swing`, `@testing_steps(48)`, exact
+  kernel): booleans 3820 → 2526 (33.9% fewer, exactly the rise in memo
+  hits, 1823 → 3117) and wall time 779.37 s → 533.39 s (31.6% faster,
+  keeping the same test verdict). Full counts and the quantum-0 control
+  run in `evidence.md` of the `quantise-verdict-memo` OpenSpec change.
 - **A common rigid turn inflates every world box.** The clock declares
   `facing = 45°` on its root and the movement's AABBs are taken on world
   axes, so every box grows by up to √2 and pairs that never meet

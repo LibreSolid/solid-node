@@ -886,15 +886,27 @@ broad phase, then use OCCT common and interpret “contains no solid” as empty
 kernel failure raises and never falls back. `volume_epsilon` is ignored with a
 warning when every comparison in a call was exact.
 
-Verdicts are memoized within a run (ADR-070). The identity of an intersection
-question is `(both geometry identities, evaluation path, exact bytes of
-inv(M1) @ M2)` — relative rigid placement, so a pair carried together by a
-shared parent is the same question while a pair that moved relative to each
-other is not. The key carries no tolerance and no rounding: deciding that two
-near-identical placements are one question is the judgement `volume_epsilon`
-exists to leave with the project. Exact and faceted entries never serve one
-another, a node with no file identity is never cached, and entries are evicted
-when a geometry identity changes, on the same discipline as the Manifold cache.
+Verdicts are memoized within a run (ADR-070, amended by ADR-090). The
+identity of an intersection question is `(both geometry identities,
+evaluation path, the run's placement quantum, the relative rigid placement
+quantised to it)` — the relative matrix `inv(M1) @ M2` divided by the
+quantum and rounded to integer cell indices, so a pair carried together by a
+shared parent is the same question even though composing the parent's
+placement through each child's own chain leaves float noise between the two
+matrices, while a pair that genuinely moved relative to each other is not.
+The quantum is a stated property of the run (`placement_quantum`,
+`--placement-quantum`, `SOLID_TEST_PLACEMENT_QUANTUM`), resolved and
+validated before the kernel is chosen and carried by both kernels' policies;
+its default of 1e-9 mm merges only placements IEEE 754 arithmetic could not
+have told apart in the first place, and `0` restores the exact-bytes key
+ADR-070 specified. This is a judgement about arithmetic noise, not about
+material: deciding that two placements differing by a real, INTENDED amount
+are one question stays the judgement `volume_epsilon` exists to leave with
+the project, and remains untouched by the quantum. Exact and faceted entries
+never serve one another, a node with no file identity is never cached, a
+relative matrix carrying a non-finite entry is never cached either, and
+entries are evicted when a geometry identity changes, on the same discipline
+as the Manifold cache.
 Bounding boxes share those stable geometry identities. Exact placements use a
 512-entry LRU keyed by stable shape identity and the exact placement-matrix
 bytes, with no rounding; eviction merely recomputes the same placement and a

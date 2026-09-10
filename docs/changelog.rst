@@ -8,6 +8,22 @@ Changelog
 Unreleased
 ----------
 
+**The verdict memo absorbs float noise between two rigid motions.** A
+pair carried together by a rotating parent recomposes a relative matrix
+that differs from the previous instant's by float noise far below any
+real placement — the residue of composing the same motion through a
+different multiplication order — and the memo's exact-bytes key
+(ADR-070) missed every one of those. ``solid test`` now resolves a
+run-wide **placement quantum**: the relative matrix is divided by it and
+rounded to integer cell indices, so two placements in the same cell are
+one question. ``--placement-quantum MM`` / ``SOLID_TEST_PLACEMENT_QUANTUM``
+select it, the same way as the kernel and the volume epsilon; the
+default is ``1e-9`` mm, and ``0`` restores the exact-bytes key exactly.
+Unlike the volume epsilon, the quantum applies under both kernels and
+the exact kernel accepts it. A run at the default quantum is unchanged,
+byte for byte; a non-default quantum names itself on the summary line.
+(OpenSpec change ``quantise-verdict-memo``; ADR-090, amending ADR-070.)
+
 **One coordinate can drive another.** A class body may now state a
 relation between two coordinates, wherever they are in the tree::
 

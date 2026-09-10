@@ -257,14 +257,18 @@ clear argument error. `solid build` SHALL NOT accept a callback option.
 ### Requirement: Test command
 
 The system SHALL provide `solid test [reference]` with `--failfast`, the
-mutually exclusive kernel selectors `--exact` and `--faceted`, and
-`--volume-epsilon MM3`, accepting a node reference in any accepted spelling,
-or the path of a companion test file, which resolves to the node module it
-exercises. Without a selector the kernel comes from `SOLID_TEST_KERNEL`, and
-without `--volume-epsilon` a faceted run's epsilon comes from
-`SOLID_TEST_VOLUME_EPSILON`, both read through the same `.env` rule as the
-other `SOLID_*` settings. Runner behavior, the resolution order and the
-errors are specified in the test-framework capability.
+mutually exclusive kernel selectors `--exact` and `--faceted`,
+`--volume-epsilon MM3`, and `--placement-quantum MM`, accepting a node
+reference in any accepted spelling, or the path of a companion test file,
+which resolves to the node module it exercises. Without a selector the kernel
+comes from `SOLID_TEST_KERNEL`, without `--volume-epsilon` a faceted run's
+epsilon comes from `SOLID_TEST_VOLUME_EPSILON`, and without
+`--placement-quantum` the run's placement quantum comes from
+`SOLID_TEST_PLACEMENT_QUANTUM`, else the framework's default — all read
+through the same `.env` rule as the other `SOLID_*` settings. Unlike the
+volume epsilon, the placement quantum is accepted under both kernels. Runner
+behavior, the resolution order and the errors are specified in the
+test-framework capability.
 
 `solid test --all` SHALL run, as one test run reported once, the tests of every
 declared model in declaration order, each model built in its own build
@@ -299,6 +303,12 @@ project that declares no models.
 
 - **WHEN** a user runs `solid test --exact --faceted`
 - **THEN** argument parsing fails naming the two flags as mutually exclusive
+
+#### Scenario: A developer sets the placement quantum
+
+- **WHEN** a user runs `solid test --placement-quantum 0`
+- **THEN** the run's verdict memo keys on the exact bytes of the relative
+  placement, under whichever kernel the run selected
 
 #### Scenario: Every declared model is tested
 

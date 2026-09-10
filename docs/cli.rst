@@ -122,6 +122,7 @@ solid test
 
     solid test [reference] [--set NAME=VALUE ...] [--failfast]
               [--exact | --faceted] [--volume-epsilon MM3]
+              [--placement-quantum MM]
     solid test --all [--failfast]
 
 Builds the node at ``<path>`` and runs its tests — the ``test_*``
@@ -146,6 +147,15 @@ unmodified. See :doc:`Test-driven CAD <testing>` and
     Under ``--faceted``, report an intersection of at most this volume as
     empty for the whole run. Default ``SOLID_TEST_VOLUME_EPSILON``, else 0.
     Refused with the exact kernel, which has nothing to absorb.
+
+``--placement-quantum MM``
+    Merge two relative placements into one verdict-memo question when
+    they differ by less than this, absorbing the float noise of composing
+    one rigid motion by two different routes. Default
+    ``SOLID_TEST_PLACEMENT_QUANTUM``, else ``1e-9``. Accepted by both
+    kernels; ``0`` restores the exact-bytes key. A non-default quantum
+    names itself on the summary line. See :ref:`The placement quantum
+    <placement-quantum>`.
 
 ``--all``
     Run the tests of every model the project declares as one run, each
@@ -374,6 +384,11 @@ Environment variables
     The volume epsilon (mm³) of a faceted ``solid test`` run when no
     ``--volume-epsilon`` is given. Default: 0. Not read by the exact
     kernel.
+
+``SOLID_TEST_PLACEMENT_QUANTUM``
+    The placement quantum (mm) of the verdict memo when no
+    ``--placement-quantum`` is given. Default: ``1e-9``. Read by both
+    kernels.
 
 The ``solid`` command loads a ``.env`` file from the working directory
 at startup, so a project can pin its ports there — and a developer can

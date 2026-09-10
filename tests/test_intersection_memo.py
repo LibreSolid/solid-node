@@ -22,6 +22,20 @@ phase -- it must never change a verdict. So the tests below pair every
 recomputed: a pair that really moved, a part that was rebuilt, a node with
 no stable geometry identity, and the flush-contact verdict whose exact
 0.0 mm3 volume the strict `volume_epsilon` default depends on.
+
+The byte key above asks a narrower question than it means to. Measured on
+3DPrintedClocks `wall_clock_02` under the exact kernel
+(`workflow/warts.md`, "3DPrintedClocks wall clock 02 (2026-09-09, exact
+sweep cost)"): a sweep instant costs ~19 s, almost all of it in
+`BRepAlgoAPI_Common`. Of 118 candidate pairs per instant, 30 are rigidly
+carried together by a parent -- the pendulum, the motion works, the
+weight and its line -- and recompose a relative matrix that differs from
+the previous instant's by ~1e-13 of float noise: the residue of composing
+the same rigid motion through a different multiplication order, not a
+real difference in placement. Only 5 pairs hit the byte key. The tests
+below add that noise, the quantum that absorbs it, its boundary, its
+`0` escape hatch, and the guarantee that only the verdict KEY is
+quantised -- never the geometry a comparison is handed.
 """
 
 import os
@@ -29,10 +43,13 @@ import tempfile
 from unittest import TestCase
 from unittest.mock import patch
 
+import cadquery as cq
+import numpy as np
 from trimesh.creation import box
 
 import solid_node.test as test_module
-from solid_node.node.base import AbstractBaseNode
+from solid_node.exact import _placement_cache, cached_shape, write_brep
+from solid_node.node.base import AbstractBaseNode, _compose_world_matrix
 from solid_node.node.operations import Rotation, Translation
 
 
@@ -69,6 +86,37 @@ class MeshOnlyNode:
         self.mesh = mesh
 
 
+class ExactFakeNode:
+    """A minimal exact node whose shape has the stable cache identity the
+    exact path's memo key needs -- the same `cached_shape`/`write_brep`
+    technique `tests/test_exact_geometry.py`'s exact fixtures use, kept
+    self-contained here rather than imported across test modules."""
+
+    exact = True
+
+    def __init__(self, name, brep_path):
+        self.name = name
+        self.operations = []
+        self._parent = None
+        self._brep_path = brep_path
+
+    def shape(self):
+        return cached_shape(self._brep_path)
+
+    def as_number(self, value):
+        return float(value)
+
+
+class Parent:
+    """A rigid parent carrying its own operations only. Two children
+    composing the SAME parent operations into their own chain through the
+    real `_compose_world_matrix` is exactly "carried together" -- the
+    shape of the wall-clock-02 finding, not a stand-in for it."""
+
+    def __init__(self):
+        self.operations = []
+
+
 class MemoTestCase(TestCase):
 
     def setUp(self):
@@ -77,11 +125,40 @@ class MemoTestCase(TestCase):
         self.box_path = os.path.join(self.tmpdir.name, 'box.stl')
         box((2, 2, 2)).export(self.box_path)
         test_module._verdict_cache.clear()
+        self._set_quantum(test_module.DEFAULT_PLACEMENT_QUANTUM)
+        self.addCleanup(test_module.set_comparison_policy, None)
+
+    def _set_quantum(self, quantum):
+        """Fix the run's placement quantum -- the default unless a test
+        overrides it -- while leaving the kernel and epsilon at what
+        every scenario in this file already assumes: exact, strict."""
+        test_module.set_comparison_policy(
+            test_module.ComparisonPolicy('exact', 0.0, quantum))
 
     def _translated(self, name, translation):
         node = FakeNode(name, self.box_path)
         node.operations.append(Translation(translation, node))
         return node
+
+    def _exact_brep(self, name, size=(1, 1, 1)):
+        """An exact node backed by a written BREP, so `shape_identity`
+        has something stable to key the exact path's memo on."""
+        path = os.path.join(self.tmpdir.name, f'{name}.brep')
+        write_brep(cq.Workplane('XY').box(*size).val(), path, 1 * 10 ** 9)
+        return ExactFakeNode(name, path)
+
+    def _carried_pair(self, first, second):
+        """Attach `first` and `second` to a shared rigid parent and
+        return it, so a test can move the pair together by appending an
+        operation to the PARENT's own chain."""
+        parent = Parent()
+        first._parent = parent
+        second._parent = parent
+        return parent
+
+    def _relative_matrix(self, first, second):
+        return (np.linalg.inv(_compose_world_matrix(first))
+               @ _compose_world_matrix(second))
 
     def _counted(self):
         """Patch the faceted kernel read so a boolean actually running is
@@ -226,3 +303,201 @@ class FlushContactThroughTheCache(MemoTestCase):
         if not computed.is_empty:
             self.assertEqual(computed.volume, 0.0,
                              'flush contact reported a positive volume')
+
+
+class CarriedThroughAParent(MemoTestCase):
+    """The wall-clock-02 finding, reproduced directly: two children
+    compose the SAME parent operations into their own chain through the
+    real `_compose_world_matrix`, and the relative matrix recomposed
+    after the parent moves differs from the first by float noise -- not
+    by a real change in placement."""
+
+    def test_a_pair_carried_together_through_a_parent_is_not_recomputed(self):
+        first = self._translated('First', [0, 0, 0])
+        second = self._translated('Second', [1.5, 0, 0])
+        parent = self._carried_pair(first, second)
+        before = self._relative_matrix(first, second)
+
+        with self._counted() as verdict:
+            first_stats = test_module._intersection_stats(first, second)
+            parent.operations.append(
+                Rotation(37.123456, [0.3, 0.7, 0.1], None))
+            after = self._relative_matrix(first, second)
+            self.assertNotEqual(
+                before.tobytes(), after.tobytes(),
+                'the parent rotation produced no float noise; this '
+                'scenario proves nothing')
+            self.assertLess(
+                np.abs(after - before).max(),
+                test_module.DEFAULT_PLACEMENT_QUANTUM,
+                'the noise this test produces must fit under the default '
+                'quantum, or it is not the noise this cycle is about')
+            second_stats = test_module._intersection_stats(first, second)
+
+        self.assertEqual(tuple(first_stats), tuple(second_stats))
+        self.assertEqual(verdict.call_count, 1,
+                         'a pair carried together by its parent ran a '
+                         'second boolean')
+
+    def test_a_pair_displaced_by_more_than_the_quantum_is_recomputed(self):
+        first = self._translated('First', [0, 0, 0])
+        second = self._translated('Second', [1.5, 0, 0])
+        self._carried_pair(first, second)
+
+        with self._counted() as verdict:
+            test_module._intersection_stats(first, second)
+            second.operations.append(Translation(
+                [10 * test_module.DEFAULT_PLACEMENT_QUANTUM, 0, 0], second))
+            test_module._intersection_stats(first, second)
+
+        self.assertEqual(verdict.call_count, 2,
+                         'a pair displaced past the quantum was served '
+                         'the old verdict')
+
+    def test_a_zero_quantum_restores_the_exact_key(self):
+        self._set_quantum(0)
+        first = self._translated('First', [0, 0, 0])
+        second = self._translated('Second', [1.5, 0, 0])
+        parent = self._carried_pair(first, second)
+        before = self._relative_matrix(first, second)
+
+        with self._counted() as verdict:
+            test_module._intersection_stats(first, second)
+            parent.operations.append(
+                Rotation(37.123456, [0.3, 0.7, 0.1], None))
+            after = self._relative_matrix(first, second)
+            self.assertNotEqual(
+                before.tobytes(), after.tobytes(),
+                'the parent rotation produced no float noise; this '
+                'scenario proves nothing')
+            test_module._intersection_stats(first, second)
+
+        self.assertEqual(verdict.call_count, 2,
+                         'a quantum of 0 must key on the exact bytes, as '
+                         'ADR-070 specified')
+
+
+class SignedZeroDoesNotSplitACell(MemoTestCase):
+
+    def test_signed_zero_does_not_split_a_cell(self):
+        base = np.eye(4)
+        negative_zero = base.copy()
+        negative_zero[0, 3] = -0.0
+        positive_zero = base.copy()
+        positive_zero[0, 3] = 0.0
+        self.assertNotEqual(
+            negative_zero.tobytes(), positive_zero.tobytes(),
+            'numpy stopped distinguishing -0.0 from 0.0 in bytes; this '
+            'scenario proves nothing')
+
+        negative_key = test_module._verdict_key(
+            'a', base, 'b', negative_zero, 'exact')
+        positive_key = test_module._verdict_key(
+            'a', base, 'b', positive_zero, 'exact')
+
+        self.assertEqual(negative_key, positive_key)
+
+
+class ExactKernelQuantisation(MemoTestCase):
+
+    def test_the_exact_kernel_quantises_too(self):
+        first = self._exact_brep('first')
+        second = self._exact_brep('second')
+        second.operations.append(Translation([0.5, 0, 0], second))
+        parent = self._carried_pair(first, second)
+        before = self._relative_matrix(first, second)
+
+        with patch.object(test_module, 'intersect_shapes',
+                          wraps=test_module.intersect_shapes) as intersect:
+            test_module._intersection_stats(first, second)
+            parent.operations.append(
+                Rotation(37.123456, [0.3, 0.7, 0.1], None))
+            after = self._relative_matrix(first, second)
+            self.assertNotEqual(
+                before.tobytes(), after.tobytes(),
+                'the parent rotation produced no float noise; this '
+                'scenario proves nothing')
+            test_module._intersection_stats(first, second)
+
+        self.assertEqual(intersect.call_count, 1,
+                         'the exact kernel ran a second OCCT boolean for '
+                         'a pair carried together by its parent')
+
+
+class NonFiniteRelativeMatrixYieldsNoKey(MemoTestCase):
+    """A composed matrix that is already non-finite -- a degenerate
+    operation's input, e.g. an unresolved keyframe expression, not a
+    singular inversion (`np.linalg.inv` raises `LinAlgError` on an
+    exactly singular matrix rather than returning inf/nan, so a
+    degenerate SOURCE matrix, not a literally singular one, is the
+    realistic route `_verdict_key` must refuse; design.md decision 1)."""
+
+    def test_a_non_finite_relative_matrix_yields_no_key(self):
+        degenerate = np.eye(4)
+        degenerate[0, 0] = np.nan
+        self.assertIsNone(test_module._verdict_key(
+            'a', degenerate, 'b', np.eye(4), 'exact'))
+
+    def test_a_non_finite_relative_matrix_is_never_cached(self):
+        non_finite = np.eye(4) * np.nan
+        key = test_module._verdict_key(
+            'a', np.eye(4), 'b', non_finite, 'exact')
+        self.assertIsNone(key)
+
+        computed = []
+
+        def compute():
+            computed.append(True)
+            return test_module.IntersectionStats(True, 0.0, True)
+
+        test_module._memoized(key, compute)
+        test_module._memoized(key, compute)
+
+        self.assertEqual(len(computed), 2,
+                         'a non-finite relative matrix was cached')
+        self.assertEqual(len(test_module._verdict_cache), 0)
+
+
+class TwoQuantaNeverCrossServe(MemoTestCase):
+
+    def test_two_quanta_in_one_process_never_cross_serve(self):
+        q = 1e-6
+        matrix_at_q = np.eye(4)
+        matrix_at_q[0, 3] = q  # cell 1 at quantum q ...
+        matrix_at_double_q = np.eye(4)
+        matrix_at_double_q[0, 3] = 2 * q  # ... and cell 1 at quantum 2q too
+
+        self._set_quantum(q)
+        key_q = test_module._verdict_key(
+            'a', np.eye(4), 'b', matrix_at_q, 'exact')
+        self._set_quantum(2 * q)
+        key_double_q = test_module._verdict_key(
+            'a', np.eye(4), 'b', matrix_at_double_q, 'exact')
+
+        self.assertNotEqual(
+            key_q, key_double_q,
+            'two placements chosen to land on the same integer cell at '
+            'different quanta served one another')
+
+
+class PlacedGeometryIsNotQuantised(MemoTestCase):
+
+    def test_the_placed_geometry_is_not_quantised(self):
+        first = self._exact_brep('first')
+        second = self._exact_brep('second')
+        second.operations.append(Translation([0.5, 0, 0], second))
+
+        test_module._intersection_stats(first, second)
+        test_module._verdict_cache.clear()
+
+        second.operations.append(Translation(
+            [test_module.DEFAULT_PLACEMENT_QUANTUM / 4, 0, 0], second))
+        test_module._intersection_stats(first, second)
+
+        identity = test_module.shape_identity(second.shape())
+        matrices = [key[1] for key in _placement_cache if key[0] == identity]
+        self.assertEqual(len(matrices), 2,
+                         'two comparisons at different exact placements '
+                         'shared one placed geometry')
+        self.assertNotEqual(matrices[0], matrices[1],
+                            'the placed geometry was quantised')
