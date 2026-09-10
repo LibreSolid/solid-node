@@ -1,0 +1,7 @@
+# The probes here are real Solid models: the framework discovers a root
+# through a manifest, so this directory carries one rather than borrowing
+# the framework's, which declares no model. Run each probe from the
+# worktree root with PYTHONPATH="$PWD" and the workspace venv.
+
+[tool.solid-node]
+model = "probe_wiring_repeat:Column"
