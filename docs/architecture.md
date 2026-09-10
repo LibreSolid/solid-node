@@ -482,21 +482,36 @@ the same module for the same reason `Port` does: it is a declaration
 descriptor with a per-instance value.
 
 **Joints** (spec `joints`) are the three one-coordinate declarations,
-`Revolute`, `Prismatic` and `Orbit`, exported from
+`Revolute`, `Prismatic` and `Orbit`, and the one that is not a lower
+pair, `Free`, exported from
 `solid_node/motion/joints.py` and declared as a class attribute of the
-node they move (ADR-088, ADR-094). A joint states `axis` and `at` in the
+node they move (ADR-088, ADR-094, ADR-095). A joint states `axis` and
+`at` in the
 **parent's** frame — the frame the parent's `render()` places the node
 in, where MuJoCo and Modelica state them — with an optional `(lo, hi)`
 `range` and a `unit`; an `Orbit` states one further parent-frame point,
-`carries`, and all of them resolve per instance at realization, from
+`carries`; a `Free` states only `at`, with an `angle_unit` and a
+`length_unit`, and takes no axis and no range. All of them resolve per
+instance at realization, from
 numbers, tokens, derived formulas, or a callable of the realized node,
 and are outside identity.
-A joint OWNS one coordinate and that coordinate is a **port**: `Joint`
+A joint OWNS one or more coordinates and every one of them is a
+**port**: `Joint`
 holds a `Port` rather than subclassing one, `declared_ports()` reports
-the coordinate under the joint's name through a duck-typed `coordinate`
-attribute (ports cannot import joints, which import ports), and
+them through a duck-typed `coordinates` mapping (ports cannot import
+joints, which import ports), and
 `declared_joints()` is the sibling enumerator for the axis and the
-anchor. Binding the coordinate PLACES the body, at the binding: the
+anchor. **The naming rule**: a joint owning ONE coordinate names it
+after the joint; a joint owning SEVERAL names each
+`<joint name>.<coordinate name>` — `pose.roll` — and that one string is
+the port's name, the enumerator's key and the tail of a relation path,
+with no second spelling. An enumerated port name is therefore not
+guaranteed to be a Python identifier, and a dotted one is deliberately
+NOT a wiring keyword: both wiring roles are refused at class definition,
+and such a coordinate is reached by assignment on the instance, by a
+relation, or by a driver or an expression. A joint owning several does
+not stand for any one of them: named as a relation end, or as the one
+joint of a node named as one, it is refused listing what it owns. Binding the coordinate PLACES the body, at the binding: the
 framework composes the node's non-motion operations, inverts that rest
 placement to carry the axis, the anchor and any further point the
 joint declares into the node's own frame through that one inversion,
@@ -504,10 +519,14 @@ snaps the inversion's residue to exact 0/1/−1, and applies ordinary
 `Rotation`/`Translation` objects — `translate(-anchor)`,
 `rotate(value, axis)`, `translate(anchor)` for a revolute, the two
 centring translations omitted when the line runs through the placed
-origin; one `translate(value * axis)` for a prismatic; and for an orbit
+origin; one `translate(value * axis)` for a prismatic; for an orbit
 ONE translation, `(cos(value) − 1)·v + sin(value)·b`, where `v` is the
 component of the carried point across the line and `b` is that vector
-turned a quarter turn about it. An orbit is the body carried round the
+turned a quarter turn about it; and for a free joint up to SIX —
+the centring pair around `rotate(roll, x̂)`, `rotate(pitch, ŷ)`,
+`rotate(yaw, ẑ)` about the three CARRIED unit directions, then one
+translation outermost, `x`, `y` and `z` displacing along those same
+three directions. An orbit is the body carried round the
 line without turning: its coordinate is an angle, its operation carries
 no rotation at all, and the point of the body it carries is `carries`,
 defaulting to the body's own placed origin, which in the body's own
@@ -516,6 +535,24 @@ point and the line and can never be declared, so a project forbidden to
 type its bore centre can still state the joint; a carried point ON the
 line derives a radius of zero and is refused by name at the first
 binding, the one joint refusal that is not made at realization.
+
+A `Free` is the six freedoms of a body with no parent to be jointed to —
+a walking robot's chassis (ADR-095). Its composition is fixed by the
+contract, innermost first,
+`R(roll, x̂) · R(pitch, ŷ) · R(yaw, ẑ) · T(x, y, z)`, which as a matrix
+product is `T · Rz(yaw) · Ry(pitch) · Rx(roll)`: the extrinsic x-y-z
+sequence the aircraft convention states as intrinsic yaw, then pitch,
+then roll, and the product the hexapod's chassis applies by hand and
+inverts for every leg solution in the model. Binding ANY of the six
+re-places the whole joint from the values the six then hold, so the
+composition never depends on the order they were bound in; an UNBOUND
+coordinate places nothing — no rotation, a plain numeric `0` in the
+component its direction reaches — while still reading as unbound. The
+whole run is one contiguous block at the joint's own declaration slot,
+so a `Free` composes with a `Revolute`, a `Prismatic` or an `Orbit` on
+the same body exactly as they compose with each other. `Free` carries
+Euler angles and gimbal-locks at `pitch = ±90°`; a quaternion-valued
+`Spherical` is the joint that does not exist yet.
 
 The operations are always placed as motion, whatever phase is current
 (`apply_joint_motion` in `node/base.py`, the joint's own seam, because `_place_operation`

@@ -29,7 +29,8 @@ from solid_node.motion.couplings import (Affine, CouplingError,
                                          NotInvertible, Relation,
                                          UnreachedCoordinate,
                                          declared_relations)
-from solid_node.motion.joints import JointRangeError, Prismatic, Revolute
+from solid_node.motion.joints import (Free, JointRangeError, Prismatic,
+                                      Revolute)
 from solid_node.motion.ports import (RotationalPort, SignalPort,
                                      TranslationalPort, declared_ports)
 from solid_node.node import AssemblyNode, Solid2Node
@@ -1256,3 +1257,197 @@ class CouplingImportCostTest(TestCase):
         for absent in ('cadquery', 'OCP', 'trimesh'):
             with self.subTest(absent=absent):
                 self.assertFalse(result.imported(absent))
+
+
+##############################################
+# 1.14 A coordinate of a joint that owns several
+
+class Chassis(Solid2Node):
+    """A floating body: one joint, six coordinates, each reached by the
+    dotted name the port enumerator reports it under."""
+
+    pose = Free(angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class Shoulder(AssemblyNode):
+    """One level between the root and the floating body, so a path has
+    to walk a segment before it reaches the joint."""
+
+    chassis = Chassis()
+
+    def render(self):
+        pass
+
+
+class MultiCoordinateEndTest(BaseNodeTest):
+    """`chassis.pose.roll`: a coordinate whose name is two segments.
+
+    The three seams this exercises were measured on the tree before the
+    change (`openspec/changes/free-joint/evidence/`): `declared_ports`
+    reported nothing for such a joint, `read_through` raised the
+    PARAMETER refusal for it, and `setattr(node, 'pose.roll', value)`
+    silently created an instance attribute and bound nothing.
+    """
+
+    def test_a_relation_reaches_one_coordinate_by_path(self):
+        class Rig(AssemblyNode):
+            tilt = Driver(default=0.0, unit='deg')
+            lift = Driver(default=0.0, unit='mm')
+
+            chassis = Chassis()
+
+            tilt.drives(chassis.pose.pitch)
+            lift.drives(chassis.pose.z, ratio=2.0)
+
+            def render(self):
+                pass
+
+        rig = Rig()
+        rig.set_state(tilt=12.0, lift=30.0)
+
+        self.assertEqual(rig.chassis.pose.pitch.value, 12.0)
+        self.assertEqual(rig.chassis.pose.z.value, 60.0)
+        for unbound in ('roll', 'yaw', 'x', 'y'):
+            with self.subTest(coordinate=unbound):
+                self.assertIsNone(getattr(rig.chassis.pose, unbound).value)
+        self.assertEqual([operation.serialized[0] for operation
+                          in rig.chassis.operations],
+                         ['r', 't'])
+        self.assertEqual(rig.chassis.operations[0].serialized[1], '12.0')
+        self.assertEqual(
+            [float(component) for component
+             in rig.chassis.operations[1].serialized[1]],
+            [0.0, 0.0, 60.0])
+
+    def test_a_relation_into_a_free_coordinate_inverts(self):
+        """The driven end is bound and the driver's is solved
+        backwards, exactly as the fixture train's escape wheel is."""
+        class Rig(AssemblyNode):
+            chassis = Chassis()
+            pulley = Pulley()
+
+            chassis.pose.pitch.drives(pulley.turn, ratio=2.0)
+
+            def render(self):
+                pass
+
+            def simulate(self):
+                self.pulley.turn = 30.0
+
+        rig = Rig()
+        rig.render()
+
+        self.assertEqual(rig.chassis.pose.pitch.value, 15.0)
+        self.assertEqual(rig.chassis.operations[0].serialized[1], '15.0')
+
+    def test_a_relation_is_stated_in_the_joints_own_class_body(self):
+        class Floater(AssemblyNode):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+            pulley = Pulley()
+
+            pose.roll.drives(pulley.turn, ratio=3.0)
+
+            def render(self):
+                pass
+
+            def simulate(self):
+                self.pose.roll = 12.0
+
+        floater = Floater()
+        floater.render()
+
+        self.assertEqual(floater.pose.roll.value, 12.0)
+        self.assertEqual(floater.pulley.turn.value, 36.0)
+        self.assertEqual(floater.operations[0].serialized,
+                         ['r', '12.0', [1, 0, 0]])
+
+    def test_the_path_grammar_pops_two_segments(self):
+        """`shoulder.chassis.pose.yaw`: two segments naming children and
+        two naming the coordinate. The walk must stop at `chassis`."""
+        class Rig(AssemblyNode):
+            spin = Driver(default=0.0, unit='deg')
+
+            shoulder = Shoulder()
+
+            spin.drives(shoulder.chassis.pose.yaw)
+
+            def render(self):
+                pass
+
+        rig = Rig()
+        rig.set_state(spin=25.0)
+
+        record = declared_relations(Rig)[0].record_of(rig)
+        self.assertIs(record.driven, rig.shoulder.chassis.pose.yaw)
+        self.assertEqual(rig.shoulder.chassis.pose.yaw.value, 25.0)
+        self.assertEqual(rig.shoulder.chassis.operations[0].serialized,
+                         ['r', '25.0', [0, 0, 1]])
+
+    def test_the_joint_itself_is_not_an_end(self):
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                tilt = Driver(default=0.0, unit='deg')
+                chassis = Chassis()
+
+                tilt.drives(chassis.pose)
+
+        message = str(raised.exception)
+        for expected in ('pose', 'roll', 'pitch', 'yaw', 'x', 'y', 'z'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_part_the_joint_does_not_own_is_refused_by_name(self):
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                tilt = Driver(default=0.0, unit='deg')
+                chassis = Chassis()
+
+                tilt.drives(chassis.pose.twist)
+
+        message = str(raised.exception)
+        for expected in ('twist', 'pose', 'roll', 'yaw'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_node_whose_one_joint_is_free_is_not_an_end(self):
+        """`_the_one_joint` would otherwise pass `len(joints) == 1` and
+        return a declaration with no coordinate: a wrong pose, not an
+        error."""
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                tilt = Driver(default=0.0, unit='deg')
+                chassis = Chassis()
+
+                tilt.drives(chassis)
+
+        message = str(raised.exception)
+        for expected in ('Chassis', 'pose', 'roll', 'pitch', 'yaw'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_relation_binds_through_the_joint_and_not_by_attribute(self):
+        """The direct guard on the measured `setattr` hole: with a
+        dotted name `setattr(node, 'pose.roll', value)` creates an
+        instance attribute and binds nothing."""
+        class Rig(AssemblyNode):
+            tilt = Driver(default=0.0, unit='deg')
+
+            chassis = Chassis()
+
+            tilt.drives(chassis.pose.roll)
+
+            def render(self):
+                pass
+
+        rig = Rig()
+        rig.set_state(tilt=12.0)
+
+        self.assertNotIn('pose.roll', rig.chassis.__dict__)
+        self.assertNotIn('pose', rig.chassis.__dict__)
+        self.assertEqual(rig.chassis.pose.roll.value, 12.0)
+        self.assertEqual(declared_ports(Chassis)['pose.roll']
+                         .__get__(rig.chassis).value, 12.0)

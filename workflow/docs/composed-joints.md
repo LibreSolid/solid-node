@@ -531,6 +531,30 @@ fixture, maximum deviation 0.
 >   hand-written calls equal `T · Rz · Ry · Rx` to 1.11e-16 and
 >   `_to_chassis` inverts them to 1.42e-14 mm, over seven poses
 >   (change `evidence/probe_matrix.py`).
+>
+> **Implemented, 2026-09-10, ADR-095 accepted.** Two further points the
+> implementation settled that neither this draft nor the change's design
+> states:
+>
+> - **which frame the three TRANSLATIONAL coordinates are read in.** The
+>   design carries the three DIRECTIONS into the body's frame and writes
+>   the translation as `T(x, y, z)`; on an identity rest placement — every
+>   case the evidence has, the hexapod included — the two readings are the
+>   same. Where they differ, the implementation displaces along the three
+>   CARRIED directions, the way a `Prismatic`'s value runs along its
+>   carried axis, because that is what the change's own acceptance test
+>   states (`tasks.md` 1.3: the anchored fixture equals "the same product
+>   conjugated by its rest placement and its anchor") and because it is
+>   what makes a floating body float against the PARENT's frame rather
+>   than its own. The plain numeric `0` per unreached component survives
+>   unchanged;
+> - **the default anchor on a body its parent MOVES.** `at` defaults to
+>   the parent frame's ORIGIN, not to the body's own placed origin, so a
+>   `Free()` on a body the parent translates turns about the parent's
+>   origin and emits the two centring translations — exactly what a
+>   `Revolute` with a default `at` does. The hexapod cannot see this (its
+>   chassis has an identity rest placement); it is the visible half of
+>   open question 11.
 
 ### 6.1 Interface
 
@@ -680,6 +704,10 @@ contract); symbolic bindings publish expressions.
     proved. What would settle it: a floating body whose parent's
     `render()` actually places it somewhere. **Open**, raised by the
     change.
+    Half of it is now VISIBLE rather than merely stated: a `Free()` with
+    the default anchor on a body its parent MOVES turns about the
+    parent's origin and emits the two centring translations, which the
+    anchored fixtures in `tests/test_joints.py` record.
 12. *Is a dotted wiring keyword wanted at all?* **CLOSED, 2026-09-10:
     NOT IN THIS CYCLE, REFUSED BY NAME.** `Chassis(**{'pose.roll': roll})`
     works — measured, Python accepts a non-identifier `**` key and it
@@ -691,6 +719,13 @@ contract); symbolic bindings publish expressions.
     on the instance, by relation path, and by a driver or an expression.
     If a later project wants one wired downward, that is a NEW SIGHTING,
     arriving with a real call site to judge the spelling against.
+13. *Which frame a `Free`'s three TRANSLATIONAL coordinates are read
+    in.* Settled by the implementation as the three CARRIED directions
+    (see §6's implementation note), which the change's own acceptance
+    test states and which no evidence distinguishes: every case in hand
+    has an identity rest placement, where the two readings agree
+    exactly. **Recorded rather than open**, but it is a rule chosen and
+    not a thing a project proved — the same shape as question 11.
 
 ## 8. Where the evidence and the direction disagree
 

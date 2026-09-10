@@ -8,6 +8,57 @@ Changelog
 Unreleased
 ----------
 
+**A body that floats is one declaration.** A walking robot's chassis has
+no parent to be jointed to: it stands where its legs put it, six freedoms
+against the ground. Nothing said that. The hexapod in the catalogue
+applies its chassis pose by hand — four chained calls in its root's
+``simulate()`` — and hand-inverts exactly that composition to bring a
+foot target on the ground into the chassis's frame, so every leg solution
+in the model depends on a product written in two places. Stated as four
+joints it costs four declarations and four forwarding ports, and says
+*four independent freedoms* where the machine has *one floating body*.
+``Free`` is one declaration owning SIX coordinates::
+
+    class Chassis(AssemblyNode):
+        pose = Free(angle_unit='deg', length_unit='mm')
+
+    def simulate(self):
+        self.chassis.pose.roll = self.roll
+        self.chassis.pose.pitch = self.pitch
+        self.chassis.pose.yaw = self.yaw
+        self.chassis.pose.z = self.height
+
+The six — ``roll``, ``pitch``, ``yaw`` in ``angle_unit`` and ``x``,
+``y``, ``z`` in ``length_unit`` — are ordinary coordinates: bound by
+assignment, named at either end of ``drives``, read by a driver or an
+expression, reported by the port enumerator. What is new is the NAME. A
+joint owning one coordinate still names it after the joint; a joint
+owning several names each ``<joint>.<coordinate>``, so these are
+``pose.roll`` … ``pose.z``, and that one string is the port's name, the
+enumerator's key and the tail of a relation path
+(``tilt.drives(chassis.pose.pitch)``). It is not a Python identifier, so
+it is deliberately not a wiring keyword: both wiring forms are refused
+where they are written, naming the joint and listing what it owns.
+
+The composition is fixed by the joint, innermost first —
+``R(roll, x̂) · R(pitch, ŷ) · R(yaw, ẑ) · T(x, y, z)`` about the point
+``at`` names in the parent's frame — and it is the product the hexapod
+hand-inverts, measured against it at seven poses including two at gimbal
+lock before a line of the joint was written. Binding any one of the six
+re-places the whole joint, so the order they are bound in never shows;
+an unbound coordinate places nothing while still reading as unbound, so
+the hexapod's four-of-six leaves the other two at the identity. A
+``Free`` takes no ``axis`` — a free body turns about the frame's own
+three directions — and no ``range``.
+
+Three angles gimbal-lock at ``pitch = ±90``; that is inherited from
+stating an attitude as three angles at all, and the fixtures record the
+degenerate pose rather than avoiding it. Nothing else changes: no new
+operation kind, no document key, no viewer or serialization change,
+nothing deprecated, and no existing declaration, pose or test moves.
+(OpenSpec change ``free-joint``; ADR-095, extending ADR-088 and
+depending on ADR-093.)
+
 **A body can be carried round a line without being turned by it.** A
 cycloidal disk on its eccentric, a connecting rod's big end on the crank
 pin, the lower half of a parallelogram leg: a point of the body travels

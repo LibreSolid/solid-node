@@ -52,7 +52,7 @@ from dataclasses import dataclass
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      SignalPort, TranslationalPort, bind,
                                      binding_as, declared_ports,
-                                     wiring_binding)
+                                     set_coordinate, wiring_binding)
 
 
 __all__ = ['Affine', 'CouplingError', 'DerivedCoordinate', 'DoublyBound',
@@ -98,6 +98,32 @@ def _coordinate_of(value):
         return value
     owned = getattr(value, 'coordinate', None)
     return owned if isinstance(owned, Port) else None
+
+
+def _coordinates_of(value):
+    """The coordinates `value` owns when it owns SEVERAL -- a `Free`'s
+    six, by the dotted names they carry -- and None otherwise.
+
+    The companion of `_coordinate_of`: that one answers "which single
+    coordinate is this", and a joint that is several has to be refused
+    by name rather than stood in for. Duck-typed on `coordinates` for
+    the reason `_coordinate_of` is duck-typed on `coordinate`.
+    """
+    owned = getattr(value, 'coordinates', None)
+    if (isinstance(owned, dict) and len(owned) > 1
+            and all(isinstance(port, Port) for port in owned.values())):
+        return owned
+    return None
+
+
+def _refuse_several_coordinates(joint, written, detail=''):
+    owned = ', '.join(joint.coordinates)
+    first = next(iter(joint.coordinates))
+    return TypeError(
+        f"'{written}' names the joint '{joint.name}', which owns "
+        f"{len(joint.coordinates)} coordinates and stands for none of "
+        f"them{detail}. A relation has one end; it owns {owned}, so name "
+        f"one of them -- {first}.")
 
 
 ##############################################
@@ -389,6 +415,9 @@ class PathRef(CoordinateRef):
     def declaration(self):
         if _coordinate_of(self.terminal) is not None:
             return self.terminal
+        if _coordinates_of(self.terminal) is not None:
+            # A path that STOPS on a joint owning several: `chassis.pose`.
+            raise _refuse_several_coordinates(self.terminal, self.written)
         return _the_one_joint(self.terminal, self.written)
 
     def check(self, role):
@@ -420,6 +449,16 @@ class PathRef(CoordinateRef):
             raise AttributeError(attribute)
         from solid_node.node.declarative import ChildDeclaration
 
+        owned = _coordinates_of(self.terminal)
+        if owned is not None:
+            # A joint owning several DOES have parts, and each of them
+            # is one segment of the path: `chassis.pose.roll`.
+            found = owned.get(f'{self.terminal.name}.{attribute}')
+            if found is None:
+                raise _refuse_several_coordinates(
+                    self.terminal, self.written,
+                    f", and no coordinate of it is called '{attribute}'")
+            return PathRef(self.root, self.segments + (attribute,), found)
         if not isinstance(self.terminal, ChildDeclaration):
             raise TypeError(
                 f"cannot read '{attribute}' through {self.written}: that "
@@ -441,8 +480,12 @@ class PathRef(CoordinateRef):
         from solid_node.node.declarative import ChildDeclaration
 
         segments = list(self.segments)
-        if segments and _coordinate_of(self.terminal) is not None:
-            segments.pop()
+        coordinate = _coordinate_of(self.terminal)
+        if segments and coordinate is not None:
+            # A coordinate occupies as many TRAILING segments as the
+            # name it is reported under has parts: one for a plain port
+            # or a joint that owns one, two for `pose.roll`.
+            del segments[-(str(coordinate.name).count('.') + 1):]
         node = self._step(instance, self.root._name, self.written)
         for segment in segments:
             node = self._step(node, segment, self.written)
@@ -476,7 +519,16 @@ def _the_one_joint(declaration, written):
     node_class = declaration.node_class
     joints = declared_joints(node_class)
     if len(joints) == 1:
-        return next(iter(joints.values()))
+        only = next(iter(joints.values()))
+        if _coordinates_of(only) is None:
+            return only
+        # The node stands for its one joint, and that joint stands for
+        # no single coordinate. Without this the walk would pass
+        # `len(joints) == 1` and return a declaration with no
+        # coordinate: a wrong pose rather than an error.
+        raise _refuse_several_coordinates(
+            only, written,
+            f', and it is the only joint {node_class.__name__} declares')
     declares = ', '.join(sorted(joints)) or 'none'
     raise TypeError(
         f"'{written}' names {node_class.__name__}, whose class declares "
@@ -502,6 +554,11 @@ def read_through(node_class, attribute, written):
     found = getattr(node_class, attribute, None)
     if found is not None:
         if _coordinate_of(found) is not None:
+            return found
+        if _coordinates_of(found) is not None:
+            # A joint owning several is a PLACE too: the path steps into
+            # it for one of its coordinates, and stopping on it is
+            # refused by `PathRef` with the joint's own name.
             return found
         if isinstance(found, ChildDeclaration):
             return found
@@ -943,7 +1000,11 @@ class ResolvedEnd:
                 f'relation; its value belongs to the bound snapshot.')
         with binding_as(binder):
             if isinstance(self.declared, (Joint, Port)):
-                setattr(self.node, _declaration_name(self.declared), value)
+                # Through the coordinate's own NAME, whatever kind of
+                # name it is: a plain one is an attribute of the node,
+                # and a dotted one reaches the joint that owns it.
+                set_coordinate(self.node,
+                               _declaration_name(self.declared), value)
             else:
                 bind(self.slot, value)
         return self.slot
@@ -1000,6 +1061,10 @@ def coordinate_ref(value, role='end'):
         return value
     if _coordinate_of(value) is not None:
         return OwnRef(value)
+    if _coordinates_of(value) is not None:
+        # The joint itself, named in the class body that declares it:
+        # `pose.drives(...)`, or `tilt.drives(pose)`.
+        raise _refuse_several_coordinates(value, value.name or repr(value))
     if isinstance(value, ChildDeclaration):
         return PathRef(value, (), value)
     if isinstance(value, DriverDeclaration):
@@ -1090,7 +1155,7 @@ class Wiring:
     def apply(self):
         with binding_as(self):
             with wiring_binding():
-                setattr(self.child, self.keyword, self.slot)
+                set_coordinate(self.child, self.keyword, self.slot)
         self.applied = True
 
     def unbound_source(self):

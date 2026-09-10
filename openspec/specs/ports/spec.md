@@ -28,11 +28,18 @@ so two instances of the same node class never share a port value. A
 node's declared ports SHALL be discoverable by name on the class, so
 later tooling (simulation, UI) can enumerate them without
 instantiating behavior. That enumeration SHALL also report the
-coordinate of every joint the class declares, under the joint's name,
-so a consumer of a node's connection points sees a joint's coordinate
-without knowing what a joint is, AND every derived coordinate the class
+coordinates of every joint the class declares, so a consumer of a node's
+connection points sees them without knowing what a joint is, AND every
+derived coordinate the class
 declares — a linear formula over other coordinates — under its own
 name, carrying the domain and unit its terms share.
+
+A joint's coordinates SHALL be reported under the joint's naming rule:
+under the JOINT'S OWN NAME when the joint owns one, and under
+`<joint name>.<coordinate name>` for each when it owns several. An
+enumerated port name is therefore NOT guaranteed to be a Python
+identifier, and a consumer SHALL reach a coordinate by the name the
+enumerator reports rather than by attribute access on the node.
 
 Ports in this version are kinematic only: a port SHALL NOT expose a
 flow variable (torque, force). The declaration shape reserves that
@@ -71,6 +78,15 @@ extension per ADR-056; introducing it is a future spec change.
   declares two joints and `relative = a - b` over them
 - **THEN** three entries appear by name, `relative` carrying the domain
   and unit its terms share, and the enumeration constructed no instance
+
+#### Scenario: A joint owning several coordinates enumerates each of them
+
+- **WHEN** a consumer enumerates the declared ports of a class declaring
+  one plain port and one joint that owns six coordinates
+- **THEN** seven entries appear, the six under `<joint name>.<coordinate
+  name>` with their own domains and units, no entry under the joint's
+  bare name, and the enumeration constructed no instance
+
 ### Requirement: Per-render causal port binding
 
 The system SHALL let the assembly that owns the simulation bind port values
@@ -129,7 +145,22 @@ The system SHALL let a parent hand one of its own coordinates — a
 declared port, or the coordinate of a declared joint — to a child
 declaration in its class body, by passing the declaration as the
 argument of a keyword that names a port or a joint the child class
-declares: `wheel = Arbor(index=index, turn=turn)`. The framework SHALL
+declares: `wheel = Arbor(index=index, turn=turn)`. A wiring keyword SHALL
+be a name a class body can write as a keyword argument, which is what a
+port, a derived coordinate and a joint owning ONE coordinate are named.
+
+A joint owning SEVERAL coordinates SHALL NOT take part in a wiring, in
+either role. Naming such a joint as a wiring SOURCE — passing it whole to
+a child — SHALL be refused at class definition, naming the joint and
+listing its coordinates and saying they are bound by assignment or by
+relation, rather than being taken for a parameter of the child. Naming
+one of its coordinates as a wiring TARGET, by the dotted name the port
+enumerator reports it under, SHALL be refused the same way: a
+non-identifier keyword is not a spelling this version promises, and such
+a coordinate is reached by assignment on the instance
+(`chassis.pose.roll = …`), as either end of a relation
+(`chassis.pose.roll`), and by a driver or an expression. The framework
+SHALL
 record that wiring on the declaration and, on every `simulate()` of the
 parent, SHALL bind the child's end from the parent's coordinate after
 the parent's own `simulate()` has run and before the child is rendered,
@@ -199,6 +230,23 @@ a later change.
   the tree is enumerated
 - **THEN** the binding raises naming the parent, the child and the
   coordinate
+
+#### Scenario: A multi-coordinate joint cannot be wired whole
+
+- **WHEN** a parent declaring `pose = Free()` passes it to a child as
+  `Chassis(pose=pose)`
+- **THEN** class definition raises naming the joint and listing its
+  coordinates, saying they are bound by assignment or by relation, rather
+  than passing it to the child's constructor as a parameter
+
+#### Scenario: A coordinate of a multi-coordinate joint is not a wiring keyword
+
+- **WHEN** a parent writes `chassis = Chassis(**{'pose.roll': roll})`,
+  `Chassis` declaring `pose = Free()`
+- **THEN** class definition raises naming the joint and listing its
+  coordinates, saying they are bound by assignment or by relation, and no
+  wiring is recorded
+
 ### Requirement: The motion package holds what moves
 
 The system SHALL provide a package `solid_node.motion` whose subject is
@@ -346,3 +394,4 @@ same message.
   after the move
 - **THEN** it receives the same class it received before, so only the
   names that answer a different question have left the package
+

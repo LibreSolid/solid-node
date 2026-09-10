@@ -19,6 +19,7 @@ serialized operation is that fact without an openscad build.
 from solid2 import cube
 
 from solid_node.node import AssemblyNode, Solid2Node
+from solid_node.motion.joints import Free, Revolute
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      SignalPort, TranslationalPort,
                                      declared_ports)
@@ -234,3 +235,141 @@ class PortAssignmentTest(BaseNodeTest):
         self.assertEqual(axis.carriage.position.value, 2.5)
         self.assertEqual(translations(axis.carriage),
                          [['t', ['2.5', '0', '0']]])
+
+
+##############################################
+# A joint that owns several coordinates
+
+class Chassis(Solid2Node):
+    """A body with no parent to be jointed to: one joint, six
+    coordinates, none of them a wiring keyword."""
+
+    pose = Free(angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class Arbor(Solid2Node):
+    """The one-coordinate case the guard below keeps: a joint a wiring
+    may name, because its name is the coordinate's name."""
+
+    turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class MultiCoordinateWiringTest(BaseNodeTest):
+    """A wiring keyword is a name a class body can write as a keyword
+    argument. A coordinate of a joint owning several is named
+    `<joint>.<coordinate>`, which is not one, and this cycle refuses
+    both wiring roles by name rather than re-spelling the name."""
+
+    def test_the_six_coordinates_enumerate_and_the_joint_does_not(self):
+        ports = declared_ports(Chassis)
+
+        self.assertEqual(list(ports),
+                         ['pose.roll', 'pose.pitch', 'pose.yaw',
+                          'pose.x', 'pose.y', 'pose.z'])
+        self.assertNotIn('pose', ports)
+        self.assertEqual(ports['pose.roll'].domain, 'rotational')
+        self.assertEqual(ports['pose.x'].domain, 'translational')
+        self.assertEqual(ports['pose.x'].unit, 'mm')
+
+    def test_a_plain_port_beside_the_six_keeps_its_own_name(self):
+        class Mixed(Solid2Node):
+            pose = Free(angle_unit='deg', length_unit='mm')
+            roll = SignalPort(unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        ports = declared_ports(Mixed)
+
+        self.assertEqual(sorted(ports),
+                         ['pose.pitch', 'pose.roll', 'pose.x', 'pose.y',
+                          'pose.yaw', 'pose.z', 'roll'])
+        self.assertIsNot(ports['roll'], ports['pose.roll'])
+        self.assertEqual(ports['roll'].domain, 'signal')
+
+        mixed = Mixed()
+        mixed.roll = 3.0
+        mixed.pose.roll = 12.0
+
+        self.assertEqual(mixed.roll.value, 3.0)
+        self.assertEqual(mixed.pose.roll.value, 12.0)
+
+    def test_the_joint_cannot_be_wired_whole(self):
+        """Today this keyword is taken for a PARAMETER and reaches the
+        child's constructor, because the joint owns no `coordinate`."""
+        with self.assertRaises(TypeError) as raised:
+            class Rig(AssemblyNode):
+                pose = Free(angle_unit='deg', length_unit='mm')
+                chassis = Chassis(pose=pose)
+
+                def render(self):
+                    pass
+
+        message = str(raised.exception)
+        for expected in ('pose', 'roll', 'pitch', 'yaw', 'x', 'y', 'z',
+                         'assignment', 'relation'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_dotted_coordinate_is_not_a_wiring_keyword(self):
+        """Today this raises the misleading `declares no port or joint
+        of that name`, which would have become an ACCEPTANCE the moment
+        `declared_ports` reported the six."""
+        with self.assertRaises(TypeError) as raised:
+            class Rig(AssemblyNode):
+                lean = RotationalPort(unit='deg')
+                chassis = Chassis(**{'pose.roll': lean})
+
+                def render(self):
+                    pass
+
+        message = str(raised.exception)
+        for expected in ('pose', 'roll', 'pitch', 'yaw', 'assignment',
+                         'relation'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_one_coordinate_joint_is_wired_exactly_as_before(self):
+        """A characterisation guard: the wiring path this cycle must
+        not touch. GREEN before the change and after it -- the wiring
+        cases of `tests/test_joints.py::WiringTest` are the rest of it,
+        and they stay green with no edit."""
+        class Rig(AssemblyNode):
+            turn = RotationalPort(unit='deg')
+            arbor = Arbor(turn=turn)
+
+            def render(self):
+                pass
+
+            def simulate(self):
+                self.turn = 30.0
+
+        rig = Rig()
+        rig.render()
+
+        self.assertEqual(rig.arbor.turn.value, 30.0)
+        self.assertEqual(rig.arbor.operations[0].serialized,
+                         ['r', '30.0', [0, 0, 1]])
+
+    def test_a_name_declared_as_a_free_joint_and_a_port_is_refused(self):
+        """Today `_refuse_coordinate_clash` returns early for a joint
+        that owns no `coordinate`, so the last assignment silently
+        wins."""
+        with self.assertRaises(TypeError) as raised:
+            class Clash(Solid2Node):
+                pose = Free(angle_unit='deg', length_unit='mm')
+                pose = SignalPort(unit='')
+
+                def render(self):
+                    return cube(2, center=True)
+
+        message = str(raised.exception)
+        for expected in ('pose', 'Clash'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)

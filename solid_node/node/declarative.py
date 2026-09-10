@@ -70,7 +70,8 @@ def _is_port_declaration(value):
 
 def _coordinate_of(value):
     """The port `value` offers as a coordinate: itself when it is a
-    port declaration, its `coordinate` when it is a joint, else None."""
+    port declaration, its `coordinate` when it is a joint owning one,
+    else None."""
     if _is_port_declaration(value):
         return value
     owned = getattr(value, 'coordinate', None)
@@ -79,9 +80,55 @@ def _coordinate_of(value):
     return None
 
 
+def _coordinates_of(value):
+    """The coordinates `value` owns when it owns SEVERAL -- a `Free`'s
+    six, by the dotted names they carry -- and None otherwise.
+
+    Without it a joint owning several is not recognised as a coordinate
+    at all: passed to a child as a keyword it would be taken for a
+    PARAMETER and reach the child's constructor, and a name declared as
+    both such a joint and a port would keep whichever came last with no
+    sign of the other. Both are refused by name instead.
+    """
+    owned = getattr(value, 'coordinates', None)
+    if (isinstance(owned, dict) and len(owned) > 1
+            and all(_is_port_declaration(port) for port in owned.values())):
+        return owned
+    return None
+
+
+def _is_coordinate(value):
+    """A port, a derived coordinate, or a joint of any arity."""
+    return (_coordinate_of(value) is not None
+            or _coordinates_of(value) is not None)
+
+
 def _is_joint(value):
-    return (not _is_port_declaration(value)
-            and _coordinate_of(value) is not None)
+    return not _is_port_declaration(value) and _is_coordinate(value)
+
+
+def _refuse_wiring_several(owner, attribute, keyword, joint, role):
+    """A joint owning several coordinates named in a wiring, in either
+    role.
+
+    A wiring keyword is a name a class body can write as a keyword
+    argument, which is what a port, a derived coordinate and a joint
+    owning ONE coordinate are named. A coordinate of a joint owning
+    several is named `<joint>.<coordinate>`, which is not one; the
+    dotted keyword does reach here intact, and this version
+    deliberately does not offer it. Such a coordinate is bound by
+    assignment on the instance, or by a relation.
+    """
+    owned = ', '.join(joint.coordinates)
+    first = next(iter(joint.coordinates))
+    return (
+        f"{owner.__name__}.{attribute}: '{keyword}' names the joint "
+        f"'{joint.name}' {role}, and that joint owns "
+        f"{len(joint.coordinates)} coordinates: {owned}. None of them is a "
+        f"wiring keyword -- a coordinate of such a joint is bound by "
+        f"assignment on the instance ({first} = ...) or by a relation "
+        f"({first} at either end of drives) -- so there is nothing to wire "
+        f"here.")
 
 
 ##############################################
@@ -112,7 +159,7 @@ class ChildDeclaration:
         # never enter the child's construction or its identity, and
         # every other keyword keeps the meaning it has today.
         self.wiring = {key: value for key, value in kwargs.items()
-                       if _coordinate_of(value) is not None}
+                       if _is_coordinate(value)}
         self.kwargs = {key: value for key, value in kwargs.items()
                        if key not in self.wiring}
 
@@ -136,7 +183,20 @@ class ChildDeclaration:
         ours = {id(port) for port in declared_ports(owner).values()}
         ours.update(id(joint) for joint in declared_joints(owner).values())
         theirs = declared_ports(self.node_class)
+        theirs_joints = declared_joints(self.node_class)
         for keyword, source in self.wiring.items():
+            several = _coordinates_of(source)
+            if several is not None:
+                raise TypeError(_refuse_wiring_several(
+                    owner, self._name, keyword, source,
+                    'as a wiring source, passed whole to '
+                    f'{self.node_class.__name__}'))
+            named = keyword.partition('.')[0]
+            owned = _coordinates_of(theirs_joints.get(named))
+            if owned is not None:
+                raise TypeError(_refuse_wiring_several(
+                    owner, self._name, keyword, theirs_joints[named],
+                    f'as a wiring target on {self.node_class.__name__}'))
             if id(source) not in ours:
                 elsewhere = getattr(source, 'owner', None)
                 belongs = (f'{elsewhere.__name__} declares it'
@@ -347,7 +407,7 @@ def _refuse_coordinate_clash(namespace, key, shadowed, value):
     clash is only visible here -- while the body runs -- and is refused
     where it was written.
     """
-    if _coordinate_of(shadowed) is None or _coordinate_of(value) is None:
+    if not _is_coordinate(shadowed) or not _is_coordinate(value):
         return
     if _is_joint(shadowed) == _is_joint(value):
         return

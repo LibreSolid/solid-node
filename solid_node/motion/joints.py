@@ -85,8 +85,8 @@ from solid_node.motion.ports import (BoundPort, Coordinate, Port,
                                      bind)
 
 
-__all__ = ['Joint', 'JointRangeError', 'Orbit', 'Prismatic', 'Revolute',
-           'declared_joints']
+__all__ = ['Free', 'Joint', 'JointRangeError', 'Orbit', 'Prismatic',
+           'Revolute', 'coordinates_of', 'declared_joints']
 
 
 # How close to an exact 0, 1 or -1 a carried component has to be before
@@ -181,11 +181,18 @@ class Joint(Coordinate):
         # metadata: it must be readable off the class, and the VALUE it
         # names lives in the instance's slot, not here.
         self.coordinate = self.coordinate_kind(unit=self.unit)
+        # And the general form of the same fact: every coordinate this
+        # joint owns, by the FULL name it answers to. A joint owning one
+        # keeps `coordinate` as well and names it after the joint; a
+        # joint owning several -- a `Free` -- has no `coordinate` at
+        # all, which is what makes every "one coordinate" seam refuse it
+        # rather than mis-handle it.
+        self.coordinates = {self.name: self.coordinate}
 
     ##############################################
     # Declaration
 
-    def __set_name__(self, owner, name):
+    def _refuse_shadowing(self, owner, name):
         for klass in owner.__mro__[1:]:
             existing = vars(klass).get(name, _MISSING)
             if existing is _MISSING or isinstance(existing, Joint):
@@ -199,6 +206,9 @@ class Joint(Coordinate):
                 f"then hide for good. A joint is read as an attribute of "
                 f"its node, so its name has to be free on that node: "
                 f"rename the joint.")
+
+    def __set_name__(self, owner, name):
+        self._refuse_shadowing(owner, name)
         self.name = name
         self.owner = owner
         # The coordinate answers to the joint's own name: it is what
@@ -206,6 +216,7 @@ class Joint(Coordinate):
         # has to be able to say.
         self.coordinate.name = name
         self.coordinate.owner = owner
+        self.coordinates = {name: self.coordinate}
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -379,14 +390,14 @@ class Joint(Coordinate):
         """
         from solid_node.node.base import apply_joint_motion
 
-        axis, anchor, _span = self.arguments(node)[:3]
-        local_axis, local_points = self._carry(
-            node, axis, *self.carried_points(node, anchor))
+        anchor = self.arguments(node)[1]
+        local_axes, local_points = self._carry(
+            node, self.axes(node), self.carried_points(node, anchor))
         self.clear(node)
         slot = list(declared_joints(type(node))).index(self.name)
         applied = apply_joint_motion(
             node,
-            list(self.placement(node, value, local_axis, *local_points)),
+            list(self.placement(node, value, *local_axes, *local_points)),
             slot)
         node.__dict__.setdefault('_joint_motion', {})[self.name] = applied
 
@@ -418,9 +429,21 @@ class Joint(Coordinate):
         """
         return (anchor,)
 
-    def _carry(self, node, axis, *points):
-        """The parent-frame `axis` and each of `points` in `node`'s
-        own frame.
+    def axes(self, node):
+        """The parent-frame DIRECTIONS this joint needs carried into the
+        node's own frame.
+
+        One for every joint that turns or slides about a line, and the
+        frame's own three for a joint that turns about all of them -- a
+        `Free`. They ride the same single inversion the anchor and the
+        carried points ride, and they arrive as the leading arguments of
+        `placement`, in this order.
+        """
+        return (self.arguments(node)[0],)
+
+    def _carry(self, node, axes, points):
+        """Each of `axes` and each of `points`, stated in the parent's
+        frame, in `node`'s own frame.
 
         Motion composes innermost -- before the placement the parent's
         `render()` applied -- so a joint stated in the parent's frame
@@ -450,8 +473,12 @@ class Joint(Coordinate):
                     f"inverting that placement, so the placement has to be "
                     f"numeric; move the value into simulate().") from None
         inverse = np.linalg.inv(matrix)
-        carried = inverse[:3, :3] @ np.array(axis, dtype=float)
-        carried = carried / np.linalg.norm(carried)
+        local_axes = []
+        for axis in axes:
+            carried = inverse[:3, :3] @ np.array(axis, dtype=float)
+            carried = carried / np.linalg.norm(carried)
+            local_axes.append(tuple(_snapped(float(value))
+                                    for value in carried))
         local = []
         for point in points:
             if point is _OWN_PLACED_ORIGIN:
@@ -460,8 +487,7 @@ class Joint(Coordinate):
             placed = inverse @ np.array([point[0], point[1], point[2], 1.0])
             local.append(tuple(_snapped(float(value))
                                for value in placed[:3]))
-        return (tuple(_snapped(float(value)) for value in carried),
-                tuple(local))
+        return tuple(local_axes), tuple(local)
 
     def placement(self, node, value, axis, *points):
         raise NotImplementedError
@@ -645,8 +671,293 @@ class Orbit(Joint):
         return [Translation(translation, node)]
 
 
+class _BoundCoordinates:
+    """What reading a joint that owns SEVERAL coordinates on an instance
+    yields: a view of that node's own slots, one per coordinate.
+
+    `chassis.pose.roll` is the coordinate's `BoundPort`, exactly as
+    `wheel.turn` is a `Revolute`'s, and `chassis.pose.roll = 12` binds
+    it through the one binding path every other coordinate is bound
+    through and re-places the body. Holds nothing itself: the values
+    live in the node's own port slots, so the view is built per read and
+    two of them are interchangeable.
+    """
+
+    def __init__(self, joint, node):
+        object.__setattr__(self, '_joint', joint)
+        object.__setattr__(self, '_node', node)
+
+    def _port(self, attribute):
+        joint = object.__getattribute__(self, '_joint')
+        return joint.coordinates.get(f'{joint.name}.{attribute}')
+
+    def __getattr__(self, attribute):
+        if attribute.startswith('_'):
+            raise AttributeError(attribute)
+        port = self._port(attribute)
+        if port is None:
+            raise AttributeError(_no_such_coordinate(
+                object.__getattribute__(self, '_joint'), attribute))
+        return port.__get__(object.__getattribute__(self, '_node'))
+
+    def __setattr__(self, attribute, value):
+        port = self._port(attribute)
+        if port is None:
+            raise AttributeError(_no_such_coordinate(
+                object.__getattribute__(self, '_joint'), attribute))
+        joint = object.__getattribute__(self, '_joint')
+        node = object.__getattribute__(self, '_node')
+        bind(port.__get__(node), value)
+        # Any of the six changing re-places the WHOLE joint, from
+        # whatever the others hold: that is what makes six coordinates
+        # one joint rather than six, and it is why the composition never
+        # depends on the order they were bound in.
+        joint.place(node, None)
+
+    def __repr__(self):
+        joint = object.__getattribute__(self, '_joint')
+        node = object.__getattribute__(self, '_node')
+        return (f'<{type(joint).__name__} {joint.name} of '
+                f'{getattr(node, "name", node)}: '
+                f'{", ".join(sorted(joint.coordinates))}>')
+
+
+def _no_such_coordinate(joint, attribute):
+    return (f"'{joint.name}' owns no coordinate '{attribute}'. "
+            f"{type(joint).__name__} owns "
+            f"{', '.join(coordinates_of(joint))}, and each is reached "
+            f"by its own name.")
+
+
+class Free(Joint):
+    """The six freedoms of a body with no parent to be jointed to:
+    `Free(at, angle_unit, length_unit)`.
+
+    A walking robot's chassis, a floating platform, anything whose pose
+    against the world is STATED rather than constrained. MuJoCo's `free`
+    and Modelica's `Joints.FreeMotion` are one element each, and so is
+    this: ONE declaration owning SIX coordinates -- `roll`, `pitch` and
+    `yaw` about the parent frame's three directions, and `x`, `y` and
+    `z` along them -- reached as attributes of the joint read on an
+    instance::
+
+        class Chassis(AssemblyNode):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+        chassis.pose.roll = 12.0
+        chassis.pose.z = 165.0
+
+    Each of the six is an ordinary coordinate: bindable by assignment,
+    nameable at either end of `drives`, readable by a driver or an
+    expression, reported by `declared_ports`. What differs is the NAME
+    it is reached by. **The naming rule:** a joint owning ONE coordinate
+    names it after the joint; a joint owning SEVERAL names each
+    `<joint name>.<coordinate name>` -- `pose.roll`. That one string is
+    the port's name, the enumerator's key and the tail of a relation
+    path, and there is no second spelling. It is not a Python
+    identifier, so it is deliberately NOT a wiring keyword: such a
+    coordinate is reached by assignment, by relation, and by a driver or
+    an expression.
+
+    **The composition is fixed by the contract**, innermost first, about
+    the carried anchor::
+
+        R(roll, x) . R(pitch, y) . R(yaw, z) . T(x, y, z)
+
+    -- the roll closest to the body and the translation outermost, which
+    as a matrix product acting on a point of the body is
+    `T . Rz(yaw) . Ry(pitch) . Rx(roll)`. That is what the hexapod's
+    chassis applies by hand and what its `_to_chassis` inverts for every
+    leg solution in the model. The three directions are the PARENT
+    frame's own, carried into the body's frame through the single
+    inversion the anchor rides, so the three angles are an extrinsic
+    x-y-z sequence -- the same rotation the aircraft convention states
+    as intrinsic yaw, then pitch, then roll. Gimbal lock at
+    `pitch = +-90` is real and inherited; `Spherical`, when it exists,
+    is the quaternion-valued one.
+
+    No `axis`: a free body turns about three directions, and they are
+    the frame's own rather than an author's choice. No `range`: a
+    floating body has no travel to bound. An UNBOUND coordinate places
+    nothing -- no rotation, a plain zero offset -- while still reading
+    as unbound, which is the rule every joint already obeys, stated per
+    coordinate because a free joint's placement runs while some of its
+    coordinates are unbound. The hexapod binds four of the six.
+    """
+
+    # The six, in the order they are declared, applied and reported.
+    # The unit each carries is the declaration's own label for that
+    # domain: with coordinates in two domains, one `unit` cannot serve.
+    _ROTATIONS = ('roll', 'pitch', 'yaw')
+    _TRANSLATIONS = ('x', 'y', 'z')
+
+    def __init__(self, at=(0, 0, 0), angle_unit='deg', length_unit='mm',
+                 **refused):
+        if refused:
+            raise TypeError(
+                f"Free() takes at=, angle_unit= and length_unit=, and "
+                f"nothing else; got {', '.join(sorted(refused))}=. A free "
+                f"body turns about the three directions of the frame it is "
+                f"stated in, so it declares no axis, and it has no travel to "
+                f"bound, so it declares no range.")
+        self.axis = None
+        self.at = at
+        self.range = None
+        self.angle_unit = angle_unit
+        self.length_unit = length_unit
+        self.unit = None
+        self.name = None
+        self.owner = None
+        # No `coordinate`: reading one off a `Free` is an AttributeError
+        # rather than a wrong answer, and the three in-framework readers
+        # of that seam all know about `coordinates` instead.
+        self.coordinates = {}
+        for short in self._ROTATIONS:
+            self.coordinates[short] = RotationalPort(unit=angle_unit)
+        for short in self._TRANSLATIONS:
+            self.coordinates[short] = TranslationalPort(unit=length_unit)
+
+    ##############################################
+    # Declaration
+
+    def __set_name__(self, owner, name):
+        self._refuse_shadowing(owner, name)
+        self.name = name
+        self.owner = owner
+        # The naming rule, applied where a one-coordinate joint names
+        # its single coordinate after itself.
+        self.coordinates = {
+            f'{name}.{short}': port
+            for short, port in self.coordinates.items()}
+        for full, port in self.coordinates.items():
+            port.name = full
+            port.owner = owner
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        return _BoundCoordinates(self, instance)
+
+    def __set__(self, instance, value):
+        raise AttributeError(
+            f"'{self.name}' of {type(instance).__name__} owns "
+            f"{len(self.coordinates)} coordinates and cannot be bound as "
+            f"one value: it owns {', '.join(coordinates_of(self))}. Bind "
+            f"one of them -- {type(instance).__name__.lower()}."
+            f"{self.name}.{self._ROTATIONS[0]} = {value!r} -- or state a "
+            f"relation into it.")
+
+    def __getattr__(self, attribute):
+        """A class-body read of one coordinate: `pose.roll.drives(...)`
+        on the class declaring the joint."""
+        if attribute.startswith('_'):
+            raise AttributeError(attribute)
+        coordinates = self.__dict__.get('coordinates') or {}
+        name = self.__dict__.get('name')
+        found = coordinates.get(f'{name}.{attribute}' if name else attribute)
+        if found is None:
+            raise AttributeError(_no_such_coordinate(self, attribute))
+        return found
+
+    def __repr__(self):
+        return f'<Free {self.name} at={self.at!r}>'
+
+    ##############################################
+    # Arguments
+
+    def resolve(self, node, values):
+        """A `Free` resolves an `at` and nothing else: no axis to
+        normalize and no range to order."""
+        return None, self._vector(node, values, self.at, 'at'), None
+
+    def axes(self, node):
+        """The parent frame's own three unit directions, which `_carry`
+        brings into the body's frame through the one inversion."""
+        return ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+
+    ##############################################
+    # Placement
+
+    def placement(self, node, value, x_axis, y_axis, z_axis, anchor):
+        """The run, in list order -- which is application order,
+        innermost first, because the composition premultiplies.
+
+        `value` is ignored: a free joint is re-placed in full from the
+        values its six coordinates hold, whichever of them was just
+        bound.
+        """
+        from solid_node.node.operations import Rotation, Translation
+
+        bound = {short: self.coordinates[f'{self.name}.{short}']
+                 .__get__(node)._value
+                 for short in self._ROTATIONS + self._TRANSLATIONS}
+        centred = any(component != 0 for component in anchor)
+        operations = []
+        if centred:
+            operations.append(
+                Translation([-component for component in anchor], node))
+        for short, axis in zip(self._ROTATIONS, (x_axis, y_axis, z_axis)):
+            if bound[short] is None:
+                # An unbound coordinate places nothing: the rule an
+                # unbound `Revolute` obeys by never being placed at all,
+                # stated per coordinate because this placement runs
+                # while some of the six are unbound.
+                continue
+            operations.append(Rotation(bound[short], list(axis), node))
+        if centred:
+            operations.append(Translation(list(anchor), node))
+        offset = self._offset(bound, (x_axis, y_axis, z_axis))
+        if offset is not None:
+            operations.append(Translation(offset, node))
+        return operations
+
+    def _offset(self, bound, axes):
+        """The one translation, or None when none of the three
+        translational coordinates is bound.
+
+        Each bound coordinate is a displacement along the carried
+        direction of its own name -- the way a `Prismatic`'s value runs
+        along its carried axis -- so a body whose parent turned it still
+        floats against the PARENT's frame. A component no bound
+        coordinate reaches is a plain numeric `0` rather than an
+        expression multiplied by zero, for the reason a `Prismatic`'s
+        is: two of the three slots of every floating body's published
+        document would otherwise carry $t-shaped noise.
+        """
+        if all(bound[short] is None for short in self._TRANSLATIONS):
+            return None
+        offset = []
+        for index in range(3):
+            terms = []
+            for short, axis in zip(self._TRANSLATIONS, axes):
+                value = bound[short]
+                component = axis[index]
+                if value is None or component == 0:
+                    continue
+                terms.append(value if component == 1 else value * component)
+            if not terms:
+                offset.append(0)
+                continue
+            total = terms[0]
+            for term in terms[1:]:
+                total = total + term
+            offset.append(total)
+        return offset
+
+
 ##############################################
 # Enumeration
+
+def coordinates_of(joint):
+    """The names of the coordinates `joint` owns, in declaration order.
+
+    The one name each of them answers to: the joint's own for a joint
+    that owns one, and `<joint>.<coordinate>` for each of a joint that
+    owns several. What a refusal lists, and what a consumer reads a
+    joint's freedoms by.
+    """
+    return tuple(joint.coordinates)
+
 
 def _is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)

@@ -333,6 +333,70 @@ and a number nobody types is a number nobody can get wrong. A carried
 point that lies ON the line derives a radius of zero — the body would
 not move — and is refused by name at the first binding.
 
+A body that floats
+------------------
+
+A walking robot's chassis has no parent to be jointed to. It stands
+where its legs put it: six freedoms against the ground, of which a
+hexapod uses four. ``Free`` is one declaration for all six:
+
+.. code-block:: python
+
+    from solid_node.motion.joints import Free
+
+    class Chassis(AssemblyNode):
+        pose = Free(angle_unit='deg', length_unit='mm')
+
+        body = Body()
+        legs = Leg().repeat(6)
+
+    class Spiderbot(AssemblyNode):
+        chassis = Chassis()
+
+        def simulate(self):
+            self.chassis.pose.roll = self.roll
+            self.chassis.pose.pitch = self.pitch
+            self.chassis.pose.yaw = self.yaw
+            self.chassis.pose.z = self.height
+
+The joint owns **six coordinates** — `roll`, `pitch` and `yaw` in
+`angle_unit`, and `x`, `y` and `z` in `length_unit` — and each of them is
+an ordinary coordinate: bind it by assignment, name it at either end of
+`drives`, read it from a driver or an expression. Where it differs is the
+NAME. A joint owning one coordinate names it after the joint, so a
+``Revolute`` called `turn` has a coordinate called `turn`; a joint owning
+several names each one `<joint>.<coordinate>`, so the six above are
+`pose.roll`, `pose.pitch`, `pose.yaw`, `pose.x`, `pose.y` and `pose.z`.
+That is the name the port enumerator reports, the name a relation path
+ends with — `tilt.drives(chassis.pose.pitch)` — and the only spelling
+there is. It is not a Python identifier, so it is not a wiring keyword:
+a coordinate of such a joint is bound by assignment or by a relation, and
+both wiring forms are refused where they are written.
+
+**The composition is fixed by the joint**, innermost first::
+
+    R(roll, x̂) · R(pitch, ŷ) · R(yaw, ẑ) · T(x, y, z)
+
+— the roll closest to the body and the translation outermost, about the
+point `at` names in the parent's frame. The three directions are the
+parent frame's own, so the angles are read the way an aircraft's are.
+There is no ordering argument: unlike three separate ``Revolute``\ s,
+whose order you choose by declaring them, a free joint is one thing and
+its internal order is part of what it means.
+
+The hexapod above binds four of the six and leaves `pose.x` and `pose.y`
+alone. **An unbound coordinate places nothing** — no rotation, a plain
+zero offset — while still reading as unbound, so
+`chassis.pose.x.value` is `None` and the enumerator still reports the
+port. Binding any one of the six re-places the whole joint from whatever
+the six then hold, so the order you bind them in never shows.
+
+A ``Free`` takes no `axis` — a free body turns about three directions,
+and they are the frame's own — and no `range`, because a floating body
+has no travel to bound. Three angles gimbal-lock at `pitch = ±90°`; that
+is inherited from stating an attitude as three angles at all, and it is
+what the hexapod's own hand-written composition does today.
+
 Passing a coordinate down
 -------------------------
 

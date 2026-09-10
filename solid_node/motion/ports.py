@@ -355,15 +355,48 @@ def declared_ports(node_class):
     declared in a class body -- is reported here for the same reason and
     through the same seam: it owns a port carrying the domain and unit
     its terms share.
+
+    A joint owning SEVERAL coordinates -- a `Free` -- offers them as a
+    `coordinates` mapping whose keys are the names they already carry,
+    `<joint name>.<coordinate name>`, and every one of them is reported
+    under that name. So an enumerated port name is NOT guaranteed to be
+    a Python identifier: a consumer reaches a coordinate by the name
+    reported here, never by `getattr` on the node.
     """
     ports = {}
     for klass in reversed(node_class.__mro__):
         for name, value in vars(klass).items():
             if isinstance(value, Port):
                 ports[name] = value
+                continue
+            owned = getattr(value, 'coordinates', None)
+            if (isinstance(owned, dict) and owned
+                    and all(isinstance(port, Port)
+                            for port in owned.values())):
+                # A joint of any arity: the keys are already the full
+                # names, so a joint owning one reports it under its own
+                # name exactly as it always did.
+                ports.update(owned)
             elif isinstance(getattr(value, 'coordinate', None), Port):
                 ports[name] = value.coordinate
     return ports
+
+
+def set_coordinate(node, name, value):
+    """Bind the coordinate `name` of `node`, whatever kind of name it
+    is: the one binding path a relation and a wiring take, and the one
+    an author's own assignment takes.
+
+    A name of one segment is an attribute of the node, and this is
+    `setattr`. A name of several -- a coordinate of a joint owning
+    several, `pose.roll` -- is NOT an attribute of the node, and
+    `setattr(node, 'pose.roll', value)` would silently create an
+    instance attribute and bind nothing; the head is read and the tail
+    assigned on what it yields, so the joint's own view binds it and
+    re-places the body.
+    """
+    head, _dot, tail = name.rpartition('.')
+    setattr(getattr(node, head) if head else node, tail, value)
 
 
 @dataclass(frozen=True)

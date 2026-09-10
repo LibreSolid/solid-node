@@ -8,152 +8,6 @@ Binding the coordinate places the body on top of its rest placement, so
 the frame arithmetic projects wrote by hand leaves them, and a coordinate
 can be wired down to children as a token.
 ## Requirements
-### Requirement: One-coordinate joint declarations
-
-The system SHALL provide the one-coordinate lower pairs as declarations
-exported from `solid_node.motion.joints`: `Revolute(axis, at=(0, 0, 0),
-range=None, unit='deg')`, which turns a body about a line;
-`Prismatic(axis, at=(0, 0, 0), range=None, unit='mm')`, which slides a
-body along one; and `Orbit(axis, at=(0, 0, 0), carries=None, range=None,
-unit='deg')`, which carries a point of a body round one while the body's
-attitude stays fixed. A joint SHALL be declared as a class attribute of
-the node it moves — an assembly or a leaf — and SHALL be stateless class
-metadata shared by every instance of that class, exactly as a port
-declaration is.
-
-`axis` SHALL be a direction of three components and `at` an anchor point
-of three components, both stated in the PARENT's frame: the frame the
-parent's `render()` places the declaring node in. `axis` SHALL have no
-named constants; it is written as a tuple. `at` SHALL default to the
-origin of that frame, which is the case of a joint whose line passes
-through the node's own placed origin. `range` SHALL be a `(lo, hi)` pair
-in `unit`, and `unit` SHALL be the label the coordinate carries. An
-`Orbit`'s `axis` and `at` SHALL mean exactly what a `Revolute`'s mean — a
-direction and a point ON the line — and its `carries` SHALL be the point
-of the body that travels round that line, stated in the same frame; see
-"An orbit's radius and phase are derived, never declared".
-
-A `Prismatic`'s `at` SHALL NOT affect its placement — a translation along
-a line is the same wherever the line is taken to pass — and SHALL be
-carried as the declared position of the slide, for a reader and for a
-later exporter.
-
-A class's joints SHALL be enumerable off the class by name, without
-constructing an instance, by an enumerator exported beside the joint
-kinds. That enumeration SHALL be ORDERED, and its order SHALL be the
-class's DECLARATION order: the joints of each base class before those of
-the class itself, following the class's method resolution order from the
-most basic class outward; within one class body, the order the joints
-were written in; and a joint that REDECLARES an inherited one SHALL keep
-the position of the declaration it redeclares while taking its own
-arguments. That order is the order the joints compose in — see "Binding a
-joint places the body" — so a reader of a class body, or a consumer
-reading the class alone, can see how its freedoms stack without running
-anything.
-
-A joint declaration SHALL NOT be reported by that enumerator as a
-parameter, a driver or a child, and a name SHALL NOT be declared as both
-a joint and a port on one class: such a class SHALL be refused at class
-definition naming the name and both declarations.
-
-#### Scenario: A joint is declared where the body is
-
-- **WHEN** a forearm class declares
-  `elbow = Revolute(axis=(0, 0, 1), at=(0, 160, 68), range=(-135, 135), unit='deg')`
-- **THEN** the class carries that joint by name with its axis, anchor,
-  range and unit readable off the class, no instance was constructed,
-  and the axis and anchor are understood in the frame its parent places
-  it in
-
-#### Scenario: An orbit is declared where the carried body is
-
-- **WHEN** a connecting rod class declares
-  `orbit = Orbit(axis=(1, 0, 0), carries=(0, 0, 15), unit='deg')`
-- **THEN** the class carries that joint by name with its axis, its
-  anchor at the parent frame's origin, its carried point, its unit and no
-  radius or phase readable off the class, and no instance was constructed
-
-#### Scenario: Joints are enumerable
-
-- **WHEN** a consumer enumerates the joints of a class declaring one
-  `Revolute` and one `Prismatic`, and of a subclass that redeclares the
-  `Revolute` with a different range
-- **THEN** it receives both joints of the base class by name, and the
-  subclass's redeclaration for the name it redeclares
-
-#### Scenario: The enumeration is in declaration order
-
-- **WHEN** a base class declares `a` then `b`, and a subclass declares
-  `c` and redeclares `a` with a different anchor
-- **THEN** the enumeration reads `a`, `b`, `c` — base before subclass,
-  written order within a class body, and the redeclared `a` in the
-  position the base gave it, carrying the subclass's anchor
-
-#### Scenario: A joint and a port cannot share a name
-
-- **WHEN** a class body declares `turn = Revolute(axis=(0, 0, 1))` and
-  `turn = RotationalPort(unit='deg')`
-- **THEN** class definition raises naming the class, the name and both
-  declarations
-
-### Requirement: A joint owns one coordinate, and that coordinate is a port
-
-The system SHALL give every joint exactly one coordinate, which SHALL be
-a port: rotational for a `Revolute` and for an `Orbit`, translational for
-a `Prismatic`, carrying the joint's `unit`. An `Orbit`'s coordinate SHALL
-be rotational although its placement is a translation: what the
-coordinate measures is an angle round the line, and a relation into it
-SHALL therefore invert exactly as a relation into a `Revolute` does.
-Read on an instance, a joint SHALL be that coordinate's bound value slot
-— the same per-instance slot a declared port of the same kind yields — so
-two instances of one class never share a joint value and an unbound
-coordinate reads as unbound rather than as zero. Assigning to a joint on
-an instance SHALL bind its coordinate exactly as assigning to a port
-binds one: from a plain number, a symbolic expression, a driver read, or
-another bound port, through the one binding path `connect()` also uses. A
-joint SHALL be a data descriptor, so an assignment can never replace the
-declaration with a raw attribute.
-
-The port enumerator SHALL report a joint's coordinate under the joint's
-name alongside the class's plain ports, so every consumer that
-enumerates a node's connection points — tooling, wiring, later
-simulation surfaces — sees a joint's coordinate without knowing about
-joints. A joint's coordinate SHALL NOT declare a scale or a direction
-marker: what a joint's value means is stated by its `unit`, and a
-conversion between two coordinates is a relation, not a property of the
-joint.
-
-#### Scenario: Reading a joint yields its coordinate
-
-- **WHEN** a node declaring `elbow = Revolute(axis=(0, 0, 1), unit='deg')`
-  is realized and `node.elbow` is read
-- **THEN** the read yields a bound port slot of rotational domain whose
-  unit is `'deg'` and whose value is unbound, and a second instance of
-  the class reads its own slot
-
-#### Scenario: Binding the joint binds the coordinate
-
-- **WHEN** a parent's `simulate()` executes `self.forearm.elbow = 30.0`,
-  and another assembly instead binds the same joint from a driver read
-- **THEN** in both cases `self.forearm.elbow.value` reads what was
-  bound, and the binding went through the same path a port assignment
-  takes
-
-#### Scenario: A joint's coordinate enumerates as a port
-
-- **WHEN** a consumer enumerates the declared ports of a class declaring
-  one `RotationalPort` and one `Revolute`
-- **THEN** it receives two entries by name, the joint's carrying the
-  rotational domain and the joint's unit
-
-#### Scenario: An orbit's coordinate is an angle
-
-- **WHEN** a consumer enumerates the declared ports of a class declaring
-  one `Orbit` with `unit='deg'`, and a relation drives that coordinate
-  from a shaft's rotation with a ratio
-- **THEN** the entry carries the rotational domain and `'deg'`, and the
-  relation inverts as it does for any two rotational coordinates
-
 ### Requirement: Binding a joint places the body
 
 The system SHALL move the node a joint is declared on when that joint's
@@ -165,7 +19,10 @@ by inverting that rest placement: the operations on the node that are
 not motion, composed in order, with a rotation carrying the axis and the
 full transform carrying the anchor. A joint declaring further
 parent-frame POINTS — an `Orbit`'s `carries` — SHALL have each of them
-carried the same way the anchor is, through the same single inversion. A
+carried the same way the anchor is, through the same single inversion,
+and a joint turning about several parent-frame DIRECTIONS — a `Free`'s
+three — SHALL have each of them carried the way the axis is, through that
+same single inversion. A
 joint's axis, anchor and carried points SHALL be carried through the
 node's REST placement only, and never through the motion another joint of
 the same node applied, so that a joint's line is the line the parent's
@@ -193,7 +50,17 @@ apply, as operations of that node:
   SHALL be a plain numeric `0`, for the reason a `Prismatic`'s are. The
   operation SHALL carry no rotation at all: the composed transform's
   rotation block SHALL be unchanged by the binding, at every value, which
-  is what it means for an orbit to carry a body without turning it.
+  is what it means for an orbit to carry a body without turning it;
+- for a `Free`, up to SIX operations in the node's own frame — the
+  centring pair around three rotations about the carried unit directions,
+  and one translation outermost — as "A free joint places a floating body
+  by a fixed composition" states.
+
+A joint owning SEVERAL coordinates SHALL be re-placed in full whenever
+ANY of them is bound, from the values its coordinates then hold, so its
+composition never depends on the order they were bound in; an unbound
+coordinate of such a joint SHALL contribute no motion while still reading
+as unbound.
 
 The carried axis and anchor SHALL be cleaned before use: a component
 within `1e-9` of `0`, `1` or `-1` SHALL be snapped to that exact value,
@@ -239,8 +106,10 @@ not show — and whatever order they were bound in on a previous run. A
 joint's operations SHALL be one unbroken run, so a joint whose placement
 produces several operations occupies exactly one position in that order,
 and a joint whose placement produces ONE operation occupies exactly one
-position in it too. Hand-written motion SHALL sit OUTSIDE the whole joint
-block, keeping its call order among itself.
+position in it too. A joint owning several coordinates SHALL occupy ONE
+position as well, however many operations its placement produces and
+however many of its coordinates are bound. Hand-written motion SHALL sit
+OUTSIDE the whole joint block, keeping its call order among itself.
 Re-binding one joint of several SHALL return its operations to its own
 position rather than moving them relative to its siblings, and the
 composition after a sweep and a re-bind SHALL be the same as before it,
@@ -412,6 +281,18 @@ joint and that operation, rather than placing the body wrongly.
 - **THEN** the framework raises naming the node, the joint and the
   operation it could not invert
 
+#### Scenario: A six-coordinate joint is one unbroken run at its own slot
+
+- **WHEN** a class declares `slide = Prismatic(...)`, `pose = Free()` and
+  `spin = Revolute(...)` at an off-origin anchor, and an assembly binds
+  their coordinates in a scrambled order with a hand-written rotation in
+  between
+- **THEN** the node's operations read the slide, then every operation the
+  free joint placed unbroken, then the revolute's three, then the
+  hand-written rotation, then the rest placement — and re-binding one
+  coordinate of the free joint returns its whole run to that same
+  position
+
 ### Requirement: Joint arguments resolve against the instance at realization
 
 The system SHALL resolve a joint's `axis`, `at`, `range` and, where the
@@ -427,7 +308,10 @@ as plain numbers — the case of a position that comes out of a library
 object the node builds from its parameters rather than out of a formula.
 An `Orbit`'s `carries` left unstated SHALL resolve to nothing at
 realization: it names the node's own placed origin, which is not known
-until the node has been placed, and is settled at binding instead.
+until the node has been placed, and is settled at binding instead. A
+`Free`'s `at` SHALL resolve by exactly the same path as every other
+joint's; a `Free` declares no `axis` and no `range`, so it resolves
+neither.
 
 Resolved joint arguments SHALL NOT enter the node's identity: a joint
 states where a body may move, not what geometry is built, and two
@@ -512,15 +396,30 @@ The system SHALL give every joint declaration the verb that states a
 relation between two coordinates, so a class body may write
 `anchor.turn.drives(pendulum.swing)` and
 `centre.turn.drives(motion_works.cannon.turn, offset=hand_setting)`. A
-joint named in a relation SHALL stand for its one coordinate, exactly
-as reading the joint on an instance yields that coordinate.
+joint owning ONE coordinate and named in a relation SHALL stand for that
+coordinate, exactly as reading the joint on an instance yields it.
+
+A joint owning SEVERAL coordinates SHALL NOT stand for any of them: named
+as an end of a relation, by its own name or at the end of a path, it
+SHALL be refused at class definition naming the joint and listing its
+coordinates, with the advice to name one. A relation has one end and such
+a joint is several, so there is nothing to choose from silently.
+
+Each coordinate of such a joint SHALL take part in a relation like any
+other, named by the dotted name of the naming rule: `pose.roll.drives(…)`
+on the class that declares it, `chassis.pose.roll` from the class that
+declares the child.
 
 A NODE named as an end of a relation SHALL stand for the ONE joint of
 that node's class: an arbor is one body turning at one bearing, and
 `power.drives(centre)` between two such nodes SHALL relate their
 coordinates. A node whose class declares no joint, or more than one,
 SHALL be refused at class definition naming the node, its class and the
-joints that class declares, with the advice to name the coordinate.
+joints that class declares, with the advice to name the coordinate. A
+node whose class declares exactly one joint, and that joint owns several
+coordinates, SHALL be refused the same way, listing the coordinates of
+that joint: the node stands for its one joint and the joint stands for no
+single coordinate.
 
 A joint's coordinate bound by a relation SHALL place the body exactly
 as a coordinate bound by hand does: the same operations composed onto
@@ -567,6 +466,22 @@ hand.
   read and the tree is serialized with nothing bound
 - **THEN** the published operation carries the expression the relation
   built, and `set_keyframe` makes it numeric
+
+#### Scenario: A relation drives one coordinate of a free joint
+
+- **WHEN** a root states `tilt.drives(chassis.pose.pitch)` from a driver
+  and `lift.drives(chassis.pose.z, ratio=2.0)`
+- **THEN** the chassis is placed from those two values with its other
+  four coordinates unbound, the relations invert as they do for any
+  rotational and translational coordinate, and the motion is tagged with
+  the assembly that solved them
+
+#### Scenario: A free joint cannot be a relation end
+
+- **WHEN** a class body states `tilt.drives(chassis.pose)`, or names as
+  an end a child whose class declares one `Free` and nothing else
+- **THEN** class definition raises naming the joint and listing its six
+  coordinates, with the advice to name one of them
 
 ### Requirement: An orbit's radius and phase are derived, never declared
 
@@ -632,4 +547,320 @@ that placement does not exist when a joint's arguments are resolved.
   with the same carried point, and both are bound to the same angle
 - **THEN** both bodies are placed identically, the component of the
   carried point along the line having been projected out
+
+### Requirement: Joint declarations
+
+The system SHALL provide the one-coordinate lower pairs as declarations
+exported from `solid_node.motion.joints`: `Revolute(axis, at=(0, 0, 0),
+range=None, unit='deg')`, which turns a body about a line;
+`Prismatic(axis, at=(0, 0, 0), range=None, unit='mm')`, which slides a
+body along one; and `Orbit(axis, at=(0, 0, 0), carries=None, range=None,
+unit='deg')`, which carries a point of a body round one while the body's
+attitude stays fixed. A joint SHALL be declared as a class attribute of
+the node it moves — an assembly or a leaf — and SHALL be stateless class
+metadata shared by every instance of that class, exactly as a port
+declaration is.
+
+`axis` SHALL be a direction of three components and `at` an anchor point
+of three components, both stated in the PARENT's frame: the frame the
+parent's `render()` places the declaring node in. `axis` SHALL have no
+named constants; it is written as a tuple. `at` SHALL default to the
+origin of that frame, which is the case of a joint whose line passes
+through the node's own placed origin. `range` SHALL be a `(lo, hi)` pair
+in `unit`, and `unit` SHALL be the label the coordinate carries. An
+`Orbit`'s `axis` and `at` SHALL mean exactly what a `Revolute`'s mean — a
+direction and a point ON the line — and its `carries` SHALL be the point
+of the body that travels round that line, stated in the same frame; see
+"An orbit's radius and phase are derived, never declared".
+
+A `Prismatic`'s `at` SHALL NOT affect its placement — a translation along
+a line is the same wherever the line is taken to pass — and SHALL be
+carried as the declared position of the slide, for a reader and for a
+later exporter.
+
+A class's joints SHALL be enumerable off the class by name, without
+constructing an instance, by an enumerator exported beside the joint
+kinds. That enumeration SHALL be ORDERED, and its order SHALL be the
+class's DECLARATION order: the joints of each base class before those of
+the class itself, following the class's method resolution order from the
+most basic class outward; within one class body, the order the joints
+were written in; and a joint that REDECLARES an inherited one SHALL keep
+the position of the declaration it redeclares while taking its own
+arguments. That order is the order the joints compose in — see "Binding a
+joint places the body" — so a reader of a class body, or a consumer
+reading the class alone, can see how its freedoms stack without running
+anything.
+
+A joint declaration SHALL NOT be reported by that enumerator as a
+parameter, a driver or a child, and a name SHALL NOT be declared as both
+a joint and a port on one class: such a class SHALL be refused at class
+definition naming the name and both declarations.
+
+#### Scenario: A joint is declared where the body is
+
+- **WHEN** a forearm class declares
+  `elbow = Revolute(axis=(0, 0, 1), at=(0, 160, 68), range=(-135, 135), unit='deg')`
+- **THEN** the class carries that joint by name with its axis, anchor,
+  range and unit readable off the class, no instance was constructed,
+  and the axis and anchor are understood in the frame its parent places
+  it in
+
+#### Scenario: An orbit is declared where the carried body is
+
+- **WHEN** a connecting rod class declares
+  `orbit = Orbit(axis=(1, 0, 0), carries=(0, 0, 15), unit='deg')`
+- **THEN** the class carries that joint by name with its axis, its
+  anchor at the parent frame's origin, its carried point, its unit and no
+  radius or phase readable off the class, and no instance was constructed
+
+#### Scenario: Joints are enumerable
+
+- **WHEN** a consumer enumerates the joints of a class declaring one
+  `Revolute` and one `Prismatic`, and of a subclass that redeclares the
+  `Revolute` with a different range
+- **THEN** it receives both joints of the base class by name, and the
+  subclass's redeclaration for the name it redeclares
+
+#### Scenario: The enumeration is in declaration order
+
+- **WHEN** a base class declares `a` then `b`, and a subclass declares
+  `c` and redeclares `a` with a different anchor
+- **THEN** the enumeration reads `a`, `b`, `c` — base before subclass,
+  written order within a class body, and the redeclared `a` in the
+  position the base gave it, carrying the subclass's anchor
+
+#### Scenario: A joint and a port cannot share a name
+
+- **WHEN** a class body declares `turn = Revolute(axis=(0, 0, 1))` and
+  `turn = RotationalPort(unit='deg')`
+- **THEN** class definition raises naming the class, the name and both
+  declarations
+
+### Requirement: A joint owns one or more coordinates, and each is a port
+
+The system SHALL give every joint exactly one coordinate, which SHALL be
+a port: rotational for a `Revolute` and for an `Orbit`, translational for
+a `Prismatic`, carrying the joint's `unit`. An `Orbit`'s coordinate SHALL
+be rotational although its placement is a translation: what the
+coordinate measures is an angle round the line, and a relation into it
+SHALL therefore invert exactly as a relation into a `Revolute` does.
+Read on an instance, a joint SHALL be that coordinate's bound value slot
+— the same per-instance slot a declared port of the same kind yields — so
+two instances of one class never share a joint value and an unbound
+coordinate reads as unbound rather than as zero. Assigning to a joint on
+an instance SHALL bind its coordinate exactly as assigning to a port
+binds one: from a plain number, a symbolic expression, a driver read, or
+another bound port, through the one binding path `connect()` also uses. A
+joint SHALL be a data descriptor, so an assignment can never replace the
+declaration with a raw attribute.
+
+The port enumerator SHALL report a joint's coordinate under the joint's
+name alongside the class's plain ports, so every consumer that
+enumerates a node's connection points — tooling, wiring, later
+simulation surfaces — sees a joint's coordinate without knowing about
+joints. A joint's coordinate SHALL NOT declare a scale or a direction
+marker: what a joint's value means is stated by its `unit`, and a
+conversion between two coordinates is a relation, not a property of the
+joint.
+
+#### Scenario: Reading a joint yields its coordinate
+
+- **WHEN** a node declaring `elbow = Revolute(axis=(0, 0, 1), unit='deg')`
+  is realized and `node.elbow` is read
+- **THEN** the read yields a bound port slot of rotational domain whose
+  unit is `'deg'` and whose value is unbound, and a second instance of
+  the class reads its own slot
+
+#### Scenario: Binding the joint binds the coordinate
+
+- **WHEN** a parent's `simulate()` executes `self.forearm.elbow = 30.0`,
+  and another assembly instead binds the same joint from a driver read
+- **THEN** in both cases `self.forearm.elbow.value` reads what was
+  bound, and the binding went through the same path a port assignment
+  takes
+
+#### Scenario: A joint's coordinate enumerates as a port
+
+- **WHEN** a consumer enumerates the declared ports of a class declaring
+  one `RotationalPort` and one `Revolute`
+- **THEN** it receives two entries by name, the joint's carrying the
+  rotational domain and the joint's unit
+
+#### Scenario: An orbit's coordinate is an angle
+
+- **WHEN** a consumer enumerates the declared ports of a class declaring
+  one `Orbit` with `unit='deg'`, and a relation drives that coordinate
+  from a shaft's rotation with a ratio
+- **THEN** the entry carries the rotational domain and `'deg'`, and the
+  relation inverts as it does for any two rotational coordinates
+
+### Requirement: A free joint owns six coordinates and floats a body
+
+The system SHALL provide `Free(at=(0, 0, 0), angle_unit='deg',
+length_unit='mm')`, exported from `solid_node.motion.joints` beside the
+one-coordinate pairs, for a body with no parent to be jointed to: a
+walking robot's chassis, a floating platform, anything whose pose against
+the world is stated rather than constrained. It SHALL be declared as a
+class attribute of the node it moves, exactly as every other joint is,
+and SHALL occupy ONE position in the declaration order the joints
+enumerator reports.
+
+A `Free` SHALL own SIX coordinates: `roll`, `pitch` and `yaw`, each a
+ROTATIONAL coordinate carrying `angle_unit`, and `x`, `y` and `z`, each a
+TRANSLATIONAL coordinate carrying `length_unit`. Read on an instance, a
+`Free` SHALL yield a view of those six from which each coordinate is
+reachable by its own name, so `chassis.pose.roll` is that coordinate's
+bound value slot exactly as `wheel.turn` is a `Revolute`'s. Assigning to
+one of the six SHALL bind it through the one binding path every other
+coordinate is bound through, and SHALL place the body. Assigning to the
+`Free` itself SHALL be refused, naming the node, the joint and the six
+coordinates.
+
+A `Free` SHALL take NO `axis`: a free body turns about the three
+directions of the frame it is stated in, which are not an author's
+choice. A `Free` SHALL take NO `range`: a floating body has no travel to
+bound. `at` SHALL mean what it means on every other joint — a point of
+three components in the PARENT's frame, defaulting to that frame's
+origin, resolved against the instance at realization — and SHALL be the
+point the three rotations pass through.
+
+Each of the six SHALL be an ORDINARY coordinate in every other respect:
+reported by the port enumerator, bindable by hand, nameable as either end
+of `drives`, readable by a driver or an expression, and published as an
+ordinary operation value. A `Free` coordinate SHALL differ from any other
+coordinate only in the NAME it is reached by, and in that it SHALL NOT be
+reachable as a wiring keyword; see "A joint owns one or more coordinates,
+and each is a port".
+
+#### Scenario: A floating body is declared with one joint
+
+- **WHEN** a chassis class declares
+  `pose = Free(angle_unit='deg', length_unit='mm')`
+- **THEN** the class carries that joint by name, the joints enumerator
+  reports it as one entry, the port enumerator reports six coordinates,
+  and no instance was constructed
+
+#### Scenario: The six coordinates are read and bound by name
+
+- **WHEN** a realized chassis binds `chassis.pose.roll = 12.0` and
+  `chassis.pose.z = 165.0`
+- **THEN** `chassis.pose.roll.value` reads `12.0` with the rotational
+  domain and the declared angle unit, `chassis.pose.z.value` reads
+  `165.0` with the translational domain and the declared length unit,
+  `chassis.pose.x.value` is unbound, and a second instance reads its own
+  six slots
+
+#### Scenario: Binding the joint as a whole is refused
+
+- **WHEN** a `simulate()` executes `self.chassis.pose = 12.0`
+- **THEN** the binding is refused naming the node, the joint and the six
+  coordinates, and the node carries no motion from it
+
+#### Scenario: A free joint declares no axis and no range
+
+- **WHEN** a class body writes `Free(axis=(0, 0, 1))` or
+  `Free(range=(-10, 10))`
+- **THEN** the declaration is refused, because a free body turns about
+  three directions and has no travel to bound
+
+### Requirement: A free joint places a floating body by a fixed composition
+
+The system SHALL place the body a `Free` is declared on from the values
+of its six coordinates, composing INNERMOST FIRST, about the carried
+anchor:
+
+`R(roll, x̂) · R(pitch, ŷ) · R(yaw, ẑ) · T(x, y, z)`
+
+read as an APPLICATION order — the roll closest to the body, the
+translation outermost — which as a matrix product acting on a point of
+the body is `T(x, y, z) · R(yaw, ẑ) · R(pitch, ŷ) · R(roll, x̂)`. That
+order SHALL be fixed by this contract and SHALL NOT be an argument of the
+declaration.
+
+The three directions x̂, ŷ and ẑ SHALL be the unit directions of the
+PARENT's frame, carried into the node's own frame through the SAME single
+inversion of the rest placement the anchor rides, and snapped to exact
+`0`, `1` or `-1` within `1e-9` as every carried axis is. The three
+rotations SHALL therefore be about FIXED directions rather than about the
+body's own turning axes, which is the extrinsic x-y-z sequence — the same
+rotation the aircraft convention states as intrinsic yaw, then pitch,
+then roll.
+
+The operations SHALL be, in list order:
+
+- `translate(-anchor)`, OMITTED when every component of the carried
+  anchor is zero within `1e-9`, exactly as a `Revolute`'s centring
+  translation is;
+- `rotate(roll, x̂)`, `rotate(pitch, ŷ)`, `rotate(yaw, ẑ)`, each OMITTED
+  when its coordinate is unbound;
+- `translate(anchor)`, omitted with its pair;
+- `translate([x, y, z])`, OMITTED when all three translational
+  coordinates are unbound, and otherwise carrying a plain numeric `0` for
+  each component whose coordinate is unbound, rather than an expression
+  multiplied by zero.
+
+An UNBOUND coordinate of a `Free` SHALL contribute NO motion — no
+rotation, and a plain zero offset — while still READING as unbound. That
+is the same rule every joint already obeys, stated per coordinate instead
+of per joint: an unbound coordinate places nothing. It SHALL NOT make the
+coordinate read as zero, and the port enumerator SHALL still report it as
+an unbound port.
+
+Binding ANY of the six SHALL re-place the whole joint from the values the
+six then hold, dropping the operations the previous placement applied, so
+the composition never depends on the order the six were bound in. The
+whole placement SHALL be ONE contiguous run at the joint's own
+declaration slot, so a `Free` composes with a `Revolute`, a `Prismatic`
+or an `Orbit` on the same body by declaration order like any other joint.
+
+#### Scenario: The composition is the one a floating chassis hand-inverts
+
+- **WHEN** a body declaring `pose = Free()` is bound at a set of poses
+  including a quarter turn in pitch, and its composed world matrix is
+  compared with the product `T(x, y, z) · Rz(yaw) · Ry(pitch) · Rx(roll)`
+- **THEN** the two agree at every pose within the tolerance the fixture
+  states, and the inverse of that product returns a point of the world to
+  the body's frame
+
+#### Scenario: Two of six coordinates left unbound place nothing
+
+- **WHEN** a body binds `roll`, `pitch`, `yaw` and `z` and leaves `x` and
+  `y` unbound
+- **THEN** the placement carries no sideways offset, `pose.x.value` and
+  `pose.y.value` read as unbound, the published translation carries the
+  plain `0` in those two components, and the composed matrix equals the
+  same pose with `x` and `y` bound to zero
+
+#### Scenario: The binding order of the six changes nothing
+
+- **WHEN** one body binds the six in declaration order and another binds
+  them in the reverse order, from the same values
+- **THEN** both carry the same operations in the same order and the same
+  composed matrix
+
+#### Scenario: A free joint composes with a sibling joint by declaration order
+
+- **WHEN** a class declares `pose = Free()` then `lift = Prismatic(...)`,
+  and another declares them the other way round, both bound to the same
+  values
+- **THEN** each body is placed with the first-declared joint's operations
+  innermost, the free joint's operations one unbroken run, and the two
+  bodies land in different places
+
+#### Scenario: An anchored free joint turns about its anchor
+
+- **WHEN** a body placed by its parent away from the origin declares
+  `pose = Free(at=<a point of the parent's frame>)` and binds `yaw`
+- **THEN** the body turns about the line through that point, the two
+  centring translations appear in the run, and a `Free` at the default
+  anchor on the same body produces neither
+
+#### Scenario: A free joint's placement stays symbolic
+
+- **WHEN** the six coordinates are bound from expressions in the
+  animation time and the tree is serialized with nothing keyframed
+- **THEN** the published operations are three ordinary rotations and one
+  ordinary translation carrying those expressions unresolved, the
+  document gains no new key and no new operation kind, and `set_keyframe`
+  makes them numeric
 

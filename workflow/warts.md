@@ -832,8 +832,18 @@ before the project is refactored around its absence.
   leg joints are statable today and wait with it.
 
   The four-declaration form above is exactly what the contract now
-  guarantees, so the hexapod is unblocked by ADR-093. The `Free` joint it
-  may still prefer is a separate, unbuilt primitive and stays open.
+  guarantees, so the hexapod is unblocked by ADR-093.
+
+  **FIXED, the other half too (cycle `free-joint`, ADR-095).** `Free` is
+  now a declaration: `pose = Free(angle_unit='deg', length_unit='mm')`,
+  one joint owning six coordinates reached as `chassis.pose.roll` …
+  `chassis.pose.z` and reported by the port enumerator under those dotted
+  names, composing `R(roll) · R(pitch) · R(yaw) · T(x, y, z)` innermost
+  first — the product `Chassis._to_chassis` hand-inverts, measured
+  against the hexapod's own four calls at seven poses before the cycle
+  was written. The chassis binds four of the six and the other two place
+  nothing. The refactor itself is the project's own stage B, in its own
+  repository; nothing in the framework waits on it.
 - **Fan-out over a repeated child, second sighting: the abacus.** Each
   column's five beads are one `Bead` class repeated; the heaven bead is
   one relation with a clamp law, but the four earth beads each need the

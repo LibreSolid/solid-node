@@ -29,7 +29,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from solid2 import cube
 
-from solid_node.motion.joints import (Joint, JointRangeError, Orbit,
+from solid_node.motion.joints import (Free, Joint, JointRangeError, Orbit,
                                       Prismatic, Revolute,
                                       declared_joints)
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
@@ -112,7 +112,7 @@ class JointDeclarationTest(BaseNodeTest):
     def test_the_kinds_are_exported_from_the_joints_module(self):
         from solid_node.motion import joints
 
-        for name in ('Joint', 'Revolute', 'Prismatic', 'Orbit',
+        for name in ('Joint', 'Revolute', 'Prismatic', 'Orbit', 'Free',
                      'JointRangeError', 'declared_joints'):
             with self.subTest(name=name):
                 self.assertTrue(hasattr(joints, name), name)
@@ -901,6 +901,95 @@ class OrbitContiguityBench(AssemblyNode):
         self.body.lift = 12
 
 
+# Cycle 1's contract over the hardest joint it has: one that places
+# several operations AND owns six coordinates. ADR-093 states the rule
+# over "the operations a joint's placement produces", a contiguous run
+# of any length, so a `Free` between a `Prismatic` and an off-origin
+# `Revolute` is what says whether the rule is about joints or about
+# operations. `Free` is declared here rather than in the free joint's
+# own section because these are cycle 1's fixtures.
+STACK_LIFT = [0.0, 0.0, 4.0]
+STACK_SPIN_AT = (0.0, 30.0, 0.0)
+
+
+class SlideFloatSpin(Solid2Node):
+    """A one-operation prismatic, a free joint and a three-operation
+    revolute, in that declaration order."""
+
+    slide = Prismatic(axis=(1, 0, 0), unit='mm')
+    pose = Free(angle_unit='deg', length_unit='mm')
+    spin = Revolute(axis=(0, 0, 1), at=STACK_SPIN_AT, unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+def _slide_float_spin_pose(offset, roll, yaw, height, angle):
+    """Where `SlideFloatSpin` lands when the contract holds: the slide
+    innermost, the free joint's whole run next, the revolute outside
+    both, the rest placement outside everything."""
+    return (_translation(STACK_LIFT)
+            @ _turn_about(STACK_SPIN_AT, angle, (0, 0, 1), STACK_LIFT)
+            @ _free_local(roll, 0.0, yaw, (0.0, 0.0, height),
+                          lift=STACK_LIFT)
+            @ _translation((offset, 0, 0)))
+
+
+class ScrambledStackBench(AssemblyNode):
+    """Binds the coordinates of the three joints in an order the class
+    body does not show."""
+
+    body = SlideFloatSpin()
+
+    def render(self):
+        self.body.translate(STACK_LIFT)
+
+    def simulate(self):
+        self.body.pose.yaw = 25
+        self.body.spin = 35
+        self.body.pose.z = 60
+        self.body.slide = 12
+        self.body.pose.roll = 15
+
+
+class InterruptedStackBench(ScrambledStackBench):
+    """The same coordinates in another order, with a hand-written
+    rotation applied in the middle of the binding."""
+
+    def simulate(self):
+        self.body.slide = 12
+        self.body.pose.roll = 15
+        self.body.rotate(7, [1, 0, 0])
+        self.body.spin = 35
+        self.body.pose.z = 60
+        self.body.pose.yaw = 25
+
+
+class FloatAndCarry(Solid2Node):
+    """Cycle 2's `SpunAndCarried` shape with a `Free` declared FIRST:
+    the orbit's single translation stays outside the free joint's
+    run."""
+
+    pose = Free(angle_unit='deg', length_unit='mm')
+    carry = Orbit(axis=(0, 0, 1), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class FloatAndCarryBench(AssemblyNode):
+
+    body = FloatAndCarry()
+
+    def render(self):
+        self.body.translate(SPUN_LIFT)
+
+    def simulate(self):
+        self.body.carry = 40
+        self.body.pose.yaw = 25
+        self.body.pose.z = 60
+
+
 class CompositionOrderTest(BaseNodeTest):
     """The joints declared on one class compose in DECLARATION order,
     innermost first, whatever order they are bound in."""
@@ -1124,6 +1213,102 @@ class CompositionOrderTest(BaseNodeTest):
         self.assertEqual(len(motions(body)), 4)
         assert_allclose(_compose_world_matrix(body),
                         _spun_and_carried_pose(35, -12), rtol=0, atol=1e-9)
+
+    ##############################################
+    # 3. Cycle 1's contract, with a free joint in it (ADR-093)
+
+    def test_a_free_joint_is_one_unbroken_run_at_its_own_slot(self):
+        """Eight coordinates over three joints, bound in an order the
+        class body does not show: the slide innermost, the free joint's
+        whole run next, the revolute outside both."""
+        bench = ScrambledStackBench()
+        bench.render()
+        body = bench.body
+
+        # slide (1) | pose (5) | spin (3) | the rest placement.
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t',
+                          't', 'r', 'r', 't', 't',
+                          't', 'r', 't',
+                          't'])
+        run = body.__dict__['_joint_motion']['pose']
+        self.assertEqual(len(run), 5)
+        index = body.operations.index(run[0])
+        self.assertEqual(index, 1)
+        self.assertEqual(body.operations[index:index + 5], run)
+        assert_allclose(_compose_world_matrix(body),
+                        _slide_float_spin_pose(12, 15, 25, 60, 35),
+                        rtol=0, atol=1e-12)
+
+    def test_a_hand_written_rotation_sits_outside_the_free_joints_run(self):
+        scrambled = ScrambledStackBench()
+        interrupted = InterruptedStackBench()
+        scrambled.render()
+        interrupted.render()
+        body = interrupted.body
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t',
+                          't', 'r', 'r', 't', 't',
+                          't', 'r', 't',
+                          'r',
+                          't'])
+        run = body.__dict__['_joint_motion']['pose']
+        index = body.operations.index(run[0])
+        self.assertEqual(body.operations[index:index + 5], run)
+        self.assertEqual(body.operations[9].serialized[1], '7')
+        self.assertFalse(getattr(body.operations[10], '_motion', False))
+        # The joint block is the same one the uninterrupted bench built.
+        self.assertEqual(serialized(body)[:9],
+                         serialized(scrambled.body)[:9])
+
+    def test_re_binding_one_coordinate_returns_the_whole_run_to_its_slot(self):
+        body = SlideFloatSpin()
+        body.translate(STACK_LIFT)
+
+        body.pose.yaw = 25
+        body.spin = 35
+        body.pose.z = 60
+        body.slide = 12
+        body.pose.roll = 15
+        body.pose.roll = -40
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t',
+                          't', 'r', 'r', 't', 't',
+                          't', 'r', 't',
+                          't'])
+        self.assertEqual(len(body.__dict__['_joint_motion']['pose']), 5)
+        self.assertEqual(len(body.__dict__['_joint_motion']['slide']), 1)
+        self.assertEqual(len(body.__dict__['_joint_motion']['spin']), 3)
+        self.assertEqual(len(motions(body)), 9)
+        assert_allclose(_compose_world_matrix(body),
+                        _slide_float_spin_pose(12, -40, 25, 60, 35),
+                        rtol=0, atol=1e-12)
+
+    def test_a_free_joint_composes_with_an_orbit_of_the_same_body(self):
+        bench = FloatAndCarryBench()
+        bench.render()
+        body = bench.body
+
+        # pose (4: the centring pair, one rotation, one translation)
+        # then the orbit's single translation, then the rest placement.
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't', 't'])
+        run = body.__dict__['_joint_motion']['pose']
+        self.assertEqual(len(run), 4)
+        self.assertEqual(body.operations.index(run[0]), 0)
+        self.assertEqual(len(body.__dict__['_joint_motion']['carry']), 1)
+        self.assertEqual(body.operations.index(
+            body.__dict__['_joint_motion']['carry'][0]), 4)
+
+        expected = (_translation(SPUN_LIFT)
+                    @ _translation(_orbit_delta((0, 0, 1), (0, 0, 0),
+                                                SPUN_LIFT, 40))
+                    @ _free_local(0.0, 0.0, 25.0, (0.0, 0.0, 60.0),
+                                  lift=SPUN_LIFT))
+        assert_allclose(_compose_world_matrix(body), expected,
+                        rtol=0, atol=1e-9)
 
 
 ##############################################
@@ -1807,6 +1992,585 @@ def _derived_radius_and_phase(axis, at, carried, reference):
     phase = math.degrees(math.atan2(np.dot(across, quarter),
                                     np.dot(across, reference)))
     return radius, phase
+
+
+##############################################
+# 1.6d The free joint: six coordinates on one floating body
+
+# The seven poses `evidence/probe_matrix.py` measured the hexapod's own
+# four hand-written calls at, two of them at gimbal lock. The numbers
+# there were taken BEFORE a line of `Free` existed, against a NumPy
+# product, so this fixture inherits a target rather than inventing one.
+FREE_POSES = [
+    (0.0, 0.0, 0.0, 0.0),
+    (12.0, 8.0, 25.0, 165.0),
+    (-15.0, -15.0, 0.0, 70.0),
+    (5.0, -3.0, 180.0, 120.0),
+    (90.0, 0.0, 45.0, 100.0),
+    (0.0, 90.0, 30.0, 60.0),
+    (-33.3, 21.7, -119.9, 143.25),
+]
+
+# The six names, in declaration order, with the domain and the unit each
+# carries under `angle_unit='deg'` and `length_unit='mm'`.
+FREE_COORDINATES = (
+    ('pose.roll', 'rotational', 'deg'),
+    ('pose.pitch', 'rotational', 'deg'),
+    ('pose.yaw', 'rotational', 'deg'),
+    ('pose.x', 'translational', 'mm'),
+    ('pose.y', 'translational', 'mm'),
+    ('pose.z', 'translational', 'mm'),
+)
+
+
+class FloatingChassis(Solid2Node):
+    """The hexapod's case: a body its parent does NOT place, so the rest
+    placement is the identity and the default anchor is both the
+    parent's origin and the body's own placed origin."""
+
+    pose = Free(angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class FloatingBench(AssemblyNode):
+    """Binds the four freedoms the hexapod binds, in the order its own
+    `simulate()` writes them, and leaves `x` and `y` alone."""
+
+    roll = Driver(default=0.0, unit='deg')
+    pitch = Driver(default=0.0, unit='deg')
+    yaw = Driver(default=0.0, unit='deg')
+    height = Driver(default=0.0, unit='mm')
+
+    chassis = FloatingChassis()
+
+    def render(self):
+        pass
+
+    def simulate(self):
+        self.chassis.pose.roll = self.roll
+        self.chassis.pose.pitch = self.pitch
+        self.chassis.pose.yaw = self.yaw
+        self.chassis.pose.z = self.height
+
+
+class ReversedFloatingBench(FloatingBench):
+    """The same four bound in the opposite order: the joint is one
+    composition, so the pose may not notice."""
+
+    def simulate(self):
+        self.chassis.pose.z = self.height
+        self.chassis.pose.yaw = self.yaw
+        self.chassis.pose.pitch = self.pitch
+        self.chassis.pose.roll = self.roll
+
+
+# The anchored case: a body its parent DOES place, by a rotation and a
+# translation, so the rest placement has a non-trivial rotation part and
+# both the anchor and the three directions ride the inversion.
+ANCHOR_TILT = 25.0
+ANCHOR_LIFT = [0.0, 12.0, 4.0]
+FREE_AT = (0.0, 30.0, 5.0)
+
+
+class AnchoredFloat(Solid2Node):
+    """A free joint whose rotations pass through a point of the parent's
+    frame that is not the body's placed origin."""
+
+    pose = Free(at=FREE_AT, angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class PlainFloat(Solid2Node):
+    """The same body with the DEFAULT anchor.
+
+    Its parent turns it but does NOT move it, so its placed origin IS
+    the parent frame's origin and the default anchor carries to
+    `(0, 0, 0)`: the case where the centring pair is not emitted at all.
+    A `Free()` on a body its parent TRANSLATES turns about the parent's
+    origin and does emit the pair, which is the default `at` doing
+    exactly what every other joint's does."""
+
+    pose = Free(angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class AnchoredBench(AssemblyNode):
+
+    body = AnchoredFloat()
+
+    def render(self):
+        self.body.rotate(ANCHOR_TILT, [1, 0, 0]).translate(ANCHOR_LIFT)
+
+
+class PlainBench(AssemblyNode):
+
+    body = PlainFloat()
+
+    def render(self):
+        self.body.rotate(ANCHOR_TILT, [1, 0, 0])
+
+
+def _anchored_rest():
+    """The rest placement `AnchoredBench.render()` applies, built here
+    rather than read off the node: the expected matrices in this section
+    have to be independent of the framework's own `operation.matrix()`."""
+    return _translation(ANCHOR_LIFT) @ _rotation(ANCHOR_TILT, (1, 0, 0))
+
+
+def _free_pose(roll, pitch, yaw, offset, anchor=(0.0, 0.0, 0.0),
+               rest=None):
+    """Where a body placed by a `Free` lands.
+
+    The composition is stated in the PARENT's frame -- three rotations
+    about that frame's own directions through the anchor, then the
+    offset -- and the body's rest placement is what the whole of it is
+    composed outside of. As an application order, innermost first, that
+    is `R(roll, x) . R(pitch, y) . R(yaw, z) . T(offset)`.
+    """
+    rest = np.eye(4) if rest is None else rest
+    anchor = np.array(anchor, dtype=float)
+    return (_translation(offset) @ _translation(anchor)
+            @ _rotation(yaw, (0, 0, 1)) @ _rotation(pitch, (0, 1, 0))
+            @ _rotation(roll, (1, 0, 0)) @ _translation(-anchor) @ rest)
+
+
+def _free_local(roll, pitch, yaw, offset, at=(0.0, 0.0, 0.0),
+                lift=(0.0, 0.0, 0.0)):
+    """A free joint's own contribution in the BODY's frame, for a body
+    whose rest placement is the pure translation `lift`: the anchor
+    carried by subtracting it, the three directions unchanged."""
+    anchor = np.array(at, dtype=float) - np.array(lift, dtype=float)
+    return (_translation(offset) @ _translation(anchor)
+            @ _rotation(yaw, (0, 0, 1)) @ _rotation(pitch, (0, 1, 0))
+            @ _rotation(roll, (1, 0, 0)) @ _translation(-anchor))
+
+
+def _to_chassis(point, roll, pitch, yaw, height):
+    """`Chassis._to_chassis`, transcribed unchanged from
+    `projects/Robots/hexapod_spiderbot_model/simulation/spiderbot.py`
+    lines 146-163, with the port reads replaced by arguments.
+
+    Every leg solution in that model runs a foot target through this to
+    reach the chassis's frame, so it is the project's own statement of
+    what the composition IS, written before the framework had one.
+    """
+    from solid_node.math import cos, sin
+
+    px, py, pz = point[0], point[1], point[2] - height
+
+    cy, sy = cos(-yaw), sin(-yaw)
+    px, py = px * cy - py * sy, px * sy + py * cy
+
+    cp, sp = cos(-pitch), sin(-pitch)
+    px, pz = px * cp + pz * sp, -px * sp + pz * cp
+
+    cr, sr = cos(-roll), sin(-roll)
+    py, pz = py * cr - pz * sr, py * sr + pz * cr
+
+    return np.array([px, py, pz])
+
+
+class FreeJointTest(BaseNodeTest):
+    """A body with no parent to be jointed to: one declaration, six
+    coordinates, and a composition fixed by the contract."""
+
+    ##############################################
+    # 1.2 The six coordinates
+
+    def test_the_six_coordinates_enumerate_under_dotted_names(self):
+        ports = declared_ports(FloatingChassis)
+
+        self.assertEqual(list(ports),
+                         [name for name, _domain, _unit
+                          in FREE_COORDINATES])
+        self.assertNotIn('pose', ports)
+        for name, domain, unit in FREE_COORDINATES:
+            with self.subTest(coordinate=name):
+                self.assertIsInstance(ports[name], Port)
+                self.assertEqual(ports[name].domain, domain)
+                self.assertEqual(ports[name].unit, unit)
+                self.assertEqual(ports[name].name, name)
+
+        # One joint, one entry, whatever it owns.
+        self.assertEqual(list(declared_joints(FloatingChassis)), ['pose'])
+        self.assertIsInstance(declared_joints(FloatingChassis)['pose'], Free)
+
+    def test_two_instances_read_their_own_six_slots(self):
+        one = FloatingChassis()
+        other = FloatingChassis()
+
+        one.pose.roll = 12.0
+        one.pose.z = 165.0
+
+        self.assertEqual(one.pose.roll.value, 12.0)
+        self.assertEqual(one.pose.z.value, 165.0)
+        self.assertIsInstance(one.pose.roll, BoundPort)
+        self.assertEqual(one.pose.roll.domain, 'rotational')
+        self.assertEqual(one.pose.z.unit, 'mm')
+        self.assertIsNone(other.pose.roll.value)
+        self.assertIsNone(other.pose.z.value)
+
+    def test_an_unknown_coordinate_is_refused_by_name(self):
+        chassis = FloatingChassis()
+
+        with self.assertRaises(AttributeError) as raised:
+            chassis.pose.twist
+
+        message = str(raised.exception)
+        for expected in ('twist', 'pose', 'roll', 'yaw', 'z'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    ##############################################
+    # 1.3 The composition
+
+    def test_the_composition_is_the_one_the_hexapod_hand_inverts(self):
+        worst = 0.0
+        for roll, pitch, yaw, height in FREE_POSES:
+            with self.subTest(pose=(roll, pitch, yaw, height)):
+                bench = FloatingBench()
+                bench.set_state(roll=roll, pitch=pitch, yaw=yaw,
+                                height=height)
+
+                placed = _compose_world_matrix(bench.chassis)
+                expected = _free_pose(roll, pitch, yaw, (0.0, 0.0, height))
+                worst = max(worst,
+                            float(np.max(np.abs(placed - expected))))
+                assert_allclose(placed, expected, rtol=0, atol=1e-12)
+        self.assertLess(worst, 1e-12)
+
+    def test_the_anchored_composition_is_the_same_product_conjugated(self):
+        rest = _anchored_rest()
+        worst = 0.0
+        for roll, pitch, yaw, height in FREE_POSES:
+            with self.subTest(pose=(roll, pitch, yaw, height)):
+                bench = AnchoredBench()
+                bench.render()
+                body = bench.body
+                body.pose.roll = roll
+                body.pose.pitch = pitch
+                body.pose.yaw = yaw
+                body.pose.z = height
+
+                placed = _compose_world_matrix(body)
+                expected = _free_pose(roll, pitch, yaw, (0.0, 0.0, height),
+                                      anchor=FREE_AT, rest=rest)
+                worst = max(worst,
+                            float(np.max(np.abs(placed - expected))))
+                assert_allclose(placed, expected, rtol=0, atol=1e-12)
+        self.assertLess(worst, 1e-12)
+
+    ##############################################
+    # 1.4 The hexapod's own inverse
+
+    def test_the_hexapods_own_inverse_round_trips(self):
+        """The framework's composition is the one the project's leg
+        solutions depend on: `_to_chassis` brings a point the `Free`
+        carried back to where it started."""
+        probe_point = np.array([37.0, -91.5, 12.25, 1.0])
+        worst = 0.0
+        for roll, pitch, yaw, height in FREE_POSES:
+            with self.subTest(pose=(roll, pitch, yaw, height)):
+                bench = FloatingBench()
+                bench.set_state(roll=roll, pitch=pitch, yaw=yaw,
+                                height=height)
+
+                world = _compose_world_matrix(bench.chassis) @ probe_point
+                back = _to_chassis(world[:3], roll, pitch, yaw, height)
+                worst = max(worst,
+                            float(np.max(np.abs(back - probe_point[:3]))))
+                assert_allclose(back, probe_point[:3], rtol=0, atol=1e-9)
+        self.assertLess(worst, 1e-9)
+
+    ##############################################
+    # 1.5-1.6 Unbound coordinates
+
+    def test_unbound_coordinates_place_nothing_and_still_read_unbound(self):
+        bench = FloatingBench()
+        bench.set_state(roll=12.0, pitch=8.0, yaw=25.0, height=165.0)
+        chassis = bench.chassis
+
+        self.assertIsNone(chassis.pose.x.value)
+        self.assertIsNone(chassis.pose.y.value)
+        ports = declared_ports(FloatingChassis)
+        self.assertIn('pose.x', ports)
+        self.assertIn('pose.y', ports)
+
+        translation = serialized(chassis)[-1]
+        self.assertEqual(translation[0], 't')
+        self.assertEqual(translation[1][0], '0')
+        self.assertEqual(translation[1][1], '0')
+        self.assertEqual(float(translation[1][2]), 165.0)
+
+        # And the pose is the pose with those two bound to zero.
+        bound = FloatingChassis()
+        bound.pose.roll = 12.0
+        bound.pose.pitch = 8.0
+        bound.pose.yaw = 25.0
+        bound.pose.x = 0.0
+        bound.pose.y = 0.0
+        bound.pose.z = 165.0
+        assert_allclose(_compose_world_matrix(chassis),
+                        _compose_world_matrix(bound), rtol=0, atol=0)
+
+    def test_all_six_unbound_places_nothing_at_all(self):
+        """Weakly red on the name alone: what it distinguishes is a
+        placement that runs at realization, or one that publishes six
+        identity operations for a body nobody posed."""
+        chassis = FloatingChassis()
+
+        self.assertEqual(motions(chassis), [])
+        self.assertEqual(serialized(chassis), [])
+        assert_allclose(_compose_world_matrix(chassis), np.eye(4),
+                        rtol=0, atol=0)
+
+    ##############################################
+    # 1.7-1.8 Binding order and re-binding
+
+    def test_the_binding_order_of_the_six_does_not_matter(self):
+        forward = FloatingBench()
+        backward = ReversedFloatingBench()
+
+        forward.set_state(roll=12.0, pitch=8.0, yaw=25.0, height=165.0)
+        backward.set_state(roll=12.0, pitch=8.0, yaw=25.0, height=165.0)
+
+        self.assertEqual(serialized(forward.chassis),
+                         serialized(backward.chassis))
+        assert_allclose(_compose_world_matrix(forward.chassis),
+                        _compose_world_matrix(backward.chassis),
+                        rtol=0, atol=0)
+
+        # And with all six bound, in declaration order and reversed.
+        values = {'roll': 12.0, 'pitch': 8.0, 'yaw': 25.0,
+                  'x': 3.0, 'y': -4.0, 'z': 165.0}
+        names = ['roll', 'pitch', 'yaw', 'x', 'y', 'z']
+        benches = []
+        for order in (names, list(reversed(names)),
+                      ['z', 'roll', 'y', 'yaw', 'x', 'pitch']):
+            chassis = FloatingChassis()
+            for name in order:
+                setattr(chassis.pose, name, values[name])
+            benches.append(chassis)
+        for other in benches[1:]:
+            with self.subTest(order='scrambled'):
+                self.assertEqual(serialized(benches[0]), serialized(other))
+                assert_allclose(_compose_world_matrix(benches[0]),
+                                _compose_world_matrix(other),
+                                rtol=0, atol=0)
+        assert_allclose(_compose_world_matrix(benches[0]),
+                        _free_pose(12.0, 8.0, 25.0, (3.0, -4.0, 165.0)),
+                        rtol=0, atol=1e-12)
+
+    def test_re_binding_one_coordinate_re_places_the_whole_joint(self):
+        chassis = FloatingChassis()
+        chassis.pose.roll = 12.0
+        chassis.pose.pitch = 8.0
+        chassis.pose.yaw = 25.0
+        chassis.pose.x = 3.0
+        chassis.pose.y = -4.0
+        chassis.pose.z = 165.0
+
+        before = serialized(chassis)
+        first = _compose_world_matrix(chassis)
+
+        chassis.pose.roll = -30.0
+
+        self.assertEqual([operation[0] for operation in serialized(chassis)],
+                         [operation[0] for operation in before])
+        self.assertEqual(chassis.pose.pitch.value, 8.0)
+        self.assertEqual(chassis.pose.yaw.value, 25.0)
+        self.assertEqual(chassis.pose.z.value, 165.0)
+        assert_allclose(_compose_world_matrix(chassis),
+                        _free_pose(-30.0, 8.0, 25.0, (3.0, -4.0, 165.0)),
+                        rtol=0, atol=1e-12)
+
+        chassis.pose.roll = 12.0
+
+        assert_allclose(_compose_world_matrix(chassis), first,
+                        rtol=0, atol=0)
+        self.assertEqual(len(motions(chassis)), 4)
+
+    ##############################################
+    # 1.9 The anchor
+
+    def test_an_anchored_free_joint_turns_about_its_anchor(self):
+        anchored = AnchoredBench()
+        anchored.render()
+        anchored.body.pose.yaw = 40.0
+
+        plain = PlainBench()
+        plain.render()
+        plain.body.pose.yaw = 40.0
+
+        self.assertEqual([operation[0] for operation
+                          in serialized(anchored.body)],
+                         ['t', 'r', 't', 'r', 't'])
+        self.assertEqual([operation[0] for operation
+                          in serialized(plain.body)],
+                         ['r', 'r'])
+
+        assert_allclose(_compose_world_matrix(anchored.body),
+                        _free_pose(0.0, 0.0, 40.0, (0.0, 0.0, 0.0),
+                                   anchor=FREE_AT, rest=_anchored_rest()),
+                        rtol=0, atol=1e-12)
+        assert_allclose(_compose_world_matrix(plain.body),
+                        _free_pose(0.0, 0.0, 40.0, (0.0, 0.0, 0.0),
+                                   rest=_rotation(ANCHOR_TILT, (1, 0, 0))),
+                        rtol=0, atol=1e-12)
+        # The anchored body's own placed origin stands off the line and
+        # travels; the plain one's IS on it and does not.
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        moved = _compose_world_matrix(anchored.body) @ origin
+        self.assertGreater(
+            float(np.linalg.norm(moved[:3] - np.array(ANCHOR_LIFT))), 10.0)
+        assert_allclose((_compose_world_matrix(plain.body) @ origin)[:3],
+                        [0.0, 0.0, 0.0], rtol=0, atol=1e-12)
+
+    ##############################################
+    # 1.10-1.11 The refusals
+
+    def test_assigning_the_joint_as_a_whole_is_refused(self):
+        chassis = FloatingChassis()
+
+        with self.assertRaises(AttributeError) as raised:
+            chassis.pose = 12.0
+
+        message = str(raised.exception)
+        for expected in ('pose', 'FloatingChassis', 'roll', 'pitch', 'yaw',
+                         'x', 'y', 'z'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+        self.assertEqual(motions(chassis), [])
+
+    def test_an_axis_and_a_range_are_refused_at_the_declaration(self):
+        for keyword, argument in (('axis', (0, 0, 1)),
+                                  ('range', (-10, 10))):
+            with self.subTest(keyword=keyword):
+                with self.assertRaises(TypeError) as raised:
+                    Free(**{keyword: argument})
+                message = str(raised.exception)
+                self.assertIn(keyword, message)
+                for taken in ('at', 'angle_unit', 'length_unit'):
+                    self.assertIn(taken, message)
+
+    ##############################################
+    # 1.12 `at` resolves against the instance
+
+    def test_the_anchor_resolves_against_the_instance(self):
+        """Characterisation of the inherited argument path: `at` is
+        `Joint._vector`'s, and a `Free` neither adds to it nor takes
+        anything from it. Red on the NAME only."""
+        class Parametric(AssemblyNode):
+            reach = Length(30.0)
+
+            pose = Free(at=(0, reach, 2 * reach), angle_unit='deg',
+                        length_unit='mm')
+
+            box = Hinge()
+
+        default = Parametric()
+        wider = Parametric(reach=45.0)
+
+        self.assertEqual(Parametric.pose.arguments(default)[1],
+                         (0.0, 30.0, 60.0))
+        self.assertEqual(Parametric.pose.arguments(wider)[1],
+                         (0.0, 45.0, 90.0))
+
+    def test_a_callable_anchor_is_called_with_the_realized_node(self):
+        calls = []
+
+        class Built(AssemblyNode):
+            def _anchor(node):
+                calls.append(node)
+                return (1.0, 2.0, 3.0)
+
+            pose = Free(at=_anchor, angle_unit='deg', length_unit='mm')
+
+            box = Hinge()
+
+        built = Built()
+
+        self.assertEqual(len(calls), 1)
+        self.assertIs(calls[0], built)
+        self.assertEqual(Built.pose.arguments(built)[1], (1.0, 2.0, 3.0))
+
+    def test_a_malformed_anchor_fails_at_realization(self):
+        def raising(node):
+            raise RuntimeError('no anchor here')
+
+        elsewhere = Length(5.0)
+        elsewhere._name = 'elsewhere'
+
+        for label, at in (('two components', (0, 0)),
+                          ('an undeclared token', (0, elsewhere, 0)),
+                          ('a callable that raises', raising)):
+            with self.subTest(anchor=label):
+                class Bad(AssemblyNode):
+                    pose = Free(at=at, angle_unit='deg', length_unit='mm')
+
+                    box = Hinge()
+
+                with self.assertRaises(ParameterError) as raised:
+                    Bad()
+
+                message = str(raised.exception)
+                self.assertIn('Bad', message)
+                self.assertIn('pose', message)
+                self.assertIn('at', message)
+
+    ##############################################
+    # 1.13 The published document
+
+    def test_a_symbolic_binding_publishes_ordinary_operations(self):
+        class Floating(AssemblyNode):
+            chassis = FloatingChassis()
+
+            def render(self):
+                pass
+
+            def simulate(self):
+                self.chassis.pose.roll = self.time * 90
+                self.chassis.pose.pitch = self.time * 45
+                self.chassis.pose.yaw = self.time * 180
+                self.chassis.pose.x = self.time * 10
+                self.chassis.pose.y = self.time * 20
+                self.chassis.pose.z = self.time * 30
+
+        floating = Floating()
+        floating.render()
+
+        published = serialized(floating.chassis)
+        self.assertEqual([operation[0] for operation in published],
+                         ['r', 'r', 'r', 't'])
+        for operation in published[:3]:
+            with self.subTest(operation=operation):
+                self.assertIn('$t', operation[1])
+        for component in published[3][1]:
+            with self.subTest(component=component):
+                self.assertIn('$t', component)
+
+        document = serialize_node(floating, lambda rigid: rigid.name)
+        keys = set(document)
+        for child in document.get('children', ()):
+            keys.update(child)
+        self.assertLessEqual(
+            keys, {'name', 'type', 'color', 'mtime', 'operations', 'model',
+                   'children', 'flexible', 'piece'})
+
+        floating.set_keyframe(0.5)
+        numeric = serialized(floating.chassis)
+        self.assertEqual(numeric[0][1], '45.0')
+        self.assertEqual([float(component) for component in numeric[3][1]],
+                         [5.0, 10.0, 15.0])
+
+        floating.clear_keyframe()
+        self.assertIn('$t', serialized(floating.chassis)[0][1])
 
 
 ##############################################

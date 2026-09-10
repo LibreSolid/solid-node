@@ -246,21 +246,30 @@ parent assembly binds it every ``simulate()`` with
 Joints
 ======
 
-The one-coordinate joint declarations, importable from
+The joint declarations, importable from
 ``solid_node.motion.joints``. A joint is declared as a class attribute of
 the node it moves and states where that node may move, in the frame its
 parent places it in; reading it gives its coordinate, which is a port,
-and binding that coordinate places the body. Two of the three turn or
+and binding that coordinate places the body. Two of the three
+one-coordinate pairs turn or
 slide the body; the third, ``Orbit``, CARRIES it round a line without
 turning it, and derives the radius and the phase of that circle rather
-than accepting them. Several joints on one class compose in declaration
-order, first declared innermost. See :doc:`Driving a machine <driving>`.
+than accepting them. ``Free`` is the one that is not a pair at all: the
+six freedoms of a body with no parent to be jointed to, owning SIX
+coordinates reached as ``chassis.pose.roll`` and reported by the port
+enumerator under those dotted names. Several joints on one class compose
+in declaration
+order, first declared innermost, and a joint owning several coordinates
+occupies one position in that order like any other. See
+:doc:`Driving a machine <driving>`.
 
 .. autoclass:: solid_node.motion.joints.Revolute
 
 .. autoclass:: solid_node.motion.joints.Prismatic
 
 .. autoclass:: solid_node.motion.joints.Orbit
+
+.. autoclass:: solid_node.motion.joints.Free
 
 .. autoexception:: solid_node.motion.joints.JointRangeError
 
