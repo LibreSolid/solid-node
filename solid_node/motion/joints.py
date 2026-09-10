@@ -24,18 +24,28 @@ point and the line and are never typed, which is what lets a project
 that may not write its bore centre as a literal write the joint at all.
 
 A joint is declared as a class attribute of the node it moves and says
-WHERE that node may move::
+WHERE that node may move, in that node's OWN REST FRAME -- the frame its
+own `render()` states its geometry in::
 
     class Forearm(AssemblyNode):
-        elbow = Revolute(axis=(0, 0, 1), at=(0, 160, 68),
+        elbow = Revolute(axis=(0, 1, 0), at=(0, 0, 81.5),
                          range=(-135, 135), unit='deg')
 
-`axis` and `at` are read in the PARENT's frame -- the frame the parent's
-`render()` places this node in, which is where MuJoCo's `hinge` and
-Modelica's `Joints.Revolute` state them too. The framework carries them
-into the node's own frame by inverting the node's rest placement, which
-is exactly the arithmetic a project writes by hand today, and then
-places the body about the carried line.
+A joint is stated in the frame of whoever declares it: a class body is
+the body's own statement about itself, so `axis` and `at` are read in
+that body's own frame -- which is MuJoCo's rule, where a `<joint pos>`
+is a point of the body frame and defaults to its origin. (A joint
+PASSED AT A DECLARATION SITE, stated in the parent's frame -- URDF's
+rule -- is a different feature, built where a project needs it.) `at`
+defaults to `(0, 0, 0)`, the body's own origin, so a joint whose line
+runs through the body's origin -- a wheel on its own bearing, a gear on
+its own axle -- is written with no anchor at all. The framework
+transforms nothing: a joint's operations were always placed INNERMOST,
+before every rest operation, in the body's own frame, so there is
+nothing to carry the declared numbers through. A body its parent
+ROTATES carries its joint line WITH it, which is what lets one class
+placed at several sites, or at different attitudes, state one joint and
+get the right line everywhere.
 
 A body may declare more than one freedom, and the ORDER they are
 declared in is the order they compose in: the first declared is applied
@@ -89,34 +99,16 @@ __all__ = ['Free', 'Joint', 'JointRangeError', 'Orbit', 'Prismatic',
            'Revolute', 'coordinates_of', 'declared_joints']
 
 
-# How close to an exact 0, 1 or -1 a carried component has to be before
-# it IS that value. Inverting a rest placement leaves floating-point
-# residue -- an axis comes back as (0, 1, 6e-17) -- and whatever comes
-# back is what the published document carries, so the residue is snapped
-# away before anything reads it.
+# How close to an exact 0, 1 or -1 a normalized axis component has to be
+# before it IS that value. Normalizing a declared axis leaves
+# floating-point residue -- `(0, 0, 3)` comes back as `(0, 0,
+# 0.9999999999999999)` -- and whatever comes back is what the published
+# document carries, so the residue is snapped away before anything reads
+# it. An anchor is never snapped: it is published exactly as the author
+# wrote it.
 _SNAP = 1e-9
 
 _MISSING = object()
-
-
-class _OwnPlacedOrigin:
-    """What an `Orbit` carries when its `carries` is left unstated: the
-    body's OWN PLACED ORIGIN, the point the parent's `render()` put the
-    node's origin at.
-
-    A sentinel rather than a number, because the point is not known when
-    a joint's arguments resolve -- the node's placement does not exist
-    yet -- and because in the node's own frame it is exactly
-    `(0, 0, 0)`, by definition and with no arithmetic, so carrying it
-    through the inverted rest placement would only put floating-point
-    residue in the commonest case.
-    """
-
-    def __repr__(self):
-        return "the body's own placed origin"
-
-
-_OWN_PLACED_ORIGIN = _OwnPlacedOrigin()
 
 
 class JointRangeError(ValueError):
@@ -238,8 +230,10 @@ class Joint(Coordinate):
 
     def resolve(self, node, values):
         """This instance's `(axis, at, range)`: every component a plain
-        number, the axis normalized, or `ParameterError` naming the
-        class, the joint and the argument at fault.
+        number, the axis normalized and SNAPPED to an exact `0`, `1` or
+        `-1` within `1e-9` of one, or `ParameterError` naming the class,
+        the joint and the argument at fault. The anchor is NOT snapped:
+        it is published exactly as the author wrote it.
 
         A subclass that declares a further argument -- an `Orbit`'s
         `carries` -- appends it here, through the same `_vector` path,
@@ -256,7 +250,9 @@ class Joint(Coordinate):
                 node, 'axis',
                 f'{self.axis!r} has no direction: an axis of zero length '
                 f'states no line to move about')
-        return tuple(component / length for component in axis), anchor, span
+        normalized = tuple(_snapped(component / length) for component
+                           in axis)
+        return normalized, anchor, span
 
     def _refusal(self, node, argument, detail):
         from solid_node.parameters import ParameterError
@@ -374,11 +370,12 @@ class Joint(Coordinate):
     def place(self, node, value):
         """Move `node` about this joint, absolutely.
 
-        Carries the declared parent-frame axis and anchor into the
-        node's own frame by inverting its rest placement, drops whatever
-        a previous binding of this joint applied, and places the
-        operations as motion -- innermost, before every rest operation,
-        whatever lifecycle phase is current.
+        The declared axis and anchor are ALREADY in the node's own
+        frame -- there is nothing to carry them through -- so `place`
+        uses them exactly as they resolved. Drops whatever a previous
+        binding of this joint applied, and places the operations as
+        motion -- innermost, before every rest operation, whatever
+        lifecycle phase is current.
 
         The whole placement goes in as ONE contiguous run at this
         joint's own slot: its index in `declared_joints(type(node))`,
@@ -391,13 +388,13 @@ class Joint(Coordinate):
         from solid_node.node.base import apply_joint_motion
 
         anchor = self.arguments(node)[1]
-        local_axes, local_points = self._carry(
-            node, self.axes(node), self.carried_points(node, anchor))
+        axes = self.axes(node)
+        points = self.carried_points(node, anchor)
         self.clear(node)
         slot = list(declared_joints(type(node))).index(self.name)
         applied = apply_joint_motion(
             node,
-            list(self.placement(node, value, *local_axes, *local_points)),
+            list(self.placement(node, value, *axes, *points)),
             slot)
         node.__dict__.setdefault('_joint_motion', {})[self.name] = applied
 
@@ -419,75 +416,25 @@ class Joint(Coordinate):
             if not any(operation is dropped for dropped in previous)]
 
     def carried_points(self, node, anchor):
-        """The parent-frame points this joint needs carried into the
-        node's own frame, the anchor first.
+        """The POINTS this joint's placement takes, in the node's OWN
+        frame, the anchor first.
 
         A joint that declares further points -- an `Orbit`'s `carries`
-        -- returns them here and receives them, carried, as the extra
-        arguments of its `placement`. They all ride the ONE inversion
-        `_carry` already computes.
+        -- returns them here and receives them as the extra arguments of
+        its `placement`, in the order returned.
         """
         return (anchor,)
 
     def axes(self, node):
-        """The parent-frame DIRECTIONS this joint needs carried into the
-        node's own frame.
+        """The DIRECTIONS this joint's placement takes, in the node's
+        OWN frame.
 
         One for every joint that turns or slides about a line, and the
         frame's own three for a joint that turns about all of them -- a
-        `Free`. They ride the same single inversion the anchor and the
-        carried points ride, and they arrive as the leading arguments of
-        `placement`, in this order.
+        `Free`. They arrive as the leading arguments of `placement`, in
+        this order.
         """
         return (self.arguments(node)[0],)
-
-    def _carry(self, node, axes, points):
-        """Each of `axes` and each of `points`, stated in the parent's
-        frame, in `node`'s own frame.
-
-        Motion composes innermost -- before the placement the parent's
-        `render()` applied -- so a joint stated in the parent's frame
-        has to be carried through the inverse of that rest placement,
-        which is the `into_local` every arm in the catalogue writes by
-        hand. The rest placement is the node's non-motion operations
-        composed in list order by premultiplication, through each
-        operation's own `matrix()`: the framework's one seam for an
-        operation's 4x4, which resolves its value through `as_number()`
-        at access time.
-        """
-        import numpy as np
-
-        matrix = np.eye(4)
-        for operation in node.operations:
-            if getattr(operation, '_motion', False):
-                continue
-            try:
-                matrix = operation.matrix() @ matrix
-            except TypeError as failure:
-                raise ValueError(
-                    f"{_where(node)}: joint '{self.name}' cannot be placed, "
-                    f"because the rest operation {operation.serialized!r} "
-                    f"carries a value that is not a number "
-                    f"({failure}). A joint's axis and anchor are stated in "
-                    f"the parent's frame and carried into the node's own by "
-                    f"inverting that placement, so the placement has to be "
-                    f"numeric; move the value into simulate().") from None
-        inverse = np.linalg.inv(matrix)
-        local_axes = []
-        for axis in axes:
-            carried = inverse[:3, :3] @ np.array(axis, dtype=float)
-            carried = carried / np.linalg.norm(carried)
-            local_axes.append(tuple(_snapped(float(value))
-                                    for value in carried))
-        local = []
-        for point in points:
-            if point is _OWN_PLACED_ORIGIN:
-                local.append((0.0, 0.0, 0.0))
-                continue
-            placed = inverse @ np.array([point[0], point[1], point[2], 1.0])
-            local.append(tuple(_snapped(float(value))
-                               for value in placed[:3]))
-        return tuple(local_axes), tuple(local)
 
     def placement(self, node, value, axis, *points):
         raise NotImplementedError
@@ -508,7 +455,7 @@ class Revolute(Joint):
     def placement(self, node, value, axis, anchor):
         from solid_node.node.operations import Rotation, Translation
 
-        centred = any(component != 0 for component in anchor)
+        centred = any(abs(component) > _SNAP for component in anchor)
         operations = []
         if centred:
             operations.append(
@@ -584,10 +531,12 @@ class Orbit(Joint):
     left alone: `Orbit(axis, at, carries, range, unit)`.
 
     `axis` and `at` mean exactly what a `Revolute`'s mean -- a direction
-    and a point ON the line, in the parent's frame. `carries` is the
-    point of the BODY that travels round that line, stated in the same
-    frame and resolved the same way; left unstated it is the body's OWN
-    PLACED ORIGIN, the point the parent's `render()` placed the node at.
+    and a point ON the line, in the declaring body's own frame.
+    `carries` is the point of the BODY that travels round that line,
+    stated in the same frame and resolved the same way; left unstated it
+    defaults to `(0, 0, 0)`, the body's own origin -- in its own frame
+    that point IS the origin, with no sentinel and no reading of the
+    placement.
 
     The coordinate is ONE angle, and it is rotational, although the
     placement it produces is a single translation: what the coordinate
@@ -606,7 +555,7 @@ class Orbit(Joint):
     coordinate_kind = RotationalPort
     default_unit = 'deg'
 
-    def __init__(self, axis, at=(0, 0, 0), carries=None, range=None,
+    def __init__(self, axis, at=(0, 0, 0), carries=(0, 0, 0), range=None,
                  unit=None):
         super().__init__(axis, at=at, range=range, unit=unit)
         self.carries = carries
@@ -617,12 +566,7 @@ class Orbit(Joint):
 
     def resolve(self, node, values):
         axis, anchor, span = super().resolve(node, values)
-        if self.carries is None:
-            # Not resolvable here, and not a number: the body's own
-            # placed origin is not known until the body is placed.
-            carried = _OWN_PLACED_ORIGIN
-        else:
-            carried = self._vector(node, values, self.carries, 'carries')
+        carried = self._vector(node, values, self.carries, 'carries')
         return axis, anchor, span, carried
 
     def carried_points(self, node, anchor):
@@ -642,7 +586,7 @@ class Orbit(Joint):
                 f"{carried}, and the radius they derive is {radius}. An "
                 f"orbit's radius and phase are derived from a point and "
                 f"a line, never declared, so name a point of the body "
-                f"off that line with carries=, in the parent's frame.")
+                f"off that line with carries=, in this body's own frame.")
 
         # The framework's own DEGREE trigonometry: numeric for a plain
         # binding, and for a symbolic one the OpenSCAD builtins `cos`
@@ -737,9 +681,9 @@ class Free(Joint):
     against the world is STATED rather than constrained. MuJoCo's `free`
     and Modelica's `Joints.FreeMotion` are one element each, and so is
     this: ONE declaration owning SIX coordinates -- `roll`, `pitch` and
-    `yaw` about the parent frame's three directions, and `x`, `y` and
-    `z` along them -- reached as attributes of the joint read on an
-    instance::
+    `yaw` about the declaring body's own REST FRAME's three directions,
+    and `x`, `y` and `z` along them -- reached as attributes of the
+    joint read on an instance::
 
         class Chassis(AssemblyNode):
             pose = Free(angle_unit='deg', length_unit='mm')
@@ -768,13 +712,17 @@ class Free(Joint):
     as a matrix product acting on a point of the body is
     `T . Rz(yaw) . Ry(pitch) . Rx(roll)`. That is what the hexapod's
     chassis applies by hand and what its `_to_chassis` inverts for every
-    leg solution in the model. The three directions are the PARENT
-    frame's own, carried into the body's frame through the single
-    inversion the anchor rides, so the three angles are an extrinsic
+    leg solution in the model. The three directions are the DECLARING
+    BODY's own rest frame's, literally `(1, 0, 0)`, `(0, 1, 0)` and
+    `(0, 0, 1)` -- fixed directions the rotations turn ABOUT rather than
+    axes that turn with each other, so the three angles are an extrinsic
     x-y-z sequence -- the same rotation the aircraft convention states
-    as intrinsic yaw, then pitch, then roll. Gimbal lock at
-    `pitch = +-90` is real and inherited; `Spherical`, when it exists,
-    is the quaternion-valued one.
+    as intrinsic yaw, then pitch, then roll. The translation, being the
+    OUTERMOST operation of the joint's own run, displaces along those
+    SAME rest-frame directions rather than along whatever the rotations
+    have just turned. Gimbal lock at `pitch = +-90` is real and
+    inherited; `Spherical`, when it exists, is the quaternion-valued
+    one.
 
     No `axis`: a free body turns about three directions, and they are
     the frame's own rather than an author's choice. No `range`: a
@@ -871,8 +819,8 @@ class Free(Joint):
         return None, self._vector(node, values, self.at, 'at'), None
 
     def axes(self, node):
-        """The parent frame's own three unit directions, which `_carry`
-        brings into the body's frame through the one inversion."""
+        """The declaring body's own rest frame's three unit directions,
+        literally -- nothing carries them from anywhere."""
         return ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
     ##############################################
@@ -891,7 +839,7 @@ class Free(Joint):
         bound = {short: self.coordinates[f'{self.name}.{short}']
                  .__get__(node)._value
                  for short in self._ROTATIONS + self._TRANSLATIONS}
-        centred = any(component != 0 for component in anchor)
+        centred = any(abs(component) > _SNAP for component in anchor)
         operations = []
         if centred:
             operations.append(
@@ -915,10 +863,10 @@ class Free(Joint):
         """The one translation, or None when none of the three
         translational coordinates is bound.
 
-        Each bound coordinate is a displacement along the carried
+        Each bound coordinate is a displacement along the rest-frame
         direction of its own name -- the way a `Prismatic`'s value runs
-        along its carried axis -- so a body whose parent turned it still
-        floats against the PARENT's frame. A component no bound
+        along its own declared axis -- so a body whose parent turned it
+        still floats against its OWN rest frame. A component no bound
         coordinate reaches is a plain numeric `0` rather than an
         expression multiplied by zero, for the reason a `Prismatic`'s
         is: two of the three slots of every floating body's published

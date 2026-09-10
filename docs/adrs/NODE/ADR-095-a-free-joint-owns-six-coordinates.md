@@ -1,6 +1,6 @@
 # ADR-095: A Free Joint Owns Six Coordinates
 
-**Status:** Accepted
+**Status:** Accepted (the open question of which frame `at` and the translation read is closed by [ADR-097](./ADR-097-a-joint-is-stated-in-the-frame-of-whoever-declares-it.md): the declaring body's own rest frame; everything else below stands)
 **Date:** 2026-09-10
 **Extends:**
 - [ADR-088: A joint owns one coordinate](./ADR-088-a-joint-owns-one-coordinate.md)

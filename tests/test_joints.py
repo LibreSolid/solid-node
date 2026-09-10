@@ -4,17 +4,19 @@
 
 """The one-coordinate lower pairs: `Revolute` and `Prismatic`.
 
-A joint says WHERE a body may move, next to the body, once. Its axis and
-anchor are stated in the frame its parent places it in -- the frame
-MuJoCo and Modelica state them in -- and the framework carries them into
-the node's own frame by inverting the rest placement, which is the
-arithmetic every arm in the catalogue writes by hand today.
+A joint says WHERE a body may move, next to the body, once. A joint
+declared in a class body is the body's own statement about itself, so its
+axis and anchor are read in that body's OWN REST FRAME -- the frame its
+own `render()` states its geometry in, one rest placement away from the
+parent's -- which is MuJoCo's rule. The framework transforms nothing:
+there is no carry, because a joint's operations were always placed
+INNERMOST, before every rest operation, in the body's own frame.
 
-Thor is the evidence and the pinned number: `simulation/placing.py` and
-`art2.py` carry the elbow into the forearm's frame with
-`ELBOW_PIVOT_AXIS = (0, 1, 0)` and `ELBOW_PIVOT = (0, 0, 81.5)`, and the
-fixture in `tests/joint_project/` declares the same joint in the
-parent's frame. If the two ever disagree, this file says so.
+Thor is the evidence and the pinned number: `art2.py` states the elbow
+directly in the forearm's own frame as `ELBOW_PIVOT_AXIS = (0, 1, 0)` and
+`ELBOW_PIVOT = (0, 0, 81.5)`, and the fixture in `tests/joint_project/`
+declares the same joint the same way, with nothing to invert. If the two
+ever disagree, this file says so.
 
 The assertions are at operation and document level rather than through
 meshes: what a joint produces is ordinary rotations and translations
@@ -261,17 +263,207 @@ class JointCoordinateTest(BaseNodeTest):
 
 
 ##############################################
-# 1.4 The frame carry, on Thor's numbers
+# 1.1-1.3 A joint is stated in the frame of whoever declares it
+
+class OwnFrameTest(BaseNodeTest):
+    """The rule itself: a class-body joint's `axis` and `at` are read in
+    the declaring body's OWN rest frame, with `at` defaulting to that
+    body's own origin, and nothing the framework does depends on where
+    the parent places the body."""
+
+    def test_a_joint_through_the_bodys_own_origin_needs_no_anchor(self):
+        """A pinion on its own bearing: the parent moves it, the joint
+        does not have to know where to."""
+
+        class Pinion(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Bracket(AssemblyNode):
+            pinion = Pinion()
+
+            def render(self):
+                self.pinion.translate([40, 25, 0])
+
+            def simulate(self):
+                self.pinion.turn = 30
+
+        bracket = Bracket()
+        bracket.render()
+
+        operations = serialized(bracket.pinion)
+        self.assertEqual([operation[0] for operation in operations],
+                         ['r', 't'])
+        self.assertEqual(operations[0][1], '30')
+        self.assertEqual(list(operations[0][2]), [0, 0, 1])
+        # The pinion's own origin does not move: only the rest placement
+        # carries it, and the rotation leaves it exactly there.
+        self.assertEqual(numbers(operations[1]), [40.0, 25.0, 0.0])
+
+    def test_one_class_several_placements_one_declaration(self):
+        """The V8's four timing gears and Thor's thirteen: one class
+        placed at several different points resolves ONE set of joint
+        arguments, and each copy spins about the line through its own
+        placed origin."""
+
+        class Gear(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Block(AssemblyNode):
+            gears = [Gear(), Gear(), Gear(), Gear()]
+
+            def render(self):
+                for index, point in enumerate(
+                        [[10, 0, 0], [0, 10, 0], [-10, 0, 0], [0, -10, 0]]):
+                    self.gears[index].translate(point)
+
+            def simulate(self):
+                for gear in self.gears:
+                    gear.turn = 45
+
+        block = Block()
+        block.render()
+
+        arguments = {Gear.turn.arguments(gear) for gear in block.gears}
+        # All four copies resolve the identical joint arguments: no copy
+        # needed an anchor its class could not know.
+        self.assertEqual(len(arguments), 1)
+        for gear in block.gears:
+            with self.subTest(gear=gear.name):
+                operations = serialized(gear)
+                self.assertEqual([operation[0] for operation
+                                  in operations], ['r', 't'])
+                self.assertEqual(list(operations[0][2]), [0, 0, 1])
+
+    def test_the_line_turns_with_the_body(self):
+        """A body its parent ROTATES carries its joint line WITH it: the
+        line is the body's own, not the parent's."""
+
+        class Cog(Solid2Node):
+            spin = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Tilted(AssemblyNode):
+            cog = Cog()
+
+            def render(self):
+                self.cog.rotate(90, [1, 0, 0])
+
+            def simulate(self):
+                self.cog.spin = 20
+
+        tilted = Tilted()
+        tilted.render()
+
+        rotation = [operation for operation in serialized(tilted.cog)
+                    if operation[0] == 'r'][0]
+        self.assertEqual(list(rotation[2]), [0, 0, 1])
+
+    def test_two_instances_placed_differently_resolve_identical_arguments(
+            self):
+        class Leaf(Solid2Node):
+            turn = Revolute(axis=(0, 1, 0), at=(0, 0, 10), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class First(AssemblyNode):
+            leaf = Leaf()
+
+            def render(self):
+                self.leaf.rotate(30, [0, 0, 1]).translate([5, 5, 5])
+
+            def simulate(self):
+                self.leaf.turn = 40
+
+        class Second(AssemblyNode):
+            leaf = Leaf()
+
+            def render(self):
+                self.leaf.rotate(-70, [1, 0, 0]).translate([-20, 0, 3])
+
+            def simulate(self):
+                self.leaf.turn = 40
+
+        first, second = First(), Second()
+        first.render()
+        second.render()
+
+        self.assertEqual(Leaf.turn.arguments(first.leaf),
+                         Leaf.turn.arguments(second.leaf))
+        first_motion, second_motion = (
+            [operation.serialized for operation in motions(first.leaf)],
+            [operation.serialized for operation in motions(second.leaf)])
+        self.assertEqual(first_motion, second_motion)
+
+    def test_a_joints_line_survives_a_change_to_the_rest_placement(self):
+        class Leaf(Solid2Node):
+            turn = Revolute(axis=(0, 1, 0), at=(0, 0, 10), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        leaf = Leaf()
+        leaf.turn = 25
+        first = [operation.serialized for operation in motions(leaf)]
+
+        leaf.rotate(45, [1, 0, 0]).translate([9, -3, 2])
+        leaf.turn = 25
+        second = [operation.serialized for operation in motions(leaf)]
+
+        self.assertEqual(first, second)
+
+    def test_a_symbolic_rest_placement_no_longer_refuses_a_joint(self):
+        """The fixture behind the deleted refusal "an unresolvable rest
+        placement is refused": a rest placement the framework cannot
+        evaluate numerically no longer stands in a joint's way, because
+        nothing inverts it."""
+
+        class Leaf(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Symbolic(AssemblyNode):
+            leaf = Leaf()
+
+            def render(self):
+                # `self.time` never resolves to a plain number outside a
+                # keyframe: the fixture the deleted `_carry` refused on,
+                # since its `matrix()` could not be composed numerically.
+                self.leaf.translate([self.time, 0, 0])
+
+            def simulate(self):
+                self.leaf.turn = 15
+
+        symbolic = Symbolic()
+        symbolic.render()
+
+        operations = serialized(symbolic.leaf)
+        self.assertEqual(operations[0][0], 'r')
+        self.assertEqual(list(operations[0][2]), [0, 0, 1])
+
+
+##############################################
+# 1.4 The declared frame, on Thor's numbers
 
 class FrameCarryTest(BaseNodeTest):
-    """Thor's elbow, computed by hand:
+    """Thor's elbow, stated directly in the forearm's OWN rest frame:
 
-        rest    M = T(0, 241.5, 68) . Rx(90)
-        axis    R^-1 . (0, 0, 1) = (0, 1, 0)
-        anchor  M^-1 . (0, 160, 68) = R^-1 . (0, -81.5, 0) = (0, 0, 81.5)
+        axis    (0, 1, 0)
+        anchor  (0, 0, 81.5)
 
     which is exactly `ELBOW_PIVOT_AXIS = (0, 1, 0)` and
-    `ELBOW_PIVOT = (0, 0, 81.5)` in Thor's own `art2.py`.
+    `ELBOW_PIVOT = (0, 0, 81.5)` in Thor's own `art2.py` -- now written
+    where the project writes them, with nothing inverted to get there.
     """
 
     def test_the_elbow_lands_on_thors_hand_written_constants(self):
@@ -309,15 +501,21 @@ class FrameCarryTest(BaseNodeTest):
         self.assertEqual(list(rest[0][2]), [1, 0, 0])
         self.assertEqual(numbers(rest[1]), [0.0, 241.5, 68.0])
 
-    def test_the_anchor_follows_the_parameter_per_instance(self):
-        arm = Arm(reach=180.0)
+    def test_the_anchor_does_not_follow_the_parents_reach(self):
+        """The anchor is the forearm's own statement about itself: it no
+        longer depends on how far out the parent's `render()` reaches to
+        place it -- the opposite of what a parent-frame anchor would do,
+        and the point of rewriting the fixture at all."""
+        default_arm = Arm()
+        stretched_arm = Arm(reach=180.0)
 
-        arm.set_state(angle=15)
+        default_arm.set_state(angle=15)
+        stretched_arm.set_state(angle=15)
 
-        # The elbow is still 81.5 mm up the forearm: the rest placement
-        # and the anchor moved together.
-        self.assertAlmostEqual(numbers(serialized(arm.forearm)[0])[2], -81.5,
-                               places=9)
+        default_centring = numbers(serialized(default_arm.forearm)[0])
+        stretched_centring = numbers(serialized(stretched_arm.forearm)[0])
+        self.assertEqual(default_centring, stretched_centring)
+        self.assertAlmostEqual(default_centring[2], -81.5, places=9)
 
 
 ##############################################
@@ -345,10 +543,28 @@ class NumericHygieneTest(BaseNodeTest):
         operations = serialized(gantry.carriage)
         self.assertEqual([operation[0] for operation in operations],
                          ['t', 'r'])
-        # A quarter turn about z carries the parent-frame x axis into
-        # the carriage's own -y, and the two idle components are the
-        # plain number 0 rather than an expression multiplied by zero.
-        self.assertEqual(operations[0], ['t', ['0', '-120', '0']])
+        # The slide runs along the carriage's OWN x: the quarter turn
+        # the parent applies is a rest operation and does not enter the
+        # joint's own frame at all.
+        self.assertEqual(operations[0], ['t', ['120', '0', '0']])
+
+    def test_the_slides_idle_components_stay_plain_zero(self):
+        """What the old parent-frame test protected, isolated: the two
+        components the slide's own axis does not reach are the plain
+        number 0, not an expression multiplied by zero -- observable
+        only once the bound value is itself symbolic."""
+
+        class SymbolicGantry(Gantry):
+            def simulate(self):
+                self.carriage.travel = self.time * 10
+
+        gantry = SymbolicGantry()
+        gantry.render()
+
+        translation = serialized(gantry.carriage)[0][1]
+        self.assertIn('$t', translation[0])
+        self.assertEqual(translation[1], '0')
+        self.assertEqual(translation[2], '0')
 
     def test_a_prismatic_anchor_changes_nothing(self):
         class Moved(Carriage):
@@ -366,34 +582,67 @@ class NumericHygieneTest(BaseNodeTest):
                          serialized(moved.carriage)[0])
 
     def test_residue_never_reaches_the_document(self):
-        """A rest placement of three quarter turns leaves floating point
-        residue in the inversion; nothing of it is published."""
+        """With no carry left to leave any, the one remaining source of
+        floating-point residue is the normalization of a declared axis:
+        `(0, 0, 3)` publishes `[0, 0, 1]` exactly, and an axis an
+        author's own formula could produce without meaning anything but
+        a unit direction -- `1 / 3 * 3` is `0.9999999999999999` in
+        double precision -- publishes no `e-` and no residue either."""
 
-        class Turned(AssemblyNode):
-            hinge = Hinge()
+        class Scaled(Solid2Node):
+            turn = Revolute(axis=(0, 0, 3), unit='deg')
 
             def render(self):
-                self.hinge.rotate(90, [1, 0, 0])
-                self.hinge.rotate(90, [0, 1, 0])
-                self.hinge.rotate(90, [0, 0, 1])
+                return cube(2, center=True)
 
-            def simulate(self):
-                self.hinge.swing = 20
+        class Formulaic(Solid2Node):
+            turn = Revolute(axis=(1 / 3 * 3, 0, 0), unit='deg')
 
-        turned = Turned()
-        turned.render()
+            def render(self):
+                return cube(2, center=True)
 
-        rotation = [operation for operation in serialized(turned.hinge)
-                    if operation[0] == 'r'][0]
-        for component in rotation[2]:
+        scaled = Scaled()
+        scaled.turn = 40
+        self.assertEqual(list(serialized(scaled)[0][2]), [0, 0, 1])
+
+        formulaic = Formulaic()
+        formulaic.turn = 40
+        axis_components = list(serialized(formulaic)[0][2])
+        self.assertEqual(axis_components, [1, 0, 0])
+        for component in axis_components:
             with self.subTest(component=component):
-                self.assertIn(component, (0, 1, -1))
-        for translation in [operation for operation
-                            in serialized(turned.hinge)[:3]
-                            if operation[0] == 't']:
-            for component in translation[1]:
-                with self.subTest(component=component):
-                    self.assertNotIn('e-', component)
+                self.assertNotIn('e-', str(component))
+
+    def test_an_anchor_is_published_as_written(self):
+        """An anchor is not snapped: it is what the author wrote, not
+        what the axis is. A `3e-17` anchor still omits the centring pair
+        (the module's own `1e-9` zero test), and `81.49999999999999`
+        reaches the document unrounded."""
+
+        class NearZero(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), at=(3e-17, 0, 0), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Unrounded(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), at=(0, 0, 81.49999999999999),
+                            unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        near_zero = NearZero()
+        near_zero.turn = 10
+        self.assertEqual([operation[0] for operation
+                          in serialized(near_zero)], ['r'])
+
+        unrounded = Unrounded()
+        unrounded.turn = 10
+        operations = serialized(unrounded)
+        self.assertEqual([operation[0] for operation in operations],
+                         ['t', 'r', 't'])
+        self.assertEqual(numbers(operations[2]), [0.0, 0.0, 81.49999999999999])
 
 
 ##############################################
@@ -500,6 +749,9 @@ class MotionDisciplineTest(BaseNodeTest):
         self.assertEqual(len(motions(bench.hinge)), 3)
 
     def test_a_binding_outside_any_phase_is_motion_and_untagged(self):
+        # Hinge's `at=(0, 10, 0)` is its own frame's statement now, so
+        # this rest translate no longer cancels it: the joint's run is
+        # the full three operations, innermost, then the rest translate.
         hinge = Hinge()
         hinge.translate([0, 10, 0])
 
@@ -507,8 +759,8 @@ class MotionDisciplineTest(BaseNodeTest):
 
         self.assertIsNone(_phase.current())
         self.assertEqual([operation.serialized[0] for operation
-                          in hinge.operations], ['r', 't'])
-        rotation = hinge.operations[0]
+                          in hinge.operations], ['t', 'r', 't', 't'])
+        rotation = hinge.operations[1]
         self.assertTrue(rotation._motion)
         self.assertFalse(hasattr(rotation, '_animator'))
 
@@ -521,7 +773,10 @@ class MotionDisciplineTest(BaseNodeTest):
 
         _sweep(other)
 
-        self.assertEqual(len(motions(hinge)), 1)
+        # The joint's off-origin anchor makes ONE binding three
+        # operations; what this guards is that a sweep tagged with a
+        # DIFFERENT node drops none of them.
+        self.assertEqual(len(motions(hinge)), 3)
 
     def test_an_untagged_binding_is_replaced_not_accumulated(self):
         hinge = Hinge()
@@ -530,8 +785,10 @@ class MotionDisciplineTest(BaseNodeTest):
         hinge.swing = 45
         hinge.swing = -45
 
-        self.assertEqual(len(motions(hinge)), 1)
-        self.assertEqual(hinge.operations[0].serialized[1], '-45')
+        self.assertEqual(len(motions(hinge)), 3)
+        rotation = [operation for operation in hinge.operations
+                   if operation.serialized[0] == 'r'][0]
+        self.assertEqual(rotation.serialized[1], '-45')
 
     def test_a_joint_bound_by_the_nodes_own_simulate_moves_it(self):
         turning = SelfTurning()
@@ -562,10 +819,10 @@ class MotionDisciplineTest(BaseNodeTest):
 # 1.6b Composition order: several joints on one body
 
 # The rest placement every bench in this section applies, and the pivot
-# anchor stated in the PARENT's frame -- away from the body's placed
-# origin, so the pivot produces three operations and not one.
+# anchor -- stated in the body's OWN frame, away from its own origin, so
+# the pivot produces three operations and not one.
 TWO_FREEDOM_LIFT = [0, 0, 4]
-PIVOT_AT = (0, 30, 0)
+PIVOT_AT = (0, 30, -4)
 
 
 def _translation(vector):
@@ -591,10 +848,10 @@ def _rotation(degrees, axis):
     return matrix
 
 
-def _turn_about(at, degrees, axis, lift):
-    """A revolute's own contribution, in the body's frame: the anchor
-    carried through the inverse of the rest placement `lift`."""
-    anchor = np.array(at, dtype=float) - np.array(lift, dtype=float)
+def _turn_about(at, degrees, axis):
+    """A revolute's own contribution, read directly in the body's own
+    frame: no carry, because there is nothing left to carry through."""
+    anchor = np.array(at, dtype=float)
     return (_translation(anchor) @ _rotation(degrees, axis)
             @ _translation(-anchor))
 
@@ -622,7 +879,7 @@ def _two_freedom_pose(angle, offset):
     """Where `TwoFreedom` lands when the contract holds: the pivot
     innermost, the slide outside it, the rest placement outside both."""
     return (_translation(TWO_FREEDOM_LIFT) @ _translation((0, offset, 0))
-            @ _turn_about(PIVOT_AT, angle, (0, 0, 1), TWO_FREEDOM_LIFT))
+            @ _turn_about(PIVOT_AT, angle, (0, 0, 1)))
 
 
 class PivotFirstBench(AssemblyNode):
@@ -654,8 +911,8 @@ class SlideFirstBench(PivotFirstBench):
 # the solver reaches them in is the only thing that could decide the
 # composition.
 DISK_LIFT = [0, 0, 6]
-SPIN_AT = (0, 0, 26)
-ORBIT_AT = (0, 0, 0)
+SPIN_AT = (0, 0, 20)
+ORBIT_AT = (0, 0, -6)
 
 
 class Disk(Solid2Node):
@@ -699,9 +956,9 @@ class CycloidalSwapped(AssemblyNode):
 # Inheritance: a base declaring `a` then `b`, a subclass declaring `c`
 # and redeclaring `a` at a different anchor.
 THREE_LIFT = [0, 0, 4]
-BASE_A_AT = (0, 30, 0)
-SUB_A_AT = (0, 50, 0)
-C_AT = (0, 0, 10)
+BASE_A_AT = (0, 30, -4)
+SUB_A_AT = (0, 50, -4)
+C_AT = (0, 0, 6)
 
 
 class ThreeBase(Solid2Node):
@@ -776,7 +1033,7 @@ class ThreeSlot(Solid2Node):
     the contiguity guard the stacked cycles rely on."""
 
     lift = Prismatic(axis=(0, 0, 1), unit='mm')
-    swing = Revolute(axis=(0, 0, 1), at=(0, 30, 0), unit='deg')
+    swing = Revolute(axis=(0, 0, 1), at=(0, 30, -4), unit='deg')
     twist = Revolute(axis=(0, 1, 0), unit='deg')
 
     def render(self):
@@ -822,7 +1079,7 @@ class BothSidesBench(AssemblyNode):
 # over "the operations a joint's placement produces", a contiguous run
 # of ANY length; an `Orbit` is the first joint whose run is one.
 SPUN_LIFT = [0.0, -2.5, 0.0]
-SPUN_SPIN_AT = (3.0, -2.5, 0.0)
+SPUN_SPIN_AT = (3.0, 0.0, 0.0)
 
 
 class SpunAndCarried(Solid2Node):
@@ -833,7 +1090,11 @@ class SpunAndCarried(Solid2Node):
     fails loudly if they ever do."""
 
     spin = Revolute(axis=(0, 0, 1), at=SPUN_SPIN_AT, unit='deg')
-    carry = Orbit(axis=(0, 0, 1), unit='deg')
+    # `at` is the OWN-FRAME point that lands on the world's origin once
+    # `render()` applies `SPUN_LIFT` -- the parent's axis, restated in
+    # this body's own frame so the fixture's world-frame line is
+    # unchanged; `carries` keeps its default, the disk's own origin.
+    carry = Orbit(axis=(0, 0, 1), at=(0, 2.5, 0), unit='deg')
 
     def render(self):
         return cube(2, center=True)
@@ -846,7 +1107,7 @@ def _spun_and_carried_pose(angle, carry):
     return (_translation(SPUN_LIFT)
             @ _translation(_orbit_delta((0, 0, 1), (0, 0, 0),
                                         SPUN_LIFT, carry))
-            @ _turn_about(SPUN_SPIN_AT, angle, (0, 0, 1), SPUN_LIFT))
+            @ _turn_about(SPUN_SPIN_AT, angle, (0, 0, 1)))
 
 
 class SpinFirstBench(AssemblyNode):
@@ -878,8 +1139,13 @@ class SlideSwingCarry(Solid2Node):
     contiguity case cycle 1's task 1.8 wrote the guard for."""
 
     lift = Prismatic(axis=(0, 0, 1), unit='mm')
-    swing = Revolute(axis=(0, 0, 1), at=(0, 30, 0), unit='deg')
-    carry = Orbit(axis=(0, 1, 0), unit='deg')
+    swing = Revolute(axis=(0, 0, 1), at=(0, 30, -4), unit='deg')
+    # `at`, own-frame, is the point that lands on the world's origin
+    # once `render()` translates by `[0, 0, 4]`; `carries` keeps its
+    # default, the disk's own origin -- the same nonzero radius the
+    # fixture always had, now stated rather than inherited by accident
+    # of the rest placement.
+    carry = Orbit(axis=(0, 1, 0), at=(0, 0, -4), unit='deg')
 
     def render(self):
         return cube(2, center=True)
@@ -909,7 +1175,7 @@ class OrbitContiguityBench(AssemblyNode):
 # operations. `Free` is declared here rather than in the free joint's
 # own section because these are cycle 1's fixtures.
 STACK_LIFT = [0.0, 0.0, 4.0]
-STACK_SPIN_AT = (0.0, 30.0, 0.0)
+STACK_SPIN_AT = (0.0, 30.0, -4.0)
 
 
 class SlideFloatSpin(Solid2Node):
@@ -929,9 +1195,8 @@ def _slide_float_spin_pose(offset, roll, yaw, height, angle):
     innermost, the free joint's whole run next, the revolute outside
     both, the rest placement outside everything."""
     return (_translation(STACK_LIFT)
-            @ _turn_about(STACK_SPIN_AT, angle, (0, 0, 1), STACK_LIFT)
-            @ _free_local(roll, 0.0, yaw, (0.0, 0.0, height),
-                          lift=STACK_LIFT)
+            @ _turn_about(STACK_SPIN_AT, angle, (0, 0, 1))
+            @ _free_pose(roll, 0.0, yaw, (0.0, 0.0, height))
             @ _translation((offset, 0, 0)))
 
 
@@ -971,7 +1236,10 @@ class FloatAndCarry(Solid2Node):
     run."""
 
     pose = Free(angle_unit='deg', length_unit='mm')
-    carry = Orbit(axis=(0, 0, 1), unit='deg')
+    # Own-frame `at`, the point that lands on the world's origin once
+    # `render()` translates by `SPUN_LIFT` -- the same nonzero radius as
+    # `SpunAndCarried.carry`, stated rather than inherited by accident.
+    carry = Orbit(axis=(0, 0, 1), at=(0, 2.5, 0), unit='deg')
 
     def render(self):
         return cube(2, center=True)
@@ -995,7 +1263,7 @@ class CompositionOrderTest(BaseNodeTest):
     innermost first, whatever order they are bound in."""
 
     def test_the_fixture_joints_do_not_commute(self):
-        pivot = _turn_about(PIVOT_AT, 35, (0, 0, 1), TWO_FREEDOM_LIFT)
+        pivot = _turn_about(PIVOT_AT, 35, (0, 0, 1))
         slide = _translation((0, 12, 0))
 
         self.assertFalse(np.allclose(slide @ pivot, pivot @ slide))
@@ -1025,8 +1293,8 @@ class CompositionOrderTest(BaseNodeTest):
         swapped.set_state(shaft=40)
 
         expected = (_translation(DISK_LIFT)
-                    @ _turn_about(ORBIT_AT, 40, (0, 1, 0), DISK_LIFT)
-                    @ _turn_about(SPIN_AT, -20, (0, 1, 0), DISK_LIFT))
+                    @ _turn_about(ORBIT_AT, 40, (0, 1, 0))
+                    @ _turn_about(SPIN_AT, -20, (0, 1, 0)))
         self.assertEqual(serialized(machine.disk), serialized(swapped.disk))
         for node in (machine.disk, swapped.disk):
             with self.subTest(node=node.__class__.__name__):
@@ -1060,9 +1328,9 @@ class CompositionOrderTest(BaseNodeTest):
         body.a = 35
 
         expected = (_translation(THREE_LIFT)
-                    @ _turn_about(C_AT, 15, (1, 0, 0), THREE_LIFT)
+                    @ _turn_about(C_AT, 15, (1, 0, 0))
                     @ _translation((0, 12, 0))
-                    @ _turn_about(SUB_A_AT, 35, (0, 0, 1), THREE_LIFT))
+                    @ _turn_about(SUB_A_AT, 35, (0, 0, 1)))
         assert_allclose(_compose_world_matrix(body), expected, atol=1e-12)
 
     def test_a_reversed_application_order_across_a_sweep_changes_nothing(self):
@@ -1105,8 +1373,12 @@ class CompositionOrderTest(BaseNodeTest):
         bench.render()
         body = bench.body
 
+        # lift (1 op), swing's off-origin anchor (3), twist's DEFAULT
+        # anchor -- genuinely the body's own origin now, with nothing to
+        # carry it off zero (1), the hand-written rotate (1), the rest
+        # placement (1).
         self.assertEqual([operation[0] for operation in serialized(body)],
-                         ['t', 't', 'r', 't', 't', 'r', 't', 'r', 't'])
+                         ['t', 't', 'r', 't', 'r', 'r', 't'])
         run = body.__dict__['_joint_motion']['swing']
         self.assertEqual(len(run), 3)
         index = body.operations.index(run[0])
@@ -1173,7 +1445,7 @@ class CompositionOrderTest(BaseNodeTest):
                                 rtol=0, atol=1e-9)
 
     def test_the_two_joints_of_the_orbit_fixture_do_not_commute(self):
-        spin = _turn_about(SPUN_SPIN_AT, 35, (0, 0, 1), SPUN_LIFT)
+        spin = _turn_about(SPUN_SPIN_AT, 35, (0, 0, 1))
         carry = _translation(_orbit_delta((0, 0, 1), (0, 0, 0), SPUN_LIFT, 40))
 
         self.assertFalse(np.allclose(carry @ spin, spin @ carry))
@@ -1225,17 +1497,19 @@ class CompositionOrderTest(BaseNodeTest):
         bench.render()
         body = bench.body
 
-        # slide (1) | pose (5) | spin (3) | the rest placement.
+        # slide (1) | pose (3: roll, yaw, z -- its default anchor is
+        # genuinely the body's own origin, pitch unbound and skipped, so
+        # no centring pair) | spin (3) | the rest placement.
         self.assertEqual([operation[0] for operation in serialized(body)],
                          ['t',
-                          't', 'r', 'r', 't', 't',
+                          'r', 'r', 't',
                           't', 'r', 't',
                           't'])
         run = body.__dict__['_joint_motion']['pose']
-        self.assertEqual(len(run), 5)
+        self.assertEqual(len(run), 3)
         index = body.operations.index(run[0])
         self.assertEqual(index, 1)
-        self.assertEqual(body.operations[index:index + 5], run)
+        self.assertEqual(body.operations[index:index + 3], run)
         assert_allclose(_compose_world_matrix(body),
                         _slide_float_spin_pose(12, 15, 25, 60, 35),
                         rtol=0, atol=1e-12)
@@ -1249,18 +1523,18 @@ class CompositionOrderTest(BaseNodeTest):
 
         self.assertEqual([operation[0] for operation in serialized(body)],
                          ['t',
-                          't', 'r', 'r', 't', 't',
+                          'r', 'r', 't',
                           't', 'r', 't',
                           'r',
                           't'])
         run = body.__dict__['_joint_motion']['pose']
         index = body.operations.index(run[0])
-        self.assertEqual(body.operations[index:index + 5], run)
-        self.assertEqual(body.operations[9].serialized[1], '7')
-        self.assertFalse(getattr(body.operations[10], '_motion', False))
+        self.assertEqual(body.operations[index:index + 3], run)
+        self.assertEqual(body.operations[7].serialized[1], '7')
+        self.assertFalse(getattr(body.operations[8], '_motion', False))
         # The joint block is the same one the uninterrupted bench built.
-        self.assertEqual(serialized(body)[:9],
-                         serialized(scrambled.body)[:9])
+        self.assertEqual(serialized(body)[:7],
+                         serialized(scrambled.body)[:7])
 
     def test_re_binding_one_coordinate_returns_the_whole_run_to_its_slot(self):
         body = SlideFloatSpin()
@@ -1275,13 +1549,13 @@ class CompositionOrderTest(BaseNodeTest):
 
         self.assertEqual([operation[0] for operation in serialized(body)],
                          ['t',
-                          't', 'r', 'r', 't', 't',
+                          'r', 'r', 't',
                           't', 'r', 't',
                           't'])
-        self.assertEqual(len(body.__dict__['_joint_motion']['pose']), 5)
+        self.assertEqual(len(body.__dict__['_joint_motion']['pose']), 3)
         self.assertEqual(len(body.__dict__['_joint_motion']['slide']), 1)
         self.assertEqual(len(body.__dict__['_joint_motion']['spin']), 3)
-        self.assertEqual(len(motions(body)), 9)
+        self.assertEqual(len(motions(body)), 7)
         assert_allclose(_compose_world_matrix(body),
                         _slide_float_spin_pose(12, -40, 25, 60, 35),
                         rtol=0, atol=1e-12)
@@ -1291,22 +1565,22 @@ class CompositionOrderTest(BaseNodeTest):
         bench.render()
         body = bench.body
 
-        # pose (4: the centring pair, one rotation, one translation)
-        # then the orbit's single translation, then the rest placement.
+        # pose (2: one rotation, one translation -- its default anchor is
+        # genuinely the body's own origin now, so no centring pair) then
+        # the orbit's single translation, then the rest placement.
         self.assertEqual([operation[0] for operation in serialized(body)],
-                         ['t', 'r', 't', 't', 't', 't'])
+                         ['r', 't', 't', 't'])
         run = body.__dict__['_joint_motion']['pose']
-        self.assertEqual(len(run), 4)
+        self.assertEqual(len(run), 2)
         self.assertEqual(body.operations.index(run[0]), 0)
         self.assertEqual(len(body.__dict__['_joint_motion']['carry']), 1)
         self.assertEqual(body.operations.index(
-            body.__dict__['_joint_motion']['carry'][0]), 4)
+            body.__dict__['_joint_motion']['carry'][0]), 2)
 
         expected = (_translation(SPUN_LIFT)
                     @ _translation(_orbit_delta((0, 0, 1), (0, 0, 0),
                                                 SPUN_LIFT, 40))
-                    @ _free_local(0.0, 0.0, 25.0, (0.0, 0.0, 60.0),
-                                  lift=SPUN_LIFT))
+                    @ _free_pose(0.0, 0.0, 25.0, (0.0, 0.0, 60.0)))
         assert_allclose(_compose_world_matrix(body), expected,
                         rtol=0, atol=1e-9)
 
@@ -1355,6 +1629,15 @@ DISK_1_BORE_CENTRE = tuple(
 DISK_1_BORE_CENTRE_RECORDED = (0.3783, -5.25, 1.9639)
 DISK_1_BORE_CENTRE_QUOTED = (0.378316, -5.25, 1.963896)
 
+#: The own-frame point of a disk placed by `rotate(DISK_REST_ANGLE,
+#: [0, 1, 0])` then `translate(DISK_REST_TRANSLATION)` that lands on the
+#: WORLD's origin -- the actuator axis, restated where `at` must state
+#: it now that nothing carries a declared `(0, 0, 0)` there for free.
+#: `R(-angle) . (-t)`, the inverse of the rest placement applied to the
+#: world origin.
+DISK_AXIS_POINT = tuple(
+    -value for value in _rotate_y(DISK_REST_TRANSLATION, -DISK_REST_ANGLE))
+
 # Where an orbit is read: 0 and 360 are the identity, 90 is where
 # `cos` is 6.1e-17 rather than 0 in IEEE double, and 17 and 213.5 are
 # ordinary angles in two different quadrants.
@@ -1382,9 +1665,13 @@ def _rest_matrix(node):
 
 
 class CarriedDisk(Solid2Node):
-    """The default carried point: the body's own placed origin."""
+    """The default CARRIED point: the body's own placed origin. `at` is
+    own-frame, `(0, 2.5, 0)`, the point that lands on the world's
+    origin once the fixture's own `translate(ORBIT_LIFT)` is applied --
+    the actuator's axis, restated where the body's own frame states
+    it."""
 
-    orbit = Orbit(axis=(0, 0, 1), unit='deg')
+    orbit = Orbit(axis=(0, 0, 1), at=(0, 2.5, 0), unit='deg')
 
     def render(self):
         return cube(2, center=True)
@@ -1392,9 +1679,14 @@ class CarriedDisk(Solid2Node):
 
 class BoredDisk(Solid2Node):
     """The actuator's disk: a rest placement with a non-trivial rotation
-    part, and a carried point that is NOT the body's placed origin."""
+    part, and a carried point -- the bore, in the disk's OWN frame --
+    that is NOT the body's own origin. `at`, own-frame, is the point
+    that lands on the world's origin once the fixture's own rest
+    rotation and translation are applied -- the line the ORBIT_FIXTURES
+    entry states as `(0, 0, 0)` in the world, restated here directly."""
 
-    orbit = Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE, unit='deg')
+    orbit = Orbit(axis=(0, 1, 0), at=DISK_AXIS_POINT,
+                 carries=BORE_AXIS_POINT, unit='deg')
 
     def render(self):
         return cube(2, center=True)
@@ -1414,8 +1706,10 @@ def _bored_disk():
 
 
 # The two fixtures, with the axis, anchor and carried point each states
-# in the PARENT's frame, so a test can compute by hand what the joint
-# must do.
+# in the WORLD frame (the disk's rest placement being the identity for
+# the first and a real rotation and translation for the second), so a
+# test can compute by hand what the joint must do independently of how
+# each disk's own declaration states the same physical line and point.
 ORBIT_FIXTURES = (
     ('the placed origin, carried', _carried_disk, (0, 0, 1), (0, 0, 0),
      tuple(ORBIT_LIFT)),
@@ -1442,6 +1736,64 @@ class OrbitTest(BaseNodeTest):
       and the tolerance is stated here rather than discovered by
       loosening a failing zero.
     """
+
+    def test_carries_defaults_to_the_own_origin_and_resolves_early(self):
+        """`carries` left unstated resolves to `(0, 0, 0)` -- the body's
+        own origin -- at realization, before the body is placed, exactly
+        like any other defaulted vector: no sentinel, no reading of the
+        placement."""
+
+        class Disk(Solid2Node):
+            orbit = Orbit(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        disk = Disk()
+
+        self.assertEqual(Disk.orbit.arguments(disk)[3], (0.0, 0.0, 0.0))
+
+    def test_an_orbit_is_stated_in_the_bodys_own_frame(self):
+        """A disk declaring `Orbit(axis=(0, 0, 1), at=(0, 2.5, 0))` with
+        no `carries`: its own origin travels the circle its OWN frame
+        states, wherever its parent places it."""
+
+        class Disk(Solid2Node):
+            orbit = Orbit(axis=(0, 0, 1), at=(0, 2.5, 0), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            disk = Disk()
+
+            def render(self):
+                self.disk.rotate(35, [1, 0, 0]).translate([12, -8, 4])
+
+            def simulate(self):
+                self.disk.orbit = 90
+
+        carrier = Carrier()
+        carrier.render()
+
+        # Built independently of the framework's own operations list,
+        # which by now also carries the bound orbit motion: the rest
+        # placement `Carrier.render()` applies, and nothing else.
+        rest = _translation([12, -8, 4]) @ _rotation(35, [1, 0, 0])
+        composed = _compose_world_matrix(carrier.disk)
+        # The attitude is untouched, whatever the parent did.
+        assert_allclose(composed[:3, :3], rest[:3, :3], rtol=0, atol=0)
+        # And the disk's own origin has travelled a quarter of the
+        # circle of radius 2.5 about the line ITS OWN frame states --
+        # not about a line the parent's placement would carry it to.
+        # The delta is a displacement, computed in the disk's own frame;
+        # comparing it against the WORLD-frame displacement means
+        # turning it by the rest placement's own rotation block.
+        local_delta = _orbit_delta((0, 0, 1), (0, 2.5, 0), (0, 0, 0), 90)
+        expected_delta = rest[:3, :3] @ local_delta
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        moved = composed @ origin - rest @ origin
+        assert_allclose(moved[:3], expected_delta, rtol=0, atol=1e-9)
 
     def test_the_attitude_is_exactly_untouched(self):
         for label, factory, axis, at, carried in ORBIT_FIXTURES:
@@ -1506,15 +1858,22 @@ class OrbitTest(BaseNodeTest):
             def render(self):
                 return cube(2, center=True)
 
+        # Own-frame `at`: the point that lands on the world's origin
+        # once this body's own rest rotation and translation are
+        # applied -- the same actuator-axis point `BoredDisk` uses.
+        TURNED_AT = DISK_AXIS_POINT
+
         class DefaultTurned(Solid2Node):
-            orbit = Orbit(axis=(0, 1, 0), unit='deg')
+            orbit = Orbit(axis=(0, 1, 0), at=TURNED_AT, unit='deg')
 
             def render(self):
                 return cube(2, center=True)
 
         class StatedTurned(Solid2Node):
-            orbit = Orbit(axis=(0, 1, 0), carries=DISK_REST_TRANSLATION,
-                          unit='deg')
+            # `carries=(0, 0, 0)`, own-frame: the SAME point the default
+            # resolves to -- the body's own origin -- written out.
+            orbit = Orbit(axis=(0, 1, 0), at=TURNED_AT,
+                          carries=(0.0, 0.0, 0.0), unit='deg')
 
             def render(self):
                 return cube(2, center=True)
@@ -1553,7 +1912,9 @@ class OrbitTest(BaseNodeTest):
 
     def test_the_anchor_may_be_any_point_of_the_line(self):
         class Raised(Solid2Node):
-            orbit = Orbit(axis=(0, 0, 1), at=(0, 0, 40), unit='deg')
+            # `(0, 2.5, 40)`: the same own-frame LINE `CarriedDisk`
+            # states -- `x=0, y=2.5` -- at a different point along it.
+            orbit = Orbit(axis=(0, 0, 1), at=(0, 2.5, 40), unit='deg')
 
             def render(self):
                 return cube(2, center=True)
@@ -1589,10 +1950,12 @@ class OrbitTest(BaseNodeTest):
             rod.orbit = 30
 
         message = str(raised.exception)
-        # The axis and the anchor read as the framework's own snapped
-        # exact values, which is what the document carries too.
+        # The axis reads as the framework's own snapped exact value; the
+        # anchor and the carried point are NOT snapped -- they are what
+        # the author wrote (here, both the class-declared default) --
+        # and both read as the same floats.
         for expected in ('ConRod', 'orbit', 'carries',
-                         '(1, 0, 0)', '(0, 0, 0)', '(0.0, 0.0, 0.0)', '0.0'):
+                         '(1, 0, 0)', '(0.0, 0.0, 0.0)', '0.0'):
             with self.subTest(expected=expected):
                 self.assertIn(expected, message)
         self.assertEqual(motions(rod), [])
@@ -1758,13 +2121,13 @@ class OrbitTest(BaseNodeTest):
         behaviour on this kind."""
 
         class Limited(Solid2Node):
-            orbit = Orbit(axis=(0, 0, 1), range=(-90, 90), unit='deg')
+            orbit = Orbit(axis=(0, 0, 1), at=(0, 2.5, 0), range=(-90, 90),
+                         unit='deg')
 
             def render(self):
                 return cube(2, center=True)
 
         limited = Limited()
-        limited.translate(ORBIT_LIFT)
 
         with self.assertRaises(JointRangeError) as raised:
             limited.orbit = 170
@@ -1831,11 +2194,18 @@ class ProjectAlgebraTest(BaseNodeTest):
         class CycloidalDisk(Solid2Node):
             # Declaration order IS composition order (ADR-093): the
             # spin is innermost, about the disk's own bore, and the
-            # orbit carries that bore round the actuator axis.
-            spin = Revolute(axis=(0, 1, 0), at=DISK_1_BORE_CENTRE,
+            # orbit carries that bore round the actuator axis. Both are
+            # stated in the disk's OWN frame -- the project's own spec
+            # literal, BORE_AXIS_POINT -- rather than the rest-placement
+            # -derived DISK_1_BORE_CENTRE the two forms below reconcile.
+            spin = Revolute(axis=(0, 1, 0), at=BORE_AXIS_POINT,
                             unit='deg')
-            orbit = Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE,
-                          unit='deg')
+            # `at`, own-frame: the actuator axis passes through the
+            # world's origin, restated as the point that lands there
+            # once this disk's own rest placement is applied.
+            orbit = Orbit(axis=(0, 1, 0),
+                          at=DISK_AXIS_POINT,
+                          carries=BORE_AXIS_POINT, unit='deg')
 
             def render(self):
                 return cube(2, center=True)
@@ -2067,16 +2437,18 @@ class ReversedFloatingBench(FloatingBench):
 
 
 # The anchored case: a body its parent DOES place, by a rotation and a
-# translation, so the rest placement has a non-trivial rotation part and
-# both the anchor and the three directions ride the inversion.
+# translation, so a reader can tell the joint's own rest frame from the
+# parent's -- and the anchor rides neither: it is read exactly as
+# declared, with nothing carried in from either.
 ANCHOR_TILT = 25.0
 ANCHOR_LIFT = [0.0, 12.0, 4.0]
 FREE_AT = (0.0, 30.0, 5.0)
 
 
 class AnchoredFloat(Solid2Node):
-    """A free joint whose rotations pass through a point of the parent's
-    frame that is not the body's placed origin."""
+    """A free joint whose rotations pass through a point of the body's
+    OWN rest frame that is not its own origin -- stated directly, and
+    unaffected by whatever its parent's `render()` does to place it."""
 
     pose = Free(at=FREE_AT, angle_unit='deg', length_unit='mm')
 
@@ -2123,29 +2495,18 @@ def _anchored_rest():
     return _translation(ANCHOR_LIFT) @ _rotation(ANCHOR_TILT, (1, 0, 0))
 
 
-def _free_pose(roll, pitch, yaw, offset, anchor=(0.0, 0.0, 0.0),
-               rest=None):
-    """Where a body placed by a `Free` lands.
-
-    The composition is stated in the PARENT's frame -- three rotations
-    about that frame's own directions through the anchor, then the
-    offset -- and the body's rest placement is what the whole of it is
-    composed outside of. As an application order, innermost first, that
-    is `R(roll, x) . R(pitch, y) . R(yaw, z) . T(offset)`.
+def _free_pose(roll, pitch, yaw, offset, anchor=(0.0, 0.0, 0.0)):
+    """A free joint's own contribution, read directly in the declaring
+    body's own rest frame: three rotations about that frame's FIXED
+    directions through the anchor, then the offset along those same
+    directions -- nothing carried in from the parent's frame, and
+    nothing of the body's rest placement composed in here. As an
+    application order, innermost first, that is
+    `R(roll, x) . R(pitch, y) . R(yaw, z) . T(offset)`; a caller
+    composes the body's rest placement OUTSIDE this, by hand, exactly as
+    it would for any other joint's own contribution.
     """
-    rest = np.eye(4) if rest is None else rest
     anchor = np.array(anchor, dtype=float)
-    return (_translation(offset) @ _translation(anchor)
-            @ _rotation(yaw, (0, 0, 1)) @ _rotation(pitch, (0, 1, 0))
-            @ _rotation(roll, (1, 0, 0)) @ _translation(-anchor) @ rest)
-
-
-def _free_local(roll, pitch, yaw, offset, at=(0.0, 0.0, 0.0),
-                lift=(0.0, 0.0, 0.0)):
-    """A free joint's own contribution in the BODY's frame, for a body
-    whose rest placement is the pure translation `lift`: the anchor
-    carried by subtracting it, the three directions unchanged."""
-    anchor = np.array(at, dtype=float) - np.array(lift, dtype=float)
     return (_translation(offset) @ _translation(anchor)
             @ _rotation(yaw, (0, 0, 1)) @ _rotation(pitch, (0, 1, 0))
             @ _rotation(roll, (1, 0, 0)) @ _translation(-anchor))
@@ -2245,7 +2606,13 @@ class FreeJointTest(BaseNodeTest):
                 assert_allclose(placed, expected, rtol=0, atol=1e-12)
         self.assertLess(worst, 1e-12)
 
-    def test_the_anchored_composition_is_the_same_product_conjugated(self):
+    def test_the_anchored_composition_is_read_in_the_bodys_own_frame(self):
+        """The rest placement AnchoredBench.render() applies -- a real
+        rotation and a real translation -- composes OUTSIDE the joint's
+        own contribution, and does not enter it: the anchor and the
+        three directions are exactly `FREE_AT` and the frame's own axes,
+        with nothing conjugated through the rest placement to get
+        there."""
         rest = _anchored_rest()
         worst = 0.0
         for roll, pitch, yaw, height in FREE_POSES:
@@ -2259,8 +2626,8 @@ class FreeJointTest(BaseNodeTest):
                 body.pose.z = height
 
                 placed = _compose_world_matrix(body)
-                expected = _free_pose(roll, pitch, yaw, (0.0, 0.0, height),
-                                      anchor=FREE_AT, rest=rest)
+                expected = rest @ _free_pose(
+                    roll, pitch, yaw, (0.0, 0.0, height), anchor=FREE_AT)
                 worst = max(worst,
                             float(np.max(np.abs(placed - expected))))
                 assert_allclose(placed, expected, rtol=0, atol=1e-12)
@@ -2397,6 +2764,98 @@ class FreeJointTest(BaseNodeTest):
         self.assertEqual(len(motions(chassis)), 4)
 
     ##############################################
+    # 1.8b The three directions are the body's own
+
+    def test_the_three_directions_are_the_bodys_own_as_literals(self):
+        """A `Free` on a body its parent ROTATES: the published
+        rotations carry the frame's own three literal directions
+        exactly, unaffected by whatever the parent did."""
+
+        class Loose(Solid2Node):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Tilted(AssemblyNode):
+            body = Loose()
+
+            def render(self):
+                self.body.rotate(37, [0, 1, 0]).rotate(52, [1, 0, 0])
+
+            def simulate(self):
+                self.body.pose.roll = 10.0
+                self.body.pose.pitch = 20.0
+                self.body.pose.yaw = 30.0
+
+        tilted = Tilted()
+        tilted.render()
+
+        rotations = [operation for operation in serialized(tilted.body)
+                    if operation[0] == 'r'][:3]
+        axes = [list(operation[2]) for operation in rotations]
+        self.assertEqual(axes, [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+
+    def test_a_floating_body_floats_along_its_own_axes(self):
+        """A bound `x`, on a body whose rest placement is a rotation:
+        the translation runs along the body's own rest-frame x, not
+        along whatever the rotated body's parent would call x."""
+
+        class Loose(Solid2Node):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Tilted(AssemblyNode):
+            body = Loose()
+
+            def render(self):
+                self.body.rotate(90, [0, 0, 1])
+
+            def simulate(self):
+                self.body.pose.yaw = 40.0
+                self.body.pose.x = 12.0
+
+        tilted = Tilted()
+        tilted.render()
+
+        translation = [operation for operation in serialized(tilted.body)
+                       if operation[0] == 't'][0]
+        self.assertEqual(translation[1][0], '12.0')
+        self.assertEqual(translation[1][1], '0')
+        self.assertEqual(translation[1][2], '0')
+
+    def test_a_defaulted_free_joint_on_a_translated_body_emits_no_centring(
+            self):
+        """The silent case, isolated: a `Free` with no `at` on a body
+        its parent TRANSLATES turns about the body's OWN origin, not the
+        parent's -- so it emits no centring pair at all, where the old
+        parent-frame reading would have carried a nonzero local anchor
+        and emitted one."""
+
+        class Loose(Solid2Node):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Carried(AssemblyNode):
+            body = Loose()
+
+            def render(self):
+                self.body.translate([15, -8, 3])
+
+            def simulate(self):
+                self.body.pose.yaw = 40.0
+
+        carried = Carried()
+        carried.render()
+
+        self.assertEqual([operation[0] for operation
+                          in serialized(carried.body)], ['r', 't'])
+
+    ##############################################
     # 1.9 The anchor
 
     def test_an_anchored_free_joint_turns_about_its_anchor(self):
@@ -2416,12 +2875,12 @@ class FreeJointTest(BaseNodeTest):
                          ['r', 'r'])
 
         assert_allclose(_compose_world_matrix(anchored.body),
-                        _free_pose(0.0, 0.0, 40.0, (0.0, 0.0, 0.0),
-                                   anchor=FREE_AT, rest=_anchored_rest()),
+                        _anchored_rest() @ _free_pose(
+                            0.0, 0.0, 40.0, (0.0, 0.0, 0.0), anchor=FREE_AT),
                         rtol=0, atol=1e-12)
         assert_allclose(_compose_world_matrix(plain.body),
-                        _free_pose(0.0, 0.0, 40.0, (0.0, 0.0, 0.0),
-                                   rest=_rotation(ANCHOR_TILT, (1, 0, 0))),
+                        _rotation(ANCHOR_TILT, (1, 0, 0))
+                        @ _free_pose(0.0, 0.0, 40.0, (0.0, 0.0, 0.0)),
                         rtol=0, atol=1e-12)
         # The anchored body's own placed origin stands off the line and
         # travels; the plain one's IS on it and does not.
@@ -2712,14 +3171,27 @@ class ArgumentResolutionTest(BaseNodeTest):
         self.assertEqual(len(calls), 1)
 
     def test_each_arbor_is_anchored_on_its_own_built_position(self):
+        """`turn` needs no anchor at all now (the bearing IS the placed
+        origin), but `pin` still does: a genuinely off-origin point read
+        off the arbor's own built object, different per instance, which
+        is exactly the callable-argument case this coverage is for."""
         stack = ArborStack()
         stack.set_state(rotation=30)
 
-        # Each arbor's own placement puts its bearing at its origin, so
-        # the carry leaves nothing to centre.
         for arbor in stack.arbors:
-            self.assertEqual([operation.serialized[0] for operation
-                              in arbor.operations][:1], ['r'])
+            with self.subTest(arbor=arbor.name):
+                self.assertEqual([operation.serialized[0] for operation
+                                  in arbor.operations][:1], ['r'])
+
+        for arbor in stack.arbors:
+            with self.subTest(arbor=arbor.name):
+                arbor.pin = 20
+                run = arbor.__dict__['_joint_motion']['pin']
+                self.assertEqual([operation.serialized[0]
+                                  for operation in run], ['t', 'r', 't'])
+                expected = arbor.built.pin[arbor.index]
+                self.assertAlmostEqual(numbers(run[0].serialized)[1],
+                                       -expected[1], places=9)
 
     def test_an_undeclared_token_fails_at_realization(self):
         elsewhere = Length(5.0)

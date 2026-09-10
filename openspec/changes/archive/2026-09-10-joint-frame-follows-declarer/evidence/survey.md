@@ -382,3 +382,68 @@ this finding and two are made worse by it.
 | `3D-Printers/fender-bender` | 5 (2 ready, 3 blocked) | fixes one of three blockers — `Channel.tilt`'s per-copy own origin, which its proposal spells `at=OWN_PLACED_ORIGIN`. Still deferred on composition order (done) and fan-out (cycle 1). |
 | `Vibecoded-demos/abacus` | 1 (`Bead.travel`, 35-45 copies) | neutral on the anchor (a `Prismatic`), but **rewrites the axis** `(0,1,0)` → `(0,0,1)` — the bore axis the bead's own `render()` builds about, which the proposal calls the honest spelling for "a class that has no idea which way its column points". Still deferred on fan-out. |
 | `Actuators/OpenCycloid` | 11 | **the worst case in the catalogue.** Both disks' `orbit`, `RadialBearing.orbit` (4 copies at ±2.5 mm) and `Pin.orbit` (27 copies on a 20 mm circle) all rely today on the default `at` meaning the drive axis; the proposal states that reliance in writing (`proposal.md:97-99, 304-312`). Under the new rule each would orbit about its own origin, i.e. not move. Both disks' `spin`, by contrast, is IMPROVED — the proposal's whole "move the 2.5 mm eccentricity from `simulate()` into `render()`" manoeuvre exists only to manufacture what the rule gives directly. Since the project is deferred and unimplemented, nothing regresses; its stage-B proposal must be re-cut against the new rule, and its `.repeat()` copies get their per-copy anchors from cycle 1's `index`. |
+
+## 5. Addendum: OpenCycloid reached stage B mid-cycle (2026-09-10)
+
+Row 384 above surveyed OpenCycloid as one of "the deferred five" through
+its reviewed *proposal*. While this cycle's tasks were being implemented,
+OpenCycloid's own stage B landed on solid-node main d07b14c (commit
+47a2a16), moving it onto joints and couplings for real. Added here as
+survey evidence for a 24th SURVEYED project, from the actual tree rather
+than the proposal; the totals in §Totals above are NOT rewritten, since
+they are the planning commit's own count and this project was not yet
+built when they were taken.
+
+Read off `simulation/printed.py` and `simulation/hardware.py`:
+
+| where | joints | today | under the new rule |
+|---|---|---|---|
+| `EccentricBearingShaft.spin`, `MagnetHolder.spin`, `MotorCoupler.spin`, `OutputCarrier.spin`, `OutputHub.spin` | 5 `Revolute`s, no anchor | on bodies the parent does not translate off the axis | `OWN-ORIGIN-ALREADY` — no change |
+| `CycloidalDiskStageOne.spin`, `CycloidalDiskStageTwo.spin` | 2 `Revolute`s | `at=(0.0, ∓ECCENTRIC_RADIUS, 0.0)` — an explicit own-frame-shaped anchor the project's own commit message flags as written before `Orbit` existed | `RESTATES`: `CycloidalDrive.render()` translates each disk by exactly `(0.0, ∓ECCENTRIC_RADIUS, 0.0)`, so the anchor is deleted (own origin, the eccentricity moving to the paired `orbit` below) |
+| `CycloidalDiskStageOne.orbit`, `CycloidalDiskStageTwo.orbit` | 2 `Orbit`s, `at` and `carries` both defaulted | today's default `at` reads as the PARENT's origin (the actuator axis) under the old rule — correct by the accident this whole cycle removes | `PARENT-KNOWLEDGE-IN-SUBSTANCE`, but NOT a hand-inversion case: `ECCENTRIC_RADIUS` is already the project's own named constant for exactly this own-frame offset (parity with the Internal Cycloidal Actuator's `BORE_AXIS_POINT` finding, §1 above) — `at=(0.0, ±ECCENTRIC_RADIUS, 0.0)`, **the OPPOSITE sign from each disk's own placement translate** (`CycloidalDrive.render()` translates `stage_one` by `(0, -ECCENTRIC_RADIUS, 0)`, so the drive axis sits at `(0, +ECCENTRIC_RADIUS, 0)` in `stage_one`'s OWN frame, and symmetrically for `stage_two`) — no new literal typed, but the sign is easy to get backwards: the overlay's own first attempt did, and the pose comparison caught it at 9.961 mm before this row was corrected. Left un-migrated with a DEFAULT `at`/`carries`, both disks' `orbit` would derive a radius of **zero** at bind time and REFUSE by name (`Orbit.placement`'s existing refusal) rather than silently mis-pose — the honest consequence of the symmetric new default, worth stating because it is safer than the old asymmetric one, not because it is free. CONFIRMED directly against the unpatched project (§ evidence.md 7.5) |
+| `RadialBearing.orbit` (`eccentric_bearings`, `.repeat(4)`) | 1 `Orbit`, fully defaulted | rides the same eccentric circle as its paired disk, sign alternating by copy (`CycloidalDrive.render()`'s `sign = 1.0 if index < 2 else -1.0`) | `PARENT-KNOWLEDGE-IN-SUBSTANCE`. A Bridge-A callable of the copy's own `index` (`at=lambda node: (0.0, (1.0 if node.index < 2 else -1.0) * ECCENTRIC_RADIUS, 0.0)`) does NOT actually work here, contrary to this row's own first draft: a `.repeat()` copy's `index` is assigned by `RepeatDeclaration.realize()` AFTER the copy's own `__init__` returns, but a joint's `axis`/`at`/`carries` resolve EAGERLY, inside that same `__init__` — the callable raises `AttributeError` at realization, every time (see `evidence/../workflow/warts.md`'s own entry on this). The overlay instead DERIVES each copy's own-frame anchor from its ACTUAL placement, via a runtime injection hook in `CycloidalDrive.render()`, after both the placement and `index` exist. `output_bearing` (not repeated) and the 21 `fixed_pins` copies are `ZERO-BUT-PLACED`, INERT: `output_bearing`'s own translation is along the joint's axis, and `fixed_pins`'s `orbit` is never bound (see the class's own docstring) |
+| `Pin.orbit` (`output_pins`, `.repeat(6)`) | 1 `Orbit`, fully defaulted | rides the carrier's circle at `OUTPUT_PIN_RADIUS`, phase `index * 360/6 - 90` (`OutputModule.render()`) | `PARENT-KNOWLEDGE-IN-SUBSTANCE`, same correction as `RadialBearing.orbit` above: the Bridge-A callable of `node.index` does not work for a joint argument (eager resolution precedes `index`'s assignment); the overlay derives each pin's own-frame anchor at runtime instead, via a hook in `OutputModule.render()` |
+
+Total for this addendum: **11 joints**, matching the deferred row's
+count exactly (the proposal's intended shape and the built shape agree).
+2 `RESTATES`, 5 `OWN-ORIGIN-ALREADY`, 4 `PARENT-KNOWLEDGE-IN-SUBSTANCE`
+by substance: the two disk `orbit`s resolve to the project's own
+pre-existing named constant (`ECCENTRIC_RADIUS`, negated per disk, no
+new literal), and `RadialBearing.orbit`/`Pin.orbit` need a genuine
+RUNTIME derivation from the copy's actual placement (a `.repeat()`
+copy's `index` is not available at the point a joint argument resolves,
+so the Bridge-A callable this row first proposed does not work — see
+the correction above). This revises the disk-`orbit` half of row 384's
+claim ("the worst case in the catalogue"): read against the actual
+tree rather than the proposal, OpenCycloid's disks are no worse than
+the Internal Cycloidal Actuator's, and are in substance the SAME
+finding — an already-named own-frame constant standing in for what the
+design document assumed would need forbidding. The pose overlay derives
+the `RadialBearing`/`Pin` anchors from the project's own placement
+formula at runtime (`_carry`'s own arithmetic, run once to prove the
+pose), and its comparison — together with the confirmed unpatched
+refusal above — is reported in the change's `evidence.md` §7
+alongside the other three PARENT-KNOWLEDGE-IN-SUBSTANCE projects.
+
+## 6. Addendum: a missed citation, found by the pose overlay (2026-09-10)
+
+§1.3's own table (line 142) already correctly names
+`3DPrintedClocks/wall_clock_53_grasshopper/parts.py:128` and
+`wall_clock_54/parts.py:63` as RESTATES sites -- each clock's own
+`PalletArm.turn` reads `at=lambda node: (*node.built.grasshopper.
+drawn_position('G' if node.exit_side else 'P'), 0.0)`, and
+`assemblies.Escapement.render()` already translates `self.entry_arm`/
+`self.exit_arm` by exactly that same `drawn_position(...)` pivot, so the
+own-frame anchor is `(0, 0, 0)` either way. **`wall_clock_21` has the
+identical class at `parts.py:58` and was missing from that row's
+citation list.** `patch_3DPrintedClocks.py`'s first pass implemented
+every OTHER row in §1.3's table but this one, and the pose overlay
+caught the omission directly: `wall_clock_21`, `wall_clock_53_
+grasshopper` and `wall_clock_54` each showed a deviation confined to
+`movement.escapement.entry_arm`, zero at `defaults` and growing with
+`time` (measured maxima 3.954 mm, 3.477 mm, 3.477 mm respectively --
+only the entry arm, never the exit arm, because the exit pivot `'G'` is
+at the origin so the exit arm's callable was already reading a zero
+anchor). Deleting all three clocks' `at=` closes the finding exactly as
+row 142 already predicted; see `evidence.md` §7.3 for the corrected
+measurement (0.000e+00, all three, re-captured).

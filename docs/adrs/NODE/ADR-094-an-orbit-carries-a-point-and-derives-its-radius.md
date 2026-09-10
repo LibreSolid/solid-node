@@ -1,6 +1,6 @@
 # ADR-094: An Orbit Carries a Point, and Derives Its Radius
 
-**Status:** Accepted
+**Status:** Accepted (the `_OWN_PLACED_ORIGIN` sentinel revised by [ADR-097](./ADR-097-a-joint-is-stated-in-the-frame-of-whoever-declares-it.md): `carries` now defaults to the plain `(0, 0, 0)` it always meant in the body's own frame; everything else below stands)
 **Date:** 2026-09-10
 **Extends:**
 - [ADR-088: A joint owns one coordinate](./ADR-088-a-joint-owns-one-coordinate.md)

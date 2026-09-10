@@ -1022,6 +1022,18 @@ before the project is refactored around its absence.
   cached exact ISO thread. The two screws keep a port and one `rotate`
   each. Wanted, as before: `screw = ZScrew(turn=Revolute(axis=(0, 0, 1), at=(side * 17, 0, 0)))`
   resolved against the declaring parent's parameters.
+
+  **CORRECTED (cycle `joint-frame-follows-declarer`, ADR-097).** This
+  entry's claim that no recorded candidate fix reaches the Z screws was
+  wrong once the frame itself is the fix rather than a mode within it.
+  `ZScrew` is drawn along its own `+Z` from its own origin and each side
+  is placed by a pure `translate([±17, 0, 75])`; under the new rule
+  `turn = Revolute(axis=(0, 0, 1), unit='deg')`, own-frame, no anchor at
+  all, states BOTH sides with one declaration — the project's own
+  reviewed proposal already conceded the own-origin mode "would" reach
+  this case, and the survey confirms it. The declaration-site keyword
+  below is still wanted for the five axes decision 3 of that cycle
+  found, which this Z-screw case is not one of.
 - **OpenFlexure: two lighter sightings.** (a) Fan-out over `.repeat()`
   with the IDENTITY law: the three stage nuts and the gear lock screws
   simply follow one coordinate each, so a `.repeat(n, travel=column.travel)`
@@ -1304,3 +1316,214 @@ leaves, 34/34 green, no test edited. One finding, not blocking.
   requirement.
 - The "own-placed-origin" anchor sighting again: `Femur.lift` and
   `Tibia.knee` restate the parent's `translate` as `at`.
+
+# joint-frame-follows-declarer (2026-09-10, closing the own-placed-origin finding)
+
+**CLOSES the "a joint cannot be anchored at a design-placed part's own
+origin" finding**, open since wall clock 01/Thor (2026-09-09) and
+re-sighted in the hexapod, the V8, Poseidon, OpenMANIPULATOR-X, the
+Pascaline, fender-bender, the Prusa i3 and InMoov. ADR-097 answers it
+directly rather than adding a mode: a joint written in a class body is
+now read in that body's OWN rest frame, `at` defaulting to the body's
+own origin, so the mode this finding kept asking for is simply the
+frame, not a special case within the old one. Measured over the whole
+catalogue (`evidence/survey.md`, the change's own evidence): 23
+projects, 249 class-body joint declarations, 133 of them exactly this
+shape (69 restating a placement, 64 already anchorless) plus roughly 30
+hand-written rotations the rule newly makes declarable. A 24th project,
+OpenCycloid, joined the catalogue mid-cycle (see below). Of the 24, 23
+compare at maximum deviation 0 against a mechanical rewrite (three
+grasshopper clocks and one hangprinter roller first deviated and were
+each traced to a cause and closed at 0 -- the entries below); the one
+real nonzero is wall clock 48's own already-migrated source, carried to
+the pilot. OpenCycloid's own default-only rewrite now REFUSES to bind
+rather than building silently wrong (see "OpenCycloid" below). Seven
+clocks show a residue under 8 microns on a wound-string port that two
+captures of the SAME tree reproduce against each other and
+`PYTHONHASHSEED=0` removes: capture-process nondeterminism, not this
+change (last entry below). Full numbers: `evidence.md`
+§7 of `joint-frame-follows-declarer`.
+
+Two things the finding did not anticipate, filed as their own entries
+rather than folded into the closure:
+
+- **Five axes lose their literal.** Where one class is placed at
+  several sites with OPPOSED rotations — Prusa `XGuide`/`YGuide`
+  (`.repeat(2)`, `along_y`/`along_minus_y`), hangprinter's mirrored
+  `MotorGear` and its `RollerBearing` pair, OpenVMP's two `Leg`s — one
+  parent-frame axis literal served every site; the own-frame axis is
+  different per site and cannot be written as one literal. Two of the
+  three projects state the choice as a deliberate design decision in
+  their own source (`hangprinter/simulation/winch.py:57-64`). Two
+  bridges exist and neither is new machinery: a callable of the
+  realized node reading the body's own parameter or a `.repeat()`
+  copy's `index` (from `repeat-fan-out`, ADR-096), or the parent
+  supplying the sign in the relation (`ratio=-1`, or `law=` under a
+  broadcast) — which is what Thor already does. Neither is built by
+  this cycle; the literal is wanted back at a declaration site, which is
+  `declaration-site-joint`'s open question: whether that keyword should
+  itself be repeatable, since three of these five really want it on a
+  `.repeat()` copy.
+- **3DPrintedClocks disagrees with itself, and the rule settles it in
+  clock 48's favour.** Clocks 19, 21, 22, 41, 49 and 51 (six, each with
+  its OWN local `TurningArbor(Arbor)` class -- `Arbor` there is the
+  plain-geometry `parts.Arbor`, not the motion-composing
+  `shared.TrainArbor`) write `at=lambda node: arbor_bearing(node)` on a
+  leaf `place_train_arbor` has already translated by that same bearing
+  (as one of `FixedRodArbor.render()`'s CHILDREN, unlike the shared
+  module's own `TrainArbor.turn`, whose placement of ITSELF is the
+  identity and needs no change); wall clock 48's `TurningArbor`/
+  `TurningPalletPin` write NO `at` at all, with a source comment
+  (`wall_clock_48/clock.py:135-140`) explaining that the plate-frame
+  bearing "applies that offset twice." Under the OLD rule exactly one
+  of the two families was wrong wherever the bearing is not the
+  origin; wall clock 48 already reads as the new rule wants, unedited
+  -- its source was written for a rule the framework did not have yet.
+  The six unmigrated clocks were fixed the same way wall clock 48's own
+  source already reads (delete the `at=`); a first pass at this fix
+  left them unpatched and the pose overlay caught it immediately (166.2
+  mm on wall clock 49, 177.2 mm on 51, present even at `defaults`, on
+  `movement.train.*`). Wall clock 48 itself is the one place in the
+  whole survey that does NOT compare at zero: `AnchorArbor`'s wheel
+  (index 5) and its two pallet pins move, by construction, towards what
+  the clock's own comment already asks for -- measured peak 3.985 mm at
+  `time@0.5`, flat 2.841 mm at every pose that does not vary `time`.
+  Carried to the pilot as a question in the change's evidence, not
+  accepted here as a difference: this file's job is to record that it
+  is exactly the disagreement predicted, not to
+  judge whether the corrected pose is right.
+
+- **A `.repeat()` copy's `index` does not exist yet when a joint's own
+  `axis`/`at`/`carries` resolves, so "a callable of the copy's index"
+  is not actually a working bridge for a JOINT argument.** Found
+  applying decision 4's Bridge A to Prusa3-vanilla's `XGuide`/`YGuide`,
+  hangprinter's `RollerBearing`, and OpenCycloid's `RadialBearing`/`Pin`
+  in this cycle's own pose overlay: `axis=lambda node: (0, 0, 1 if
+  node.index == 0 else -1)` on a `.repeat(2)` class raises
+  `AttributeError: '<Class>' object has no attribute 'index'` at
+  REALIZATION, every time, because `resolve_declared_joints` runs
+  inside the copy's own `__init__` (ADR-088) while
+  `RepeatDeclaration.realize()` assigns `child.__dict__['index'] =
+  index` on the line AFTER that construction returns
+  (`solid_node/node/declarative.py:391`, whose own comment already says
+  "no sighting needs `index` during construction" — true for a LAW
+  resolved later, false for a joint argument resolved eagerly).
+  `MotionWorksPart`'s existing `at=lambda node: ... node.index ...`
+  works today only because `index` there is a DECLARED PARAMETER
+  (`Count(min=0, max=2)`, passed as a constructor kwarg), not a
+  `.repeat()`-assigned attribute — the working and the broken case look
+  identical at the call site and are easy to conflate, which the
+  overlay did once. Worked around, three times over, by deriving the
+  axis from the copy's ACTUAL placement in the PARENT's `render()`
+  instead of a class-body callable — the overlay's own
+  `derive_helper.axis_from_placement`, `_carry`'s own arithmetic reused
+  for one run. Candidate fix: resolve a REPEATED class's joint
+  arguments once per copy, after `index` is assigned, rather than
+  inside the copy's own `__init__` — or let `resolve_declared_joints`
+  defer a `NameError`/`AttributeError` from a callable and retry once
+  the realization path can say why, naming which attribute was missing
+  rather than failing opaquely. This closes the axis half of decision 4
+  as WRITTEN (Bridge A does not work as stated for the five axes); the
+  parent-supplies-the-sign bridge (Thor's own `ratio=`) is unaffected,
+  since a relation's `law=`/`ratio=` resolves later, after `index`
+  exists.
+
+- **Two more sites in the shared clock module needed the same
+  restates-to-zero treatment as `MotionWorksPart.turn`/`Pendulum.swing`/
+  `Escapement.frame_turn`, found by the SAME pose overlay.**
+  `ZDayPart.turn` (`wall_clock_52`, `wall_clock_54`, the day-of-week
+  complication) restates `DayComplication.render()`'s
+  `part.translate(positions[0 or 1])` for either branch of its own
+  `node.index in (0, 1)` conditional -- own-frame anchor is `(0, 0, 0)`
+  either way, so the whole conditional callable is removed. Fixing it
+  did not close either clock's whole residual: `wall_clock_52` still
+  shows 1.069e-03 mm (a floating-point residue on a wound-string port,
+  present on several other clocks too, none of them exceeding 5
+  microns) and `wall_clock_54` still shows 3.477 mm on an UNRELATED
+  leaf (see the grasshopper `entry_arm` finding, below).
+- **CLOSED. Three grasshopper-escapement clocks (`wall_clock_21`,
+  `wall_clock_53_grasshopper`, `wall_clock_54`) showed a deviation
+  confined to `movement.escapement.entry_arm`, zero at `defaults` and
+  growing with `time` (0.681/2.321/3.954 mm on `wall_clock_21`;
+  1.162/3.477 mm on the other two) -- traced to a missed citation, not
+  a new framework finding. Each clock's OWN `parts.py` declares
+  `PalletArm.turn = Revolute(axis=Z, at=lambda node: (*node.built.
+  grasshopper.drawn_position('G' if node.exit_side else 'P'), 0.0))`,
+  a RESTATES site `evidence/survey.md` §1.3 (line 142) already names
+  correctly for `wall_clock_53_grasshopper` and `wall_clock_54` --
+  `assemblies.Escapement.render()` translates each arm by exactly that
+  same pivot -- but `wall_clock_21` has the identical class and was
+  missing from that row's citation list, so `patch_3DPrintedClocks.py`
+  implemented every other row but this one. Only the entry arm ever
+  deviated because the exit pivot `'G'` is at the origin, matching
+  every measured number exactly. Fixed by deleting the `at=` in all
+  three clocks' overlay `parts.py`; re-captured sequentially, all three
+  now compare at 0.000e+00.
+- **CLOSED, by using the cheaper bridge. hangprinter's
+  `RollerBearing.spin` axis derivation had an unexplained residual on
+  exactly one roller** (`ceiling.winch_d.rollers-0`, up to 1.986 mm,
+  growing with driven angle): a runtime-injection workaround (deriving
+  the axis at the end of each winch's `render()`, because a `.repeat()`
+  copy's `index` is not available at eager joint-argument resolution --
+  the entry above) correctly reached `winch_c`'s roller but left
+  `winch_d`'s roller-0 reading the class's own placeholder axis
+  literal, unfixed -- an ordering race in the workaround itself, never
+  identified further. `evidence/survey.md`'s own row 241 already states
+  the two per-site literals this joint actually needs
+  (`(0, 0, -1)`/`(0, 0, 1)`, one per `BELT_ROLLERS` entry a roller is
+  zipped against, the SAME pair for `WinchABC` and `WinchD` alike) --
+  cycle 2's simplest bridge, a plain per-site value, not a callable of
+  an unavailable `index` and not a runtime derivation either. Fixed by
+  replacing each winch's `rollers = RollerBearing().repeat(2)` with two
+  NAMED, non-repeated leaves (`roller_a`/`roller_b`), each a trivial
+  `RollerBearing` subclass carrying its own literal `spin` axis -- no
+  `.repeat()`, no `index`, no injection, no race to have a bug in.
+  Re-captured once: every roller, on every winch, at every pose,
+  compares at exactly 0.000e+00 (checked leaf-by-leaf against the
+  renamed nodes directly, since the compare tool's own path-matching
+  reports a rename as one node missing and one new rather than a
+  diffable pair).
+- **OpenCycloid (added to the survey mid-cycle, its own stage B landing
+  on `d07b14c` while this survey was being read) shows the same
+  `at`/`carries` asymmetry as the Internal Cycloidal Actuator, but
+  because its OWN source already declares both `Orbit`s fully
+  defaulted -- no `at=lambda ...` to delete -- a plain default-only
+  mechanical migration does not go silently wrong here: it REFUSES.**
+  `CycloidalDiskStageOne.orbit`/`StageTwo.orbit` and
+  `RadialBearing.orbit`/`Pin.orbit` all default both `at` and `carries`
+  to the body's own origin under the new rule (where the old rule's
+  asymmetric defaults -- `carries` to the sentinel own-placed-origin,
+  `at` to the literal parent origin -- gave every one of them a real
+  eccentricity for free); with both at the same point the derived
+  radius is zero and `Orbit.placement` refuses at first bind, by name:
+  `ValueError: stage_one (CycloidalDiskStageOne): joint 'orbit' carries
+  a point that lies ON its own axis, so binding it would move nothing.
+  ... the radius they derive is 0.0.` This was confirmed directly
+  against the UNPATCHED project. The overlay's own DERIVED fix (parity
+  with the Internal Cycloidal Actuator's `BORE_AXIS_POINT`) reaches
+  0.000e+00 over 7 poses once each disk's own-frame anchor is restated
+  as the NEGATION of its own placement translate -- a first attempt
+  used the same sign as the placement rather than its negation and the
+  pose overlay caught it immediately (9.961 mm on
+  `drive.stage_one`/`stage_two`).
+- **The 1-8 micron `movement.string.*` residues on seven clocks
+  (`wall_clock_23`/`24`/`25`/`26`/`28`/`49`/`52`) are capture-process
+  nondeterminism, not a source difference this cycle made.** Captured
+  `wall_clock_24` TWICE from the SAME already-patched overlay tree (no
+  file touched between the two runs): the two captures differ from
+  each other by the exact same magnitude and on the exact same ports
+  as the original before/after comparison (4.828e-03 mm max, on
+  `movement.string.{coil_height,entry_*,pulley_*,tie_*,wraps}`).
+  Re-running the same two captures with `PYTHONHASHSEED=0` fixed
+  (rather than Python's default per-process random hash seed) makes
+  them match EXACTLY. The string-wrap computation (molejo's wrap
+  solver, reached through `movement.string`) iterates something whose
+  order depends on Python's hash-randomized dict/set ordering, and a
+  non-associative floating-point sum over that ordering gives a
+  run-dependent last few digits -- comparing a `before2/` capture (one
+  process) against an `after/` capture (a separate, later process)
+  always carries this noise, independent of whether `joints.py`
+  changes at all. Not a framework defect and not something this
+  overlay methodology can avoid without pinning `PYTHONHASHSEED` for
+  every capture; recorded here so a future comparison at this
+  precision knows to pin it rather than chase phantom regressions.

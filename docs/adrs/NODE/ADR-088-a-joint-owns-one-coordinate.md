@@ -1,6 +1,6 @@
 # ADR-088: A Joint Owns One Coordinate
 
-**Status:** Accepted
+**Status:** Accepted (frame decision superseded in part by [ADR-097](./ADR-097-a-joint-is-stated-in-the-frame-of-whoever-declares-it.md): a class-body joint reads its OWN rest frame, not the parent's; everything else below stands)
 **Date:** 2026-09-09
 **Extends:**
 - [ADR-056: Signals, drivers, ports, and stepped simulation](./ADR-056-signals-drivers-ports-and-stepped-simulation.md)

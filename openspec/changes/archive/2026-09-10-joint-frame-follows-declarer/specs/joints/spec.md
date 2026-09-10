@@ -325,6 +325,15 @@ whole motion block is composed inside.
   hand-written motion, and the rest placement, so a viewer applying them
   in list order reproduces the same pose the framework composed
 
+#### Scenario: An unresolvable rest placement is refused
+
+- **WHEN** a node whose rest placement carries a symbolic value has a
+  joint bound
+- **THEN** nothing is refused: the body is placed about the line its own
+  frame states. This scenario is WITHDRAWN by this change (ADR-097 deletes
+  the inversion the refusal guarded); its heading is kept here only so the
+  archive tool can match it, and the baseline drops it.
+
 #### Scenario: A joint's line does not move when the rest placement changes
 
 - **WHEN** two instances of one class declaring

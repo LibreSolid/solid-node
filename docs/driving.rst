@@ -197,21 +197,24 @@ to the body, once. The three one-coordinate declarations come from
     from solid_node.motion.joints import Prismatic, Revolute
 
     class Forearm(AssemblyNode):
-        reach = Length(160.0, min=0)
-
-        elbow = Revolute(axis=(0, 0, 1), at=(0, reach, 68),
+        elbow = Revolute(axis=(0, 1, 0), at=(0, 0, 81.5),
                          range=(-135, 135), unit='deg')
 
     class Carriage(Solid2Node):
         travel = Prismatic(axis=(1, 0, 0), range=(0, 200), unit='mm')
 
-`axis` and `at` are stated in the **parent's frame** — the frame the
-parent's `render()` places this node in, which is where MuJoCo and
-Modelica state them too. `at` defaults to that frame's origin, which is
-the case of a wheel turning on its own bearing; `range` is a `(lo, hi)`
-pair in `unit`. Each component may be a number, a declared parameter,
-or a formula over them, and the whole argument may instead be a
-callable of the realized node — for a position that comes out of a
+**A joint is stated in the frame of whoever declares it.** Written in a
+class body, as above, it is the body's own statement about itself, so
+`axis` and `at` are read in that body's **own** frame — the frame its
+own `render()` states its geometry in, one rest placement away from
+wherever its parent puts it. This is MuJoCo's rule, where a `<joint
+pos>` is a point of the body frame; a joint stated at a *declaration
+site*, in the parent's frame — URDF's rule — is a separate feature the
+framework does not yet have. `at` defaults to the body's own origin,
+which is the case of a wheel turning on its own bearing; `range` is a
+`(lo, hi)` pair in `unit`. Each component may be a number, a declared
+parameter, or a formula over them, and the whole argument may instead
+be a callable of the realized node — for a position that comes out of a
 library object your node builds rather than out of a formula. They are
 resolved once, when the node is realized, and a joint argument never
 enters a part's build identity.
@@ -241,16 +244,19 @@ placement:
             self.forearm.elbow = self.angle
 
 This is the case worth reading twice: the elbow does **not** run through
-the forearm's own origin — it is 81.5 mm up the arm — so turning the
-part about its own z would be wrong. Motion composes innermost, in the
-node's own frame, so the framework inverts the rest placement and
-carries the parent-frame axis and anchor into the forearm's
-coordinates: the line becomes `[0, 1, 0]` through `[0, 0, 81.5]`, and
-the part is placed `translate([0, 0, -81.5])`, `rotate(angle,
-[0, 1, 0])`, `translate([0, 0, 81.5])`. That arithmetic — the thing
-every robot arm in the wild writes by hand — is what a joint declaration
-replaces. When the line does run through the node's placed origin the
-two centring translations disappear and one rotation is left.
+the forearm's own origin — it is 81.5 mm up the arm, along the axis the
+forearm's own frame calls `[0, 1, 0]` — so turning the part about its
+own z would be wrong, and nothing here needs to know that the parent
+also turns the forearm 90° and moves it out along its own arm to place
+it. The declaration already says exactly what the framework applies:
+`translate([0, 0, -81.5])`, `rotate(angle, [0, 1, 0])`,
+`translate([0, 0, 81.5])`, composed innermost, before the rest placement
+`render()` applied. That is the arithmetic every robot arm in the wild
+writes by hand to carry a parent-frame pivot into a part's own
+coordinates — a project that states the joint in the body's own frame
+in the first place has nothing left to carry. When the line does run
+through the node's own origin the two centring translations disappear
+and one rotation is left.
 
 The operations are ordinary rotations and translations, so a symbolic
 binding publishes a symbolic angle and the viewer evaluates it exactly
@@ -279,15 +285,41 @@ Base-class joints come before a subclass's, and a subclass redeclaring
 an inherited joint keeps the position the base gave it. If a body's
 freedoms stack the wrong way round, reorder the declarations — there is
 no ordering keyword, because the declarations already are the order.
-Each joint's axis and anchor are carried through the node's **rest**
-placement only, never through a sibling joint's motion, so every joint's
-line is the line the parent's frame stated whatever the body's other
-freedoms are doing.
+A joint's axis and anchor are never carried through anything — not the
+node's rest placement, and not a sibling joint's motion — so every
+joint's line is the line its OWN declaration stated whatever the body's
+rest placement or its other freedoms are doing.
 
 Hand-written motion on the same node composes **outside the whole joint
 block**, keeping its call order among itself: the joints first,
 innermost, then every `rotate()`/`translate()` the `simulate()` applied,
 then the node's rest placement.
+
+**A body its parent rotates carries its joint line with it.** Because
+the axis is the body's own rather than the parent's, a shared or
+catalogue class can be placed at several sites, or at several
+attitudes, and state one declaration that is right everywhere:
+
+.. code-block:: python
+
+    class Pinion(Solid2Node):
+        turn = Revolute(axis=(0, 0, 1), unit='deg')   # its own bearing
+
+    class Gearbox(AssemblyNode):
+        pinions = Pinion().repeat(4)
+
+        def render(self):
+            for pinion, placement in zip(self.pinions, MOUNTING_POINTS):
+                pinion.rotate(placement.tilt, placement.axis)
+                pinion.translate(placement.point)
+
+Each of the four copies spins about the line through its own placed
+origin, whatever attitude its own `render()` gave it, and none of them
+needed an anchor its class could not know. This is the trade a
+parent-frame reading cannot offer: a body placed at one site states an
+anchor that is right there and wrong everywhere else, which is why the
+catalogue's shared parts — pinions, pulleys, screws, gears — so often
+turned by hand instead of by a declared joint.
 
 A body that is carried without turning
 --------------------------------------
@@ -314,13 +346,13 @@ it:
         shaft.turn.drives(disk.spin, ratio=-1.0 / REDUCTION)
 
 `axis` and `at` mean exactly what they mean on a ``Revolute`` — a
-direction and a point on the line. What travels round that line is
-`carries`, a point of the body in the same frame, which defaults to the
-body's **own placed origin**: the disk above is placed at its eccentric
-offset, so the default is the point that rides the bearing and the
-declaration needs no further argument. Name `carries` when the point
-that travels is not the body's origin — the connecting rod's big-end
-bore, the knee pivot of a parallelogram leg.
+direction and a point on the line, in the disk's own frame. What
+travels round that line is `carries`, a point of the body in the same
+frame, which defaults to `(0, 0, 0)` — the disk's own origin, wherever
+its parent places it — so the declaration above needs no further
+argument. Name `carries` when the point that travels is not the body's
+origin — the connecting rod's big-end bore, the knee pivot of a
+parallelogram leg.
 
 `spin` is declared first, so it composes innermost: the disk turns on
 its own centre and the orbit then carries that turning disk round the
@@ -378,9 +410,12 @@ both wiring forms are refused where they are written.
     R(roll, x̂) · R(pitch, ŷ) · R(yaw, ẑ) · T(x, y, z)
 
 — the roll closest to the body and the translation outermost, about the
-point `at` names in the parent's frame. The three directions are the
-parent frame's own, so the angles are read the way an aircraft's are.
-There is no ordering argument: unlike three separate ``Revolute``\ s,
+point `at` names in the body's own frame. The three directions are that
+frame's own — literally `(1, 0, 0)`, `(0, 1, 0)`, `(0, 0, 1)` — so the
+angles are read the way an aircraft's are; and because the translation
+is the OUTERMOST operation, it displaces along those same fixed
+directions rather than along whatever the roll, pitch and yaw have just
+turned the body to. There is no ordering argument: unlike three separate ``Revolute``\ s,
 whose order you choose by declaring them, a free joint is one thing and
 its internal order is part of what it means.
 

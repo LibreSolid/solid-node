@@ -485,16 +485,23 @@ descriptor with a per-instance value.
 `Revolute`, `Prismatic` and `Orbit`, and the one that is not a lower
 pair, `Free`, exported from
 `solid_node/motion/joints.py` and declared as a class attribute of the
-node they move (ADR-088, ADR-094, ADR-095). A joint states `axis` and
-`at` in the
-**parent's** frame — the frame the parent's `render()` places the node
-in, where MuJoCo and Modelica state them — with an optional `(lo, hi)`
-`range` and a `unit`; an `Orbit` states one further parent-frame point,
-`carries`; a `Free` states only `at`, with an `angle_unit` and a
-`length_unit`, and takes no axis and no range. All of them resolve per
-instance at realization, from
-numbers, tokens, derived formulas, or a callable of the realized node,
-and are outside identity.
+node they move (ADR-088, ADR-094, ADR-095, ADR-097). **A joint is
+stated in the frame of whoever declares it** (ADR-097): a joint written
+in a CLASS BODY is the body's own statement about itself, so `axis` and
+`at` are read in that body's OWN REST FRAME — the frame its own
+`render()` states its geometry in, one rest placement away from the
+parent's, and the frame MuJoCo's `<joint pos>` reads too — with an
+optional `(lo, hi)` `range` and a `unit`; an `Orbit` states one further
+own-frame point, `carries`; a `Free` states only `at`, with an
+`angle_unit` and a `length_unit`, and takes no axis and no range. `at`
+defaults to `(0, 0, 0)`, the body's own origin, so a joint whose line
+runs through the body's own origin — a wheel on its own bearing, a gear
+on its own axle — is written with no anchor at all; `Orbit`'s `carries`
+defaults to `(0, 0, 0)` for the same reason. (A joint stated at a
+DECLARATION SITE, read in the parent's frame — URDF's rule — is a
+separate feature the framework does not yet have.) All of them resolve
+per instance at realization, from numbers, tokens, derived formulas, or
+a callable of the realized node, and are outside identity.
 A joint OWNS one or more coordinates and every one of them is a
 **port**: `Joint`
 holds a `Port` rather than subclassing one, `declared_ports()` reports
@@ -511,30 +518,39 @@ NOT a wiring keyword: both wiring roles are refused at class definition,
 and such a coordinate is reached by assignment on the instance, by a
 relation, or by a driver or an expression. A joint owning several does
 not stand for any one of them: named as a relation end, or as the one
-joint of a node named as one, it is refused listing what it owns. Binding the coordinate PLACES the body, at the binding: the
-framework composes the node's non-motion operations, inverts that rest
-placement to carry the axis, the anchor and any further point the
-joint declares into the node's own frame through that one inversion,
-snaps the inversion's residue to exact 0/1/−1, and applies ordinary
+joint of a node named as one, it is refused listing what it owns.
+Binding the coordinate PLACES the body, at the binding: the framework
+uses the resolved axis, anchor and any further declared point AS THEY
+RESOLVED, with no transformation — a joint's operations were always
+placed innermost, before every rest operation, in the body's own frame,
+so there is nothing to carry them through. The normalized axis is
+snapped to an exact 0/1/−1 within `1e-9`; an anchor is published exactly
+as the author wrote it. The framework applies ordinary
 `Rotation`/`Translation` objects — `translate(-anchor)`,
 `rotate(value, axis)`, `translate(anchor)` for a revolute, the two
-centring translations omitted when the line runs through the placed
-origin; one `translate(value * axis)` for a prismatic; for an orbit
-ONE translation, `(cos(value) − 1)·v + sin(value)·b`, where `v` is the
-component of the carried point across the line and `b` is that vector
-turned a quarter turn about it; and for a free joint up to SIX —
+centring translations omitted when every anchor component is zero
+within `1e-9`; one `translate(value * axis)` for a prismatic; for an
+orbit ONE translation, `(cos(value) − 1)·v + sin(value)·b`, where `v` is
+the component of the carried point across the line and `b` is that
+vector turned a quarter turn about it; and for a free joint up to SIX —
 the centring pair around `rotate(roll, x̂)`, `rotate(pitch, ŷ)`,
-`rotate(yaw, ẑ)` about the three CARRIED unit directions, then one
-translation outermost, `x`, `y` and `z` displacing along those same
-three directions. An orbit is the body carried round the
-line without turning: its coordinate is an angle, its operation carries
-no rotation at all, and the point of the body it carries is `carries`,
-defaulting to the body's own placed origin, which in the body's own
-frame is exactly the origin. Its radius and phase are DERIVED from the
-point and the line and can never be declared, so a project forbidden to
-type its bore centre can still state the joint; a carried point ON the
-line derives a radius of zero and is refused by name at the first
-binding, the one joint refusal that is not made at realization.
+`rotate(yaw, ẑ)` about the declaring body's own rest-frame's three unit
+directions, then one translation outermost, `x`, `y` and `z` displacing
+along those SAME rest-frame directions rather than along whatever the
+rotations have just turned. A body its parent ROTATES therefore carries
+its joint line WITH it: the line a class-body joint states is fixed in
+the body, so one class placed at several sites, or several attitudes,
+states one joint and gets the right line everywhere. An orbit is the
+body carried round the line without turning: its coordinate is an
+angle, its operation carries no rotation at all, and the point of the
+body it carries is `carries`, defaulting to `(0, 0, 0)`, the body's own
+origin. Its radius and phase are DERIVED from the point and the line
+and can never be declared, so a project forbidden to type its bore
+centre can still state the joint; a carried point ON the line derives a
+radius of zero and is refused by name at the first binding, the one
+joint refusal that is not made at realization. A rest placement the
+framework cannot evaluate numerically no longer prevents a joint from
+being bound: nothing inverts it, so nothing can fail to invert.
 
 A `Free` is the six freedoms of a body with no parent to be jointed to —
 a walking robot's chassis (ADR-095). Its composition is fixed by the

@@ -8,6 +8,84 @@ Changelog
 Unreleased
 ----------
 
+**A joint is stated in the frame of whoever declares it.** A joint
+written in a class body says where THAT body may move, so it is now read
+in the body's OWN rest frame rather than the parent's — MuJoCo's rule,
+where a ``<joint pos>`` is a point of the body frame — and ``at``
+defaults to the body's own origin::
+
+    class Pinion(Solid2Node):
+        turn = Revolute(axis=(0, 0, 1), unit='deg')   # its own bearing, no anchor
+
+A survey of the whole catalogue — 23 projects, 249 class-body joint
+declarations — found that 133 of them are exactly this shape (a wheel,
+a gear, a pinion, a screw turning on its own bearing) and roughly 30
+more are hand-written ``rotate()`` calls that exist only because a
+shared class placed at several sites, or several attitudes, had no way
+to state one parent-frame anchor that was right everywhere. A body its
+parent ROTATES now carries its joint line WITH it, so Thor's thirteen
+catalogue parts, the V8's four timing gears and openflexure's four
+flexure legs can each state one declaration instead. The framework
+transforms nothing: ``Joint._carry``, the inversion that used to carry a
+parent-frame axis and anchor into the body's own frame, is deleted
+outright, and with it the framework's only use of ``numpy`` in this
+module. ``Orbit``'s ``carries`` now defaults to the plain ``(0, 0, 0)``
+it always meant in the body's own frame, with no sentinel; a ``Free``'s
+three directions are the declaring body's own rest frame's, literally,
+and its translation — the outermost operation of its own run —
+displaces along those same fixed directions rather than along whatever
+the rotations have just turned. A rest placement the framework cannot
+evaluate numerically no longer prevents a joint from being bound,
+because nothing inverts it any more.
+
+The rule is not free. **The one silent case:** a ``Revolute``, ``Orbit``
+or ``Free`` written today with no ``at`` on a body its parent
+TRANSLATES meant "about the parent's origin"; it now means "about my own
+origin". The survey found 47 such sites, 35 of them inert (a
+``Prismatic``, or a placement translation parallel to the joint's own
+axis) and 12 that change a pose. Ten of those twelve name a line that
+belongs to the ASSEMBLY, not the body — the Internal Cycloidal
+Actuator's two disk ``Orbit``\ s, InMoov's seven finger ``Revolute``\ s,
+openflexure's one ``GearLockScrew.orbit`` — and are not migrated by this
+change: their real form is a joint stated at the site that already
+knows the line, which is the next cycle's feature, and until then those
+three projects keep exactly what they carry today. The other two are
+3DPrintedClocks wall clock 48's, which are the fix its own source
+comment already asked for. **Five axes lose their literal:** where one
+class is placed at several sites with OPPOSED rotations — both Prusa
+belt-guide pairs, hangprinter's mirrored motor gear and roller pair,
+OpenVMP's two legs — today's one parent-frame literal cannot be written
+as one own-frame literal any more. A callable of the realized node
+(reading the body's own parameter, or a ``.repeat()`` copy's ``index``)
+or the parent supplying the sign in the relation (``ratio=-1``, or
+``law=`` under a broadcast) both already exist as bridges; neither is
+new machinery, and the literal returns once a joint can be stated at a
+declaration site.
+
+No project is edited by this change. The evidence is a read-only
+overlay of each project's simulation package with its joints
+mechanically rewritten per the survey: all 23 (plus a 24th, OpenCycloid,
+added after its own stage B landed mid-cycle) compare at maximum
+deviation 0 against the unmodified project, with two named exceptions.
+3DPrintedClocks wall clock 48 is EXPECTED (its own source was already
+migrated ahead of this change, and the new engine correctly stops
+reproducing an old double-transformation bug there — carried to the
+pilot as an open question, not accepted as a difference). A handful of
+other clocks show a 1-8 micron residue on a wound-string port that
+disappears when the two captures being compared are pinned to the same
+Python hash seed — capture-process nondeterminism in a pre-existing
+solver, not a source difference, and not evidence about this change.
+OpenCycloid's own default-only source, unlike the other three
+PARENT-KNOWLEDGE-IN-SUBSTANCE projects, has no `at=` to delete at all:
+both `at` and `carries` default to the same point under the new rule
+where the old rule's asymmetric defaults gave a real eccentricity for
+free, so every one of its orbits now REFUSES at bind, by name, rather
+than building a silently wrong pose — confirmed directly against the
+unpatched project; its own DERIVED overlay (parity with the Internal
+Cycloidal Actuator's own migration) still reaches 0. (OpenSpec change
+``joint-frame-follows-declarer``; ADR-097, superseding ADR-088's frame
+decision in part and revising ADR-094 and ADR-095.)
+
 **A relation broadcasts over a repeated child.** ``.repeat(n)`` says one
 part, n placements; nothing said *one relation, n copies*, so a machine
 whose repeated parts move was a machine whose motion was written back
