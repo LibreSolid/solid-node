@@ -253,9 +253,18 @@ OpenTorque preview; Prusa i3 and hangprinter second render.
 
 Ratified:
 
-    (count, next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
-    (x, y, z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)
-    (x, y, z).drives((rods.spin, rods.lean, rods.swing, rods.rise), law=delta_rod)   # fan-out, cycle 1
+    (count & next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
+    (x & y & z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)
+    (x & y & z).drives((rods.spin, rods.lean, rods.swing, rods.rise), law=delta_rod)   # fan-out, cycle 1
+
+A tuple cannot carry the verb (it is a built-in), so a group of sources
+is spelled with `&`; the driven side keeps the tuple. Ratified by the
+pilot on 2026-09-10 after the proposal measured the alternatives (a free
+function is shadowed by InMoov's `drives = Drive().repeat(5)`; a wrapper
+noun adds a name the layer refuses to have). The law keeps two
+arguments, each shaped as its side is written: a node for one
+coordinate, a tuple of the owning nodes for several; the function it
+returns takes the source values spread and returns one value per target.
 
 - A tuple of coordinates on the source side; the law is handed all
   sources in the order written (plus the driven node, as today).
