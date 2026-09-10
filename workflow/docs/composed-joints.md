@@ -415,6 +415,16 @@ warts entries marked resolved on archival.
 >   placement" below is the same vector by a different route, proved
 >   identical in `design.md` §2, and needs no second inversion.
 >
+> **Implemented, 2026-09-10.** `Orbit` is built, ADR-094 records the
+> decision, and the cycle's own `evidence.md` carries the measurements:
+> the Internal Cycloidal Actuator's algebraic identity holds at a
+> rotation deviation of exactly 0 and a position deviation of 4.4e-16 mm,
+> and the dog's two spans derive the radii and phases its proposal typed.
+> Two facts this draft could not know: the placement is computed from the
+> already-carried axis, anchor and carried point with no second inversion
+> (confirmed), and the projects' listings put `orbit` before `spin`, which
+> ADR-093 reverses — see the ADR's Consequences for the three sites.
+>
 > §6 (`free-joint`) remains provisional: nothing has been proposed for it.
 
 ### 5.1 Interface
@@ -623,6 +633,12 @@ Recorded plainly rather than reconciled:
   says in prose that `(0, 0, CRANK_RADIUS)` is the crank pin's
   top-dead-centre position — the carried point. The conclusion (one
   renamed keyword) survives; the reason given for it did not.
+- **One of the dog's typed numbers was wrong, which is the argument in
+  miniature.** Its proposal typed `phase=-55.104` for the back-left leg;
+  the span it derived that from, `(22.8404, -32.7450)`, is -55.1033
+  degrees. The framework derives the span's own angle. A number nobody
+  types is a number nobody can transcribe wrongly, and this is the only
+  instance the check found.
 - **The dog's radius does not come out of the placement for free.** The
   briefing's expectation that the default `carries` would derive the
   per-leg 40.0000 / 39.9239 mm is wrong: five bodies per leg, five rest

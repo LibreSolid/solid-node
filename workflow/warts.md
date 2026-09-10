@@ -682,6 +682,15 @@ were bit-identical before and after in both projects.
   own placed origin (resolved at first bind from the rest placement), or
   lazy resolution of joint arguments at first bind with the eager pass
   kept for tokens and callables that do not touch the placement.
+
+  **Still OPEN after `orbit-joint` (ADR-094).** That cycle gave the
+  own-placed-origin mode to ONE argument of ONE joint — an `Orbit`'s
+  `carries`, whose default is the body's own placed origin, settled at
+  the first binding and costing nothing because in the body's own frame
+  that point is exactly the origin. It does NOT give `Revolute`'s `at`
+  the same mode: an anchor has to be carried through the inverse of the
+  rest placement, which is a different answer, and Thor's thirteen parts
+  need it at realization time. This finding is unchanged.
 - **A relation chain must be stated in one class body.** Relations are
   solved per instance at the end of its own simulate phase, and a child's
   relations solve after its parent's. Clock 01 binds `escape.turn` in
@@ -769,10 +778,16 @@ before the project is refactored around its absence.
 
   The second form is now the contract: the joints declared on one class
   compose in declaration order, innermost first, whatever order they are
-  bound in (ADR-093, cycle `joint-composition-order`). OpenCycloid still
-  waits on the OTHER two findings it carries — the `Orbit` primitive its
-  preferred sentence uses, and the fan-out over a repeated child below —
-  so its deferral stands on those, not on this one.
+  bound in (ADR-093, cycle `joint-composition-order`). **The first form
+  is now the contract too** (ADR-094, cycle `orbit-joint`): `Orbit` is
+  built, and OpenCycloid writes `spin` first and then
+  `orbit = Orbit(axis=(0, 0, 1), unit='deg')` with no `carries` at all —
+  its plan moves the eccentricity into the rest placement, so the disk's
+  own placed origin IS the eccentric centre and the DEFAULT carried point
+  derives both the `ECCENTRIC_RADIUS = 2.5` and the `-90.0` phase the
+  sentence above typed. The `- 1.0` in `ratio=-1.0 / REDUCTION - 1.0`
+  goes with them. OpenCycloid still waits on ONE finding: the fan-out
+  over a repeated child below. Its deferral stands on that alone.
 - **A relation cannot fan out over a repeated child.** The same actuator's
   four eccentric bearings and six output pins are `.repeat()` children with
   a per-copy sign or phase; the couplings spec refuses a path through a
@@ -848,7 +863,19 @@ before the project is refactored around its absence.
   `joint-composition-order`, ADR-093): `pivot` declared before `slide`
   now composes `T(slide)·R(turn)` whatever binds them. The carried
   lower-leg parts still want `Orbit`, which is NOT built, so
-  YouCanBuildDog's deferral stands on the orbit finding alone.
+  YouCanBuildDog's deferral stood on the orbit finding alone.
+
+  **FIXED (cycle `orbit-joint`, ADR-094).** `Orbit` is built, and it
+  takes neither a radius nor a phase: the dog writes
+  `carry = Orbit(axis=(1, 0, 0), at=(0, *SHORT_PIVOT),
+  carries=(0, *KNEE_PIVOT), unit='deg')`, and the framework derives the
+  per-leg 40.0000 and 39.9239 mm and the -55.000 and -55.1033 degrees
+  from the two pivot positions `layout.LINK_SPANS` already measures —
+  the 0.076 mm short back-left leg included, and its phase corrected
+  from the -55.104 the project's proposal typed. The default carried
+  point is not enough here: five bodies per leg, five rest placements,
+  one shared offset, so the knee pivot is named. YouCanBuildDog now
+  waits on nothing and becomes refactorable at stage B.
 - **A path on one body, per repeated copy: fender-bender's bracket
   release.** One freedom, `lift`, realized as `T(dx, dz, 0)·Rz(-tilt)` in
   each channel's own frame from nine measured waypoints, on five channels
@@ -917,8 +944,24 @@ before the project is refactored around its absence.
   The contract exists: `spin` declared before `orbit` is applied inside
   it, whatever order the two relations solve in. This project is
   unblocked by ADR-093 alone and is the sighting that named it the
-  minimal unblocker. Its `Orbit` preference remains an open want, not a
+  minimal unblocker. Its `Orbit` preference was an open want, not a
   blocker.
+
+  **That want is now FILLED (cycle `orbit-joint`, ADR-094)**, with one
+  keyword renamed: the carried point is `carries=`, not `at=`, because
+  `at` may not mean the line for a `Revolute` and the carried point for
+  an `Orbit` — so the disk reads
+  `spin = Revolute(axis=(0, 1, 0), at=DISK_1_BORE_CENTRE)` then
+  `orbit = Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE)`, `at`
+  keeping its default because the actuator axis runs through the parent's
+  origin. Nothing is typed that the project's spec forbids: the 2.000 mm
+  eccentricity and the -79.0959 degree phase are derived from the bore
+  centre and the axis. The project's own algebraic identity between that
+  form and today's `_simulate_disk()` is a framework fixture
+  (`tests/test_joints.py::ProjectAlgebraTest`), measured at a rotation
+  deviation of exactly 0 and a position deviation of 4.4e-16 mm. Its
+  proposal lists `orbit` before `spin`, which was written before ADR-093
+  fixed first-declared-innermost: at stage B the two transpose.
 - **FIXED for the composition half (cycle `joint-composition-order`,
   ADR-093). Composition order, fifth sighting: a delta printer's rods.** The Mini
   Kossel's six rods each hang between a carriage and the effector; a rod's
@@ -984,8 +1027,19 @@ before the project is refactored around its absence.
   pin>)` plus its own `Revolute`, or as two joints under the declaration
   order contract. Deferred at stage A. The four timing gears are the
   eighth own-placed-origin sighting (one class, four anchors).
-  The two-joint form is now statable (ADR-093); the own-placed-origin
-  finding the timing gears carry is untouched and still open.
+  The two-joint form is now statable (ADR-093), and the orbit half is
+  built too (ADR-094, cycle `orbit-joint`): the rod reads
+  `swing = Revolute(axis=(1, 0, 0))` then
+  `orbit = Orbit(axis=(1, 0, 0), carries=(0, 0, CRANK_RADIUS))` — the
+  carried point spelled `carries=`, and `at` keeping its default because
+  the crank axis runs through the cylinder unit's own origin, which its
+  class docstring states. The rod MUST name `carries`: it is not placed
+  by `CylinderUnit.render()`, so its own placed origin is the unit
+  origin, which is ON the crank axis, and the framework refuses a
+  carried point there by name. Its listing writes `orbit` before
+  `swing`; at stage B the two transpose. The own-placed-origin finding
+  the four timing gears carry is untouched and still open, and the V8's
+  deferral stands on that.
 - **An ancestor's relation cannot SOURCE from a coordinate a descendant's
   relations solve.** The mirror of reaching by path: OpenFlexure's root
   stated `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=...)`,

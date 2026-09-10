@@ -29,8 +29,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 from solid2 import cube
 
-from solid_node.motion.joints import (Joint, JointRangeError, Prismatic,
-                                      Revolute, declared_joints)
+from solid_node.motion.joints import (Joint, JointRangeError, Orbit,
+                                      Prismatic, Revolute,
+                                      declared_joints)
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      TranslationalPort, declared_ports)
 from solid_node.node import AssemblyNode, Solid2Node
@@ -111,10 +112,11 @@ class JointDeclarationTest(BaseNodeTest):
     def test_the_kinds_are_exported_from_the_joints_module(self):
         from solid_node.motion import joints
 
-        for name in ('Joint', 'Revolute', 'Prismatic', 'JointRangeError',
-                     'declared_joints'):
+        for name in ('Joint', 'Revolute', 'Prismatic', 'Orbit',
+                     'JointRangeError', 'declared_joints'):
             with self.subTest(name=name):
                 self.assertTrue(hasattr(joints, name), name)
+                self.assertIn(name, joints.__all__)
 
     def test_a_class_carries_its_joints_without_being_constructed(self):
         self.assertIsInstance(Hinge.swing, Joint)
@@ -815,6 +817,90 @@ class BothSidesBench(AssemblyNode):
         self.hinge.translate([0, 3, 0])
 
 
+# Cycle 1's contract over a joint whose run is exactly ONE operation and
+# whose kind differs from the joint beside it. ADR-093 states the rule
+# over "the operations a joint's placement produces", a contiguous run
+# of ANY length; an `Orbit` is the first joint whose run is one.
+SPUN_LIFT = [0.0, -2.5, 0.0]
+SPUN_SPIN_AT = (3.0, -2.5, 0.0)
+
+
+class SpunAndCarried(Solid2Node):
+    """A three-operation revolute declared first, a one-operation orbit
+    declared second: the disk spins about a bore 3 mm from its own
+    placed origin and is carried round the parent's axis. The two do not
+    commute -- `test_the_two_joints_of_the_orbit_fixture_do_not_commute`
+    fails loudly if they ever do."""
+
+    spin = Revolute(axis=(0, 0, 1), at=SPUN_SPIN_AT, unit='deg')
+    carry = Orbit(axis=(0, 0, 1), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+def _spun_and_carried_pose(angle, carry):
+    """Where `SpunAndCarried` lands when the contract holds: the spin
+    innermost, the orbit's single translation outside it, the rest
+    placement outside both."""
+    return (_translation(SPUN_LIFT)
+            @ _translation(_orbit_delta((0, 0, 1), (0, 0, 0),
+                                        SPUN_LIFT, carry))
+            @ _turn_about(SPUN_SPIN_AT, angle, (0, 0, 1), SPUN_LIFT))
+
+
+class SpinFirstBench(AssemblyNode):
+    """Binds the first-declared joint first."""
+
+    angle = Driver(default=0.0, unit='deg')
+    carry = Driver(default=0.0, unit='deg')
+
+    disk = SpunAndCarried()
+
+    def render(self):
+        self.disk.translate(SPUN_LIFT)
+
+    def simulate(self):
+        self.disk.spin = self.angle
+        self.disk.carry = self.carry
+
+
+class OrbitFirstBench(SpinFirstBench):
+    """The same bench binding the two joints the other way round."""
+
+    def simulate(self):
+        self.disk.carry = self.carry
+        self.disk.spin = self.angle
+
+
+class SlideSwingCarry(Solid2Node):
+    """A prismatic, a three-operation revolute and an orbit: the
+    contiguity case cycle 1's task 1.8 wrote the guard for."""
+
+    lift = Prismatic(axis=(0, 0, 1), unit='mm')
+    swing = Revolute(axis=(0, 0, 1), at=(0, 30, 0), unit='deg')
+    carry = Orbit(axis=(0, 1, 0), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class OrbitContiguityBench(AssemblyNode):
+    """Binds the three joints out of declaration order, with a
+    hand-written rotation in the middle of the run."""
+
+    body = SlideSwingCarry()
+
+    def render(self):
+        self.body.translate([0, 0, 4])
+
+    def simulate(self):
+        self.body.carry = 25
+        self.body.rotate(7, [1, 0, 0])
+        self.body.swing = 35
+        self.body.lift = 12
+
+
 class CompositionOrderTest(BaseNodeTest):
     """The joints declared on one class compose in DECLARATION order,
     innermost first, whatever order they are bound in."""
@@ -972,6 +1058,755 @@ class CompositionOrderTest(BaseNodeTest):
             keys, {'name', 'type', 'color', 'mtime', 'operations', 'model',
                    'children', 'flexible', 'piece'})
 
+
+
+    ##############################################
+    # 2. Cycle 1's contract, with an orbit in it (ADR-093)
+
+    def test_an_orbit_composes_with_a_turn_of_the_same_body(self):
+        """A three-operation `Revolute` declared first and a
+        one-operation `Orbit` declared second: the same operations and
+        the same pose whichever order they are bound in."""
+        first = SpinFirstBench()
+        second = OrbitFirstBench()
+
+        first.set_state(angle=35, carry=40)
+        second.set_state(angle=35, carry=40)
+
+        self.assertEqual([operation[0] for operation
+                          in serialized(first.disk)],
+                         ['t', 'r', 't', 't', 't'])
+        self.assertEqual(serialized(first.disk), serialized(second.disk))
+        expected = _spun_and_carried_pose(35, 40)
+        for bench in (first, second):
+            with self.subTest(bench=type(bench).__name__):
+                assert_allclose(_compose_world_matrix(bench.disk), expected,
+                                rtol=0, atol=1e-9)
+
+    def test_the_two_joints_of_the_orbit_fixture_do_not_commute(self):
+        spin = _turn_about(SPUN_SPIN_AT, 35, (0, 0, 1), SPUN_LIFT)
+        carry = _translation(_orbit_delta((0, 0, 1), (0, 0, 0), SPUN_LIFT, 40))
+
+        self.assertFalse(np.allclose(carry @ spin, spin @ carry))
+
+    def test_an_orbit_in_the_middle_keeps_every_run_contiguous(self):
+        bench = OrbitContiguityBench()
+        bench.render()
+        body = bench.body
+
+        # lift (1) | swing (3) | carry (1) | the hand-written rotation
+        # | the rest placement.
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 't', 'r', 't', 't', 'r', 't'])
+        swing = body.__dict__['_joint_motion']['swing']
+        self.assertEqual(len(swing), 3)
+        index = body.operations.index(swing[0])
+        self.assertEqual(index, 1)
+        self.assertEqual(body.operations[index:index + 3], swing)
+        carry = body.__dict__['_joint_motion']['carry']
+        self.assertEqual(len(carry), 1)
+        self.assertEqual(body.operations.index(carry[0]), 4)
+        # The hand-written rotation is outside the whole joint block.
+        self.assertEqual(body.operations[5].serialized[1], '7')
+        self.assertFalse(getattr(body.operations[6], '_motion', False))
+
+    def test_re_binding_the_orbit_returns_it_to_its_own_slot(self):
+        body = SpunAndCarried()
+        body.translate(SPUN_LIFT)
+
+        body.carry = 40
+        body.spin = 35
+        body.carry = -12
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+        self.assertEqual(len(body.__dict__['_joint_motion']['carry']), 1)
+        self.assertEqual(len(motions(body)), 4)
+        assert_allclose(_compose_world_matrix(body),
+                        _spun_and_carried_pose(35, -12), rtol=0, atol=1e-9)
+
+
+##############################################
+# 1.6c The orbit: a point of the body carried round a line
+
+# The cycloidal disk, placed 2.5 mm off the parent's axis: its own
+# placed origin is the point the orbit carries, and neither the radius
+# nor the phase is written anywhere.
+ORBIT_LIFT = [0.0, -2.5, 0.0]
+
+# The Internal Cycloidal Actuator's disk 1, read off its own
+# `simulation/actuator/assembly.py`: the rest placement `render()`
+# applies (a rotation about the document's +Y, then a translation), the
+# bore's own-frame axis point the project's spec states, the rest bore
+# centre the project DERIVES from those two, and the 8:1 reduction.
+# Nothing here is measured by this file; the numbers are the project's.
+DISK_REST_ANGLE = 15.042379656
+DISK_REST_TRANSLATION = (0.897397081, -5.25, 3.895358836)
+BORE_AXIS_POINT = (0.0, 0.0, -2.000)
+REDUCTION = 8
+
+
+def _rotate_y(point, angle):
+    """The project's own Rodrigues-about-Y helper, written out."""
+    radians = math.radians(angle)
+    x, y, z = point
+    return (x * math.cos(radians) + z * math.sin(radians),
+            y,
+            -x * math.sin(radians) + z * math.cos(radians))
+
+
+#: The rest bore centre, DERIVED the way `_capture_disk_rest()` derives
+#: it -- `R_r B + t` -- and never typed. The project's ratified spec
+#: forbids writing it as a literal, and the two numbers below are its
+#: own checks on the derivation, not its source: `_close()`'s recorded
+#: (0.3783, -5.25, 1.9639) and the six-decimal value the change's tasks
+#: quote. That quoted value is ROUNDED, and a rounded bore centre breaks
+#: the algebraic identity at 3e-6 mm, which is why it is checked against
+#: here rather than used.
+DISK_1_BORE_CENTRE = tuple(
+    centre + shift for centre, shift
+    in zip(_rotate_y(BORE_AXIS_POINT, DISK_REST_ANGLE),
+           DISK_REST_TRANSLATION))
+DISK_1_BORE_CENTRE_RECORDED = (0.3783, -5.25, 1.9639)
+DISK_1_BORE_CENTRE_QUOTED = (0.378316, -5.25, 1.963896)
+
+# Where an orbit is read: 0 and 360 are the identity, 90 is where
+# `cos` is 6.1e-17 rather than 0 in IEEE double, and 17 and 213.5 are
+# ordinary angles in two different quadrants.
+ORBIT_ANGLES = (0, 17, 90, 213.5, 360)
+
+
+def _orbit_delta(axis, at, carried, degrees):
+    """`R(degrees, axis, about at) . carried - carried`: the pure
+    translation an orbit is, written out in NumPy so the expectation
+    never comes from the code under test."""
+    at = np.array(at, dtype=float)
+    turned = (_translation(at) @ _rotation(degrees, axis)
+              @ _translation(-at))
+    point = np.array([carried[0], carried[1], carried[2], 1.0])
+    return (turned @ point - point)[:3]
+
+
+def _rest_matrix(node):
+    """The node's placement with nothing bound: what the rotation block
+    of every composed matrix below has to keep."""
+    matrix = np.eye(4)
+    for operation in node.operations:
+        matrix = operation.matrix() @ matrix
+    return matrix
+
+
+class CarriedDisk(Solid2Node):
+    """The default carried point: the body's own placed origin."""
+
+    orbit = Orbit(axis=(0, 0, 1), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class BoredDisk(Solid2Node):
+    """The actuator's disk: a rest placement with a non-trivial rotation
+    part, and a carried point that is NOT the body's placed origin."""
+
+    orbit = Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE, unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+def _carried_disk():
+    disk = CarriedDisk()
+    disk.translate(ORBIT_LIFT)
+    return disk
+
+
+def _bored_disk():
+    disk = BoredDisk()
+    disk.rotate(DISK_REST_ANGLE, [0, 1, 0])
+    disk.translate(list(DISK_REST_TRANSLATION))
+    return disk
+
+
+# The two fixtures, with the axis, anchor and carried point each states
+# in the PARENT's frame, so a test can compute by hand what the joint
+# must do.
+ORBIT_FIXTURES = (
+    ('the placed origin, carried', _carried_disk, (0, 0, 1), (0, 0, 0),
+     tuple(ORBIT_LIFT)),
+    ('a derived bore centre, carried', _bored_disk, (0, 1, 0), (0, 0, 0),
+     DISK_1_BORE_CENTRE),
+)
+
+
+class OrbitTest(BaseNodeTest):
+    """An orbit carries a point of the body round a line and leaves the
+    body's attitude alone.
+
+    Two acceptances, and they are not the same acceptance:
+
+    - the ATTITUDE is EXACT. The operation is a `Translation` and
+      carries no rotation at all, so the rotation block of the composed
+      matrix is the rest placement's, bit for bit, at every angle:
+      `atol=0`.
+    - the POSITION is not. `cos(90)` is 6.1e-17 in IEEE double, so
+      `(cos t - 1) * v` at 90 degrees with `v = (10, 0, 0)` publishes
+      -9.999999999999998 and not -10.0, and two different float
+      expression trees over the same trigonometry differ by ~1e-15 mm.
+      Positions are compared at `atol=1e-9`, the module's own `_SNAP`,
+      and the tolerance is stated here rather than discovered by
+      loosening a failing zero.
+    """
+
+    def test_the_attitude_is_exactly_untouched(self):
+        for label, factory, axis, at, carried in ORBIT_FIXTURES:
+            rest = _rest_matrix(factory())[:3, :3]
+            for angle in ORBIT_ANGLES:
+                with self.subTest(fixture=label, angle=angle):
+                    disk = factory()
+                    disk.orbit = angle
+                    composed = _compose_world_matrix(disk)
+                    assert_allclose(composed[:3, :3], rest, rtol=0, atol=0)
+                    # ... and the body DID move, or the assertion above
+                    # would be satisfied by a joint that does nothing.
+                    moved = np.max(np.abs(
+                        composed[:3, 3] - _rest_matrix(factory())[:3, 3]))
+                    if angle % 360:
+                        self.assertGreater(moved, 0.1)
+                    else:
+                        self.assertLess(moved, 1e-9)
+
+    def test_the_carried_point_lands_where_the_rotation_says(self):
+        for label, factory, axis, at, carried in ORBIT_FIXTURES:
+            rest = _rest_matrix(factory())
+            # The carried point is a material point of the body: in the
+            # body's own frame it is the rest placement inverted.
+            local = np.linalg.inv(rest) @ np.array([*carried, 1.0])
+            for angle in ORBIT_ANGLES:
+                with self.subTest(fixture=label, angle=angle):
+                    disk = factory()
+                    disk.orbit = angle
+                    landed = _compose_world_matrix(disk) @ local
+                    expected = np.array(carried, dtype=float) + _orbit_delta(
+                        axis, at, carried, angle)
+                    assert_allclose(landed[:3], expected, rtol=0, atol=1e-9)
+
+    def test_one_operation_and_it_is_a_translation(self):
+        disk = _carried_disk()
+
+        disk.orbit = 40
+        self.assertEqual([operation[0] for operation in serialized(disk)],
+                         ['t', 't'])
+        self.assertEqual(len(motions(disk)), 1)
+
+        disk.orbit = -12
+        self.assertEqual([operation[0] for operation in serialized(disk)],
+                         ['t', 't'])
+        self.assertEqual(len(motions(disk)), 1)
+        assert_allclose(numbers(serialized(disk)[0]),
+                        _orbit_delta((0, 0, 1), (0, 0, 0), ORBIT_LIFT, -12),
+                        rtol=0, atol=1e-9)
+
+    def test_the_default_carried_point_is_the_placed_origin(self):
+        """The default and the same point written out place the body
+        identically. The default takes one derivation FEWER -- in the
+        body's own frame the placed origin is exactly (0, 0, 0), with no
+        inversion at all -- so the two need not be bit-identical in
+        position; the attitude still is."""
+
+        class StatedFlat(Solid2Node):
+            orbit = Orbit(axis=(0, 0, 1), carries=tuple(ORBIT_LIFT),
+                          unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class DefaultTurned(Solid2Node):
+            orbit = Orbit(axis=(0, 1, 0), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class StatedTurned(Solid2Node):
+            orbit = Orbit(axis=(0, 1, 0), carries=DISK_REST_TRANSLATION,
+                          unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        def flat(klass):
+            body = klass()
+            body.translate(ORBIT_LIFT)
+            return body
+
+        def turned(klass):
+            body = klass()
+            body.rotate(DISK_REST_ANGLE, [0, 1, 0])
+            body.translate(list(DISK_REST_TRANSLATION))
+            return body
+
+        cases = (('translate', flat, CarriedDisk, StatedFlat),
+                 ('rotate+translate', turned, DefaultTurned, StatedTurned))
+        for label, place, default_class, stated_class in cases:
+            for angle in ORBIT_ANGLES:
+                with self.subTest(placement=label, angle=angle):
+                    default, stated = place(default_class), place(stated_class)
+                    default.orbit = angle
+                    stated.orbit = angle
+                    one = _compose_world_matrix(default)
+                    other = _compose_world_matrix(stated)
+                    assert_allclose(one[:3, :3], other[:3, :3],
+                                    rtol=0, atol=0)
+                    assert_allclose(one[:3, 3], other[:3, 3],
+                                    rtol=0, atol=1e-12)
+                    if angle % 360:
+                        self.assertGreater(
+                            np.max(np.abs(one[:3, 3]
+                                          - _rest_matrix(place(
+                                              default_class))[:3, 3])),
+                            0.1)
+
+    def test_the_anchor_may_be_any_point_of_the_line(self):
+        class Raised(Solid2Node):
+            orbit = Orbit(axis=(0, 0, 1), at=(0, 0, 40), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        for angle in ORBIT_ANGLES:
+            with self.subTest(angle=angle):
+                origin, raised = _carried_disk(), Raised()
+                raised.translate(ORBIT_LIFT)
+                origin.orbit = angle
+                raised.orbit = angle
+                assert_allclose(_compose_world_matrix(raised),
+                                _compose_world_matrix(origin),
+                                rtol=0, atol=1e-9)
+                if angle % 360:
+                    self.assertGreater(
+                        np.max(np.abs(_compose_world_matrix(raised)[:3, 3]
+                                      - np.array(ORBIT_LIFT))), 0.1)
+
+    def test_a_carried_point_on_the_axis_is_refused_by_name(self):
+        """The V8's connecting rod: its big end is at the unit's origin,
+        which is ON the crank axis, so the default carried point does
+        not move and the author meant `carries`."""
+
+        class ConRod(Solid2Node):
+            orbit = Orbit(axis=(1, 0, 0), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        rod = ConRod()
+
+        with self.assertRaises(ValueError) as raised:
+            rod.orbit = 30
+
+        message = str(raised.exception)
+        # The axis and the anchor read as the framework's own snapped
+        # exact values, which is what the document carries too.
+        for expected in ('ConRod', 'orbit', 'carries',
+                         '(1, 0, 0)', '(0, 0, 0)', '(0.0, 0.0, 0.0)', '0.0'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+        self.assertEqual(motions(rod), [])
+
+    def test_a_malformed_carries_fails_at_realization(self):
+        built = []
+
+        class Watcher(Solid2Node):
+            def __init__(self, **kwargs):
+                built.append(self)
+                super().__init__(**kwargs)
+
+            def render(self):
+                return cube(1, center=True)
+
+        def raising(node):
+            raise RuntimeError('no such position')
+
+        elsewhere = Length(5.0)
+        elsewhere._name = 'elsewhere'
+
+        cases = {
+            'two components': (0, 5),
+            'an undeclared token': (0, elsewhere, 0),
+            'a callable that raises': raising,
+        }
+        for label, carries in cases.items():
+            with self.subTest(case=label):
+                built.clear()
+
+                class Bad(AssemblyNode):
+                    orbit = Orbit(axis=(0, 0, 1), carries=carries,
+                                  unit='deg')
+
+                    watched = Watcher()
+
+                with self.assertRaises(ParameterError) as raised:
+                    Bad()
+
+                message = str(raised.exception)
+                for expected in ('Bad', 'orbit', 'carries'):
+                    self.assertIn(expected, message)
+                self.assertEqual(built, [])
+
+    def test_a_symbolic_binding_publishes_the_trigonometry(self):
+        class Carrier(AssemblyNode):
+            disk = CarriedDisk()
+
+            def render(self):
+                self.disk.translate(ORBIT_LIFT)
+
+            def simulate(self):
+                self.disk.orbit = self.time * 360
+
+        carrier = Carrier()
+        carrier.render()
+
+        published = serialized(carrier.disk)[0]
+        self.assertEqual(published[0], 't')
+        components = list(published[1])
+        self.assertIn('sin(', components[0])
+        self.assertIn('$t', components[0])
+        self.assertIn('cos(', components[1])
+        self.assertIn('$t', components[1])
+        # The component the circle does not reach is the plain number,
+        # not an expression multiplied by zero.
+        self.assertEqual(components[2], '0')
+
+        carrier.set_keyframe(0.25)
+        keyframed = list(serialized(carrier.disk)[0][1])
+        for component in keyframed:
+            with self.subTest(component=component):
+                float(component)
+        assert_allclose([float(component) for component in keyframed],
+                        _orbit_delta((0, 0, 1), (0, 0, 0), ORBIT_LIFT, 90.0),
+                        rtol=0, atol=1e-9)
+
+        carrier.clear_keyframe()
+        self.assertEqual(list(serialized(carrier.disk)[0][1]), components)
+
+        document = serialize_node(carrier, lambda rigid: rigid.name)
+        keys = set(document)
+        for child in document.get('children', ()):
+            keys.update(child)
+        self.assertLessEqual(
+            keys, {'name', 'type', 'color', 'mtime', 'operations', 'model',
+                   'children', 'flexible', 'piece'})
+
+    def test_a_relation_drives_an_orbit_and_inverts(self):
+        class Shaft(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Machine(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+
+            shaft = Shaft()
+            disk = CarriedDisk()
+
+            shaft.turn.drives(disk.orbit)
+
+            def render(self):
+                self.disk.translate(ORBIT_LIFT)
+
+            def simulate(self):
+                self.shaft.turn = self.angle
+
+        class Geared(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+
+            shaft = Shaft()
+            disk = CarriedDisk()
+
+            shaft.turn.drives(disk.orbit, ratio=-0.5)
+
+            def render(self):
+                self.disk.translate(ORBIT_LIFT)
+
+            def simulate(self):
+                self.shaft.turn = self.angle
+
+        class Backwards(AssemblyNode):
+            """The DRIVEN end bound, so the relation is solved
+            backwards through the orbit's coordinate."""
+
+            carry = Driver(default=0.0, unit='deg')
+
+            shaft = Shaft()
+            disk = CarriedDisk()
+
+            shaft.turn.drives(disk.orbit, ratio=-0.5)
+
+            def render(self):
+                self.disk.translate(ORBIT_LIFT)
+
+            def simulate(self):
+                self.disk.orbit = self.carry
+
+        machine = Machine()
+        machine.set_state(angle=40)
+        self.assertAlmostEqual(machine.disk.orbit.value, 40.0)
+        assert_allclose(numbers(serialized(machine.disk)[0]),
+                        _orbit_delta((0, 0, 1), (0, 0, 0), ORBIT_LIFT, 40.0),
+                        rtol=0, atol=1e-9)
+
+        geared = Geared()
+        geared.set_state(angle=40)
+        self.assertAlmostEqual(geared.disk.orbit.value, -20.0)
+
+        backwards = Backwards()
+        backwards.set_state(carry=-20.0)
+        self.assertAlmostEqual(backwards.shaft.turn.value, 40.0)
+        assert_allclose(numbers(serialized(backwards.disk)[0]),
+                        _orbit_delta((0, 0, 1), (0, 0, 0), ORBIT_LIFT, -20.0),
+                        rtol=0, atol=1e-9)
+
+    def test_a_range_on_an_orbit_is_the_inherited_refusal(self):
+        """A CHARACTERISATION test: `range` is `Joint`'s and this cycle
+        writes no new code for it. It is here because no project has yet
+        declared a range on an orbit, so nothing else pins the
+        behaviour on this kind."""
+
+        class Limited(Solid2Node):
+            orbit = Orbit(axis=(0, 0, 1), range=(-90, 90), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        limited = Limited()
+        limited.translate(ORBIT_LIFT)
+
+        with self.assertRaises(JointRangeError) as raised:
+            limited.orbit = 170
+
+        message = str(raised.exception)
+        for expected in ('Limited', 'orbit', '170', '-90', '90', 'deg'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+        self.assertEqual(motions(limited), [])
+
+        limited.orbit = -90
+        limited.orbit = 90
+        self.assertEqual(limited.orbit.value, 90)
+
+    def test_the_orbit_is_enumerable_as_a_joint_and_as_a_port(self):
+        # The export itself is asserted with the other kinds, in
+        # `test_the_kinds_are_exported_from_the_joints_module`.
+        self.assertEqual(list(declared_joints(CarriedDisk)), ['orbit'])
+        self.assertIsInstance(declared_joints(CarriedDisk)['orbit'], Orbit)
+
+        ports = declared_ports(CarriedDisk)
+        self.assertIn('orbit', ports)
+        self.assertIsInstance(ports['orbit'], RotationalPort)
+        self.assertEqual(ports['orbit'].unit, 'deg')
+
+        self.assertEqual(list(declared_joints(SpunAndCarried)),
+                         ['spin', 'carry'])
+
+
+##############################################
+# 1.6d The four projects' own algebra, as fixtures
+
+class ProjectAlgebraTest(BaseNodeTest):
+    """What the projects that asked for the orbit then write, checked
+    against the arithmetic they write today.
+
+    Neither of these two fixtures is a measurement over a real machine:
+    they reproduce a project's own numbers and its own hand-written
+    composition inside this test file. The measurement over the machines
+    themselves is the four projects' adoption at stage B, in their own
+    repositories, and it is not this cycle's evidence.
+    """
+
+    def test_the_cycloidal_actuators_two_forms_are_one_transform(self):
+        """The Internal Cycloidal Actuator's identity, in full.
+
+        Writing `rest = T_t R_r`, `B = BORE_AXIS_POINT`,
+        `c0 = R_r B + t` the rest bore centre and
+        `sigma = -theta / 8 + mesh_phase`, the project's three
+        hand-written operations give
+
+            T_t R_r T_carry R_sigma T_(-B)
+
+        and the orbit-plus-spin form gives
+
+            T_Delta . T_c0 R_sigma T_(-c0) . T_t R_r
+
+        Both are `T_c(theta) R_(r+sigma) T_(-B)`. The left-hand side is
+        built here from the project's own `_rotate_y` helper; the
+        right-hand side is the framework's, through a `spin` declared
+        before an `orbit` on one class.
+        """
+
+        class CycloidalDisk(Solid2Node):
+            # Declaration order IS composition order (ADR-093): the
+            # spin is innermost, about the disk's own bore, and the
+            # orbit carries that bore round the actuator axis.
+            spin = Revolute(axis=(0, 1, 0), at=DISK_1_BORE_CENTRE,
+                            unit='deg')
+            orbit = Orbit(axis=(0, 1, 0), carries=DISK_1_BORE_CENTRE,
+                          unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        def by_hand(theta, mesh_phase):
+            """`_simulate_disk`, as the project writes it today: three
+            operations composed INSIDE the rest placement."""
+            centre = DISK_1_BORE_CENTRE
+            sigma = -theta / REDUCTION + mesh_phase
+            orbited = _rotate_y(centre, theta)
+            delta = tuple(o - c for o, c in zip(orbited, centre))
+            own_frame = _rotate_y(delta, -DISK_REST_ANGLE)
+            carry = tuple(b + d for b, d in zip(BORE_AXIS_POINT, own_frame))
+            rest = (_translation(DISK_REST_TRANSLATION)
+                    @ _rotation(DISK_REST_ANGLE, (0, 1, 0)))
+            return (rest @ _translation(carry)
+                    @ _rotation(sigma, (0, 1, 0))
+                    @ _translation(-np.array(BORE_AXIS_POINT)))
+
+        rotations, positions = [], []
+        for mesh_phase in (0.0, 4.5):
+            for theta in (0.0, 17.0, 90.0, 213.5, 360.0):
+                with self.subTest(mesh_phase=mesh_phase, theta=theta):
+                    disk = CycloidalDisk()
+                    disk.rotate(DISK_REST_ANGLE, [0, 1, 0])
+                    disk.translate(list(DISK_REST_TRANSLATION))
+                    disk.spin = -theta / REDUCTION + mesh_phase
+                    disk.orbit = theta
+
+                    framework = _compose_world_matrix(disk)
+                    expected = by_hand(theta, mesh_phase)
+                    rotations.append(
+                        np.max(np.abs(framework[:3, :3] - expected[:3, :3])))
+                    positions.append(
+                        np.max(np.abs(framework[:3, 3] - expected[:3, 3])))
+                    # Two acceptances, not one: the orbit adds NO
+                    # rotation, so both sides carry exactly R_(r+sigma)
+                    # and the rotation blocks agree bit for bit; the
+                    # positions are two float expression trees over the
+                    # same trigonometry and agree to 1e-9 mm.
+                    assert_allclose(framework[:3, :3], expected[:3, :3],
+                                    rtol=0, atol=0)
+                    assert_allclose(framework[:3, 3], expected[:3, 3],
+                                    rtol=0, atol=1e-9)
+        # Recorded in the change's evidence.md, both of them.
+        print(f'\nactuator identity: max rotation deviation '
+              f'{max(rotations):.3e}, max position deviation '
+              f'{max(positions):.3e} mm')
+
+    def test_the_actuators_radius_and_phase_are_derived_not_typed(self):
+        """The number that proves the derivation replaces what the
+        project may not type: its ratified spec forbids writing the rest
+        bore centre or the journal position as a literal, so the
+        2.000 mm eccentricity and the -79.095935297 degree phase have to
+        come out of the point and the line."""
+        radius, phase = _derived_radius_and_phase(
+            axis=(0, 1, 0), at=(0, 0, 0), carried=DISK_1_BORE_CENTRE,
+            reference=(1, 0, 0))
+
+        self.assertAlmostEqual(radius, 2.0000, places=4)
+        self.assertAlmostEqual(phase, -79.095935297, places=3)
+        # And the derived centre itself is the one the project records
+        # and the one this change's tasks quote.
+        for derived, recorded, quoted in zip(DISK_1_BORE_CENTRE,
+                                             DISK_1_BORE_CENTRE_RECORDED,
+                                             DISK_1_BORE_CENTRE_QUOTED):
+            self.assertAlmostEqual(derived, recorded, places=3)
+            self.assertAlmostEqual(derived, quoted, places=4)
+
+    def test_the_dogs_swung_offset_is_what_an_orbit_publishes(self):
+        """YouCanBuildDog's `R(theta) . s - s`, for the two spans its
+        layout measures, against an `Orbit` anchored at the chassis
+        pivot and carrying the knee pivot."""
+
+        def swung_offset(angle, span):
+            """`simulation/leg.py`, written out."""
+            span_y, span_z = span
+            radians = math.radians(angle)
+            turned_y = span_y * math.cos(radians) - span_z * math.sin(radians)
+            turned_z = span_y * math.sin(radians) + span_z * math.cos(radians)
+            return turned_y - span_y, turned_z - span_z
+
+        for label, pivot, span, radius, phase in DOG_LEGS:
+            knee = (0.0, pivot[0] + span[0], pivot[1] + span[1])
+            chassis = (0.0, pivot[0], pivot[1])
+
+            class Shin(Solid2Node):
+                carry = Orbit(axis=(1, 0, 0), at=chassis, carries=knee,
+                              unit='deg')
+
+                def render(self):
+                    return cube(2, center=True)
+
+            for angle in (0.0, 17.0, -35.0, 90.0):
+                with self.subTest(leg=label, angle=angle):
+                    shin = Shin()
+                    # The five carried bodies of a leg have five
+                    # different rest placements and ONE offset: this is
+                    # why the knee pivot has to be named.
+                    shin.translate([0.0, 12.0, -30.0])
+                    shin.carry = angle
+
+                    expected = swung_offset(angle, span)
+                    published = numbers(serialized(shin)[0])
+                    assert_allclose(published,
+                                    [0.0, expected[0], expected[1]],
+                                    rtol=0, atol=1e-9)
+
+            derived_radius, derived_phase = _derived_radius_and_phase(
+                axis=(1, 0, 0), at=chassis, carried=knee, reference=(0, 1, 0))
+            with self.subTest(leg=label, derived='radius'):
+                self.assertAlmostEqual(derived_radius, radius, places=4)
+            with self.subTest(leg=label, derived='phase'):
+                self.assertAlmostEqual(derived_phase, phase, places=3)
+
+
+# YouCanBuildDog's two measured link spans, read off its own
+# `simulation/layout.py`, with the chassis pivots they hang from and the
+# radius and phase its reviewed proposal TYPED as `radius=`/`phase=`.
+# Three legs span 40.0000 mm; the back-left leg is 0.076 mm short and is
+# not the same part as its siblings.
+#
+# One number differs from that proposal by 7e-4 degrees: it typed
+# -55.104 for the back-left leg where its own span (22.8404, -32.7450)
+# is -55.1033 degrees, a transcription of the third decimal. The
+# framework derives the span's own angle; the project's typed figure is
+# the one that is slightly wrong, which is the argument for deriving it.
+DOG_LEGS = (
+    ('front (three of the four legs)', (-38.6569, -15.3431),
+     (22.9431, -32.7661), 40.0000, -55.000),
+    ('back-left (0.076 mm short)', (66.4458, -15.3642),
+     (22.8404, -32.7450), 39.9239, -55.1033),
+)
+
+
+def _derived_radius_and_phase(axis, at, carried, reference):
+    """The radius and the phase the FRAMEWORK derives, read off its own
+    construction rather than recomputed here: `_orbit_frame` is the
+    function `Orbit.placement` calls, and neither number is a declared
+    argument anywhere.
+
+    The phase is an angle about the line and needs a reference direction
+    in the plane to be measured from; each project states its own, so
+    the caller passes it. The positive sense is the joint's own: `b`,
+    the axis crossed with the radius vector.
+    """
+    from solid_node.motion.joints import _orbit_frame
+
+    axis = np.array(axis, dtype=float)
+    axis = axis / np.linalg.norm(axis)
+    across, _quarter, radius = _orbit_frame(tuple(axis), at, carried)
+    reference = np.array(reference, dtype=float)
+    quarter = np.cross(axis, reference)
+    phase = math.degrees(math.atan2(np.dot(across, quarter),
+                                    np.dot(across, reference)))
+    return radius, phase
 
 
 ##############################################

@@ -8,6 +8,47 @@ Changelog
 Unreleased
 ----------
 
+**A body can be carried round a line without being turned by it.** A
+cycloidal disk on its eccentric, a connecting rod's big end on the crank
+pin, the lower half of a parallelogram leg: a point of the body travels
+a circle while the body's attitude stays exactly as it was. No primitive
+said that. A ``Revolute`` about the same line turns the body too, so a
+project paid for it in every ratio that then had to cancel the unwanted
+turn; a pair of ``Prismatic``\ s with a trigonometric ``law=`` each says
+it but has no inverse, so nothing can be driven backwards through it —
+one project carried forty of them, with forty laws, for four freedoms.
+``Orbit`` is the third one-coordinate declaration::
+
+    class CycloidalDisk(Solid2Node):
+        spin  = Revolute(axis=(0, 0, 1), unit='deg')   # innermost: its own centre
+        orbit = Orbit(axis=(0, 0, 1), unit='deg')      # outermost: the drive axis
+
+    shaft.spin.drives(disk.orbit)
+    shaft.spin.drives(disk.spin, ratio=-1.0 / REDUCTION)
+
+``axis`` and ``at`` mean what they mean on a ``Revolute`` — a direction
+and a point ON the line. ``carries`` is the point of the body that
+travels round it, in the same frame, defaulting to the body's own placed
+origin. The eccentric radius and the starting phase are **derived from
+that point and that line and can never be declared**: OpenCycloid, whose
+disk is placed at its eccentric offset, writes the two lines above and
+its ``ratio=-1.0 / REDUCTION - 1.0`` loses the ``- 1.0`` it only ever
+carried because the orbit used to turn the body. A carried point lying
+ON the line derives a radius of zero — the body would not move — and is
+refused by name at the first binding.
+
+An orbit's coordinate is an ANGLE, so a relation into it inverts exactly
+as a relation into a ``Revolute`` does, and its placement is one ordinary
+translation whose components are built in the framework's own degree
+trigonometry: a symbolic binding publishes ``cos``/``sin`` expressions
+the viewer already evaluates.
+
+Nothing else changes: no new operation kind, no document key, no viewer
+or serialization change, no parity-corpus entry, nothing deprecated, and
+no existing declaration, pose or test moves — ``Revolute`` and
+``Prismatic`` place their bodies with the same code they placed them with
+before. (OpenSpec change ``orbit-joint``; ADR-094, extending ADR-088.)
+
 **The joints of one class compose in declaration order.** A body with
 more than one freedom used to compose them in the order their
 coordinates were BOUND — which, when relations bind them, is the

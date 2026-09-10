@@ -481,14 +481,16 @@ extension ADR-056 reserves). The declared time base, `Time`, lives in
 the same module for the same reason `Port` does: it is a declaration
 descriptor with a per-instance value.
 
-**Joints** (spec `joints`) are the two one-coordinate lower pairs,
-`Revolute` and `Prismatic`, exported from `solid_node/motion/joints.py`
-and declared as a class attribute of the node they move (ADR-088). A
-joint states `axis` and `at` in the **parent's** frame — the frame the
-parent's `render()` places the node in, where MuJoCo and Modelica state
-them — with an optional `(lo, hi)` `range` and a `unit`; the arguments
-resolve per instance at realization, from numbers, tokens, derived
-formulas, or a callable of the realized node, and are outside identity.
+**Joints** (spec `joints`) are the three one-coordinate declarations,
+`Revolute`, `Prismatic` and `Orbit`, exported from
+`solid_node/motion/joints.py` and declared as a class attribute of the
+node they move (ADR-088, ADR-094). A joint states `axis` and `at` in the
+**parent's** frame — the frame the parent's `render()` places the node
+in, where MuJoCo and Modelica state them — with an optional `(lo, hi)`
+`range` and a `unit`; an `Orbit` states one further parent-frame point,
+`carries`, and all of them resolve per instance at realization, from
+numbers, tokens, derived formulas, or a callable of the realized node,
+and are outside identity.
 A joint OWNS one coordinate and that coordinate is a **port**: `Joint`
 holds a `Port` rather than subclassing one, `declared_ports()` reports
 the coordinate under the joint's name through a duck-typed `coordinate`
@@ -496,22 +498,36 @@ attribute (ports cannot import joints, which import ports), and
 `declared_joints()` is the sibling enumerator for the axis and the
 anchor. Binding the coordinate PLACES the body, at the binding: the
 framework composes the node's non-motion operations, inverts that rest
-placement to carry the axis and anchor into the node's own frame,
+placement to carry the axis, the anchor and any further point the
+joint declares into the node's own frame through that one inversion,
 snaps the inversion's residue to exact 0/1/−1, and applies ordinary
 `Rotation`/`Translation` objects — `translate(-anchor)`,
 `rotate(value, axis)`, `translate(anchor)` for a revolute, the two
 centring translations omitted when the line runs through the placed
-origin, and one `translate(value * axis)` for a prismatic. They are
-always placed as motion, whatever phase is current (`apply_joint_motion`
-in `node/base.py`, the joint's own seam, because `_place_operation`
+origin; one `translate(value * axis)` for a prismatic; and for an orbit
+ONE translation, `(cos(value) − 1)·v + sin(value)·b`, where `v` is the
+component of the carried point across the line and `b` is that vector
+turned a quarter turn about it. An orbit is the body carried round the
+line without turning: its coordinate is an angle, its operation carries
+no rotation at all, and the point of the body it carries is `carries`,
+defaulting to the body's own placed origin, which in the body's own
+frame is exactly the origin. Its radius and phase are DERIVED from the
+point and the line and can never be declared, so a project forbidden to
+type its bore centre can still state the joint; a carried point ON the
+line derives a radius of zero and is refused by name at the first
+binding, the one joint refusal that is not made at realization.
+
+The operations are always placed as motion, whatever phase is current
+(`apply_joint_motion` in `node/base.py`, the joint's own seam, because `_place_operation`
 appends outside a phase and a carried line must stay innermost);
 under a `simulate()` phase they are tagged and swept like any motion.
 A rest placement that is not numeric is refused by name rather than
 placing the body about a wrong line, and a numeric binding outside the
 declared range raises `JointRangeError`.
 
-Several joints on one body compose in **declaration order**, innermost
-first (ADR-093): the first joint `declared_joints()` reports is applied
+Several joints on one body — a disk that spins on its own centre while an
+orbit carries it round another line, say — compose in **declaration
+order**, innermost first (ADR-093): the first joint `declared_joints()` reports is applied
 closest to the body and the last is outermost, whatever order their
 coordinates were bound in — by hand, by a wiring, or by relations a
 solver reached in an order the class body does not show — so a class

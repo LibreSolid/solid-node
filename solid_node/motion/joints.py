@@ -12,6 +12,17 @@ arithmetic that carries a pivot into that part's coordinates as well.
 `Revolute` and `Prismatic` are the two one-coordinate lower pairs
 stated once, next to the body they move.
 
+`Orbit` is the third, and it is not a lower pair at all: a body whose
+ATTITUDE never changes while a point of it travels the circle that point
+makes about a line -- a cycloidal disk on its eccentric, a connecting
+rod's big end on the crank pin, the lower half of a parallelogram leg.
+It owns one coordinate, an angle, and places ONE translation. Which
+point of the body it carries is the joint's own argument, `carries`,
+defaulting to the body's own placed origin; how far that point stands
+from the line, and where on the circle it starts, are DERIVED from the
+point and the line and are never typed, which is what lets a project
+that may not write its bore centre as a literal write the joint at all.
+
 A joint is declared as a class attribute of the node it moves and says
 WHERE that node may move::
 
@@ -74,7 +85,7 @@ from solid_node.motion.ports import (BoundPort, Coordinate, Port,
                                      bind)
 
 
-__all__ = ['Joint', 'JointRangeError', 'Prismatic', 'Revolute',
+__all__ = ['Joint', 'JointRangeError', 'Orbit', 'Prismatic', 'Revolute',
            'declared_joints']
 
 
@@ -86,6 +97,26 @@ __all__ = ['Joint', 'JointRangeError', 'Prismatic', 'Revolute',
 _SNAP = 1e-9
 
 _MISSING = object()
+
+
+class _OwnPlacedOrigin:
+    """What an `Orbit` carries when its `carries` is left unstated: the
+    body's OWN PLACED ORIGIN, the point the parent's `render()` put the
+    node's origin at.
+
+    A sentinel rather than a number, because the point is not known when
+    a joint's arguments resolve -- the node's placement does not exist
+    yet -- and because in the node's own frame it is exactly
+    `(0, 0, 0)`, by definition and with no arithmetic, so carrying it
+    through the inverted rest placement would only put floating-point
+    residue in the commonest case.
+    """
+
+    def __repr__(self):
+        return "the body's own placed origin"
+
+
+_OWN_PLACED_ORIGIN = _OwnPlacedOrigin()
 
 
 class JointRangeError(ValueError):
@@ -197,7 +228,14 @@ class Joint(Coordinate):
     def resolve(self, node, values):
         """This instance's `(axis, at, range)`: every component a plain
         number, the axis normalized, or `ParameterError` naming the
-        class, the joint and the argument at fault."""
+        class, the joint and the argument at fault.
+
+        A subclass that declares a further argument -- an `Orbit`'s
+        `carries` -- appends it here, through the same `_vector` path,
+        so its refusals read like `at`'s by construction. `place`
+        unpacks the first three and `_refuse_out_of_range` still reads
+        index 2, so the range never moves.
+        """
         axis = self._vector(node, values, self.axis, 'axis')
         anchor = self._vector(node, values, self.at, 'at')
         span = self._span(node, values)
@@ -289,8 +327,9 @@ class Joint(Coordinate):
         return (low, high)
 
     def arguments(self, node):
-        """The resolved `(axis, at, range)` for `node`, resolving them
-        now for a node the realization path never reached."""
+        """The resolved `(axis, at, range)` for `node` -- and whatever
+        further argument the subclass declares after them -- resolving
+        them now for a node the realization path never reached."""
         resolved = node.__dict__.setdefault('_joint_arguments', {})
         found = resolved.get(self.name)
         if found is None:
@@ -340,13 +379,14 @@ class Joint(Coordinate):
         """
         from solid_node.node.base import apply_joint_motion
 
-        axis, anchor, _span = self.arguments(node)
-        local_axis, local_anchor = self._carry(node, axis, anchor)
+        axis, anchor, _span = self.arguments(node)[:3]
+        local_axis, local_points = self._carry(
+            node, axis, *self.carried_points(node, anchor))
         self.clear(node)
         slot = list(declared_joints(type(node))).index(self.name)
         applied = apply_joint_motion(
             node,
-            list(self.placement(node, value, local_axis, local_anchor)),
+            list(self.placement(node, value, local_axis, *local_points)),
             slot)
         node.__dict__.setdefault('_joint_motion', {})[self.name] = applied
 
@@ -367,8 +407,20 @@ class Joint(Coordinate):
             operation for operation in node.operations
             if not any(operation is dropped for dropped in previous)]
 
-    def _carry(self, node, axis, anchor):
-        """The parent-frame `axis` and `anchor` in `node`'s own frame.
+    def carried_points(self, node, anchor):
+        """The parent-frame points this joint needs carried into the
+        node's own frame, the anchor first.
+
+        A joint that declares further points -- an `Orbit`'s `carries`
+        -- returns them here and receives them, carried, as the extra
+        arguments of its `placement`. They all ride the ONE inversion
+        `_carry` already computes.
+        """
+        return (anchor,)
+
+    def _carry(self, node, axis, *points):
+        """The parent-frame `axis` and each of `points` in `node`'s
+        own frame.
 
         Motion composes innermost -- before the placement the parent's
         `render()` applied -- so a joint stated in the parent's frame
@@ -400,11 +452,18 @@ class Joint(Coordinate):
         inverse = np.linalg.inv(matrix)
         carried = inverse[:3, :3] @ np.array(axis, dtype=float)
         carried = carried / np.linalg.norm(carried)
-        point = inverse @ np.array([anchor[0], anchor[1], anchor[2], 1.0])
+        local = []
+        for point in points:
+            if point is _OWN_PLACED_ORIGIN:
+                local.append((0.0, 0.0, 0.0))
+                continue
+            placed = inverse @ np.array([point[0], point[1], point[2], 1.0])
+            local.append(tuple(_snapped(float(value))
+                               for value in placed[:3]))
         return (tuple(_snapped(float(value)) for value in carried),
-                tuple(_snapped(float(value)) for value in point[:3]))
+                tuple(local))
 
-    def placement(self, node, value, axis, anchor):
+    def placement(self, node, value, axis, *points):
         raise NotImplementedError
 
 
@@ -461,6 +520,128 @@ class Prismatic(Joint):
                 translation.append(value)
             else:
                 translation.append(value * component)
+        return [Translation(translation, node)]
+
+
+
+def _orbit_frame(axis, anchor, carried):
+    """The two vectors an orbit turns in, and the radius it derives.
+
+    `axis` a unit direction, `anchor` a point on that line and `carried`
+    the point of the body that travels round it, all three in ONE frame.
+    Splits `carried - anchor` into its component ALONG the line and its
+    component ACROSS it: `across` is the radius vector, `quarter` is
+    that vector turned a quarter turn about the line (the axis crossed
+    with it), and both have length `radius`. Rodrigues then gives the
+    displacement of the carried point at an angle `t` as
+    `(cos t - 1) * across + sin t * quarter` -- a pure translation,
+    carrying no rotation at any angle.
+
+    The along-the-line component is projected out, which is why WHICH
+    point of the line `anchor` names does not change the placement.
+    """
+    reach = tuple(float(point) - float(base)
+                  for point, base in zip(carried, anchor))
+    along = sum(component * direction
+                for component, direction in zip(reach, axis))
+    across = tuple(component - along * direction
+                   for component, direction in zip(reach, axis))
+    quarter = (axis[1] * across[2] - axis[2] * across[1],
+               axis[2] * across[0] - axis[0] * across[2],
+               axis[0] * across[1] - axis[1] * across[0])
+    radius = math.sqrt(sum(component ** 2 for component in across))
+    return across, quarter, radius
+
+
+class Orbit(Joint):
+    """A point of a body carried round one line, the body's attitude
+    left alone: `Orbit(axis, at, carries, range, unit)`.
+
+    `axis` and `at` mean exactly what a `Revolute`'s mean -- a direction
+    and a point ON the line, in the parent's frame. `carries` is the
+    point of the BODY that travels round that line, stated in the same
+    frame and resolved the same way; left unstated it is the body's OWN
+    PLACED ORIGIN, the point the parent's `render()` placed the node at.
+
+    The coordinate is ONE angle, and it is rotational, although the
+    placement it produces is a single translation: what the coordinate
+    measures is an angle round the line, so a relation into an orbit
+    inverts exactly as a relation into a `Revolute` does.
+
+    **The radius and the phase are derived, never declared.** How far
+    the carried point stands from the line, and where on the circle it
+    starts, are consequences of the point and the line; a project that
+    may not write its bore centre as a literal can still write the
+    joint. A carried point ON the line derives a radius of zero -- the
+    body would not move -- and is refused at the first binding, naming
+    the node, the joint, the line, the point and the radius.
+    """
+
+    coordinate_kind = RotationalPort
+    default_unit = 'deg'
+
+    def __init__(self, axis, at=(0, 0, 0), carries=None, range=None,
+                 unit=None):
+        super().__init__(axis, at=at, range=range, unit=unit)
+        self.carries = carries
+
+    def __repr__(self):
+        return (f'<Orbit {self.name} axis={self.axis!r} at={self.at!r} '
+                f'carries={self.carries!r}>')
+
+    def resolve(self, node, values):
+        axis, anchor, span = super().resolve(node, values)
+        if self.carries is None:
+            # Not resolvable here, and not a number: the body's own
+            # placed origin is not known until the body is placed.
+            carried = _OWN_PLACED_ORIGIN
+        else:
+            carried = self._vector(node, values, self.carries, 'carries')
+        return axis, anchor, span, carried
+
+    def carried_points(self, node, anchor):
+        return (anchor, self.arguments(node)[3])
+
+    def placement(self, node, value, axis, anchor, carried):
+        from solid_node.math import cos, sin
+        from solid_node.node.operations import Translation
+
+        across, quarter, radius = _orbit_frame(axis, anchor, carried)
+        if radius <= _SNAP:
+            raise ValueError(
+                f"{_where(node)}: joint '{self.name}' carries a point "
+                f"that lies ON its own axis, so binding it would move "
+                f"nothing. In the node's own frame the axis is {axis} "
+                f"through the anchor {anchor}, the carried point is "
+                f"{carried}, and the radius they derive is {radius}. An "
+                f"orbit's radius and phase are derived from a point and "
+                f"a line, never declared, so name a point of the body "
+                f"off that line with carries=, in the parent's frame.")
+
+        # The framework's own DEGREE trigonometry: numeric for a plain
+        # binding, and for a symbolic one the OpenSCAD builtins `cos`
+        # and `sin`, which the parity corpus covers and the viewer
+        # already evaluates (ADR-022). No new operation kind, and no
+        # document key.
+        turned = cos(value) - 1
+        swept = sin(value)
+        translation = []
+        for reach, quarter_reach in zip(across, quarter):
+            terms = []
+            if abs(reach) > _SNAP:
+                terms.append(turned * reach)
+            if abs(quarter_reach) > _SNAP:
+                terms.append(swept * quarter_reach)
+            if not terms:
+                # A plain numeric zero, not an expression multiplied by
+                # zero: the reason `Prismatic` does this. A component
+                # the circle does not reach would otherwise carry
+                # $t-shaped noise in every orbit's published document.
+                translation.append(0)
+            elif len(terms) == 1:
+                translation.append(terms[0])
+            else:
+                translation.append(terms[0] + terms[1])
         return [Translation(translation, node)]
 
 

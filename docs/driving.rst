@@ -189,7 +189,7 @@ Joints: where a part may move
 =============================
 
 A port carries a value; a **joint** says *where a body may move*, next
-to the body, once. The two one-coordinate lower pairs come from
+to the body, once. The three one-coordinate declarations come from
 ``solid_node.motion.joints``:
 
 .. code-block:: python
@@ -288,6 +288,50 @@ Hand-written motion on the same node composes **outside the whole joint
 block**, keeping its call order among itself: the joints first,
 innermost, then every `rotate()`/`translate()` the `simulate()` applied,
 then the node's rest placement.
+
+A body that is carried without turning
+--------------------------------------
+
+A cycloidal disk rides an eccentric: its centre travels a small circle
+about the drive axis while the disk itself turns slowly on that moving
+centre. The travelling part is not a rotation of the body — the disk's
+attitude is set by its own spin alone — and ``Orbit`` is the joint for
+it:
+
+.. code-block:: python
+
+    from solid_node.motion.joints import Orbit, Revolute
+
+    class CycloidalDisk(Solid2Node):
+        spin  = Revolute(axis=(0, 0, 1), unit='deg')   # innermost: its own centre
+        orbit = Orbit(axis=(0, 0, 1), unit='deg')      # outermost: the drive axis
+
+    class Drive(AssemblyNode):
+        shaft = EccentricShaft()
+        disk = CycloidalDisk()
+
+        shaft.turn.drives(disk.orbit)
+        shaft.turn.drives(disk.spin, ratio=-1.0 / REDUCTION)
+
+`axis` and `at` mean exactly what they mean on a ``Revolute`` — a
+direction and a point on the line. What travels round that line is
+`carries`, a point of the body in the same frame, which defaults to the
+body's **own placed origin**: the disk above is placed at its eccentric
+offset, so the default is the point that rides the bearing and the
+declaration needs no further argument. Name `carries` when the point
+that travels is not the body's origin — the connecting rod's big-end
+bore, the knee pivot of a parallelogram leg.
+
+`spin` is declared first, so it composes innermost: the disk turns on
+its own centre and the orbit then carries that turning disk round the
+drive axis. The eccentric radius and the starting phase of the circle
+are **never typed**. They are consequences of the carried point and the
+line, and the framework derives them, which matters more than it sounds:
+a project whose bore centres are measured off an imported document can
+state the joint without ever writing one of those numbers as a literal,
+and a number nobody types is a number nobody can get wrong. A carried
+point that lies ON the line derives a radius of zero — the body would
+not move — and is refused by name at the first binding.
 
 Passing a coordinate down
 -------------------------

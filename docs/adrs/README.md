@@ -68,9 +68,10 @@ that way.
 - [ADR-082](NODE/ADR-082-empty-composition-belongs-to-assemblies-not-fusions.md) — Empty composition belongs to assemblies, not fusions — **Accepted**, extends 064, depends on 003/039/061
 - [ADR-083](NODE/ADR-083-simulation-time-is-finite-forward-and-tick-aligned.md) — Simulation time is finite, forward, and tick-aligned — **Accepted**, extends 056
 - [ADR-087](NODE/ADR-087-one-module-one-question.md) — One module, one question: ports and the declared time base move to `solid_node.motion.ports` — **Accepted**, amends 056/072 (export location only)
-- [ADR-088](NODE/ADR-088-a-joint-owns-one-coordinate.md) — A joint owns one coordinate: `Revolute` and `Prismatic`, stated in the parent's frame — **Accepted**, extends 056/066, depends on 023/028/061/063/087, extended by 093
+- [ADR-088](NODE/ADR-088-a-joint-owns-one-coordinate.md) — A joint owns one coordinate: `Revolute` and `Prismatic`, stated in the parent's frame — **Accepted**, extends 056/066, depends on 023/028/061/063/087, extended by 093/094
 - [ADR-089](NODE/ADR-089-drives-relates-two-coordinates.md) — `drives` relates two coordinates: one verb, a law passed in, and a solve oriented from the bound side — **Accepted**, extends 061/066, depends on 022/056/076/080/087/088
 - [ADR-093](NODE/ADR-093-joints-of-one-class-compose-in-declaration-order.md) — The joints of one class compose in declaration order, innermost first — **Accepted**, extends 088, depends on 023/028/066
+- [ADR-094](NODE/ADR-094-an-orbit-carries-a-point-and-derives-its-radius.md) — An orbit carries a point, and derives its radius: `Orbit`, with no typed radius or phase — **Accepted**, extends 088, depends on 022/093
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

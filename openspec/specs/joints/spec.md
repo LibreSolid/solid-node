@@ -10,12 +10,14 @@ can be wired down to children as a token.
 ## Requirements
 ### Requirement: One-coordinate joint declarations
 
-The system SHALL provide the two one-coordinate lower pairs as
-declarations exported from `solid_node.motion.joints`: `Revolute(axis,
-at=(0, 0, 0), range=None, unit='deg')`, which turns a body about a line,
-and `Prismatic(axis, at=(0, 0, 0), range=None, unit='mm')`, which slides
-a body along one. A joint SHALL be declared as a class attribute of the
-node it moves — an assembly or a leaf — and SHALL be stateless class
+The system SHALL provide the one-coordinate lower pairs as declarations
+exported from `solid_node.motion.joints`: `Revolute(axis, at=(0, 0, 0),
+range=None, unit='deg')`, which turns a body about a line;
+`Prismatic(axis, at=(0, 0, 0), range=None, unit='mm')`, which slides a
+body along one; and `Orbit(axis, at=(0, 0, 0), carries=None, range=None,
+unit='deg')`, which carries a point of a body round one while the body's
+attitude stays fixed. A joint SHALL be declared as a class attribute of
+the node it moves — an assembly or a leaf — and SHALL be stateless class
 metadata shared by every instance of that class, exactly as a port
 declaration is.
 
@@ -25,7 +27,11 @@ parent's `render()` places the declaring node in. `axis` SHALL have no
 named constants; it is written as a tuple. `at` SHALL default to the
 origin of that frame, which is the case of a joint whose line passes
 through the node's own placed origin. `range` SHALL be a `(lo, hi)` pair
-in `unit`, and `unit` SHALL be the label the coordinate carries.
+in `unit`, and `unit` SHALL be the label the coordinate carries. An
+`Orbit`'s `axis` and `at` SHALL mean exactly what a `Revolute`'s mean — a
+direction and a point ON the line — and its `carries` SHALL be the point
+of the body that travels round that line, stated in the same frame; see
+"An orbit's radius and phase are derived, never declared".
 
 A `Prismatic`'s `at` SHALL NOT affect its placement — a translation along
 a line is the same wherever the line is taken to pass — and SHALL be
@@ -59,6 +65,14 @@ definition naming the name and both declarations.
   and the axis and anchor are understood in the frame its parent places
   it in
 
+#### Scenario: An orbit is declared where the carried body is
+
+- **WHEN** a connecting rod class declares
+  `orbit = Orbit(axis=(1, 0, 0), carries=(0, 0, 15), unit='deg')`
+- **THEN** the class carries that joint by name with its axis, its
+  anchor at the parent frame's origin, its carried point, its unit and no
+  radius or phase readable off the class, and no instance was constructed
+
 #### Scenario: Joints are enumerable
 
 - **WHEN** a consumer enumerates the joints of a class declaring one
@@ -85,17 +99,20 @@ definition naming the name and both declarations.
 ### Requirement: A joint owns one coordinate, and that coordinate is a port
 
 The system SHALL give every joint exactly one coordinate, which SHALL be
-a port: rotational for a `Revolute`, translational for a `Prismatic`,
-carrying the joint's `unit`. Read on an instance, a joint SHALL be that
-coordinate's bound value slot — the same per-instance slot a declared
-port of the same kind yields — so two instances of one class never share
-a joint value and an unbound coordinate reads as unbound rather than as
-zero. Assigning to a joint on an instance SHALL bind its coordinate
-exactly as assigning to a port binds one: from a plain number, a
-symbolic expression, a driver read, or another bound port, through the
-one binding path `connect()` also uses. A joint SHALL be a data
-descriptor, so an assignment can never replace the declaration with a
-raw attribute.
+a port: rotational for a `Revolute` and for an `Orbit`, translational for
+a `Prismatic`, carrying the joint's `unit`. An `Orbit`'s coordinate SHALL
+be rotational although its placement is a translation: what the
+coordinate measures is an angle round the line, and a relation into it
+SHALL therefore invert exactly as a relation into a `Revolute` does.
+Read on an instance, a joint SHALL be that coordinate's bound value slot
+— the same per-instance slot a declared port of the same kind yields — so
+two instances of one class never share a joint value and an unbound
+coordinate reads as unbound rather than as zero. Assigning to a joint on
+an instance SHALL bind its coordinate exactly as assigning to a port
+binds one: from a plain number, a symbolic expression, a driver read, or
+another bound port, through the one binding path `connect()` also uses. A
+joint SHALL be a data descriptor, so an assignment can never replace the
+declaration with a raw attribute.
 
 The port enumerator SHALL report a joint's coordinate under the joint's
 name alongside the class's plain ports, so every consumer that
@@ -129,6 +146,14 @@ joint.
 - **THEN** it receives two entries by name, the joint's carrying the
   rotational domain and the joint's unit
 
+#### Scenario: An orbit's coordinate is an angle
+
+- **WHEN** a consumer enumerates the declared ports of a class declaring
+  one `Orbit` with `unit='deg'`, and a relation drives that coordinate
+  from a shaft's rotation with a ratio
+- **THEN** the entry carries the rotational domain and `'deg'`, and the
+  relation inverts as it does for any two rotational coordinates
+
 ### Requirement: Binding a joint places the body
 
 The system SHALL move the node a joint is declared on when that joint's
@@ -138,11 +163,14 @@ before the placement its parent's `render()` applied — the framework
 SHALL carry the parent-frame `axis` and `at` into the node's own frame
 by inverting that rest placement: the operations on the node that are
 not motion, composed in order, with a rotation carrying the axis and the
-full transform carrying the anchor. A joint's axis and anchor SHALL be
-carried through the node's REST placement only, and never through the
-motion another joint of the same node applied, so that a joint's line is
-the line the parent's frame stated whatever the body's other freedoms are
-doing. It SHALL then apply, as operations of that node:
+full transform carrying the anchor. A joint declaring further
+parent-frame POINTS — an `Orbit`'s `carries` — SHALL have each of them
+carried the same way the anchor is, through the same single inversion. A
+joint's axis, anchor and carried points SHALL be carried through the
+node's REST placement only, and never through the motion another joint of
+the same node applied, so that a joint's line is the line the parent's
+frame stated whatever the body's other freedoms are doing. It SHALL then
+apply, as operations of that node:
 
 - for a `Revolute`, `translate(-anchor)`, `rotate(value, axis)`,
   `translate(anchor)` in the node's own frame, in that order, the two
@@ -152,7 +180,20 @@ doing. It SHALL then apply, as operations of that node:
 - for a `Prismatic`, `translate(value * axis)` along the unit axis in
   the node's own frame, each component of the translation being a plain
   numeric `0` where the corresponding axis component is zero, rather
-  than an expression multiplied by zero.
+  than an expression multiplied by zero;
+- for an `Orbit`, ONE translation in the node's own frame, being the
+  displacement the carried point undergoes when it is turned by the bound
+  value about the carried line. Writing `n` for the carried unit axis,
+  `a` for the carried anchor, `p` for the carried point, `v` for the
+  component of `p - a` across the line and `b` for `n` crossed with `v`,
+  that displacement SHALL be `(cos(value) - 1) * v + sin(value) * b`,
+  computed in DEGREES through the framework's own trigonometry so a
+  symbolic value publishes an expression the viewer already evaluates.
+  Each component whose `v` and `b` entries are both zero within `1e-9`
+  SHALL be a plain numeric `0`, for the reason a `Prismatic`'s are. The
+  operation SHALL carry no rotation at all: the composed transform's
+  rotation block SHALL be unchanged by the binding, at every value, which
+  is what it means for an orbit to carry a body without turning it.
 
 The carried axis and anchor SHALL be cleaned before use: a component
 within `1e-9` of `0`, `1` or `-1` SHALL be snapped to that exact value,
@@ -196,9 +237,10 @@ joints' coordinates were bound in — by hand, by a wiring, by a relation,
 or by several relations a solver reached in an order the class body does
 not show — and whatever order they were bound in on a previous run. A
 joint's operations SHALL be one unbroken run, so a joint whose placement
-produces several operations occupies exactly one position in that order.
-Hand-written motion SHALL sit OUTSIDE the whole joint block, keeping its
-call order among itself.
+produces several operations occupies exactly one position in that order,
+and a joint whose placement produces ONE operation occupies exactly one
+position in it too. Hand-written motion SHALL sit OUTSIDE the whole joint
+block, keeping its call order among itself.
 Re-binding one joint of several SHALL return its operations to its own
 position rather than moving them relative to its siblings, and the
 composition after a sweep and a re-bind SHALL be the same as before it,
@@ -250,6 +292,43 @@ joint and that operation, rather than placing the body wrongly.
   axis expressed in its own frame, and its declared `at` changed
   nothing
 
+#### Scenario: A carried body moves without turning
+
+- **WHEN** a disk placed away from the parent's origin declares
+  `orbit = Orbit(axis=(0, 0, 1), unit='deg')` and the coordinate is bound
+  to a series of angles
+- **THEN** the disk carries exactly one translation at each binding, the
+  composed transform's rotation block is unchanged from the rest
+  placement's at every one of them, and the disk's placed origin lies at
+  each angle where turning it about the parent's axis would put it
+
+#### Scenario: An orbit composes with a turn of the same body
+
+- **WHEN** a disk declares `spin = Revolute(...)` about its own centre
+  and then `orbit = Orbit(...)` about the parent's axis, and both
+  coordinates are bound in either order
+- **THEN** the spin's run is innermost and the orbit's single
+  translation outermost, the body spins about its own moving centre, and
+  the pose is the same whichever order the two were bound in
+
+#### Scenario: The bound value stays symbolic
+
+- **WHEN** a joint is bound from an expression in the animation time and
+  the tree is serialized with nothing bound
+- **THEN** the published operation carries that expression as its angle,
+  and `set_keyframe` makes it numeric and `clear_keyframe` symbolic
+  again, exactly as a hand-written rotation does
+
+#### Scenario: An orbit's translation stays symbolic
+
+- **WHEN** an orbit is bound from an expression in the animation time and
+  the tree is serialized with nothing bound
+- **THEN** its published translation carries the two trigonometric
+  expressions in that value, in degrees, through the same builtins the
+  viewer already evaluates, with a plain numeric zero in any component
+  the circle does not reach; and `set_keyframe` makes them numeric and
+  `clear_keyframe` symbolic again
+
 #### Scenario: Two joints on one body compose in declaration order
 
 - **WHEN** a class declares `pivot = Revolute(...)` at an anchor away
@@ -276,14 +355,6 @@ joint and that operation, rather than placing the body wrongly.
 - **THEN** the node carries one motion per joint, the first-declared
   joint's operations are still innermost, and the composed transform is
   the same as if the two had been bound once in either order
-
-#### Scenario: The bound value stays symbolic
-
-- **WHEN** a joint is bound from an expression in the animation time and
-  the tree is serialized with nothing bound
-- **THEN** the published operation carries that expression as its angle,
-  and `set_keyframe` makes it numeric and `clear_keyframe` symbolic
-  again, exactly as a hand-written rotation does
 
 #### Scenario: Re-binding is absolute
 
@@ -343,16 +414,20 @@ joint and that operation, rather than placing the body wrongly.
 
 ### Requirement: Joint arguments resolve against the instance at realization
 
-The system SHALL resolve a joint's `axis`, `at` and `range` for each
-realized instance of the declaring class, at realization, once its
-parameters are resolved. Each component MAY be a plain number, a
+The system SHALL resolve a joint's `axis`, `at`, `range` and, where the
+joint declares one, its further points such as an `Orbit`'s `carries`,
+for each realized instance of the declaring class, at realization, once
+its parameters are resolved. Each component MAY be a plain number, a
 declared-parameter token, or a derived formula over such tokens,
 resolved against that instance's values exactly as a child
-declaration's arguments are; `axis`, `at` or `range` as a whole MAY
-instead be a callable of one argument, which the framework SHALL call
-with the realized node and which SHALL return the components as plain
-numbers — the case of a position that comes out of a library object the
-node builds from its parameters rather than out of a formula.
+declaration's arguments are; `axis`, `at`, `carries` or `range` as a
+whole MAY instead be a callable of one argument, which the framework
+SHALL call with the realized node and which SHALL return the components
+as plain numbers — the case of a position that comes out of a library
+object the node builds from its parameters rather than out of a formula.
+An `Orbit`'s `carries` left unstated SHALL resolve to nothing at
+realization: it names the node's own placed origin, which is not known
+until the node has been placed, and is settled at binding instead.
 
 Resolved joint arguments SHALL NOT enter the node's identity: a joint
 states where a body may move, not what geometry is built, and two
@@ -361,9 +436,9 @@ artifacts.
 
 An argument that cannot resolve SHALL fail at realization, naming the
 class, the joint and the argument: a token that is not a declared
-parameter of the class, an `axis` or `at` that is not three numbers, an
-`axis` of zero length, or a `range` that is not a `(lo, hi)` pair with
-`lo <= hi`.
+parameter of the class, an `axis`, `at` or `carries` that is not three
+numbers, an `axis` of zero length, or a `range` that is not a `(lo, hi)`
+pair with `lo <= hi`.
 
 #### Scenario: A joint sized by a parameter
 
@@ -384,7 +459,8 @@ parameter of the class, an `axis` or `at` that is not three numbers, an
 
 - **WHEN** a class declares a joint whose anchor names a token the class
   does not declare, or whose axis is `(0, 0)`, or whose axis is
-  `(0, 0, 0)`, or whose range is `(10, 0)`
+  `(0, 0, 0)`, or whose range is `(10, 0)`, or an orbit whose `carries`
+  is two components
 - **THEN** realization raises naming the class, the joint and the
   argument at fault, before any child of the instance is realized
 
@@ -491,4 +567,69 @@ hand.
   read and the tree is serialized with nothing bound
 - **THEN** the published operation carries the expression the relation
   built, and `set_keyframe` makes it numeric
+
+### Requirement: An orbit's radius and phase are derived, never declared
+
+The system SHALL derive the radius and the phase of an `Orbit` from its
+`axis`, its `at` and its `carries`, and SHALL NOT accept either as a
+declared argument. An orbit says WHICH POINT of the body travels round
+WHICH LINE; how far that point stands from the line, and where on the
+circle it starts, are consequences of those two facts and are computed
+from them.
+
+`carries` SHALL be a point of the body, of three components, stated in
+the PARENT's frame and resolved exactly as `at` is — plain numbers,
+declared-parameter tokens, derived formulas, or a callable of the
+realized node. `carries` SHALL default to the node's OWN PLACED ORIGIN:
+the point the parent's `render()` placed the node's origin at, which in
+the node's own frame is the origin itself, so the default names a point
+of the body without needing the placement to be read for it.
+
+The derived radius SHALL be the distance from the carried point to the
+line, the component along the line being projected out, so which point of
+the line `at` names SHALL NOT change the placement. A carried point ON
+the line — a derived radius within the module's snapping tolerance of
+zero — SHALL be refused at the moment of binding, raising an error naming
+the node, the joint, the axis, the anchor, the carried point and the
+derived radius, and advising that `carries` name a point off the line: a
+body carried at zero radius would not move, and the author meant
+something else. The refusal SHALL be made at binding rather than at
+realization, because the radius depends on the node's rest placement and
+that placement does not exist when a joint's arguments are resolved.
+
+#### Scenario: A carried point is derived from the placement
+
+- **WHEN** a disk placed by `translate([0, -2.5, 0])` declares
+  `orbit = Orbit(axis=(0, 0, 1), unit='deg')` with no `carries`, and the
+  coordinate is bound to `90`
+- **THEN** the disk's own placed origin has travelled a quarter of the
+  circle of radius 2.5 about the parent's Z axis, its attitude unchanged,
+  and neither the radius nor the starting phase was written anywhere
+
+#### Scenario: A carried point is stated where the body's origin is not the one that travels
+
+- **WHEN** a disk whose rest placement is a rotation and a translation
+  declares `orbit = Orbit(axis=(0, 1, 0), carries=BORE_CENTRE,
+  unit='deg')`, where `BORE_CENTRE` is a derived parent-frame point 2 mm
+  off the axis, and the coordinate is bound
+- **THEN** the bore centre travels the circle of radius 2 mm about the
+  axis and the body's placed origin travels with it, rigidly, with the
+  body's attitude unchanged
+
+#### Scenario: A carried point on the axis is refused by name
+
+- **WHEN** a body placed at the parent's origin declares
+  `orbit = Orbit(axis=(1, 0, 0), unit='deg')`, so its own placed origin
+  lies on the axis, and the coordinate is bound
+- **THEN** the binding raises naming the node, the joint, the axis, the
+  anchor, the carried point and the derived radius of zero, and the node
+  carries no motion from that binding
+
+#### Scenario: The anchor may be any point of the line
+
+- **WHEN** one body declares `Orbit(axis=(0, 0, 1), at=(0, 0, 0))` and an
+  identically placed body declares `Orbit(axis=(0, 0, 1), at=(0, 0, 40))`
+  with the same carried point, and both are bound to the same angle
+- **THEN** both bodies are placed identically, the component of the
+  carried point along the line having been projected out
 
