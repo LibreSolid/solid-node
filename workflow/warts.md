@@ -1527,3 +1527,30 @@ rather than folded into the closure:
   overlay methodology can avoid without pinning `PYTHONHASHSEED` for
   every capture; recorded here so a future comparison at this
   precision knows to pin it rather than chase phantom regressions.
+
+# v8-engine (2026-09-10, stage B on ADR-093 + ADR-097)
+
+- **A bound coordinate's VALUE is never cleared between simulate passes,
+  so the `if self.turn.value is None: self.turn = ...` fallback idiom
+  silently freezes.** The v8-engine's stage B (its `docs/move-onto-motion.md`,
+  commit a25b074) needed nodes that bind their own coordinate when run
+  standalone but defer to an ancestor's relation when assembled; the
+  campaign's suggested idiom tests `value is None`. Measured with
+  `solid test`: the operations a binding produced are swept between
+  passes but the value is not, so after the first standalone bind the
+  guard is never true again and every later `set_keyframe` / pose
+  re-capture of the same instance keeps the first value. The project's
+  bridge: an unconditional re-bind where the fallback formula equals what
+  the ancestor would set anyway, and a structural `hasattr(self, 'index')`
+  guard (ADR-096's per-copy stamp) where the fallback genuinely differs
+  (`CylinderUnit.crank`, `ValveMotion.lift`, per-copy phase offsets).
+  This is the stale author-bound value `whole-tree-fixpoint` proposes to
+  CLEAR with the sweep, sighted from the other side: the fix is that
+  cycle, and the `hasattr` guard should go when it lands. Filed here;
+  triage: cycle 4.
+- **Tooling.** `openspec validate` refuses a change with no spec delta
+  ("Change must have at least one delta"), so a project migration whose
+  whole point is zero behavioural change (every ADR-097 stage B: poses
+  0.000e+00, no requirement touched) cannot be validated at all and is
+  archived with `--yes` past a warning. Not a framework matter; noted so
+  nobody fabricates a delta to satisfy the tool.
