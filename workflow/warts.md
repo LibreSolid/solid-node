@@ -1629,3 +1629,23 @@ rather than folded into the closure:
   (`SpecializationOwnTypeGuardTest`), not fixed; no sighting in the
   catalogue reaches this guard with a site-jointed child of its own
   parent's class today.
+
+# Inmoov-sim (2026-09-10, stage B on ADR-098)
+
+- **A site joint's value is the line in the parent's frame where the
+  child FINALLY rests, after every rest operation the parent applies to
+  it — and when one of those is conditional, a plain value is silently
+  wrong for the other branch.** `Forearm` places its wrist `axle` with
+  `_in_wrist` and then, when `presented` is true, `present()`'s turn;
+  the site joint `Bolt(turn=Revolute(axis=..., at=...))` written as the
+  plain pre-presentation numbers reproduced the reference poses only
+  with `presented=False`, and with the project's own default missed by
+  622 mm³ of palm/axle interference at rest and 14.2 mm at full wrist
+  travel, with no refusal. Correct: a callable of the realized parent
+  (`_presented(vector)` rotating the value through `PRESENTATION` when
+  `forearm.presented`), which is the ADR-098 contract working as
+  designed — the parent's frame is where the child ends up — but nothing
+  in the docs says a plain site value should be treated as suspect
+  whenever the parent's own rest placement of that child is conditional.
+  Triage: one sentence in `docs/driving.rst`'s site paragraph and in the
+  shop craft skill; no framework change.
