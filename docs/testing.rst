@@ -444,6 +444,17 @@ operation that needs it, so a fully exact model runs its geometric
 assertions without the compiled wheel, and a path that needs it and cannot
 import it says so by name.
 
+An emitted pair of two exact solids can cost less than a kernel call even
+when their bounds genuinely overlap — a wheel running in the clearance gap
+between two plates, say, whose box spans the wheel's position wherever it
+turns. When no surface of one solid comes anywhere near a surface of the
+other, the assertion decides that pair empty without asking the geometry
+kernel at all. A solid that really is nested inside another is not
+mistaken for this case: it is still caught, and still fails, naming both
+solids and the shared volume, exactly as it always has. Nothing about a
+project's own verdicts changes here — only some of the geometry kernel
+calls a passing or failing assembly used to pay for are skipped.
+
 Gravity support
 ---------------
 

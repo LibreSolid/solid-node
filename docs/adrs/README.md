@@ -103,7 +103,7 @@ that way.
 - [ADR-010](TEST-FRAMEWORK/ADR-010-testcasemixin-pattern-for-embedded-tests.md) — TestCaseMixin embedded tests — **Accepted**
 - [ADR-011](TEST-FRAMEWORK/ADR-011-animation-testing-decorators.md) — Animation testing decorators — **Accepted**
 - [ADR-025](TEST-FRAMEWORK/ADR-025-perturbation-based-kinematic-fit-assertions.md) — Perturbation-based kinematic fit assertions — **Accepted**, extended by 029, adjacency guidance superseded by 040
-- [ADR-029](TEST-FRAMEWORK/ADR-029-manifold-cache-and-aabb-broad-phase-for-assertions.md) — Manifold cache, AABB broad-phase — **Accepted** (characterization), extended by 070, 091
+- [ADR-029](TEST-FRAMEWORK/ADR-029-manifold-cache-and-aabb-broad-phase-for-assertions.md) — Manifold cache, AABB broad-phase — **Accepted** (characterization), extended by 070, 091, 092
 - [ADR-040](TEST-FRAMEWORK/ADR-040-topmost-rigid-assembly-integrity.md) — Topmost-rigid assembly integrity — **Accepted**, revised 2026-08-11 (volume certificate removed)
 - [ADR-048](TEST-FRAMEWORK/ADR-048-gravity-support-graph-assertion.md) — Gravity support graph assertion — **Accepted**, extended by 049
 - [ADR-049](TEST-FRAMEWORK/ADR-049-static-equilibrium-as-lp-feasibility.md) — Static equilibrium as LP feasibility — **Accepted**
@@ -113,7 +113,8 @@ that way.
 - [ADR-074](TEST-FRAMEWORK/ADR-074-the-mesh-engine-judges-its-own-input.md) — The mesh engine judges its own input — **Accepted**, amends 029
 - [ADR-075](TEST-FRAMEWORK/ADR-075-the-perturbation-is-the-nodes-first-operation.md) — The perturbation is the node's first operation — **Accepted**, amends 025
 - [ADR-090](TEST-FRAMEWORK/ADR-090-the-placement-quantum-is-a-property-of-the-test-run.md) — The placement quantum is a property of the test run — **Accepted**, amends 070
-- [ADR-091](TEST-FRAMEWORK/ADR-091-the-broad-phase-chooses-its-indexing-frame.md) — The broad phase chooses its indexing frame — **Accepted**, extends 029
+- [ADR-091](TEST-FRAMEWORK/ADR-091-the-broad-phase-chooses-its-indexing-frame.md) — The broad phase chooses its indexing frame — **Accepted**, extends 029, extended by 092
+- [ADR-092](TEST-FRAMEWORK/ADR-092-face-boxes-decide-an-enclosed-pair-without-a-boolean.md) — Face boxes decide an enclosed pair without a boolean — **Accepted**, extends 029, 091
 
 ### VIEWER-WEB — web viewer
 - [ADR-012](VIEWER-WEB/ADR-012-threejs-for-3d-rendering.md) — Three.js rendering — **Accepted** — *Relocated* to solid-node-viewer (ADR-068)

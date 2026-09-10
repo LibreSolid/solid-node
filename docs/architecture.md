@@ -885,9 +885,24 @@ have chosen for its own candidates (ADR-091) — and reads
 `is_empty()`/`volume()` straight off lazy-transformed Manifolds —
 verdict-identical to the naive faceted path. Exact pairs share the same
 world-AABB
-broad phase, then use OCCT common and interpret “contains no solid” as empty;
-kernel failure raises and never falls back. `volume_epsilon` is ignored with a
-warning when every comparison in a call was exact.
+broad phase, then a second exact-negative tier (ADR-092) may decide the
+pair empty before any boolean: each solid's face boxes
+(`BRepBndLib.Add_s(face, box, False)`, a pure function of the exact
+surface, cached once per shape identity) are compared in one solid's own
+frame, enlarging only the other solid's boxes by a fixed margin, and if
+none meet, a containment guard — one representative vertex of every
+solid of each shape classified against every solid of the other, in both
+directions — tells a genuinely disjoint pair from one solid wholly inside
+another before reporting it empty; disjoint face boxes alone are never
+by themselves a verdict, because two closed solids with disjoint
+boundaries may still be nested rather than separate. Anything the tier
+cannot prove — a faceless or solid-less shape, a vertex-less solid, a
+non-finite relative placement, or any classification that is not
+strictly outside — falls through to OCCT common exactly as before, and
+flush contact still reaches the kernel because touching face boxes count
+as meeting, and interpret "contains no solid" as empty there; kernel
+failure raises and never falls back. `volume_epsilon` is
+ignored with a warning when every comparison in a call was exact.
 
 Verdicts are memoized within a run (ADR-070, amended by ADR-090). The
 identity of an intersection question is `(both geometry identities,
@@ -910,7 +925,8 @@ never serve one another, a node with no file identity is never cached, a
 relative matrix carrying a non-finite entry is never cached either, and
 entries are evicted when a geometry identity changes, on the same discipline
 as the Manifold cache.
-Bounding boxes share those stable geometry identities. Exact placements use a
+Bounding boxes, and the per-face bounding boxes the exact-only face-box
+tier above reads, share those stable geometry identities. Exact placements use a
 512-entry LRU keyed by stable shape identity and the exact placement-matrix
 bytes, with no rounding; eviction merely recomputes the same placement and a
 new managed `solid test` run starts empty. A stock `FlexibleNode` keeps a

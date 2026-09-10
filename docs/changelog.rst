@@ -8,6 +8,28 @@ Changelog
 Unreleased
 ----------
 
+**A face-box tier decides an enclosed exact pair without a boolean.** A
+whole-solid bound, in any frame, cannot separate a wheel running in the
+clearance gap between two plates from the plates it runs between: the
+plates' box encloses the wheel's wherever it turns. A second
+exact-negative tier now runs after the AABB broad phase and before any
+boolean, for a pair of two exact solids: each solid's face boxes (a pure
+function of the exact surface, cached once per shape) are compared in one
+solid's own frame, and if none of one meets any of the other, a
+containment guard classifies one representative point of every solid of
+each shape against every solid of the other, in both directions, before
+reporting the pair empty. A solid wholly inside another is not mistaken
+for this case — the guard still sends it to the boolean, and it still
+fails. Flush contact still reaches the kernel, because touching face
+boxes count as meeting, and still fouls at exactly 0.0 mm³. No verdict,
+message, or epsilon changes; the tier can only remove a boolean it would
+have run anyway. No public surface changes: no flag, no environment
+variable, no assertion argument. Measured on the originating model's
+48-instant swing sweep: booleans fell 1089 → 708 (35.0% fewer) and wall
+time 265.99 s → 216.50 s (18.6% faster), the test's own verdict
+unchanged. (OpenSpec change ``face-box-broad-phase``; ADR-092, extending
+ADR-029 and ADR-091.)
+
 **The whole-assembly interference index chooses its own indexing
 frame.** A world-axis conservative bound is exact for an axis-aligned
 part and grows under rotation; when every part in an assembly shares

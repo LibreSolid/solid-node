@@ -809,3 +809,92 @@ class DegenerateTriangleExportTest(TestCase):
         self.assertEqual(len(raw.faces), 12)
         self.assertTrue(raw.nondegenerate_faces().all())
         self.assertEqual(len(raw.vertices), 36)
+
+
+class FaceBoxTierAssertionTest(TestCase):
+    """`assertNoSolidInterference`'s own use of the face-box tier
+    (ADR-092): the assembly-level scenarios `tests/test_face_box_culling.py`
+    proves at the `_faces_disjoint`/`_exact_verdict` level, reached here
+    through the public assertion instead."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+
+    def stl_for(self, shape, name):
+        path = os.path.join(self.directory.name, f'{name}.stl')
+        shape.exportStl(path, tolerance=0.1, angularTolerance=0.1)
+        return path
+
+    def node(self, shape, name):
+        return StlShapeNode(shape, self.stl_for(shape, name), name)
+
+    def root(self, *children):
+        root = SimpleNamespace(rigid=False, children=tuple(children),
+                               operations=[], _parent=None)
+        for child in children:
+            child._parent = root
+        return root
+
+    def _frame_and_two_wheels(self):
+        plate = cq.Workplane('XY').box(20, 20, 2)
+        top = plate.translate((0, 0, 11))
+        bottom = plate.translate((0, 0, -11))
+        pillar = (cq.Workplane('XY').center(8, 8).circle(1)
+                 .extrude(22).translate((0, 0, -11)))
+        frame = top.union(bottom).union(pillar).val()
+        wheel_a = cq.Workplane('XY').circle(3).extrude(2) \
+            .translate((-6, -6, -1)).val()
+        wheel_b = cq.Workplane('XY').circle(3).extrude(2) \
+            .translate((6, -6, -1)).val()
+        return frame, wheel_a, wheel_b
+
+    def test_a_three_solid_assembly_between_plates_passes_with_no_boolean(
+            self):
+        frame, wheel_a, wheel_b = self._frame_and_two_wheels()
+        root = self.root(self.node(frame, 'frame'),
+                         self.node(wheel_a, 'wheel_a'),
+                         self.node(wheel_b, 'wheel_b'))
+
+        with patch.object(
+                test_module, 'intersect_shapes',
+                side_effect=AssertionError('boolean must be culled')):
+            asserter.assertNoSolidInterference(root)
+
+    def test_containment_still_fails_naming_both_solids_and_the_volume(self):
+        big = self.node(cq.Workplane('XY').box(10, 10, 10).val(), 'big')
+        small = self.node(cq.Workplane('XY').box(2, 2, 2).val(), 'small')
+        root = self.root(big, small)
+
+        with self.assertRaises(AssertionError) as failure:
+            asserter.assertNoSolidInterference(root)
+
+        message = str(failure.exception)
+        self.assertIn('big', message)
+        self.assertIn('small', message)
+        self.assertIn('8', message)
+
+    def test_a_solid_in_a_cavity_passes(self):
+        hollow = self.node(
+            cq.Workplane('XY').box(20, 20, 20)
+            .faces('>Z').workplane().rect(10, 10).cutBlind(-15).val(),
+            'hollow')
+        inner = self.node(cq.Workplane('XY').box(2, 2, 2).val(), 'inner')
+        root = self.root(hollow, inner)
+
+        asserter.assertNoSolidInterference(root)
+
+    def test_a_compound_with_one_component_inside_fails(self):
+        outside = cq.Workplane('XY').box(2, 2, 2).translate((0, 0, 50)).val()
+        inside = cq.Workplane('XY').box(2, 2, 2).val()
+        compound = cq.Compound.makeCompound([outside, inside])
+        compound_node = self.node(compound, 'compound')
+        big = self.node(cq.Workplane('XY').box(10, 10, 10).val(), 'big')
+        root = self.root(compound_node, big)
+
+        with self.assertRaises(AssertionError) as failure:
+            asserter.assertNoSolidInterference(root)
+
+        message = str(failure.exception)
+        self.assertIn('compound', message)
+        self.assertIn('big', message)

@@ -569,11 +569,21 @@ class ExactNamesStayPatchable(TestCase):
 # Both snippets drive the exact branch of `_placed_intersection` with every
 # kernel name patched, so they exercise the real internal call sites without
 # needing real geometry -- what is under test is whose function those sites
-# call, not what it computes.
+# call, not what it computes. `FakeShape.Faces()` returns none, which is
+# enough for the face-box tier (ADR-092) inside that branch to decline
+# immediately -- a faceless shape always falls through -- so the record
+# still reaches the patched `intersect_shapes` exactly as before that tier
+# existed.
 _PATCH = '''
+import numpy as np
+
+
 class FakeShape:
 
     def Solids(self):
+        return []
+
+    def Faces(self):
         return []
 
 
@@ -585,7 +595,13 @@ def patched_verdict():
     t.intersect_shapes = lambda first, second, one, two: 'RESULT'
     t.solid_count = lambda result: 0
     t.solid_volume = lambda result: 0.0
-    record = (FakeSolid(), None, None, FakeShape())
+    shape = FakeShape()
+    # A real `_place_solid` record's width, so the tier ahead of the
+    # boolean can read the matrix (index 6) and local shape (index 8)
+    # it needs; index 5 (exact identity) stays None, so `_record_key`
+    # still declines to memoize this fake comparison, as it always has.
+    record = (FakeSolid(), None, None, shape, None, None, np.eye(4),
+              None, shape)
     stats = t._placed_intersection(record, record)
     return 'PATCHED' if (stats.exact and stats.is_empty) else 'NOT PATCHED'
 '''

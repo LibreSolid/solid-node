@@ -289,6 +289,44 @@ reported as exactly empty without running any boolean. This is an
 exact-negative shortcut that never changes a verdict, and it is what keeps the
 exact path's cost proportional to interacting pairs.
 
+For a pair of EXACT solids a SECOND exact-negative tier MAY run after that
+broad phase and before any boolean: a FACE-BOX tier with a containment guard.
+It SHALL report the pair exactly empty with zero volume, on the exact path,
+only when both of the following hold:
+
+- no bounding box of any face of either solid meets any bounding box of any
+  face of the other, the two solids' face boxes being compared in one common
+  frame, boxes that touch without overlapping counting as meeting rather than
+  as separated; and
+- one representative point of EVERY solid of each shape is classified strictly
+  OUTSIDE every solid of the other shape's placed geometry, each classification
+  being of one point against one solid rather than against a shape as a whole.
+
+Each face's bounding box SHALL enclose that face's exact surface, and a box
+carried into the common frame MAY be enlarged by a fixed absolute margin
+absorbing the arithmetic of that frame change; enlargement SHALL only make the
+tier decline, never make it decide. Both classification directions SHALL be
+required, because two closed solids whose boundaries do not meet are either
+disjoint or one lies wholly inside the other, and only the representative
+points of the CONTAINED shape reveal containment. A shape carrying no faces or
+no solids, a solid carrying no representative point, a non-finite relative
+placement, and any classification that is not strictly outside — inside, on
+the boundary, unknown, or refused by the classifier — SHALL each make the tier
+DECLINE, and a declined pair SHALL be settled by the boolean exactly as it is
+without the tier. The tier SHALL therefore be capable of removing boolean
+work only, and SHALL NOT change any verdict, volume, message, or epsilon
+semantics: a flush contact's face boxes touch, so it reaches the kernel and
+still returns non-empty at exactly 0.0 mm³; a solid wholly inside another is
+caught by the containment guard and reaches the kernel; a solid inside another
+solid's cavity shares no material with it and is reported empty, which is the
+verdict the kernel reports for it too. The tier SHALL run inside the memoized
+computation, so its verdict is cached and served under the same identity any
+boolean verdict is. The margin, the comparison frame and any internal chunking
+of the comparison are internal tuning values and SHALL NOT be exposed as an
+assertion argument, flag, or environment variable. The faceted path SHALL NOT
+have this tier: a faceted verdict is read from cached Manifolds, which carry
+no faces, and a faceted run reads no solid's exact geometry at all.
+
 The per-STL cache SHALL be split by what each part of it needs:
 
 - a solid's local bounding box is read from the same cached base mesh the
@@ -428,6 +466,60 @@ emits SHALL NOT depend on whether its solids carry exact geometry.
 - **THEN** the helper reports the measured volume and the assertion fails as
   it does on the exact kernel
 
+#### Scenario: An enclosed exact pair skips the boolean
+
+- **WHEN** two exact solids' whole-solid bounds overlap — one solid lying
+  inside the region the other spans — while no face of either comes near any
+  face of the other
+- **THEN** the helper reports the pair empty with zero volume on the exact
+  path without running any boolean
+
+#### Scenario: Containment is not mistaken for separation
+
+- **WHEN** one exact solid lies wholly inside another, so their boundaries do
+  not meet at all
+- **THEN** the containment guard finds a representative point inside the
+  partner, the boolean runs, and the helper reports the positive intersection
+  volume
+
+#### Scenario: A solid in a cavity is empty
+
+- **WHEN** one exact solid lies wholly inside a cavity of another, touching no
+  face of it
+- **THEN** the helper reports the pair empty with zero volume, the same
+  verdict the boundary-representation kernel reports for it
+
+#### Scenario: Flush contact still reaches the kernel
+
+- **WHEN** two exact solids meet on a coincident face, their touching face
+  boxes overlapping
+- **THEN** the face-box tier declines, the boolean runs, and the verdict is
+  the kernel's own — empty with zero volume for coincident exact faces, as it
+  is without the tier
+
+#### Scenario: A compound whose components straddle the partner
+
+- **WHEN** one exact shape is a compound of two solids, one of them wholly
+  inside the other shape and one wholly outside it, and no boundaries meet
+- **THEN** the per-solid containment guard, classifying each shape's solids
+  against each solid of the other, finds the inside component, the boolean
+  runs, and the pair is reported with its positive volume
+
+#### Scenario: A shape the tier cannot represent falls through
+
+- **WHEN** an exact shape presented to the tier carries no faces, or a solid
+  of it carries no representative point, or the pair's relative placement is
+  not finite
+- **THEN** the tier decides nothing and the pair is settled by the boolean
+  exactly as it is without the tier
+
+#### Scenario: A faceted pair has no face-box tier
+
+- **WHEN** a pair is evaluated on the faceted path, whether because a solid is
+  faceted or because the run's kernel is faceted
+- **THEN** no face bounding box is computed, no solid's exact geometry is
+  read, and the verdict is the cached Manifolds' own
+
 ### Requirement: Whole-assembly solid interference assertion
 
 The system SHALL provide `TestCase.assertNoSolidInterference(node)` as an
@@ -449,7 +541,15 @@ solids placed by their composed world transforms. Under the exact comparison
 kernel a pair of exact solids SHALL be evaluated by the boundary-representation
 kernel and any other pair by the cached Manifolds as before; under the faceted
 kernel every pair SHALL be evaluated by the cached Manifolds and no solid's
-exact geometry is read. The assertion SHALL NOT compute an
+exact geometry is read.
+
+An emitted pair of exact solids MAY be decided empty BEFORE any boolean by the
+face-box tier of the `Accelerated intersection evaluation` requirement, which
+is an exact-negative shortcut of the same kind as the bounds index above it:
+it may only remove boolean work, and may not change which pairs are emitted,
+which pairs fail, or what a failure says. A pair the tier does not decide
+SHALL be settled by the boolean, so the assertion's verdict is identical with
+the tier and without it. The assertion SHALL NOT compute an
 aggregate volume, Boolean union, or other whole-assembly measurement of the
 selected solids.
 
@@ -569,6 +669,40 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
 - **THEN** each candidate pair is evaluated by the cached Manifolds, no
   solid's `shape()` is read, and a pair whose meshes share no more than the
   run's volume epsilon passes
+
+#### Scenario: A solid enclosed by another's bounds but touching none of its faces
+
+- **WHEN** an exact assembly places a solid inside the region another solid
+  spans — a wheel between two plates, say — so their bounds overlap in every
+  frame, while no face of one comes near any face of the other
+- **THEN** the index emits that pair, the face-box tier decides it empty
+  without any boolean, and the assertion passes
+
+#### Scenario: A solid wholly inside another still fails
+
+- **WHEN** one topmost rigid exact solid lies wholly inside another, their
+  boundaries not meeting
+- **THEN** the assertion fails naming both solids and their intersection
+  volume, the containment guard having sent the pair to the boolean
+
+#### Scenario: A solid inside another's cavity passes
+
+- **WHEN** one topmost rigid exact solid lies wholly inside a cavity of
+  another, touching none of its faces
+- **THEN** the assertion passes that candidate, the two sharing no material
+
+#### Scenario: Flush contact in an exact assembly still reaches the kernel
+
+- **WHEN** two topmost rigid exact solids meet on a coincident face
+- **THEN** the boolean runs for that pair and reports it non-empty with
+  exactly zero volume, which the assertion passes without a public epsilon
+
+#### Scenario: A compound solid with one component inside the partner fails
+
+- **WHEN** a topmost rigid exact solid comprises two solids, one wholly inside
+  another topmost rigid solid and one wholly outside it
+- **THEN** the assertion fails naming that pair, the containment guard being
+  applied to every solid of a shape rather than to the shape as a whole
 
 ### Requirement: Whole-assembly gravity support assertion
 

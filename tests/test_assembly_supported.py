@@ -559,6 +559,17 @@ class ExactRoutingTest(SupportFixture):
 
         self.assertIn('floater', str(caught.exception))
 
+    def test_a_landing_that_really_lands_is_still_found_on_exact_solids(self):
+        """ADR-092: `assertAssemblySupported` routes through
+        `_placed_intersection`, so it inherits the face-box tier. The
+        tier can only remove a boolean it would have run anyway, never
+        the support edge itself -- a resting stack of exact solids must
+        still be found supported."""
+        base = self.exact_block('base', (-1, 1), (-1, 1))
+        top = self.exact_block('top', (-1, 1), (1, 3))
+
+        asserter.assertAssemblySupported(Assembly('root', (base, top)))
+
 
 class BroadPhaseTest(SupportFixture):
     """Only pairs whose displaced and placed world boxes overlap ever

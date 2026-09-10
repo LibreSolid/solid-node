@@ -1025,20 +1025,74 @@ of them empty. Placement, BREP copies and keyframe binding are under
   ranking and scores, and the honest comparison against the finding's
   3x forecast are in `evidence.md` of the `broad-phase-indexing-frame`
   OpenSpec change.
-- **One enclosing solid defeats whole-solid boxes.** The fused frame
-  (both plates and their pillars, one solid) sits in 40 of the 118 pairs;
-  its box encloses the whole movement, so nothing is culled against it,
-  and plates × wheel booleans cost 0.5–2.2 s each, ~8 s of the 19. A
-  finer exact-negative tier — the world boxes of the solids' exact
-  faces, culling a pair when no face box of one meets any face box of
-  the other — decides a wheel between two plates without a boolean.
-  **Filed:** cycle `face-box-broad-phase`.
+- **One enclosing solid defeats whole-solid boxes. Fixed** by cycle
+  `face-box-broad-phase` (ADR-092, extending ADR-029 and ADR-091). One
+  correction to this bullet's own wording first: "the fused frame (both
+  plates and their pillars, one solid) sits in 40 of the 118 pairs" was
+  never quite right — `broad-phase-indexing-frame`'s own evidence had
+  already shown `standoffs` and `plates` are two separate topmost solids,
+  not one fused one, and this cycle's own measurement (67 candidate pairs
+  at the first swing-sweep instant, the tree after
+  `broad-phase-indexing-frame`) shows neither one dominates the pairs a
+  face-box tier cannot decide: of the 57 pairs the tier declines (it
+  decides the other 10 without a boolean), `wheel` (the train's five
+  wheels) appears in 24, `rod` — a 3-face cylindrical shaft the wheel
+  train is mounted on — in 23, `plates` in 9 and `standoffs` in only 3.
+  The wheel train's mounting rod, not the frame, is what the tier cannot
+  separate from the wheels bored onto it — a genuinely close fit, not a
+  spurious enclosure.
+
+  A second exact-negative tier now runs after the AABB cull and before
+  any boolean, for a pair of EXACT solids: each solid's face boxes
+  (`BRepBndLib.Add_s(face, box, False)`, cached once per shape identity)
+  are compared in one solid's own frame, and if none of one solid's
+  meets any of the other's, a containment guard — one representative
+  vertex of every solid of each shape classified against every solid of
+  the other, in both directions — tells a genuine disjoint pair from one
+  solid wholly inside the other before reporting it empty. Measured over
+  the 48-instant swing sweep
+  (`test_movement_runs_free_through_a_swing`, exact kernel, default
+  quantum, `facing=45`, against the tree after `broad-phase-indexing-frame`):
+  booleans 1089 → 708 (35.0% fewer — the tier decided 381 of the 1089
+  memo-misses without a boolean) and wall time 265.99 s → 216.50 s
+  (18.6% faster), same test verdict; keyed asks and memo hits are
+  unchanged at 3210/2121, as expected since this tier does not change
+  which pairs are emitted. At the first instant the tier's own cost was
+  0.955 s (its containment-guard share 0.770 s across 10 classifier
+  calls) against 10.04 s of boolean time for the 57 declined pairs —
+  smaller than the ~8 s this bullet once attributed to plates × wheel
+  booleans alone, because the dominant surviving cost turned out to be
+  the mounting rod, not the plates. Full counts, the surviving pairs'
+  solids, and the tier's own cost are in `evidence.md` of the
+  `face-box-broad-phase` OpenSpec change.
+- **An exact solid's index bounds are inscribed, not conservative.**
+  `_solid_geometry` takes every topmost solid's local bounds from the
+  STL mesh even for an exact solid; a tessellation's vertices lie ON the
+  exact surface, so those bounds fall up to the declared linear
+  deflection (0.1 mm default) short of the exact extents on a curved
+  face, and a sub-deflection overlap at a box boundary could in
+  principle be culled by the whole-assembly index. The fix: an exact
+  solid's local bounds become the union of the exact face boxes
+  `face-box-broad-phase`'s `cached_face_boxes` already computes; faceted
+  solids keep mesh bounds. Left for a separate cycle for three reasons
+  (design.md section 8 of `face-box-broad-phase`): it reverses two
+  ratified sentences of `Accelerated intersection evaluation` ("The
+  bounding boxes the broad phase transforms SHALL come from the cached
+  base mesh for every solid, exact or faceted" and "The candidate pairs
+  a given assembly emits SHALL NOT depend on whether its solids carry
+  exact geometry"); it must not fire under the faceted kernel, where a
+  run may not read any solid's `shape()` at all; and it moves WHEN an
+  exact solid's faces are measured, from "when a candidate pair reaches
+  the face-box tier" to "at selection", including solids no candidate
+  pair ever compares. **Filed:** cycle `exact-solid-index-bounds`.
 - **A mesh-distance exact-negative tier** (distance above twice the
   declared linear deflection proves the exact solids disjoint) and
   **parallel pair booleans** (the run used 225 % of 1600 % CPU; OCCT's
   `SetRunParallel` thread pool deadlocks under `fork`, so workers must
-  spawn) are the two remaining framework levers. Deferred until the three
-  above land and are measured.
+  spawn) are the two remaining framework levers. The three cycles this
+  bullet once deferred them behind — `quantise-verdict-memo`,
+  `broad-phase-indexing-frame`, `face-box-broad-phase` — have all landed
+  and are measured above.
 - Not a framework fix: fusing the plates and pillars into one solid is
   the project's choice, and `cProfile` over `solid test` reports garbage
   totals (instrument directly).

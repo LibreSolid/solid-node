@@ -12,8 +12,11 @@ import tempfile
 import time
 
 import cadquery as cq
+import numpy as np
 import trimesh
+from OCP.Bnd import Bnd_Box
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Fuse
+from OCP.BRepBndLib import BRepBndLib
 from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCP.gp import gp_Trsf
 from OCP.TopTools import TopTools_ListOfShape
@@ -49,6 +52,14 @@ _PLACEMENT_CACHE_LIMIT = 512
 _placement_cache = OrderedDict()
 _bounds_cache = {}
 
+# One (F, 2, 3) float64 array of local face AABBs per shape cache key,
+# beside `_bounds_cache`. It is safe to cache under that key because it is
+# a pure function of the exact geometry: `cached_face_boxes` below takes
+# every box with `useTriangulation=False`, so no triangulation a shape may
+# come to carry -- attached, replaced, or discarded after this entry is
+# filled -- can ever change what is already served under this identity.
+_face_box_cache = {}
+
 
 def _reset_placement_cache():
     """Drop retained exact placements for direct isolation or a new run.
@@ -64,6 +75,7 @@ def _evict(brep_file):
     for key in [key for key in _shape_cache if key[0] == brep_file]:
         _shape_keys.pop(id(_shape_cache.pop(key)), None)
         _bounds_cache.pop(key, None)
+        _face_box_cache.pop(key, None)
         for placement in [placement for placement in _placement_cache
                           if placement[0] == key]:
             del _placement_cache[placement]
@@ -107,6 +119,52 @@ def cached_bounding_box(shape):
         bounds = shape.BoundingBox()
         _bounds_cache[key] = bounds
     return bounds
+
+
+def _measured_face_boxes(shape):
+    """One local AABB per face of ``shape``, taken with
+    ``BRepBndLib.Add_s(face.wrapped, box, False)`` -- OCCT's own tolerance
+    enlargement, no triangulation. ``useTriangulation=False`` keeps a face
+    box a pure function of the exact surface: with ``True`` the box would
+    depend on whether a triangulation happens to be attached and at what
+    deflection, which is state an STL export or a viewer read can change
+    on a shape this cache is already holding, and a cached measurement
+    must be a pure function of its key. It is also conservative by
+    construction -- bounding a face from its surface's own poles/parametric
+    bounds plus its tolerance is outward-only slack, never inward -- where
+    CadQuery's own ``BoundingBox()`` instead calls ``AddOptimal_s``, a
+    tighter but slower route that meshes the shape and is unnecessary for
+    a superset test.
+
+    Returns an ``(F, 2, 3)`` float64 array, ``(0, 2, 3)`` for a shape with
+    no faces.
+    """
+    faces = shape.Faces()
+    boxes = np.empty((len(faces), 2, 3), dtype=np.float64)
+    for index, face in enumerate(faces):
+        box = Bnd_Box()
+        BRepBndLib.Add_s(face.wrapped, box, False)
+        xmin, ymin, zmin, xmax, ymax, zmax = box.Get()
+        boxes[index, 0, :] = (xmin, ymin, zmin)
+        boxes[index, 1, :] = (xmax, ymax, zmax)
+    return boxes
+
+
+def cached_face_boxes(shape):
+    """The shape's local per-face bounding boxes, computed once per cached
+    shape identity -- mirrors ``cached_bounding_box`` exactly, including
+    its escape hatch: a shape with no cache identity -- one composed for
+    this comparison, or read from a node whose BREP is not current -- is
+    measured directly, every time, and never cached.
+    """
+    key = _shape_keys.get(id(shape))
+    if key is None:
+        return _measured_face_boxes(shape)
+    boxes = _face_box_cache.get(key)
+    if boxes is None:
+        boxes = _measured_face_boxes(shape)
+        _face_box_cache[key] = boxes
+    return boxes
 
 
 def build123d_shape(rendered):

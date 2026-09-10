@@ -17,5 +17,6 @@ def clear_exact_shape_caches():
     """
     exact._shape_keys.clear()
     exact._bounds_cache.clear()
+    exact._face_box_cache.clear()
     exact._placement_cache.clear()
     exact._shape_cache.clear()

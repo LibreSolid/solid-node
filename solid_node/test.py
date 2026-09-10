@@ -65,6 +65,7 @@ def _deferred_exact(name):
 
 
 cached_bounding_box = _deferred_exact('cached_bounding_box')
+cached_face_boxes = _deferred_exact('cached_face_boxes')
 shape_identity = _deferred_exact('shape_identity')
 fuse_shapes = _deferred_exact('fuse_shapes')
 intersect_shapes = _deferred_exact('intersect_shapes')
@@ -768,7 +769,7 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape,
                  faceted_identity):
     """One placed-solid record: ``(solid, deferred_placed_manifold,
     world_bounds, placed_exact_shape_or_None, faceted_identity,
-    exact_identity, matrix, local_bounds)``.
+    exact_identity, matrix, local_bounds, local_exact_shape_or_None)``.
 
     The three fields after ``world_bounds`` carry what the verdict memo
     needs and nothing reads otherwise: one identity per evaluation path,
@@ -784,6 +785,16 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape,
     (record[2]) stays exactly what it always was -- the world-axis box
     every OTHER reader (the verdict memo, the gravity-support graph)
     keeps using unchanged.
+
+    ``record[8]`` (ADR-092) is the same ``None``-or-shape ``shape``
+    argument this function already receives -- the solid's LOCAL exact
+    shape, not the placed copy at ``record[3]``. The face-box tier's
+    per-shape cache (``cached_face_boxes``) keys on the LOCAL shape's
+    cache identity, which the placed copy does not carry, so the record
+    must carry the local shape itself rather than make a caller re-derive
+    or reverse-look-up an identity from it. A fixture shape with no cache
+    identity travels here too and is measured directly, uncached, exactly
+    as ``cached_bounding_box``/``cached_face_boxes`` already treat one.
     """
     return (solid, _DeferredManifold(
                 stl_file, matrix, faceted_identity[1]),
@@ -792,7 +803,8 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape,
             faceted_identity,
             None if shape is None else shape_identity(shape),
             matrix,
-            local_bounds)
+            local_bounds,
+            shape)
 
 
 def _placed_assembly_solids(node):
@@ -844,6 +856,214 @@ def _dropped_assembly_solids(solids, offset):
     return resting, dropped
 
 
+########################################
+# Face-box culling with a containment guard (ADR-092)
+#
+# A second exact-negative tier for a pair of EXACT solids, run after the
+# AABB cull and before any boolean: it decides a pair PROVEN empty with no
+# `BRepAlgoAPI_Common` at all. It exists for the pair a whole-solid box can
+# never separate -- a wheel running between two plates, whose box encloses
+# the wheel's in every frame -- where what actually decides the pair is
+# cheap and local: no FACE of one solid comes near any face of the other.
+#
+# The three-step proof (design.md section 2, stated in full in ADR-092 and
+# in tests/test_face_box_culling.py's module docstring):
+#
+#   1. Boxes -> boundaries. A face's AABB contains that face, so the union
+#      of a shape's face boxes contains its whole boundary. Carrying one
+#      shape's face boxes into the other's frame by an invertible affine
+#      map and enlarging them can only grow what they contain. So if no
+#      transformed box of shape 2 meets any box of shape 1, the two placed
+#      BOUNDARIES do not meet.
+#   2. Boundaries -> containment or disjointness. Two closed solids whose
+#      boundaries do not meet are either disjoint, or one lies wholly
+#      inside the other -- there is no partial overlap without the
+#      boundaries crossing.
+#   3. One representative point per SOLID decides, in both directions. A
+#      shape may be a compound of several solids, each a separate
+#      connected body, so one vertex of EACH solid of each shape is
+#      classified against EACH solid of the partner. If every
+#      classification is `TopAbs_OUT`, no solid of either shape lies
+#      inside the other, and by step 2 the intersection is empty.
+#
+# Disjoint face boxes alone are NOT a verdict -- they prove disjoint
+# BOUNDARIES, and a solid wholly inside another has disjoint boundaries
+# too. The containment guard (`_mutually_outside`) is what tells the two
+# cases apart, and both classification directions are load-bearing: only
+# the CONTAINED shape's own representative points reveal containment.
+#
+# The tier can only be wrong by declining to prove something true -- every
+# step is a containment (a face inside its box, a box inside its
+# transformed box, an enlargement outward) and the final step requires
+# every classification to be OUT. Any faceless or solid-less shape, any
+# solid with no vertices, any non-finite relative placement, and any
+# classification that is not strictly OUT -- IN, ON, UNKNOWN, or refused
+# by the classifier -- DECLINES: the pair is settled by the boolean
+# exactly as it is without the tier.
+#
+# The OCP names the containment guard needs (`BRepClass3d_SolidClassifier`,
+# `TopAbs_OUT`, `Precision`, `gp_Pnt`) are imported lazily inside
+# `_mutually_outside`, not at module level: a faceted run never reaches
+# this tier at all (a Manifold has no faces), and it must import nothing
+# new (see `_deferred_exact`'s own reason for the same discipline).
+
+# The fixed absolute margin (mm) a transformed face box is enlarged by
+# before it is compared, absorbing the residue of the one inversion and
+# two matrix products that place solid 2's boxes into solid 1's frame --
+# solid 1's own boxes carry none of that residue and are never padded.
+# Deliberately equal to `_INDEXING_FRAME_MARGIN` today (same rationale: a
+# million times the residue at metre scale, orders of magnitude below any
+# clearance a project would want culled on) but kept as a separate
+# constant, because the two tiers' arithmetic is separate and a future
+# measurement that moves one must not silently move the other.
+# Enlargement can only make this tier DECLINE, never decide: a pair whose
+# true surface gap is under this margin pays the boolean it pays today. An
+# internal tuning value, not a public assertion-control knob.
+_FACE_BOX_MARGIN = 1e-6
+
+# Rows of shape 1's face boxes compared per chunk against all of shape 2's
+# transformed boxes, bounding the working set of the vectorised NumPy
+# overlap test (a chunk is `_FACE_BOX_CHUNK x F2 x 3` booleans). An
+# internal tuning value, not a public assertion-control knob -- see
+# `_ADAPTIVE_CANDIDATE_BUFFER_LIMIT` for the same discipline elsewhere in
+# this module.
+_FACE_BOX_CHUNK = 256
+
+# The eight corners of a unit box, as 0/1 selectors into (low, high) per
+# axis -- used to expand a face box into its eight corners before
+# transforming them into the partner's frame.
+_FACE_BOX_CORNER_SIGNS = np.array(list(itertools.product((0, 1), repeat=3)))
+
+
+def _transformed_face_boxes(boxes, relative):
+    """``boxes`` (an ``(F, 2, 3)`` array of local AABBs) carried through
+    the affine map ``relative`` and enlarged by ``_FACE_BOX_MARGIN`` on
+    every side.
+
+    Each box's eight corners are transformed and re-enclosed in an AABB --
+    the same corner-box argument ADR-091 uses for a whole solid, applied
+    here to a face -- so the result is a conservative superset of the
+    image of each face box under ``relative``, vectorised over all ``F``
+    boxes at once as one ``(F, 8, 4)`` product.
+    """
+    if boxes.shape[0] == 0:
+        return boxes
+    signs = _FACE_BOX_CORNER_SIGNS
+    corners = np.stack(
+        [boxes[:, signs[:, axis], axis] for axis in range(3)], axis=-1)
+    homogeneous = np.concatenate(
+        [corners, np.ones(corners.shape[:2] + (1,))], axis=-1)
+    transformed = homogeneous @ relative.T
+    xyz = transformed[..., :3]
+    low = xyz.min(axis=1) - _FACE_BOX_MARGIN
+    high = xyz.max(axis=1) + _FACE_BOX_MARGIN
+    return np.stack([low, high], axis=1)
+
+
+def _representative_points(solids, point):
+    """One ``point`` (a ``gp_Pnt`` constructor) per solid of ``solids``,
+    or ``None`` if any solid carries no vertex at all (a full torus is the
+    realistic case) -- the tier does not invent a representative."""
+    points = []
+    for solid in solids:
+        vertices = solid.Vertices()
+        if not vertices:
+            return None
+        points.append(point(*vertices[0].toTuple()))
+    return points
+
+
+def _classified_out(points, partner_solids, classifier_type, out, tolerance):
+    """``True`` iff every point in ``points`` classifies strictly ``out``
+    of every solid in ``partner_solids``.
+
+    One classifier is loaded per SOLID of the partner -- never one loaded
+    from a compound, since `BRepClass3d_SolidClassifier` is specified for
+    a solid and design.md's proof rests on that -- and `Perform` is called
+    once per representative point against it. A rejected classification,
+    an OCCT exception, or any state other than ``out`` declines the whole
+    guard rather than being treated as a pass.
+    """
+    for partner_solid in partner_solids:
+        try:
+            classifier = classifier_type(partner_solid.wrapped)
+            for point in points:
+                classifier.Perform(point, tolerance)
+                if classifier.Rejected() or classifier.State() != out:
+                    return False
+        except Exception:
+            return False
+    return True
+
+
+def _mutually_outside(placed1, placed2):
+    """The containment guard (design.md section 2, step 3): ``True`` iff
+    no solid of either placed shape lies inside, or on the boundary of,
+    any solid of the other.
+
+    Both directions are required and neither is redundant: a shape wholly
+    inside the other has boundaries that do not meet either, so only the
+    CONTAINED shape's own representative points reveal it. Declines (never
+    a wrong answer) on a shape with no solids on either side -- there is
+    then nothing to load a classifier from -- or a solid with no vertex.
+    """
+    solids1 = placed1.Solids()
+    solids2 = placed2.Solids()
+    if not solids1 or not solids2:
+        return False
+    from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCP.gp import gp_Pnt
+    from OCP.Precision import Precision
+    from OCP.TopAbs import TopAbs_OUT
+    points1 = _representative_points(solids1, gp_Pnt)
+    points2 = _representative_points(solids2, gp_Pnt)
+    if points1 is None or points2 is None:
+        return False
+    tolerance = Precision.Confusion_s()
+    return (_classified_out(points1, solids2, BRepClass3d_SolidClassifier,
+                            TopAbs_OUT, tolerance)
+            and _classified_out(points2, solids1, BRepClass3d_SolidClassifier,
+                                TopAbs_OUT, tolerance))
+
+
+def _faces_disjoint(shape1, placed1, shape2, placed2, relative):
+    """``True`` only when this tier PROVES ``shape1`` and ``shape2`` share
+    no material -- never a false claim of emptiness, only a decline when
+    it cannot tell.
+
+    ``shape1``/``shape2`` are the two solids' LOCAL exact shapes (what
+    ``cached_face_boxes`` keys on); ``placed1``/``placed2`` are the same
+    two solids already placed in the WORLD frame (what the containment
+    guard classifies); ``relative`` is ``inv(matrix1) @ matrix2``, the
+    affine map from shape 2's local frame into shape 1's.
+
+    Proof, in short (design.md section 2 states it in full): disjoint face
+    boxes prove disjoint boundaries; two closed solids with disjoint
+    boundaries are either disjoint or one wholly contains the other; one
+    representative point of every solid of each shape, classified against
+    every solid of the other, in BOTH directions, tells the two cases
+    apart. A decline here is always a fall-through to the boolean that
+    runs today -- never a wrong empty.
+    """
+    if not np.all(np.isfinite(relative)):
+        return False
+    boxes1 = cached_face_boxes(shape1)
+    boxes2 = cached_face_boxes(shape2)
+    if boxes1.shape[0] == 0 or boxes2.shape[0] == 0:
+        return False
+    boxes2 = _transformed_face_boxes(boxes2, relative)
+    low2 = boxes2[:, 0, :][None, :, :]
+    high2 = boxes2[:, 1, :][None, :, :]
+    for start in range(0, len(boxes1), _FACE_BOX_CHUNK):
+        chunk = boxes1[start:start + _FACE_BOX_CHUNK]
+        low1 = chunk[:, 0, :][:, None, :]
+        high1 = chunk[:, 1, :][:, None, :]
+        disjoint = np.any((high1 < low2) | (high2 < low1), axis=-1)
+        if not np.all(disjoint):
+            return False
+    return _mutually_outside(placed1, placed2)
+
+
 def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
                          reason=_FACETED_REASON):
     """Engine-native emptiness and volume for two placed solid records,
@@ -861,6 +1081,10 @@ def _placed_intersection(first, second, needed_by=_FACETED_NEEDED_BY,
     if first[3] is not None and second[3] is not None:
 
         def exact():
+            relative = np.linalg.inv(first[6]) @ second[6]
+            if _faces_disjoint(first[8], first[3], second[8], second[3],
+                               relative):
+                return IntersectionStats(True, 0.0, True)
             result = intersect_shapes(
                 first[3], second[3], first[0].name, second[0].name)
             count = solid_count(result)
@@ -1445,10 +1669,12 @@ def _record_key(first, second, identity_index, path):
     The guard means "this record was not built by ``_place_solid``" --
     the virtual floor is a Manifold with no geometry file behind it and
     carries no identity, so it is never cached. A real ``_place_solid``
-    record is now an 8-tuple (``record[7]`` holds local bounds, ADR-091),
-    so the ``len(...) <= 6`` threshold still separates the two: any
-    FUTURE trailing field appended to ``_place_solid`` must keep this
-    guard's intent true by staying above 6, not by changing this
+    record is now a 9-tuple (``record[7]`` holds local bounds, ADR-091;
+    ``record[8]`` the solid's local exact shape, ADR-092 -- the trailing
+    field ADR-091's comment anticipated), so the ``len(...) <= 6``
+    threshold still separates the two: any FUTURE trailing field appended
+    to ``_place_solid`` must keep this guard's intent true by staying
+    above 6, not by changing this
     comparison.
     """
     if len(first) <= 6 or len(second) <= 6:
@@ -1471,7 +1697,14 @@ def _memoized(key, compute):
 
 
 def _exact_verdict(shape1, matrix1, shape2, matrix2, name1, name2):
-    """The exact path's verdict for one pair, broad phase included."""
+    """The exact path's verdict for one pair: the AABB cull, then the
+    face-box tier with its containment guard (ADR-092), then the boolean.
+
+    ``placed_shape`` is materialised once for each side and handed to
+    BOTH the tier and, if it declines, the boolean -- so a pair the AABB
+    culls never pays a placement, and a pair the tier decides pays one
+    placement per side rather than two.
+    """
     bounds1 = cached_bounding_box(shape1)
     bounds2 = cached_bounding_box(shape2)
     box1 = _world_bounds(
@@ -1482,9 +1715,12 @@ def _exact_verdict(shape1, matrix1, shape2, matrix2, name1, name2):
          np.array([bounds2.xmax, bounds2.ymax, bounds2.zmax])), matrix2)
     if _boxes_disjoint(box1, box2):
         return IntersectionStats(True, 0.0, True)
-    result = intersect_shapes(
-        placed_shape(shape1, matrix1), placed_shape(shape2, matrix2),
-        name1, name2)
+    placed1 = placed_shape(shape1, matrix1)
+    placed2 = placed_shape(shape2, matrix2)
+    relative = np.linalg.inv(matrix1) @ matrix2
+    if _faces_disjoint(shape1, placed1, shape2, placed2, relative):
+        return IntersectionStats(True, 0.0, True)
+    result = intersect_shapes(placed1, placed2, name1, name2)
     count = solid_count(result)
     return IntersectionStats(count == 0, solid_volume(result), True)
 
