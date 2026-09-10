@@ -6,8 +6,9 @@ baseline spec or an accepted ADR disagree, the spec and the ADR are right
 and this note is stale. It does *not* claim that any of the three
 primitives exists, that the interfaces below are settled, or that the
 projects named have been refactored. Cycle 1 (`joint-composition-order`)
-is cut from §4 of this note and cycle 2 (`orbit-joint`) from §5; §6 is
-still a design, not a proposal.
+is cut from §4 of this note, cycle 2 (`orbit-joint`) from §5 and cycle 3
+(`free-joint`) from §6. All three have been taken up: each section's own
+note names the OpenSpec change that is now the authority for it.
 
 ---
 
@@ -483,7 +484,53 @@ symbolic binding publishes the trig expression and `set_keyframe` makes
 it numeric; and the Internal Cycloidal Actuator's algebraic identity as a
 fixture, maximum deviation 0.
 
-## 6. Cycle 3 — `free-joint` (design, not a proposal)
+## 6. Cycle 3 — `free-joint`
+
+> **Taken up, 2026-09-10.** This section has been cut into the OpenSpec
+> change `free-joint`, which is now the AUTHORITY for everything below:
+> its `proposal.md`, `design.md`, `tasks.md` and the deltas on
+> `openspec/specs/joints/spec.md`, `openspec/specs/ports/spec.md` and
+> `openspec/specs/couplings/spec.md`, with ADR-095 to record the
+> decision. Where this section and those artifacts disagree, they are
+> right and this section is the older draft they were cut from. Five
+> points the change settled that this draft states differently or not at
+> all:
+>
+> - **the naming rule**, which this draft left to "`declared_ports`
+>   reports six entries" without saying under what names. It is
+>   `<joint name>.<coordinate name>` — one dot — and it is the port's
+>   name, the enumerator's key and the tail of a relation path, with no
+>   second spelling. The hexapod's own `Chassis`
+>   already declares `roll`, `pitch` and `yaw` as `SignalPort`s
+>   (`spiderbot.py:85-92`), so unqualified names were never available. A
+>   dotted name is not a Python identifier, so it is deliberately NOT a
+>   wiring keyword: both wiring roles — the joint passed whole, and a
+>   coordinate named by its dotted name — are refused at class
+>   definition, and such a coordinate is reached by assignment, by
+>   relation path, and by a driver or an expression;
+> - **up to SIX operations, not four.** Four is right for the default
+>   anchor, which is the hexapod's case; a non-origin `at` adds the two
+>   centring translations exactly as a `Revolute`'s does. Still one
+>   contiguous run at one slot, which is all ADR-093 asks
+>   (change `design.md` §4);
+> - **unbound is not an exception.** §6.2 below calls identity "a
+>   deliberate exception to 'an unbound coordinate reads as unbound
+>   rather than as zero'". It is not: the READ stays unbound, and
+>   "an unbound coordinate places nothing" is the rule every joint
+>   already obeys. Only the free joint has to state it, because its
+>   placement runs while some of its coordinates are unbound
+>   (change `design.md` §6);
+> - **three seams must change, measured rather than assumed.** This
+>   draft supposed the coordinates would simply enumerate. On the tree as
+>   it stands, `declared_ports` reports NOTHING for a six-coordinate
+>   joint, `read_through` raises the *parameter* refusal for it, and
+>   `setattr(node, 'pose.roll', v)` silently creates an instance
+>   attribute and binds nothing. The change carries the probes
+>   (change `design.md` §3, §7, §8);
+> - **the composition is measured, not asserted.** The hexapod's four
+>   hand-written calls equal `T · Rz · Ry · Rx` to 1.11e-16 and
+>   `_to_chassis` inverts them to 1.42e-14 mm, over seven poses
+>   (change `evidence/probe_matrix.py`).
 
 ### 6.1 Interface
 
@@ -598,17 +645,52 @@ contract); symbolic bindings publish expressions.
 
 **Cycle 3**
 
-7. *An unbound `Free` coordinate: identity, or a refusal?* §6.2 proposes
-   identity because the hexapod binds four of six. It is a deliberate
-   exception to a ratified sentence and the pilot should settle it.
-8. *A range on a `Free`.* Proposed: none.
+7. *An unbound `Free` coordinate: identity, or a refusal?* **CLOSED,
+   2026-09-10, as IDENTITY** — the change `free-joint` owns it. And it is
+   NOT an exception to "an unbound coordinate reads as unbound rather
+   than as zero", which this draft wrongly called it: the read stays
+   unbound and the enumerator still reports the coordinate. What the
+   free joint adds is that its placement RUNS while some coordinates are
+   unbound, because binding one re-places all six; the rule it then
+   obeys — an unbound coordinate places nothing — is the one an unbound
+   `Revolute` already obeys, stated per coordinate rather than per joint.
+   The hexapod binds four of six.
+8. *A range on a `Free`.* **CLOSED, 2026-09-10, as NONE** — a floating
+   body has no travel to bound, and no project asked for one. The
+   declaration takes no `range` at all rather than accepting and ignoring
+   one, so a `Free(range=…)` is refused where it is written.
 9. *Euler versus quaternion.* MuJoCo's `free` carries a quaternion and
    Modelica's `FreeMotion` its own angle sequence; six Euler coordinates
    are lossy at gimbal lock. The design record accepts this for `Free`
    while insisting `Spherical` must be native and quaternion-valued.
    Whether `Free`'s three angles should be a quaternion instead — and
    what a driver would then bind — is not settled, and the hexapod does
-   not need it settled.
+   not need it settled. **Still open**, and now carried by the change's
+   own open questions.
+10. *The export target for a `Free`.* Both MuJoCo and Modelica have a
+    native element for it — the only joint of the four for which that is
+    true — so it is the cheapest one to get wrong by guessing, and the
+    mapping is designed nowhere. **Open**, raised by the change.
+11. *Is `at` read in the parent's frame or the body's own?* The hexapod
+    cannot tell them apart: its chassis has an IDENTITY rest placement,
+    so the parent's origin and the body's own placed origin are the same
+    point, and both readings give the same answer at every pose. The rule
+    chosen is the parent's frame, by consistency with ADR-088, and it is
+    stated in the spec as a rule rather than as something the hexapod
+    proved. What would settle it: a floating body whose parent's
+    `render()` actually places it somewhere. **Open**, raised by the
+    change.
+12. *Is a dotted wiring keyword wanted at all?* **CLOSED, 2026-09-10:
+    NOT IN THIS CYCLE, REFUSED BY NAME.** `Chassis(**{'pose.roll': roll})`
+    works — measured, Python accepts a non-identifier `**` key and it
+    reaches `_check_wiring` intact — and the change deliberately does not
+    offer it: it would be the first non-identifier keyword in the API,
+    it is unreadable at the call site, and no project asked for it. Both
+    wiring roles are refused at class definition, naming the joint and
+    listing its coordinates. A `Free` coordinate is reached by assignment
+    on the instance, by relation path, and by a driver or an expression.
+    If a later project wants one wired downward, that is a NEW SIGHTING,
+    arriving with a real call site to judge the spelling against.
 
 ## 8. Where the evidence and the direction disagree
 
@@ -651,3 +733,31 @@ Recorded plainly rather than reconciled:
   part of cycle 1 that no project asked for: it is the framework's own
   choice, made so that the joint block is a contiguous, reorderable unit,
   and it is the part the pose comparison exists to check.
+- **The design record says a `Free` "has no composition", and cycle 3
+  gives it one.** `workflow/archive/motion-layer-2026-09-09/joints-and-couplings.md`
+  §1 says "Free is what a walking robot's body sits on and has no
+  composition", meaning it is not built out of other joints the way a
+  screw or a universal is — and in that sense the change agrees, because
+  `Free` is native. But the change DOES fix an internal order among its
+  six coordinates, `R(roll)·R(pitch)·R(yaw)·T`, and that order is exactly
+  the composition the record's sentence says a `Free` does not have. The
+  reason it must exist is the hexapod: `Chassis._to_chassis` hand-inverts
+  that product and every leg solution in the model depends on it. Stated
+  plainly rather than reconciled: "no composition" is true of how a
+  `Free` is BUILT and false of what it DOES.
+- **`Spherical` is to be a quaternion because Euler triples gimbal-lock,
+  and `Free` carries an Euler triple anyway.** The same design record
+  makes that argument for `Spherical` in the sentence above the pair
+  table and accepts three angles for `Free` in the row below it. Cycle 3
+  ratifies the three angles the pilot chose and records the limit rather
+  than quietly inheriting it: the fixture includes a `pitch = 90°` pose,
+  so the degenerate case is on the record as a measurement and a picture,
+  not as an omission. Open question 9 carries the rest.
+- **No project asked for a `Free`.** One project — the hexapod — has a
+  floating body, and what it wrote (and what its reviewed proposal asked
+  for) is FOUR JOINTS in declaration order, which ADR-093 already gives
+  it. `Free` is the framework's own choice, made because the two export
+  targets both have one element for it and because six freedoms on one
+  body read better as one declaration than as four plus six forwarding
+  ports. Like direction 3.2, it is a framework choice and not an
+  empirical requirement, and it should be read as one.
