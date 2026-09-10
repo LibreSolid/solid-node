@@ -132,6 +132,124 @@ def _refuse_wiring_several(owner, attribute, keyword, joint, role):
 
 
 ##############################################
+# Site-declared joints
+
+def _in_current_body(value):
+    """Whether `value` is already bound to a name in the class body
+    that is CURRENTLY EXECUTING -- the shape of a WIRING that names a
+    sibling declared earlier in the same body (`turn = Revolute(...)`,
+    then `wheel = Wheel(turn=turn)`), as opposed to a fresh `Joint(...)`
+    built inline in the argument list, which was never assigned to any
+    name at all. See `ChildDeclaration.__init__` for why `.owner is
+    None` cannot tell the two apart on its own.
+    """
+    namespace = executing_body()
+    if namespace is None:
+        return False
+    return any(held is value for held in namespace.values())
+
+
+def _specialize(node_class, site_joints):
+    """A subclass of `node_class` carrying `site_joints` as ordinary
+    class attributes -- one specialization per declaration site, built
+    once, in `ChildDeclaration.__init__`, and shared by every child the
+    site realizes (design decision 6, "The declaration SPECIALIZES the
+    child's class").
+
+    Its `__qualname__`, `__name__`, `__module__` and `__doc__` are
+    copied from `node_class` VERBATIM, and deliberately: a joint is not
+    identity -- it says where a body may move, not what geometry is
+    built -- so two children of one class differing only in the joints
+    their sites passed must key one artifact
+    (`base._build_uniq_id`/`_canonical_serialization` read the CLASS's
+    `__qualname__` and the constructor arguments, and the joint keyword
+    never reaches the constructor at all). `source_scope` scopes a
+    digest by `klass.__name__` and `get_source_file` reads
+    `inspect.getfile(self.__class__)`; both follow the copy to the
+    written class's own file.
+
+    Built through `type(node_class)` rather than through `NodeMeta`
+    directly, so a project's own metaclass (the `NodeMeta` subclass
+    docstring's own example) is preserved. Never bound to any module
+    namespace: `node_classes_in`/`_defined_classes` scan a MODULE's
+    `__dict__`, so a specialization nothing ever assigns to a module
+    attribute is invisible to model discovery by construction, not by a
+    second check.
+
+    Every joint's own `__set_name__` fires exactly as it would for an
+    ordinary class body -- `Joint._refuse_shadowing` runs against
+    `node_class`'s own MRO (`type(...).__mro__[1:]` starts there), which
+    is decision 10's refusal against a port, a parameter, a child
+    declaration, a method or a property the child already answers to,
+    and a site joint of a name `node_class` already declares REPLACES
+    it and keeps its slot, because `declared_joints`'s base-first walk
+    already reads a redeclaration that way (ADR-093).
+    """
+    namespace = dict(site_joints)
+    namespace['__qualname__'] = node_class.__qualname__
+    namespace['__module__'] = node_class.__module__
+    namespace['__doc__'] = node_class.__doc__
+    return type(node_class)(node_class.__name__, (node_class,), namespace)
+
+
+def _refuse_constructor_shadowing(node_class, site_joints):
+    """Design decision 10's row `Joint._refuse_shadowing` cannot see: a
+    keyword naming a parameter of a NON-DECLARATIVE child's own
+    `__init__`.
+
+    Such a parameter is not a class attribute at all -- there is
+    nothing for `_refuse_shadowing`'s scan of `vars(klass)` to find --
+    and the keyword is stripped before construction like every site
+    joint, so left unchecked the child would be built with no value for
+    it at all: different geometry, silently. `VisualPack(filename=...)`
+    and `Link(dir=...)` are why this reads the constructor's own
+    signature and not only the class's attributes.
+    """
+    import inspect
+
+    try:
+        parameters = inspect.signature(node_class.__init__).parameters
+    except (TypeError, ValueError):
+        return
+    for keyword in site_joints:
+        if keyword in parameters:
+            raise TypeError(
+                f"{node_class.__name__}.__init__ takes a parameter "
+                f"'{keyword}'. A site-declared joint of that name would "
+                f"be stripped before construction -- a site joint is not "
+                f"a parameter -- so {node_class.__name__} would be built "
+                f"with no '{keyword}' at all: different geometry, "
+                f"silently. Rename the joint, or declare it under a name "
+                f"{node_class.__name__}'s constructor does not take.")
+
+
+def _refuse_coordinate_name_collisions(node_class, site_joints, wiring):
+    """Design decision 10's last two rows: two things naming the same
+    COORDINATE, reachable only through `**{...}` expansion since one
+    Python keyword cannot hold two values -- a `Free`'s own dotted
+    sub-coordinate name (`pose.roll`) written again as a second, literal
+    keyword; or a site joint and a wiring landing on the same name.
+
+    Run once every site joint's own `__set_name__` has fired (inside
+    `_specialize`), so a `Free`'s `coordinates` already carry their
+    dotted names.
+    """
+    occupied = {}
+    for keyword, joint in site_joints.items():
+        for coordinate_name in joint.coordinates:
+            occupied.setdefault(coordinate_name, set()).add(keyword)
+    for keyword in wiring:
+        occupied.setdefault(keyword, set()).add(keyword)
+    for coordinate_name, keywords in occupied.items():
+        if len(keywords) > 1:
+            raise TypeError(
+                f"{node_class.__name__} would receive the coordinate "
+                f"'{coordinate_name}' more than once, from "
+                f"{', '.join(sorted(keywords))}. One coordinate, one "
+                f"declaration.")
+
+
+##############################################
 # Child declarations
 
 class ChildDeclaration:
@@ -148,8 +266,38 @@ class ChildDeclaration:
     _name = None
 
     def __init__(self, node_class, args, kwargs):
-        self.node_class = node_class
         self.args = tuple(args)
+        # A keyword whose VALUE is a coordinate is told apart from a
+        # WIRING by the value, not the keyword (design decision 1): a
+        # coordinate the DECLARING class already owns is a wiring, as
+        # today; a fresh `Joint(...)` built right here in the keyword
+        # list -- one that has never been assigned to any class body --
+        # is a SITE declaration, a freedom the site is giving this
+        # child rather than a value the site is handing it. A joint
+        # already owned by some THIRD class falls through to `wiring`
+        # and is refused there, where the declaring class is known and
+        # the message can say so.
+        #
+        # `owner is None` alone cannot tell the two apart: `Joint`
+        # deliberately does not carry `_names_in_body` (unlike a
+        # `Declaration` or a `DerivedCoordinate`), so `turn =
+        # Revolute(...)` followed two lines later by `wheel =
+        # Wheel(turn=turn)`, in the SAME still-executing class body,
+        # reads `turn.owner` as None too -- `__set_name__` fires for
+        # every attribute in one batch, only once the class exists.
+        # `_in_current_body` closes that gap: a joint already bound to
+        # a name in the EXECUTING body's own namespace is a same-body
+        # wiring reference, whatever `.owner` reads right now; a joint
+        # bound to no name anywhere is a fresh site declaration.
+        self.site_joints = {}
+        for key, value in kwargs.items():
+            if (_is_joint(value) and value.owner is None
+                    and not _in_current_body(value)):
+                # Marked the moment it is claimed: `Joint.place` reads
+                # this to decide whether its arguments need carrying,
+                # and nothing else ever sets it.
+                value._declared_at_site = True
+                self.site_joints[key] = value
         # A keyword whose VALUE is a coordinate -- a port or a joint
         # declared on the class whose body this is -- is a WIRING, not a
         # parameter: it says which value reaches the child at each
@@ -159,9 +307,22 @@ class ChildDeclaration:
         # never enter the child's construction or its identity, and
         # every other keyword keeps the meaning it has today.
         self.wiring = {key: value for key, value in kwargs.items()
-                       if _is_coordinate(value)}
+                       if key not in self.site_joints and _is_coordinate(value)}
         self.kwargs = {key: value for key, value in kwargs.items()
-                       if key not in self.wiring}
+                       if key not in self.site_joints
+                       and key not in self.wiring}
+        if self.site_joints:
+            # Built HERE, not in __set_name__: a declaration held in a
+            # literal list never receives __set_name__ (the same reason
+            # a wiring in a list-held declaration goes unvalidated
+            # today), and the specialization has to exist before any
+            # class body reads a path through this declaration -- which
+            # can happen on the very next line of the SAME body.
+            _refuse_constructor_shadowing(node_class, self.site_joints)
+            node_class = _specialize(node_class, self.site_joints)
+            _refuse_coordinate_name_collisions(
+                node_class, self.site_joints, self.wiring)
+        self.node_class = node_class
 
     def __set_name__(self, owner, name):
         self._name = name
@@ -199,6 +360,23 @@ class ChildDeclaration:
                     f'as a wiring target on {self.node_class.__name__}'))
             if id(source) not in ours:
                 elsewhere = getattr(source, 'owner', None)
+                if _is_joint(source) and elsewhere is not None:
+                    # Design decision 10: a joint declared on a THIRD
+                    # class, neither the declaring class nor the child
+                    # -- refused by its own message, naming what the
+                    # child itself declares, because a declaration
+                    # object belongs to one class.
+                    declares = ', '.join(sorted(theirs_joints)) or 'none'
+                    raise TypeError(
+                        f"{owner.__name__}.{self._name}: '{keyword}' names "
+                        f"the joint {elsewhere.__name__}.{source.name}, "
+                        f"declared on {elsewhere.__name__} -- a THIRD "
+                        f"class, neither {owner.__name__} nor "
+                        f"{self.node_class.__name__}. A joint declaration "
+                        f"belongs to one class; {self.node_class.__name__} "
+                        f"declares: {declares}. Either declare '{keyword}' "
+                        f"on {owner.__name__} and wire it, or write a "
+                        f"fresh joint at this site.")
                 belongs = (f'{elsewhere.__name__} declares it'
                            if elsewhere is not None
                            else 'it is declared on no class here')
@@ -261,13 +439,42 @@ class ChildDeclaration:
         return RepeatDeclaration(self, count)
 
     def realize(self, values, owner):
+        """Construct this declaration's child against `values`, `owner`
+        being the realized PARENT node itself (not its name): the frame
+        a site-declared joint's arguments resolve against, and the
+        object a site's callable is handed (design decision 5).
+
+        `owner`'s own declared parameters are already resolved, its
+        `check()` has already run, and every child it declared BEFORE
+        this one has already been realized into its instance dict
+        (`realize_children`'s loop sets each as it goes) -- exactly what
+        a site's callable may read. `owner` has NOT rendered, so no
+        placement exists yet, including this child's own; the CARRY
+        that needs one happens later, at binding.
+        """
         args = [evaluate(arg, values) for arg in self.args]
         kwargs = {key: evaluate(arg, values)
                   for key, arg in self.kwargs.items()}
         child = self.node_class(*args, **kwargs)
         if self.wiring:
             self._record_wiring(child, owner)
+        if self.site_joints:
+            self._resolve_site_joints(child, owner)
         return child
+
+    def _resolve_site_joints(self, child, parent):
+        """Resolve every site-declared joint's arguments against the
+        DECLARING PARENT, eagerly, right here at the child's
+        realization -- the reason `resolve_declared_joints` (already run
+        inside the child's own constructor, above) skips a site joint
+        entirely: the parent did not exist yet in there. Cached under
+        the SAME `_joint_arguments` slot a class joint's own eager
+        resolution uses, so `Joint.arguments`/`Joint.place` read either
+        kind exactly alike from here on."""
+        parent_values = parent.__dict__.get('_parameters', {})
+        resolved = child.__dict__.setdefault('_joint_arguments', {})
+        for name, joint in self.site_joints.items():
+            resolved[name] = joint.resolve(parent, parent_values)
 
     def _record_wiring(self, child, owner):
         """Record on the realized child which of its coordinates a
@@ -281,7 +488,10 @@ class ChildDeclaration:
         for keyword, source in self.wiring.items():
             recorded[keyword] = source
             slot = ports[keyword].__get__(child)
-            slot.wired_from = (owner, self._name, keyword)
+            # `owner` is the realized PARENT node now, not its class
+            # name -- read the name back out, so this message keeps
+            # reading exactly as it always has.
+            slot.wired_from = (type(owner).__name__, self._name, keyword)
 
     def __repr__(self):
         return f'<declared {self.node_class.__name__} {self._name or ""}>'
@@ -371,13 +581,19 @@ class RepeatDeclaration:
         return self.declaration.node_class
 
     def realize(self, values, owner):
+        """`owner` is the realized PARENT node (see
+        `ChildDeclaration.realize`); every copy realizes against the
+        SAME parent and the SAME `values`, so a site-declared joint's
+        arguments resolve to the same numbers for each -- what differs
+        per copy is the CARRY, through that copy's own rest placement
+        (design decision 8)."""
         count = evaluate(self.count, values)
         if isinstance(count, float) and count.is_integer():
             count = int(count)
         if isinstance(count, bool) or not isinstance(count, int) or count < 0:
             raise ParameterError(
-                f"{owner}: repeat count for '{self._name}' must be a "
-                f"non-negative integer, got {count!r}")
+                f"{type(owner).__name__}: repeat count for '{self._name}' "
+                f"must be a non-negative integer, got {count!r}")
         copies = []
         for index in range(count):
             child = self.declaration.realize(values, owner)
@@ -666,9 +882,18 @@ def realize_children(node):
     The names are the ones `_link_child` would derive later; deriving
     them here as well means a child answers to its name from the moment
     it exists, and linking is idempotent so nothing changes when it runs.
+
+    `node` itself is handed to each declaration's `realize` as the
+    realized PARENT (not merely its class's name, a string, as before
+    the declaration-site-joint cycle): a site-declared joint resolves
+    its arguments against this exact instance, and a site's callable
+    argument is called with it. By the time a later attribute's
+    declaration realizes, every EARLIER attribute is already set on
+    `node.__dict__` -- this loop's own doing -- which is what a site
+    callable may read.
     """
     values = node.__dict__.get('_parameters', {})
-    owner = type(node).__name__
+    owner = node
     for attribute, declaration in declared_children(type(node)).items():
         if isinstance(declaration, list):
             realized = [item.realize(values, owner) for item in declaration]

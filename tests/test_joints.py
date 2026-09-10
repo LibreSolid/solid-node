@@ -47,7 +47,7 @@ from solid_node.simulation import Driver
 from .base import BaseNodeTest
 from .import_probe import probe
 from .joint_project.arm import (Arbor, ArborStack, Arm, Forearm, Gantry,
-                                BEARING_PITCH)
+                                SiteArm, BEARING_PITCH)
 from .joint_project.parts import Carriage, Rod, Spool, Wheel
 
 
@@ -3529,3 +3529,656 @@ class JointImportCostTest(TestCase):
         couplings, _ = self.modules('import solid_node.motion.couplings\n')
 
         self.assertEqual(couplings, ports | {'solid_node.motion.couplings'})
+
+
+##############################################
+# 2.x A joint declared at a DECLARATION SITE (declaration-site-joint)
+#
+# The other half of "a joint is stated in the frame of whoever declares
+# it": a joint passed as a keyword where a parent DECLARES a child is
+# the PARENT's own statement, read in the DECLARING PARENT's frame, `at`
+# defaulting to the PARENT's own origin -- URDF's rule, the mirror of
+# OwnFrameTest/FrameCarryTest above.
+
+class SiteFrameCarryTest(BaseNodeTest):
+    """The exact inverse of `FrameCarryTest` (cycle 2's task 1.4): the
+    SAME pinned Thor numbers, the joint stated by the parent instead of
+    the class.
+
+    Corrected from the task text's literal `at=(0, 241.5, 68))`, which
+    is the PARENT's full `translate` vector -- where the FOREARM's own
+    origin lands, not where the physical elbow pivot is -- and does not
+    reproduce the pinned fixture (evidence.md records the arithmetic).
+    `at=(0, 160, 68)` -- `ELBOW_ALONG_ARM` along y, `ELBOW_HEIGHT` along
+    z -- is the elbow's actual location in `SiteArm`'s own frame, one
+    rest placement out from the forearm's `(0, 0, 81.5)`, and is what
+    `SiteArm` (`tests/joint_project/arm.py`) declares.
+    """
+
+    def test_the_elbow_lands_on_thors_hand_written_constants(self):
+        arm = SiteArm()
+
+        arm.set_state(angle=30)
+
+        operations = serialized(arm.forearm)
+        self.assertEqual([operation[0] for operation in operations],
+                         ['t', 'r', 't', 'r', 't'])
+
+        centre_in, turn, centre_out = operations[:3]
+        for component, expected in zip(numbers(centre_in),
+                                       [-value for value in
+                                        THOR_ELBOW_PIVOT]):
+            self.assertAlmostEqual(component, expected, places=9)
+        for component, expected in zip(numbers(centre_out),
+                                       THOR_ELBOW_PIVOT):
+            self.assertAlmostEqual(component, expected, places=9)
+
+        self.assertEqual(turn[1], '30')
+        for component, expected in zip(turn[2], THOR_ELBOW_PIVOT_AXIS):
+            self.assertAlmostEqual(float(component), expected, places=9)
+
+        rest = operations[3:]
+        self.assertEqual(rest[0][0], 'r')
+        self.assertEqual(rest[0][1], '90')
+        self.assertEqual(list(rest[0][2]), [1, 0, 0])
+        self.assertEqual(numbers(rest[1]), [0.0, 241.5, 68.0])
+
+    def test_reproduces_cycle_2s_class_declared_fixture_exactly(self):
+        """The class-declared and the site-declared forms of Thor's
+        elbow are one machine: at any bound angle, the two forearms
+        occupy the identical world pose."""
+        class_declared = Arm()
+        site_declared = SiteArm()
+
+        for angle in (0, 15, 30, -40, 90):
+            with self.subTest(angle=angle):
+                class_declared.set_state(angle=angle)
+                site_declared.set_state(angle=angle)
+
+                assert_allclose(
+                    _compose_world_matrix(class_declared.forearm),
+                    _compose_world_matrix(site_declared.forearm),
+                    rtol=0, atol=1e-9)
+
+
+class SiteAnchorTest(BaseNodeTest):
+
+    def test_a_site_joint_anchors_on_the_declaring_parents_own_origin(self):
+        """A parent translating a child off-axis and declaring a joint
+        with NO anchor: the default `at=(0, 0, 0)` is the PARENT's own
+        origin, so the body is carried round THAT line, at a radius
+        equal to how far the parent placed it -- not turned on its own
+        centre, which a `carries` of zero would give if this were an
+        `Orbit`."""
+
+        class Screw(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Carrier(AssemblyNode):
+            child = Screw(orbit=Revolute(axis=(0, 0, 1), unit='deg'))
+
+            def render(self):
+                self.child.translate([0.0, 3.9, 0.0])
+
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        for angle in (0, 30, 90, -40, 180):
+            with self.subTest(angle=angle):
+                carrier = Carrier()
+                carrier.render()
+                carrier.child.orbit = angle
+
+                composed = _compose_world_matrix(carrier.child)
+                distance = np.linalg.norm((composed @ origin)[:3])
+                # The body's own origin never leaves radius 3.9 from the
+                # PARENT's own origin -- it is orbiting THAT line, not
+                # spinning where it stands.
+                self.assertAlmostEqual(distance, 3.9, places=9)
+                if angle % 360:
+                    self.assertGreater(
+                        np.max(np.abs((composed @ origin)[:3]
+                                      - np.array([0.0, 3.9, 0.0]))), 0.01)
+
+
+class SiteRepeatOppositeAxisTest(BaseNodeTest):
+    """Prusa's guides, hangprinter's rollers, openvmp's legs: one class
+    at two opposed placements, one site joint stating one axis in the
+    PARENT's frame."""
+
+    def test_one_site_axis_two_mirrored_placements_turn_the_same_way(self):
+        class Guide(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Frame(AssemblyNode):
+            guides = Guide(spin=Revolute(axis=(0, 1, 0),
+                                         unit='deg')).repeat(2)
+
+            def render(self):
+                self.guides[0].rotate(90, [1, 0, 0])
+                self.guides[1].rotate(-90, [1, 0, 0])
+
+        for angle in (0, 30, -55, 180):
+            with self.subTest(angle=angle):
+                frame = Frame()
+                frame.render()
+                frame.guides[0].spin = angle
+                frame.guides[1].spin = angle
+
+                published_0 = list(serialized(frame.guides[0])[0][2])
+                published_1 = list(serialized(frame.guides[1])[0][2])
+                # The two published rotations carry opposite own-frame
+                # axes: one parent-frame line, mirrored by the carry.
+                assert_allclose(published_0,
+                                [-component for component in published_1],
+                                rtol=0, atol=1e-9)
+
+                target = _rotation(angle, [0, 1, 0])[:3, :3]
+                rest_0 = _rotation(90, [1, 0, 0])[:3, :3]
+                rest_1 = _rotation(-90, [1, 0, 0])[:3, :3]
+                composed_0 = _compose_world_matrix(frame.guides[0])[:3, :3]
+                composed_1 = _compose_world_matrix(frame.guides[1])[:3, :3]
+                # Both bodies turn the SAME way in the parent's frame:
+                # one target rotation about the parent's own (0, 1, 0).
+                assert_allclose(composed_0, target @ rest_0,
+                                rtol=0, atol=1e-9)
+                assert_allclose(composed_1, target @ rest_1,
+                                rtol=0, atol=1e-9)
+
+
+class SiteSlotOrderTest(BaseNodeTest):
+    """ADR-093's sighting 4 and OpenCycloid's disk: a site joint's run
+    sits at its own slot, inside the rest placement, exactly as a class
+    joint's does -- checked against `ProjectAlgebraTest`'s own fixture,
+    with `orbit` moved to the site."""
+
+    def test_a_site_joint_composes_at_its_own_slot_inside_the_rest(self):
+        class ReferenceDisk(Solid2Node):
+            # Both on the class: ProjectAlgebraTest's own fixture.
+            spin = Revolute(axis=(0, 1, 0), at=BORE_AXIS_POINT, unit='deg')
+            orbit = Orbit(axis=(0, 1, 0), at=DISK_AXIS_POINT,
+                         carries=BORE_AXIS_POINT, unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class SiteDisk(Solid2Node):
+            # `spin` stays on the class; `orbit` moves to the SITE.
+            spin = Revolute(axis=(0, 1, 0), at=BORE_AXIS_POINT, unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            # `at` OMITTED: the actuator axis passes through the
+            # parent's own origin (the actual sighting's own comment);
+            # `carries=` is `DISK_1_BORE_CENTRE`, the PARENT-frame
+            # (world-frame, since Carrier is the root) position of the
+            # bore -- not `BORE_AXIS_POINT`, which is the disk's OWN
+            # frame spec literal the CLASS-declared form uses directly.
+            disk = SiteDisk(orbit=Orbit(axis=(0, 1, 0),
+                                        carries=DISK_1_BORE_CENTRE,
+                                        unit='deg'))
+
+            def render(self):
+                self.disk.rotate(DISK_REST_ANGLE, [0, 1, 0])
+                self.disk.translate(list(DISK_REST_TRANSLATION))
+
+        for theta, mesh_phase in ((0.0, 0.0), (90.0, 4.5), (213.5, 0.0)):
+            with self.subTest(theta=theta, mesh_phase=mesh_phase):
+                sigma = -theta / REDUCTION + mesh_phase
+
+                reference = ReferenceDisk()
+                reference.rotate(DISK_REST_ANGLE, [0, 1, 0])
+                reference.translate(list(DISK_REST_TRANSLATION))
+                reference.spin = sigma
+                reference.orbit = theta
+
+                carrier = Carrier()
+                carrier.render()
+                carrier.disk.spin = sigma
+                carrier.disk.orbit = theta
+
+                self.assertEqual(
+                    [operation.serialized[0] for operation
+                     in carrier.disk.operations],
+                    [operation.serialized[0] for operation
+                     in reference.operations])
+                self.assertEqual(list(declared_joints(type(carrier.disk))),
+                                 ['spin', 'orbit'])
+
+                assert_allclose(_compose_world_matrix(carrier.disk)[:3, :3],
+                                _compose_world_matrix(reference)[:3, :3],
+                                rtol=0, atol=0)
+                assert_allclose(_compose_world_matrix(carrier.disk)[:3, 3],
+                                _compose_world_matrix(reference)[:3, 3],
+                                rtol=0, atol=1e-9)
+
+
+class SiteRedeclareSlotTest(BaseNodeTest):
+    """InMoov's `MiddlePhalanx`: a site redeclaring both of a class's
+    joints keeps their slots and uses the site's own arguments."""
+
+    def test_a_site_redeclaration_of_both_joints_keeps_their_slots(self):
+        class Phalanx(Solid2Node):
+            pip = Revolute(axis=(1, 0, 0), at=(0, 10, 0), unit='deg')
+            mcp = Revolute(axis=(1, 0, 0), at=(0, 20, 0), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Finger(AssemblyNode):
+            middle = Phalanx(
+                pip=Revolute(axis=(1, 0, 0), at=(0, 30, 0), unit='deg'),
+                mcp=Revolute(axis=(1, 0, 0), unit='deg'))
+
+        finger = Finger()
+
+        self.assertEqual(list(declared_joints(type(finger.middle))),
+                         ['pip', 'mcp'])
+        self.assertEqual(declared_joints(type(finger.middle))['pip'].at,
+                         (0, 30, 0))
+
+        finger.middle.pip = 10
+        finger.middle.mcp = 20
+
+        # pip innermost (site's own anchor, so the centring pair is
+        # published), mcp outside it (no anchor at all: the site's
+        # default is the finger's own origin, which is where the class
+        # already sits, so mcp's line runs through it).
+        self.assertEqual(
+            [operation[0] for operation in serialized(finger.middle)],
+            ['t', 'r', 't', 'r'])
+        self.assertEqual(numbers(serialized(finger.middle)[0]),
+                         [0.0, -30.0, 0.0])
+
+
+class SiteNewJointOrderTest(BaseNodeTest):
+
+    def test_new_site_joints_come_after_the_class_in_keyword_order(self):
+        class Body(Solid2Node):
+            spin = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            body = Body(orbit=Orbit(axis=(0, 0, 1), unit='deg'),
+                       lift=Prismatic(axis=(0, 0, 1), unit='mm'))
+
+        carrier = Carrier()
+
+        self.assertEqual(list(declared_joints(type(carrier.body))),
+                         ['spin', 'orbit', 'lift'])
+
+
+class SiteJointSymbolicRefusalTest(BaseNodeTest):
+
+    def test_a_symbolic_rest_placement_refuses_a_site_joint_and_not_a_class_one(self):
+        # An AssemblyNode, not a Solid2Node: Solid2Node.as_number passes
+        # a plain non-solid2 value through UNCHANGED (it only evaluates
+        # a genuine solid2 expression through OpenSCAD), so it would
+        # never raise here at all -- AbstractBaseNode's own as_number,
+        # which AssemblyNode inherits unedited, is the strict one every
+        # `_carry` refusal is measured against.
+        class Body(AssemblyNode):
+            spin = Revolute(axis=(0, 0, 1), unit='deg')
+
+        class Carrier(AssemblyNode):
+            body = Body(lift=Prismatic(axis=(0, 0, 1), unit='mm'))
+
+        carrier = Carrier()
+        # A rest operation the framework cannot evaluate: no driver, no
+        # time base, just a component that is not a number.
+        carrier.body.translate(['x', 0, 0])
+
+        # cycle 2's relaxation intact: a class joint never carries, so
+        # it binds and places even though the rest placement cannot be
+        # inverted.
+        carrier.body.spin = 30
+        self.assertEqual(len(motions(carrier.body)), 1)
+
+        # A site joint DOES need the carry, and refuses.
+        with self.assertRaises(ValueError) as raised:
+            carrier.body.lift = 10
+
+        message = str(raised.exception)
+        for expected in ('lift', 'not a number', 'body'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+
+class SiteFreeFrameTest(BaseNodeTest):
+
+    def test_a_site_free_floats_against_the_declaring_parents_frame(self):
+        class Chassis(Solid2Node):
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            chassis = Chassis(pose=Free(angle_unit='deg', length_unit='mm'))
+
+            def render(self):
+                self.chassis.rotate(90, [0, 1, 0])
+
+        carrier = Carrier()
+        carrier.render()
+        carrier.chassis.pose.x = 50.0
+
+        composed = _compose_world_matrix(carrier.chassis)
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        displacement = (composed @ origin)[:3]
+        # The PARENT's x-hat -- the body's own x, after a 90 degree
+        # rotation about y, points along the parent's -z instead.
+        assert_allclose(displacement, [50.0, 0.0, 0.0], rtol=0, atol=1e-9)
+
+
+class SitePrismaticAnchorInertTest(BaseNodeTest):
+
+    def test_a_site_prismatics_axis_is_carried_and_its_anchor_is_inert(self):
+        class Slide(Solid2Node):
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            near = Slide(travel=Prismatic(axis=(1, 0, 0), at=(5, 6, 7),
+                                          unit='mm'))
+            far = Slide(travel=Prismatic(axis=(1, 0, 0), at=(-40, 0, 12),
+                                         unit='mm'))
+
+            def render(self):
+                self.near.rotate(90, [0, 0, 1])
+                self.far.rotate(90, [0, 0, 1])
+
+        carrier = Carrier()
+        carrier.render()
+        carrier.near.travel = 30
+        carrier.far.travel = 30
+
+        # A different `at` produces identical operations: the anchor is
+        # carried (nothing crashes doing so) and then ignored.
+        self.assertEqual(serialized(carrier.near), serialized(carrier.far))
+
+        composed = _compose_world_matrix(carrier.near)
+        rest = _rotation(90, [0, 0, 1])
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        displacement = (composed @ origin)[:3] - (rest @ origin)[:3]
+        # The translation runs along the PARENT's x-hat.
+        assert_allclose(displacement, [30.0, 0.0, 0.0], rtol=0, atol=1e-9)
+
+
+##############################################
+# 2.2 Orbit and the returned sentinel
+
+class SiteOrbitDefaultCarriesTest(BaseNodeTest):
+
+    def test_a_defaulted_site_carries_is_the_childs_own_origin(self):
+        """OpenCycloid's disk: a parent translating a disk off-axis and
+        declaring `Orbit(axis=..., unit='deg')` with BOTH `at` and
+        `carries` defaulted. `at` is the PARENT's own origin; `carries`
+        is still the CHILD's own origin, so the two do not collapse
+        onto one point and the joint binds at a real radius."""
+
+        class Disk(Solid2Node):
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            disk = Disk(orbit=Orbit(axis=(0, 0, 1), unit='deg'))
+
+            def render(self):
+                self.disk.translate([0.0, -2.5, 0.0])
+
+        rest = _translation([0.0, -2.5, 0.0])
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        for angle in ORBIT_ANGLES:
+            with self.subTest(angle=angle):
+                carrier = Carrier()
+                carrier.render()
+                carrier.disk.orbit = angle
+
+                composed = _compose_world_matrix(carrier.disk)
+                assert_allclose(composed[:3, :3], rest[:3, :3],
+                                rtol=0, atol=0)
+                expected = np.array([0.0, -2.5, 0.0]) + _orbit_delta(
+                    (0, 0, 1), (0, 0, 0), (0.0, -2.5, 0.0), angle)
+                assert_allclose((composed @ origin)[:3], expected,
+                                rtol=0, atol=1e-9)
+
+
+class SiteOrbitRepeatDerivedPhaseTest(BaseNodeTest):
+
+    def test_six_copies_one_orbit_declaration_six_derived_phases(self):
+        """OpenCycloid's output pins: one site `Orbit` on a `.repeat(6)`,
+        driven by one broadcast -- six distinct own-frame phases, one
+        radius, nothing written per copy."""
+
+        class Pin(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Carrier(AssemblyNode):
+            carrier_turn = Revolute(axis=(0, 0, 1), unit='deg')
+            pins = Pin(orbit=Orbit(axis=(0, 0, 1), unit='deg')).repeat(6)
+
+            carrier_turn.drives(pins.orbit)
+
+            def render(self):
+                for index, pin in enumerate(self.pins):
+                    phase = math.radians(index * 60)
+                    pin.translate([8.0 * math.cos(phase),
+                                  8.0 * math.sin(phase), 0.0])
+
+        carrier = Carrier()
+        carrier.carrier_turn = 0.0
+        carrier.render()
+
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        before = [(_compose_world_matrix(pin) @ origin)[:3].copy()
+                 for pin in carrier.pins]
+
+        carrier.carrier_turn = 30
+        carrier.render()
+
+        rotation = _rotation(30, [0, 0, 1])[:3, :3]
+        for index, (pin, prior) in enumerate(zip(carrier.pins, before)):
+            with self.subTest(pin=index):
+                after = (_compose_world_matrix(pin) @ origin)[:3]
+                assert_allclose(after, rotation @ prior, rtol=0, atol=1e-9)
+
+        # ONE declaration, one set of RESOLVED (pre-carry) arguments --
+        # every copy's `axis`/`at` (and the defaulted `carries`
+        # sentinel) resolve identically, against the same parent -- and
+        # yet each copy's own CARRY, computed fresh at binding from its
+        # own DIFFERENT rest placement, is what the physical check
+        # above already proves differs per copy: six distinct starting
+        # angles, six distinct landing angles, nothing written for any
+        # of them.
+        resolved = {declared_joints(type(pin))['orbit'].arguments(pin)[:2]
+                   for pin in carrier.pins}
+        self.assertEqual(len(resolved), 1)
+        starting_phases = {round(math.atan2(p[1], p[0]), 6) for p in before}
+        self.assertEqual(len(starting_phases), 6)
+
+
+class SiteOrbitWrittenCarriesTest(BaseNodeTest):
+
+    def test_a_written_site_carries_is_a_point_of_the_parents_frame(self):
+        """The Internal Cycloidal Actuator: `carries=` written at the
+        site names a point in the PARENT's frame, not the disk's own --
+        the derived radius is the BORE centre's distance from the axis,
+        not the disk origin's."""
+
+        class Disk(Solid2Node):
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            # `at` OMITTED (the actuator axis runs through the PARENT's
+            # own origin); `carries=DISK_1_BORE_CENTRE` is the bore's
+            # position in the PARENT's (here, world) frame -- not
+            # `BORE_AXIS_POINT`, the disk's OWN-frame spec literal the
+            # class-declared form uses directly.
+            disk = Disk(orbit=Orbit(axis=(0, 1, 0),
+                                    carries=DISK_1_BORE_CENTRE,
+                                    unit='deg'))
+
+            def render(self):
+                self.disk.rotate(DISK_REST_ANGLE, [0, 1, 0])
+                self.disk.translate(list(DISK_REST_TRANSLATION))
+
+        carrier = Carrier()
+        carrier.render()
+
+        rest = _rest_matrix(carrier.disk)
+        local = np.linalg.inv(rest) @ np.array([*DISK_1_BORE_CENTRE, 1.0])
+        origin = np.array([0.0, 0.0, 0.0, 1.0])
+        for angle in ORBIT_ANGLES:
+            with self.subTest(angle=angle):
+                probe = Carrier()
+                probe.render()
+                probe.disk.orbit = angle
+                landed = _compose_world_matrix(probe.disk) @ local
+                expected = np.array(DISK_1_BORE_CENTRE) + _orbit_delta(
+                    (0, 1, 0), (0.0, 0.0, 0.0), DISK_1_BORE_CENTRE, angle)
+                assert_allclose(landed[:3], expected, rtol=0, atol=1e-9)
+
+
+class SiteOrbitOnAxisRefusalTest(BaseNodeTest):
+
+    def test_a_site_orbit_whose_carried_point_lands_on_the_line_refuses(self):
+        class Disk(Solid2Node):
+            def render(self):
+                return cube(2, center=True)
+
+        class Carrier(AssemblyNode):
+            # `at` defaults to the parent's origin; the parent places
+            # the disk exactly ON that line, so the defaulted `carries`
+            # (the disk's own origin) lies on it too.
+            disk = Disk(orbit=Orbit(axis=(0, 0, 1), unit='deg'))
+
+        carrier = Carrier()
+
+        with self.assertRaises(ValueError) as raised:
+            carrier.disk.orbit = 30
+
+        message = str(raised.exception)
+        for expected in ('Disk', 'orbit', 'axis', 'anchor', 'carried',
+                         'radius'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+
+class CapturePosesSeesSiteJointTest(TestCase):
+    """Task 4.7: the campaign's own evidence script,
+    `docs/motion-general-refactor/capture_poses.py`, walks a
+    site-declared coordinate exactly as a class-declared one -- the
+    test that the pose evidence for this cycle is possible at all."""
+
+    def test_the_campaigns_capture_script_walks_a_site_joint(self):
+        import importlib.util
+        import sys
+
+        script_path = (
+            '/home/asa/devel/libresolid-studio/docs/'
+            'motion-general-refactor/capture_poses.py')
+        spec = importlib.util.spec_from_file_location(
+            '_capture_poses_probe', script_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+        top.assemble()
+        top.leaf.turn = 12.0
+
+        record = module.snapshot(top)
+
+        self.assertIn('leaf', record)
+        self.assertIn('turn', record['leaf'].get('ports', {}))
+        self.assertAlmostEqual(record['leaf']['ports']['turn'], 12.0)
+
+
+class SiteDescriptorProtocolTest(BaseNodeTest):
+    """Task 4.1: the descriptor protocol answers for a site-declared
+    joint exactly as it does for a class-declared one -- no new
+    machinery, because the site's joint IS an ordinary class
+    attribute of the class the child is realized as."""
+
+    def test_the_descriptor_protocol_answers_for_a_site_joint(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+
+        self.assertIsInstance(top.leaf.turn, BoundPort)
+        self.assertIsNone(top.leaf.turn.value)
+
+        top.leaf.turn = 15
+        self.assertEqual(top.leaf.turn.value, 15)
+        self.assertEqual(len(motions(top.leaf)), 1)
+
+        top.leaf.turn = 15
+        self.assertEqual(len(motions(top.leaf)), 1)
+
+    def test_a_site_free_answers_to_its_dotted_names(self):
+        class Chassis(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            chassis = Chassis(pose=Free(angle_unit='deg', length_unit='mm'))
+
+        top = Top()
+        top.chassis.pose.roll = 10.0
+        top.chassis.pose.x = 5.0
+
+        self.assertEqual(top.chassis.pose.roll.value, 10.0)
+        self.assertEqual(top.chassis.pose.x.value, 5.0)
+
+
+##############################################
+# 7.4 Import cost, restored: numpy returns with the carry
+
+class SiteCarryImportCostTest(TestCase):
+    """`_carry` restores cycle 2's deleted `numpy` use, but only for a
+    SITE-declared joint's own binding -- plain import, and binding a
+    CLASS-declared joint, must stay exactly as cheap as
+    `JointImportCostTest` already pins."""
+
+    SNIPPET = (
+        'from solid_node.motion.joints import Revolute\n'
+        'from solid_node.node.operations import Rotation\n'
+        '\n'
+        'class FakeNode:\n'
+        "    name = 'fake'\n"
+        '    operations = []\n'
+        '\n'
+        "joint = Revolute(axis=(1, 0, 0), unit='deg')\n"
+        'joint._declared_at_site = True\n'
+        "joint.name = 'turn'\n"
+        'node = FakeNode()\n'
+        'joint._carry(node, [(0, 1, 0)], [(0, 0, 0)])\n')
+
+    def test_plain_import_still_costs_nothing_extra(self):
+        result = probe(
+            'import solid_node.motion.joints\n' + MODULE_REPORT).check()
+        modules = set(eval(result.stdout.strip()))
+        self.assertNotIn('numpy', modules)
+
+    def test_a_site_carry_pulls_in_numpy(self):
+        result = probe(
+            self.SNIPPET
+            + "import sys\nprint('numpy' in sys.modules)\n").check()
+        self.assertEqual(result.stdout.strip(), 'True', result.stderr)

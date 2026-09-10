@@ -203,16 +203,17 @@ to the body, once. The three one-coordinate declarations come from
     class Carriage(Solid2Node):
         travel = Prismatic(axis=(1, 0, 0), range=(0, 200), unit='mm')
 
-**A joint is stated in the frame of whoever declares it.** Written in a
-class body, as above, it is the body's own statement about itself, so
-`axis` and `at` are read in that body's **own** frame — the frame its
-own `render()` states its geometry in, one rest placement away from
-wherever its parent puts it. This is MuJoCo's rule, where a `<joint
-pos>` is a point of the body frame; a joint stated at a *declaration
-site*, in the parent's frame — URDF's rule — is a separate feature the
-framework does not yet have. `at` defaults to the body's own origin,
-which is the case of a wheel turning on its own bearing; `range` is a
-`(lo, hi)` pair in `unit`. Each component may be a number, a declared
+**A joint is stated in the frame of whoever declares it, and there are
+two declarers.** Written in a class body, as above, it is the body's own
+statement about itself, so `axis` and `at` are read in that body's
+**own** frame — the frame its own `render()` states its geometry in, one
+rest placement away from wherever its parent puts it. This is MuJoCo's
+rule, where a `<joint pos>` is a point of the body frame. `at` defaults
+to the body's own origin, which is the case of a wheel turning on its
+own bearing; `range` is a `(lo, hi)` pair in `unit`. The other half —
+a joint passed as a keyword where a parent DECLARES a child, read in the
+PARENT's frame instead — is its own section below, "A joint stated where
+the child is placed". Each component may be a number, a declared
 parameter, or a formula over them, and the whole argument may instead
 be a callable of the realized node — for a position that comes out of a
 library object your node builds rather than out of a formula. They are
@@ -431,6 +432,103 @@ and they are the frame's own — and no `range`, because a floating body
 has no travel to bound. Three angles gimbal-lock at `pitch = ±90°`; that
 is inherited from stating an attitude as three angles at all, and it is
 what the hexapod's own hand-written composition does today.
+
+A joint stated where the child is placed
+-----------------------------------------
+
+A body is not always entitled to state its own joint: a bought bearing
+or a fastener knows nothing about the assembly it ends up in, and a
+class built only to hold one declaration is a class that should not
+exist. A joint passed as a **keyword** where a parent DECLARES a child
+is the other half of the frame rule — the parent's own statement about a
+child it is placing, read in the parent's frame, URDF's rule:
+
+.. code-block:: python
+
+    from solid_node.motion.joints import Revolute
+
+    class Rack(AssemblyNode):
+        screw = ZScrew(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+`axis` and `at` are read in the DECLARING PARENT's own frame this time —
+`Rack`'s, not `ZScrew`'s — and `at` defaults to `(0, 0, 0)`, the
+**parent's** own origin. That is the sentence a reader gets wrong:
+**a child the parent TRANSLATES swings about the parent's origin, not
+its own**, unless `at` names the child's own placement. That is not a
+hazard, it is the whole point — it is what lets a joint be written with
+no anchor at all where the parent's own origin already is the line a
+shared catalogue part turns on, exactly the case a class-body joint
+cannot state because the class does not know where it will be placed:
+
+.. code-block:: python
+
+    class MotorDrive(AssemblyNode):
+        shaft_pin = MotorShaft()
+        gear = SmallGear()
+        # GearLockScrew is a shared catalogue No2SelfTapScrew: it knows
+        # nothing about the motor shaft it locks the gear to, and the
+        # shaft axis IS this drive's own origin.
+        gear_screws = GearLockScrew(
+            orbit=Revolute(axis=(0, 0, 1), unit='deg')).repeat(2)
+
+One declaration, two copies, no anchor, no sign, no index: a joint may
+be passed to a `.repeat()` exactly as a plain keyword can, and it is
+declared **once** — the arguments resolve once, against the SAME
+declaring parent, so every copy gets the same numbers, and what differs
+per copy is where each one's own rest placement carries that one line
+to. A relation may still name the coordinate through the repeat, exactly
+as it names a class-declared one:
+`eccentric_shaft.spin.drives(eccentric_bearings.orbit)`.
+
+An ``Orbit``'s `carries` keeps the exception it already has: WRITTEN at
+a site it is a point of the declaring parent's frame, like `at`; left
+DEFAULTED it is still the CHILD's own origin, never the parent's —
+naming the point that travels round the line is a statement about the
+body, not about where the site sees it:
+
+.. code-block:: python
+
+    class CycloidalDrive(AssemblyNode):
+        # Both `at` and `carries` defaulted: the drive axis (the
+        # PARENT's own origin) and the disk's own bore centre (the
+        # CHILD's own origin) -- two different defaults, on purpose, so
+        # the two points do not collapse onto the line and the derived
+        # radius is never zero.
+        disk = CycloidalDisk(orbit=Orbit(axis=(0, 0, 1), unit='deg'))
+
+Defaulting `carries` to the parent's origin too — following `at` — would
+name a point that is not of the body at all, and with `at` also
+defaulted the two would always coincide, refusing every such joint at
+the first binding for a radius of zero. When the point that travels IS
+off the body's own centre in a way the site's own frame can name more
+directly than the body's, write it there instead:
+`carries=DISK_BORE_CENTRE`, the assembly's own already-derived point.
+
+**The two forms are told apart by the VALUE at the keyword, never by
+where the code sits.** A coordinate the DECLARING class already owns —
+a port, or a joint that class declares — is a wiring, exactly as before;
+a fresh `Revolute(...)`/`Orbit(...)`/`Free(...)`, built right there in
+the argument list and belonging to no class yet, is a site declaration.
+A site joint of a name the child's class already declares REPLACES that
+declaration whole — its axis, its anchor, its unit, its range — and
+keeps that name's slot in the composition order; a site joint of a NEW
+name is appended after every class-declared joint, in the order the
+keywords were written. Neither is a parameter: the keyword never reaches
+the child's constructor, so it is invisible to the child's identity —
+two children of one class differing only in the joints their sites
+passed still key one printed artifact. Refused by name at class
+definition: a keyword naming a port, a parameter, or any other attribute
+the child already answers to; a joint declared on some third class,
+neither the parent nor the child; two things landing on one coordinate.
+
+The one thing a site joint costs that a class-declared one does not: its
+operations are carried through the inverse of the child's own rest
+placement before they are applied (the arithmetic that carries a
+parent-frame pivot into a part's own coordinates, restored for this one
+case), so a body whose rest placement carries a value the framework
+cannot evaluate numerically refuses a SITE-declared joint — naming the
+node, the joint and the operation — where a class-declared one on the
+same body would not.
 
 Passing a coordinate down
 -------------------------

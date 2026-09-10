@@ -304,20 +304,51 @@ silently invisible. Realization SHALL proceed top-down from the root's
 bound values in declaration order, and by the time any `render()` runs
 every parameter SHALL be a plain value.
 
-A keyword argument whose VALUE is a port or joint declaration SHALL be a
-WIRING rather than a parameter: it SHALL NOT be resolved as a parameter,
-SHALL NOT be passed to the child's construction, and SHALL NOT enter the
-child's identity, because it states which value reaches the child at each
-instant and not what geometry is built. Every keyword whose value is not
-such a declaration SHALL keep the meaning it has today, including the
-`TypeError` an unknown one raises.
+A keyword argument whose VALUE is a port or joint declaration SHALL NOT
+be resolved as a parameter, SHALL NOT be passed to the child's
+construction, and SHALL NOT enter the child's identity, because it states
+how the child MOVES and not what geometry is built. Every keyword whose
+value is not such a declaration SHALL keep the meaning it has today,
+including the `TypeError` an unknown one raises.
 
-A wiring SHALL be validated at class definition, where both ends are
+WHICH of the two such a keyword is SHALL be decided by its VALUE:
+
+- a coordinate DECLARED ON THE CLASS whose body holds the declaration is
+  a WIRING, which hands that coordinate down to one the child already
+  declares and binds it;
+- a JOINT DECLARED ON NO CLASS — one constructed in the argument list
+  itself — is a DECLARATION-SITE JOINT, which gives the child a freedom
+  it did not have, stated in the declaring parent's frame, as the
+  `joints` capability specifies. The declaration SHALL then realize its
+  children as instances of a SPECIALIZATION of the declared class
+  carrying that joint as class metadata, created once for that
+  declaration and shared by every child it realizes, and identical to the
+  declared class in name, identity and source; so a class body reading an
+  attribute off the declaration, and every enumerator that reads a class,
+  see the site's joints by the ordinary rules;
+- a coordinate declared on some OTHER class SHALL be refused at class
+  definition, naming the class that does declare it.
+
+A WIRING SHALL be validated at class definition, where both ends are
 known: the value SHALL be a port or joint declared on the class whose body
 holds the declaration, and the keyword SHALL name a port or a joint the
 child class declares. A wiring failing either test SHALL be refused at
 class definition, naming the declaring class, the child class, the keyword,
 and the ports and joints the child does declare.
+
+A DECLARATION-SITE JOINT SHALL be validated at class definition too: its
+keyword SHALL NOT name a port or derived coordinate the child's class
+declares, a parameter the child's class declares, a named parameter of
+the child's constructor, or any other attribute of the child's class; it
+MAY name a joint the child's class declares, which it then replaces. Two
+site joints of one name on one declaration, or a site joint whose name
+collides with a coordinate another site joint of the same declaration
+owns, SHALL be refused. Every such refusal SHALL name the declaring
+class, the attribute, the child class, the keyword and what the child
+does declare, the declaring class and attribute where the declaration
+carries them. A declaration-site joint SHALL be permitted on a
+`.repeat()` declaration and on a declaration held in a literal list, and
+SHALL give the freedom to every child that declaration realizes.
 
 Two parent instances SHALL never share a realized child. A declared child
 whose class is a non-declarative node SHALL be realized by calling its
@@ -327,8 +358,9 @@ enumerable off the class without instantiating it.
 Reading an attribute off a declaration in a class body SHALL depend on
 what that attribute IS on the declared class:
 
-- a PORT, a JOINT or another CHILD DECLARATION SHALL yield a PATH
-  REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
+- a PORT, a JOINT — including one the declaration site passed as a
+  keyword, which the declared class carries by the rule above — or
+  another CHILD DECLARATION SHALL yield a PATH REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
   `shoulder.art2.art3.wrist` — which names a place in the tree rather
   than a value, is resolved per parent instance at realization to the
   coordinate of the realized descendant, and may be either end of a
@@ -497,6 +529,33 @@ its class's one joint.
   declares no parameter `spin`
 - **THEN** realization raises the `TypeError` it raises today, naming the
   class, the unknown keyword and the declared parameters
+
+#### Scenario: A joint passed at a declaration site is neither a wiring nor a parameter
+
+- **WHEN** a class body declares
+  `bearings = Bearing(inner_diameter=17.1, orbit=Orbit(axis=(0, 0, 1), unit='deg')).repeat(4)`
+- **THEN** each realized bearing is constructed with `inner_diameter`
+  alone, the four share the `uniq_id` they would have without the joint
+  keyword, all four are instances of one specialization of `Bearing`, and
+  each carries `orbit` as a coordinate of its own
+
+#### Scenario: A site joint keyword naming a parameter of the child is refused
+
+- **WHEN** a class body passes a joint under a keyword that is a declared
+  parameter of the child's class, or a named parameter of the child's
+  constructor
+- **THEN** class definition raises naming the declaring class, the
+  attribute, the child class, the keyword and what the child declares,
+  because the keyword is withheld from construction and the child would
+  otherwise be built without it
+
+#### Scenario: A class body reads a site-declared coordinate as a path
+
+- **WHEN** a class body declares `screw = ZScrew(turn=Revolute(axis=(0, 0, 1)))`
+  and reads `screw.turn`
+- **THEN** it yields a path reference resolved per parent instance to the
+  realized screw's `turn`, and reading a name neither the site passed nor
+  `ZScrew` declares is refused at class definition
 
 ### Requirement: Realization at the root and framework-owned identity
 

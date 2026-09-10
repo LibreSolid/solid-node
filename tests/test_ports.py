@@ -448,3 +448,55 @@ class CoordinateReaderTest(BaseNodeTest):
                 port = declared_ports(type(gantry))[name]
                 expected = 3.0 * port.scale if port.scale else 3.0
                 self.assertEqual(get_coordinate(gantry, name).value, expected)
+
+
+##############################################
+# declaration-site-joint, task 4.3: get_coordinate/set_coordinate see a
+# site joint, and `ports.py` needs no edit at all -- the site's joint is
+# ordinary class metadata on the class the child is realized as.
+
+class SiteCoordinateReaderTest(BaseNodeTest):
+
+    def test_get_and_set_coordinate_answer_for_a_site_name(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+
+        set_coordinate(top.leaf, 'turn', 12.0)
+        self.assertEqual(get_coordinate(top.leaf, 'turn').value, 12.0)
+        self.assertIn('turn', declared_ports(type(top.leaf)))
+
+    def test_get_and_set_coordinate_answer_for_a_dotted_site_name(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(pose=Free(angle_unit='deg', length_unit='mm'))
+
+        top = Top()
+
+        set_coordinate(top.leaf, 'pose.roll', 12.0)
+        self.assertEqual(get_coordinate(top.leaf, 'pose.roll').value, 12.0)
+
+    def test_a_name_no_site_declared_is_still_refused_by_name(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+
+        with self.assertRaises(AttributeError) as raised:
+            get_coordinate(top.leaf, 'spin')
+
+        message = str(raised.exception)
+        self.assertIn('spin', message)
+        self.assertIn('turn', message)

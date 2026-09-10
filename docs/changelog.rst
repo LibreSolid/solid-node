@@ -8,6 +8,59 @@ Changelog
 Unreleased
 ----------
 
+**A joint may be declared where a child is placed.** The other half of
+"a joint is stated in the frame of whoever declares it" (below): a joint
+passed as a KEYWORD where a parent declares a child is the parent's own
+statement about a child it is placing, read in the DECLARING PARENT's
+frame — URDF's rule — where a class-body joint is read in its own::
+
+    class MotorDrive(AssemblyNode):
+        gear_screws = GearLockScrew(
+            orbit=Revolute(axis=(0, 0, 1), unit='deg')).repeat(2)
+
+``at`` defaults to `(0, 0, 0)`, the DECLARING PARENT's own origin this
+time, not the child's — so a child the parent translates SWINGS about
+the parent's origin unless ``at`` names the child's own placement, which
+is what lets a shared catalogue class — a bought bearing, a fastener —
+be given a freedom its own class body has no way to state. An
+``Orbit``'s ``carries`` keeps its own exception: WRITTEN at a site it
+follows ``at`` into the parent's frame; DEFAULTED it is still the
+CHILD's own origin, never the parent's, which is the case that keeps a
+project's own already-derived radius and phase untyped even at a site.
+A site joint may be passed to a ``.repeat()`` — one declaration, every
+copy's arguments resolved once against the same parent, each copy's own
+CARRY (through its own rest placement) supplying the number that would
+otherwise need a sign, a flag or an index.
+
+A site joint of a name the child's class already declares REPLACES that
+declaration WHOLE — axis, anchor, unit and range together, never a
+partial override — and keeps that name's SLOT in the composition order;
+a site joint of a new name is appended after every class-declared joint,
+in keyword order. Neither is a parameter: the keyword never reaches the
+child's constructor and never enters its identity, so two children of
+one class differing only in the joints their sites passed still key one
+printed artifact. A callable argument at a site is called with the
+REALIZED DECLARING PARENT (not the child, and not a ``.repeat()`` copy's
+``index``, which is not yet assigned when a site's arguments resolve).
+Refused by name at class definition: a keyword naming a port, a
+parameter, or any other attribute the child already answers to; a joint
+declared on some third class; two things landing on one coordinate. A
+site-declared joint's operations are carried through the inverse of the
+child's own rest placement (the arithmetic a class-declared joint no
+longer needs, restored for this one case), so a rest placement the
+framework cannot evaluate numerically refuses binding a SITE-declared
+joint by name, where it would not refuse a class-declared one on the
+same body.
+
+No project is edited by this change; the evidence is a read-only
+overlay, and every project the catalogue tracks — including the four
+cycle 2 leaves broken or refused (OpenCycloid, the Internal Cycloidal
+Actuator, Inmoov-sim, openflexure-microscope) — compares at maximum
+deviation 0 against its pre-cycle-2 reference. (OpenSpec change
+``declaration-site-joint``, extending ADR-097 and reviving ADR-094's
+``_OWN_PLACED_ORIGIN`` sentinel and ADR-093's composition order one
+writer further out.)
+
 **A joint is stated in the frame of whoever declares it.** A joint
 written in a class body says where THAT body may move, so it is now read
 in the body's OWN rest frame rather than the parent's — MuJoCo's rule,

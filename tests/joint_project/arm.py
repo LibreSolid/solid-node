@@ -75,6 +75,38 @@ class Arm(AssemblyNode):
         self.forearm.elbow = self.angle
 
 
+class SiteArm(AssemblyNode):
+    """The exact inverse of `Arm`: the SAME elbow, stated by the PARENT
+    at the declaration site instead of by `Forearm`'s own class body.
+
+    `Forearm` still declares `elbow` on its own class, in its own frame
+    (`axis=(0, 1, 0), at=(0, 0, ELBOW_ACROSS_ARM)`); the site's
+    `elbow=` REPLACES that declaration whole and keeps its slot (design
+    decision 7). The physical line is the same one -- the elbow's own
+    location, `ELBOW_ALONG_ARM` out along the upper arm and
+    `ELBOW_HEIGHT` up -- now stated in the frame `SiteArm.render()`
+    itself works in rather than in the forearm's own.
+    """
+
+    reach = Length(ELBOW_ALONG_ARM, min=0)
+
+    angle = Driver(default=0.0, unit='deg')
+
+    forearm = Forearm(
+        reach=reach,
+        elbow=Revolute(axis=(0, 0, 1),
+                       at=(0, ELBOW_ALONG_ARM, ELBOW_HEIGHT),
+                       range=(-135, 135), unit='deg'))
+
+    def render(self):
+        self.forearm.rotate(90, [1, 0, 0])
+        self.forearm.translate(
+            [0, self.reach + ELBOW_ACROSS_ARM, ELBOW_HEIGHT])
+
+    def simulate(self):
+        self.forearm.elbow = self.angle
+
+
 class _Movement:
     """A stand-in for the clock's built library movement: the bearing
     positions are a lookup into an object the node builds from its

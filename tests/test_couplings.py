@@ -29,8 +29,8 @@ from solid_node.motion.couplings import (Affine, CouplingError,
                                          ForwardOnly, NotInvertible, Relation,
                                          UnreachedCoordinate,
                                          declared_relations)
-from solid_node.motion.joints import (Free, JointRangeError, Prismatic,
-                                      Revolute)
+from solid_node.motion.joints import (Free, JointRangeError, Orbit, Prismatic,
+                                      Revolute, declared_joints)
 from solid_node.motion.ports import (RotationalPort, SignalPort,
                                      TranslationalPort, declared_ports)
 from solid_node.node import AssemblyNode, Solid2Node
@@ -1975,3 +1975,96 @@ class MultiCoordinateEndTest(BaseNodeTest):
         self.assertEqual(rig.chassis.pose.roll.value, 12.0)
         self.assertEqual(declared_ports(Chassis)['pose.roll']
                          .__get__(rig.chassis).value, 12.0)
+
+
+##############################################
+# declaration-site-joint, task 4.4/4.5/4.6: a relation reaches a site
+# coordinate exactly as it reaches a class-declared one -- couplings.py
+# is UNTOUCHED, because the site's joint is class metadata on the class
+# the child is realized as.
+
+class SiteCoordinateLeaf(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+
+
+class SiteCoordinatePathTest(BaseNodeTest):
+
+    def test_a_relation_names_a_site_coordinate_by_path_both_ends(self):
+        class Top(AssemblyNode):
+            left = SiteCoordinateLeaf(travel=Prismatic(axis=(0, 0, 1),
+                                                       unit='mm'))
+            right = SiteCoordinateLeaf(travel=Prismatic(axis=(0, 0, 1),
+                                                        unit='mm'))
+
+            left.travel.drives(right.travel)
+
+        top = Top()
+        top.left.travel = 12.0
+        top.render()
+
+        self.assertEqual(top.right.travel.value, 12.0)
+
+    def test_a_broadcast_names_a_site_coordinate_through_a_repeat(self):
+        class Top(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+            pins = SiteCoordinateLeaf(
+                orbit=Orbit(axis=(0, 0, 1), unit='deg')).repeat(3)
+
+            angle.drives(pins.orbit)
+
+            def render(self):
+                # Off-axis, or the defaulted `carries` (the pin's own
+                # origin) would lie ON the line the defaulted `at` (the
+                # parent's own origin) states, refusing at binding.
+                for pin in self.pins:
+                    pin.translate([5.0, 0.0, 0.0])
+
+        top = Top()
+        top.set_state(angle=40.0)
+
+        self.assertEqual([pin.orbit.value for pin in top.pins], [40.0] * 3)
+
+    def test_a_bare_child_end_means_its_one_site_joint(self):
+        class Top(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+            leaf = SiteCoordinateLeaf(turn=Revolute(axis=(0, 0, 1),
+                                                    unit='deg'))
+
+            angle.drives(leaf)
+
+        top = Top()
+        top.set_state(angle=25.0)
+
+        self.assertEqual(top.leaf.turn.value, 25.0)
+
+    def test_a_child_with_a_class_joint_and_a_different_site_joint_is_refused_as_an_end(self):
+        class TwoJoints(Solid2Node):
+            spin = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                angle = Driver(default=0.0, unit='deg')
+                leaf = TwoJoints(lift=Prismatic(axis=(0, 0, 1), unit='mm'))
+
+                angle.drives(leaf)
+
+        message = str(raised.exception)
+        for expected in ('TwoJoints', 'spin', 'lift'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_path_naming_a_keyword_no_site_passed_is_refused_at_class_definition(self):
+        with self.assertRaises(SidewaysReadError) as raised:
+            class Top(AssemblyNode):
+                leaf = SiteCoordinateLeaf(turn=Revolute(axis=(0, 0, 1),
+                                                        unit='deg'))
+                sibling = SiteCoordinateLeaf(other=leaf.spin)
+
+        message = str(raised.exception)
+        for expected in ('spin', 'turn'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)

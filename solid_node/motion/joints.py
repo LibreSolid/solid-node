@@ -31,21 +31,48 @@ own `render()` states its geometry in::
         elbow = Revolute(axis=(0, 1, 0), at=(0, 0, 81.5),
                          range=(-135, 135), unit='deg')
 
-A joint is stated in the frame of whoever declares it: a class body is
-the body's own statement about itself, so `axis` and `at` are read in
-that body's own frame -- which is MuJoCo's rule, where a `<joint pos>`
-is a point of the body frame and defaults to its origin. (A joint
-PASSED AT A DECLARATION SITE, stated in the parent's frame -- URDF's
-rule -- is a different feature, built where a project needs it.) `at`
-defaults to `(0, 0, 0)`, the body's own origin, so a joint whose line
-runs through the body's origin -- a wheel on its own bearing, a gear on
-its own axle -- is written with no anchor at all. The framework
-transforms nothing: a joint's operations were always placed INNERMOST,
-before every rest operation, in the body's own frame, so there is
-nothing to carry the declared numbers through. A body its parent
-ROTATES carries its joint line WITH it, which is what lets one class
-placed at several sites, or at different attitudes, state one joint and
-get the right line everywhere.
+A joint is stated in the frame of whoever declares it, and there are
+two declarers. A class body is the body's own statement about itself,
+so `axis` and `at` are read in that body's own frame -- MuJoCo's rule,
+where a `<joint pos>` is a point of the body frame and defaults to its
+origin. `at` defaults to `(0, 0, 0)`, the body's own origin, so a joint
+whose line runs through the body's origin -- a wheel on its own
+bearing, a gear on its own axle -- is written with no anchor at all.
+The framework transforms nothing for this half: a joint's operations
+were always placed INNERMOST, before every rest operation, in the
+body's own frame, so there is nothing to carry the declared numbers
+through. A body its parent ROTATES carries its joint line WITH it,
+which is what lets one class placed at several sites, or at different
+attitudes, state one joint and get the right line everywhere.
+
+A joint passed as a KEYWORD where a parent DECLARES a child is the
+PARENT's statement about a child it is placing -- URDF's rule, where a
+`<joint><origin>` is a point of the parent link's frame::
+
+    class Rack(AssemblyNode):
+        screw = ZScrew(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+`axis` and `at` are read in the DECLARING PARENT's own frame this time,
+and `at` defaults to `(0, 0, 0)`, the PARENT's own origin -- the same
+sentence, one level out. A child the parent TRANSLATES therefore SWINGS
+about the parent's origin rather than spinning on its own centre unless
+`at` names the child's own placement, which is the point of the
+default rather than a hazard: it is what lets a joint be stated with no
+anchor at all where the parent's own origin already is the line -- a
+gear-lock screw riding the shaft its own motor turns on, a finger joint
+riding the fork pivot it is not itself centred on. `Orbit`'s `carries`
+keeps its own exception to this rule (see `Orbit`): defaulted, it is
+always the CHILD's own origin, never the parent's. Unlike a class
+joint, a site joint's operations DO have to be carried: they are stated
+in a different frame from the one they are placed in, so `place` runs
+them through the inverse of the child's own rest placement first (see
+`Joint._carry`) -- the one place in this module actual arithmetic
+happens, and the one place a symbolic rest placement can still refuse a
+binding. The two forms are told apart by the VALUE at the keyword, not
+by where the code appears: a coordinate the DECLARING class already
+owns is a wiring, as always; a fresh `Joint(...)`, built right there in
+the keyword list and belonging to no class yet, is a site declaration
+(`solid_node.node.declarative.ChildDeclaration`).
 
 A body may declare more than one freedom, and the ORDER they are
 declared in is the order they compose in: the first declared is applied
@@ -111,6 +138,34 @@ _SNAP = 1e-9
 _MISSING = object()
 
 
+class _OwnPlacedOrigin:
+    """What an `Orbit` declared at a SITE carries when its `carries` is
+    left unstated: the body's OWN PLACED ORIGIN, the point the parent's
+    `render()` put the node's origin at.
+
+    A sentinel rather than a number, because the point is not known when
+    a site joint's arguments resolve -- against the DECLARING PARENT,
+    before the child is placed -- and because in the node's own frame it
+    is exactly `(0, 0, 0)`, by definition and with no arithmetic, so
+    carrying it through the inverted rest placement would only put
+    floating-point residue in the commonest case.
+
+    Cycle 2 deleted this sentinel as redundant: in a class-body joint's
+    own frame a defaulted `carries` already IS `(0, 0, 0)`, with no
+    carry to distinguish it from. At a declaration site the two
+    defaults -- `at` to the parent's origin, `carries` to this -- no
+    longer collapse onto one point, which is exactly what lets
+    OpenCycloid's four defaulted `Orbit`s bind again (evidence.md,
+    task 2.1).
+    """
+
+    def __repr__(self):
+        return "the body's own placed origin"
+
+
+_OWN_PLACED_ORIGIN = _OwnPlacedOrigin()
+
+
 class JointRangeError(ValueError):
     """A joint was bound to a number outside its declared range."""
 
@@ -168,6 +223,15 @@ class Joint(Coordinate):
         self.unit = self.default_unit if unit is None else unit
         self.name = None
         self.owner = None
+        # Whether a DECLARATION SITE gave this joint to a child, rather
+        # than the child's own class body: set by
+        # `solid_node.node.declarative.ChildDeclaration.__init__` the
+        # moment a fresh `Joint(...)` -- one whose `owner` is still
+        # None -- is found among a declaration's keywords. A
+        # class-declared joint never sees this flip: this instance IS
+        # the class attribute, and `__set_name__` sets `owner` to the
+        # class that declares it before anything reads this flag.
+        self._declared_at_site = False
         # The one coordinate this joint owns. Created here rather than
         # per instance for the same reason a port declaration is class
         # metadata: it must be readable off the class, and the VALUE it
@@ -370,9 +434,13 @@ class Joint(Coordinate):
     def place(self, node, value):
         """Move `node` about this joint, absolutely.
 
-        The declared axis and anchor are ALREADY in the node's own
-        frame -- there is nothing to carry them through -- so `place`
-        uses them exactly as they resolved. Drops whatever a previous
+        A CLASS-declared joint's axis and anchor are already in the
+        node's own frame -- there is nothing to carry them through --
+        so `place` uses them exactly as they resolved. A SITE-declared
+        joint's are in the DECLARING PARENT's frame instead, and are
+        carried into the node's own by inverting its rest placement
+        (`_carry`) before anything else runs -- the one branch this
+        method takes on `_declared_at_site`. Drops whatever a previous
         binding of this joint applied, and places the operations as
         motion -- innermost, before every rest operation, whatever
         lifecycle phase is current.
@@ -390,6 +458,8 @@ class Joint(Coordinate):
         anchor = self.arguments(node)[1]
         axes = self.axes(node)
         points = self.carried_points(node, anchor)
+        if self._declared_at_site:
+            axes, points = self._carry(node, axes, points)
         self.clear(node)
         slot = list(declared_joints(type(node))).index(self.name)
         applied = apply_joint_motion(
@@ -397,6 +467,62 @@ class Joint(Coordinate):
             list(self.placement(node, value, *axes, *points)),
             slot)
         node.__dict__.setdefault('_joint_motion', {})[self.name] = applied
+
+    def _carry(self, node, axes, points):
+        """Each of `axes` and each of `points`, stated in the DECLARING
+        PARENT's frame, in `node`'s own frame -- a SITE-declared joint
+        only (`place` is the one caller).
+
+        Motion composes innermost -- before the placement the parent's
+        `render()` applied -- so a joint stated in the parent's frame
+        has to be carried through the inverse of that rest placement,
+        which is the `into_local` every arm in the catalogue writes by
+        hand (`solid_node.motion.couplings` never touches this: a joint
+        moves a body, a relation moves a value). The rest placement is
+        the node's non-motion operations composed in list order by
+        premultiplication, through each operation's own `matrix()`: the
+        framework's one seam for an operation's 4x4, which resolves its
+        value through `as_number()` at access time.
+
+        Deleted by cycle 2 as dead weight once every joint's frame was
+        its own body's; restored here, unedited in its arithmetic and
+        re-derived against the fixture cycle 2 pinned for the purpose
+        (Thor's elbow, `tests/test_joints.py`'s `SiteFrameCarryTest`).
+        """
+        import numpy as np
+
+        matrix = np.eye(4)
+        for operation in node.operations:
+            if getattr(operation, '_motion', False):
+                continue
+            try:
+                matrix = operation.matrix() @ matrix
+            except TypeError as failure:
+                raise ValueError(
+                    f"{_where(node)}: joint '{self.name}' cannot be placed, "
+                    f"because the rest operation {operation.serialized!r} "
+                    f"carries a value that is not a number "
+                    f"({failure}). A site-declared joint's axis and anchor "
+                    f"are stated in the declaring parent's frame and "
+                    f"carried into the node's own by inverting that "
+                    f"placement, so the placement has to be numeric; move "
+                    f"the value into simulate().") from None
+        inverse = np.linalg.inv(matrix)
+        local_axes = []
+        for axis in axes:
+            carried = inverse[:3, :3] @ np.array(axis, dtype=float)
+            carried = carried / np.linalg.norm(carried)
+            local_axes.append(tuple(_snapped(float(value))
+                                    for value in carried))
+        local = []
+        for point in points:
+            if point is _OWN_PLACED_ORIGIN:
+                local.append((0.0, 0.0, 0.0))
+                continue
+            placed = inverse @ np.array([point[0], point[1], point[2], 1.0])
+            local.append(tuple(_snapped(float(value))
+                               for value in placed[:3]))
+        return tuple(local_axes), tuple(local)
 
     def clear(self, node):
         """Drop the operations the previous binding of this joint
@@ -531,12 +657,23 @@ class Orbit(Joint):
     left alone: `Orbit(axis, at, carries, range, unit)`.
 
     `axis` and `at` mean exactly what a `Revolute`'s mean -- a direction
-    and a point ON the line, in the declaring body's own frame.
+    and a point ON the line, in the frame of whoever declares the joint.
     `carries` is the point of the BODY that travels round that line,
-    stated in the same frame and resolved the same way; left unstated it
-    defaults to `(0, 0, 0)`, the body's own origin -- in its own frame
-    that point IS the origin, with no sentinel and no reading of the
-    placement.
+    stated in the SAME frame as `axis`/`at` when it is WRITTEN, and
+    resolved the same way -- but its DEFAULT does not follow that rule
+    (ADR-094's asymmetry, restated by the declaration-site-joint cycle):
+    left unstated it is always the CHILD's own origin. Declared on the
+    class, that is `(0, 0, 0)` in the body's own frame, with no sentinel
+    and no reading of the placement -- cycle 2's own case, untouched.
+    Declared at a SITE, the body's own origin is not a number until the
+    body is placed, so a defaulted `carries` there resolves to the
+    `_OWN_PLACED_ORIGIN` sentinel instead, and `place` supplies the
+    literal `(0, 0, 0)` for it with no carry at all. Defaulting a SITE
+    `carries` to the parent's origin instead -- following `at` -- would
+    name a point that is not of the body, and with `at` also defaulted
+    would always lie ON the line: OpenCycloid's four `Orbit`s, every one
+    with both defaulted, are the measurement that settles it
+    (evidence.md, task 2.1).
 
     The coordinate is ONE angle, and it is rotational, although the
     placement it produces is a single translation: what the coordinate
@@ -555,7 +692,7 @@ class Orbit(Joint):
     coordinate_kind = RotationalPort
     default_unit = 'deg'
 
-    def __init__(self, axis, at=(0, 0, 0), carries=(0, 0, 0), range=None,
+    def __init__(self, axis, at=(0, 0, 0), carries=None, range=None,
                  unit=None):
         super().__init__(axis, at=at, range=range, unit=unit)
         self.carries = carries
@@ -566,7 +703,17 @@ class Orbit(Joint):
 
     def resolve(self, node, values):
         axis, anchor, span = super().resolve(node, values)
-        carried = self._vector(node, values, self.carries, 'carries')
+        if self.carries is None:
+            # Defaulted: the CHILD's own origin, always -- a class
+            # joint reads that as the plain `(0, 0, 0)` of its own
+            # frame; a site joint cannot, because the body is not
+            # placed yet, so it resolves to the sentinel instead and
+            # `place` supplies the literal once the carry (or its
+            # absence, for a class joint) has run.
+            carried = (0.0, 0.0, 0.0) if not self._declared_at_site \
+                else _OWN_PLACED_ORIGIN
+        else:
+            carried = self._vector(node, values, self.carries, 'carries')
         return axis, anchor, span, carried
 
     def carried_points(self, node, anchor):
@@ -578,6 +725,8 @@ class Orbit(Joint):
 
         across, quarter, radius = _orbit_frame(axis, anchor, carried)
         if radius <= _SNAP:
+            frame = ('the declaring parent\'s' if self._declared_at_site
+                     else 'this body\'s own')
             raise ValueError(
                 f"{_where(node)}: joint '{self.name}' carries a point "
                 f"that lies ON its own axis, so binding it would move "
@@ -586,7 +735,7 @@ class Orbit(Joint):
                 f"{carried}, and the radius they derive is {radius}. An "
                 f"orbit's radius and phase are derived from a point and "
                 f"a line, never declared, so name a point of the body "
-                f"off that line with carries=, in this body's own frame.")
+                f"off that line with carries=, in {frame} frame.")
 
         # The framework's own DEGREE trigonometry: numeric for a plain
         # binding, and for a symbolic one the OpenSCAD builtins `cos`
@@ -756,6 +905,7 @@ class Free(Joint):
         self.unit = None
         self.name = None
         self.owner = None
+        self._declared_at_site = False
         # No `coordinate`: reading one off a `Free` is an AttributeError
         # rather than a wrong answer, and the three in-framework readers
         # of that seam all know about `coordinates` instead.
@@ -819,8 +969,17 @@ class Free(Joint):
         return None, self._vector(node, values, self.at, 'at'), None
 
     def axes(self, node):
-        """The declaring body's own rest frame's three unit directions,
-        literally -- nothing carries them from anywhere."""
+        """The literal three unit directions, `place` reads whichever
+        way `_declared_at_site` says: a class-declared `Free` takes
+        them as its OWN rest frame's three, with nothing carried; a
+        site-declared one hands them to the carry, which turns them
+        into the DECLARING PARENT's x-hat, y-hat and z-hat as read in
+        the child's own frame -- the other reading of a floating base
+        cycle 2 left open (its design, "whether `Free`'s three
+        translational coordinates should float against the body's own
+        frame or against the parent's"), given its own spelling here
+        without overturning cycle 2's choice for the class-declared
+        form."""
         return ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
     ##############################################
@@ -957,13 +1116,22 @@ def declared_joints(node_class):
 
 
 def resolve_declared_joints(node):
-    """Resolve every joint argument of `node` against the instance.
+    """Resolve every CLASS-declared joint argument of `node` against the
+    instance.
 
     Called by the node constructor once the instance's parameters are
     resolved and its `check()` has run, and before any child is
     realized, so an argument that cannot resolve names the class, the
     joint and the argument at the earliest point a value could be wrong
     and a refused instance has realized nothing.
+
+    A SITE-declared joint is skipped here on purpose: `node` is the
+    joint's OWNER on the class-declared path (the frame it resolves
+    against), but a site joint resolves against the DECLARING PARENT,
+    which does not exist yet inside this node's own constructor -- the
+    parent is still building this very child. `ChildDeclaration.realize`
+    resolves it instead, immediately after this child is constructed,
+    against the parent it already has (`solid_node.node.declarative`).
     """
     joints = declared_joints(type(node))
     if not joints:
@@ -971,4 +1139,6 @@ def resolve_declared_joints(node):
     values = node.__dict__.get('_parameters', {})
     resolved = node.__dict__.setdefault('_joint_arguments', {})
     for name, joint in joints.items():
+        if joint._declared_at_site:
+            continue
         resolved[name] = joint.resolve(node, values)

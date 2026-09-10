@@ -485,7 +485,7 @@ descriptor with a per-instance value.
 `Revolute`, `Prismatic` and `Orbit`, and the one that is not a lower
 pair, `Free`, exported from
 `solid_node/motion/joints.py` and declared as a class attribute of the
-node they move (ADR-088, ADR-094, ADR-095, ADR-097). **A joint is
+node they move (ADR-088, ADR-094, ADR-095, ADR-097, ADR-098). **A joint is
 stated in the frame of whoever declares it** (ADR-097): a joint written
 in a CLASS BODY is the body's own statement about itself, so `axis` and
 `at` are read in that body's OWN REST FRAME — the frame its own
@@ -497,11 +497,44 @@ own-frame point, `carries`; a `Free` states only `at`, with an
 defaults to `(0, 0, 0)`, the body's own origin, so a joint whose line
 runs through the body's own origin — a wheel on its own bearing, a gear
 on its own axle — is written with no anchor at all; `Orbit`'s `carries`
-defaults to `(0, 0, 0)` for the same reason. (A joint stated at a
-DECLARATION SITE, read in the parent's frame — URDF's rule — is a
-separate feature the framework does not yet have.) All of them resolve
+defaults to `(0, 0, 0)` for the same reason. All of them resolve
 per instance at realization, from numbers, tokens, derived formulas, or
 a callable of the realized node, and are outside identity.
+
+**A joint may also be declared at a DECLARATION SITE** (ADR-098): passed
+as a keyword where a parent declares a child, it is the PARENT's own
+statement about a child it is placing, read in the DECLARING PARENT's
+frame — URDF's rule, the frame `render()`'s `translate`/`rotate` on that
+child are written in — rather than the child's own. `at` defaults to
+`(0, 0, 0)`, the DECLARING PARENT's own origin this time, so a child the
+parent translates swings about the parent's origin unless `at` names the
+child's own placement — the reading a shared catalogue class (a bought
+bearing, a fastener) needs, since its own class body cannot state a line
+belonging to the assembly that places it. An `Orbit`'s `carries` keeps
+ADR-094's asymmetry: WRITTEN at a site it follows `at` into the parent's
+frame; DEFAULTED it is still the CHILD's own origin, reviving ADR-094's
+`_OWN_PLACED_ORIGIN` sentinel for exactly this case. A site joint may
+ride a `.repeat()` — one declaration, every copy's arguments resolved
+once against the same parent, each copy's own rest placement supplying
+the number a sign, a flag or an index would otherwise have to. A site
+joint of a name the child's class already declares REPLACES that
+declaration WHOLE and keeps its slot (ADR-093's rule, one writer further
+out); a site joint of a new name is appended after every class-declared
+joint, in keyword order. A callable argument at a site is called with
+the REALIZED DECLARING PARENT, never the child and never a `.repeat()`
+copy's `index` (not yet assigned when a site's arguments resolve). The
+declaration works by SPECIALIZING the child's class — a subclass built
+once per site, carrying the site's joints as ordinary class attributes,
+its `__qualname__`/`__name__`/`__module__`/source file copied from the
+written class verbatim so a joint stays outside identity and `isinstance`
+holds, though `type(x) is C` no longer does. Site-declared joints are the
+one case whose operations ARE carried: through the inverse of the
+child's own rest placement, since their arguments are stated in a
+different frame from the one they are placed in — restoring the
+inversion a class-declared joint does not need — so a rest placement
+the framework cannot evaluate numerically refuses binding a
+site-declared joint by name, where it would not refuse a class-declared
+one on the same body.
 A joint OWNS one or more coordinates and every one of them is a
 **port**: `Joint`
 holds a `Port` rather than subclassing one, `declared_ports()` reports

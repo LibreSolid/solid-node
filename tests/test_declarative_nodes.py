@@ -16,10 +16,13 @@ a build is the evidence, OpenSCAD renders it.
 """
 
 import os
+import sys
 
 from solid2 import cube
 
-from solid_node.motion.joints import Prismatic
+from solid_node.motion.joints import (Free, Orbit, Prismatic, Revolute,
+                                      declared_joints)
+from solid_node.motion.ports import RotationalPort, declared_ports
 from solid_node.node import AssemblyNode, Solid2Node, declared_children
 from solid_node.node.base import _build_uniq_id
 from solid_node.node.declarative import ChildDeclaration, declared_child_nodes
@@ -679,3 +682,557 @@ class IdentityTest(BaseNodeTest):
 
         self.assertEqual(engine.bore, 30.0)
         self.assertEqual(len(engine.cylinders.units), 8)
+
+
+##############################################
+# A joint declared at a DECLARATION SITE (declaration-site-joint)
+#
+# A joint passed as a keyword where a parent DECLARES a child declares a
+# freedom on that child -- not a wiring (it declares a coordinate rather
+# than binding one), not a parameter (it never reaches the child's
+# constructor) and not identity (two children differing only in a site
+# joint share one artifact).
+
+class NamedWidget(Solid2Node):
+    """A NON-declarative leaf: a positional parameter of its own
+    `__init__`, exactly what OMX's `VisualPack` and openvmp's `Link`
+    are -- the shape a site joint's keyword has to be stripped clean
+    of before construction."""
+
+    def __init__(self, size, name=None):
+        self.size = size
+        super().__init__(size=size, name=name)
+
+    def render(self):
+        return cube(self.size, center=True)
+
+
+class PortedLeaf(Solid2Node):
+    turn = RotationalPort(unit='deg')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class DerivedLeaf(Solid2Node):
+    a = Revolute(axis=(0, 0, 1), unit='deg')
+    b = Revolute(axis=(0, 0, 1), unit='deg')
+    combo = a - b
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class MethodicalLeaf(Solid2Node):
+    def turn(self):
+        return 'not a coordinate'
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class HouseholdLeaf(Solid2Node):
+    guest = Box()
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class SiteJointIdentityTest(BaseNodeTest):
+
+    def test_a_site_joint_is_not_a_parameter_and_not_identity(self):
+        class Plain(AssemblyNode):
+            widget = NamedWidget(4.0)
+
+        class Jointed(AssemblyNode):
+            widget = NamedWidget(4.0, turn=Revolute(axis=(0, 0, 1),
+                                                    unit='deg'))
+
+        plain, jointed, other = Plain(), Jointed(), Jointed()
+
+        self.assertEqual(plain.widget.size, 4.0)
+        self.assertEqual(jointed.widget.size, 4.0)
+        self.assertEqual(plain.widget.uniq_id, jointed.widget.uniq_id)
+        self.assertEqual(jointed.widget.uniq_id, other.widget.uniq_id)
+        self.assertEqual(jointed.widget.scad_file, other.widget.scad_file)
+
+
+class SiteJointStillAWiringTest(BaseNodeTest):
+
+    def test_a_wiring_still_means_a_wiring(self):
+        class Top(AssemblyNode):
+            turn = RotationalPort(unit='deg')
+            leaf = PortedLeaf(turn=turn)
+
+        top = Top()
+        top.turn = 12
+        top.render()
+        self.assertEqual(top.leaf.turn.value, 12)
+
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                turn = RotationalPort(unit='deg')
+                leaf = PortedLeaf(spin=turn)
+
+        self.assertIn('spin', str(raised.exception))
+
+
+class SiteJointRefusalTest(BaseNodeTest):
+    """Design decision 10. The four SHADOWING rows (a port, a derived
+    coordinate, a declared parameter, a method or property, a child
+    declaration) are refused by `Joint._refuse_shadowing`, run for
+    free against the CHILD's own MRO the moment the specialization is
+    built (design decision 6) -- its message names the CHILD class and
+    the keyword, not the declaring class or the attribute, which is
+    the cost decision 6 states explicitly rather than adding a second
+    refusal path to say more. The remaining rows -- a non-declarative
+    constructor parameter, a joint on a third class, and the two dotted
+    coordinate collisions -- are this cycle's own checks and name
+    fuller context."""
+
+    def test_a_keyword_naming_a_port_the_child_declares_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = PortedLeaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('PortedLeaf', 'turn'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_keyword_naming_a_derived_coordinate_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = DerivedLeaf(combo=Revolute(axis=(0, 0, 1),
+                                                  unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('DerivedLeaf', 'combo'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_keyword_naming_a_declared_parameter_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = Box(size=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('Box', 'size'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_keyword_naming_a_non_declarative_constructor_parameter_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = NamedWidget(4.0, size=Revolute(axis=(0, 0, 1),
+                                                      unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('NamedWidget', 'size'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_keyword_naming_a_method_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = MethodicalLeaf(turn=Revolute(axis=(0, 0, 1),
+                                                    unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('MethodicalLeaf', 'turn'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_keyword_naming_a_child_declaration_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = HouseholdLeaf(guest=Revolute(axis=(0, 0, 1),
+                                                    unit='deg'))
+
+        message = str(raised.exception)
+        for expected in ('HouseholdLeaf', 'guest'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_joint_declared_on_a_third_class_is_refused(self):
+        class Elsewhere(Solid2Node):
+            turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = PortedLeaf(turn=Elsewhere.turn)
+
+        message = str(raised.exception)
+        for expected in ('Top', 'leaf', 'PortedLeaf', 'turn', 'Elsewhere'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_two_site_joints_of_one_dotted_name_are_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                leaf = Box(**{
+                    'pose': Free(),
+                    'pose.roll': Revolute(axis=(0, 0, 1), unit='deg'),
+                })
+
+        message = str(raised.exception)
+        for expected in ('Box', 'pose.roll'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_site_joint_and_a_wiring_of_one_coordinate_are_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Top(AssemblyNode):
+                pose_roll = RotationalPort(unit='deg')
+                leaf = Box(**{
+                    'pose': Free(),
+                    'pose.roll': pose_roll,
+                })
+
+        message = str(raised.exception)
+        self.assertIn('pose.roll', message)
+
+
+class SiteJointRepeatAndListTest(BaseNodeTest):
+
+    def test_a_site_joint_on_a_repeat_and_on_a_literal_list(self):
+        class Repeated(AssemblyNode):
+            beads = Box(turn=Revolute(axis=(0, 0, 1), unit='deg')).repeat(3)
+
+            def render(self):
+                for index, bead in enumerate(self.beads):
+                    bead.translate([0.0, float(index) * 5.0, 0.0])
+
+        repeated = Repeated()
+        repeated.render()
+        for bead in repeated.beads:
+            bead.turn = 20
+        self.assertEqual([bead.turn.value for bead in repeated.beads],
+                         [20, 20, 20])
+        self.assertEqual(
+            len({bead.uniq_id for bead in repeated.beads}), 1)
+
+        class Listed(AssemblyNode):
+            width = Length(3.0)
+            pair = [Box(size=width, turn=Revolute(axis=(0, 0, 1),
+                                                  unit='deg')),
+                   Box(size=width / 2)]
+
+        listed = Listed(width=6.0)
+        listed.pair[0].turn = 15
+        self.assertEqual(listed.pair[0].turn.value, 15)
+        self.assertEqual(listed.pair[0].size, 6.0)
+        self.assertEqual(listed.pair[1].size, 3.0)
+
+
+class SiteJointCallableTest(BaseNodeTest):
+
+    def test_a_callable_is_handed_the_declaring_parent(self):
+        seen = []
+
+        class LeftRight(AssemblyNode):
+            side = Count(1, min=-1, max=1)
+            leaf = Box(turn=Revolute(
+                axis=lambda parent: (0.0, 0.0, float(parent.side)),
+                unit='deg'))
+
+        left = LeftRight(side=-1)
+        right = LeftRight(side=1)
+
+        left_axis = declared_joints(type(left.leaf))['turn'].arguments(
+            left.leaf)[0]
+        right_axis = declared_joints(type(right.leaf))['turn'].arguments(
+            right.leaf)[0]
+        self.assertEqual(left_axis, (0, 0, -1))
+        self.assertEqual(right_axis, (0, 0, 1))
+
+    def test_the_parents_render_has_not_run_when_the_callable_is_called(self):
+        rendered = []
+
+        class Probe(AssemblyNode):
+            side = Count(1, min=-1, max=1)
+            leaf = Box(turn=Revolute(
+                axis=lambda parent: rendered.append(
+                    getattr(parent, '_rendered', False)) or (0, 0, 1),
+                unit='deg'))
+
+            def render(self):
+                self._rendered = True
+
+        Probe()
+
+        self.assertEqual(rendered, [False])
+
+    def test_a_later_declared_sibling_is_not_yet_realized(self):
+        def reads_later_sibling(parent):
+            parent.later
+            return (0, 0, 1)
+
+        # A callable's failure is wrapped exactly as any other joint
+        # argument's is (`Joint._vector`, unedited): ParameterError,
+        # naming the class, the joint, the argument and the underlying
+        # AttributeError.
+        with self.assertRaises(ParameterError) as raised:
+            class Probe(AssemblyNode):
+                earlier = Box(turn=Revolute(axis=reads_later_sibling,
+                                            unit='deg'))
+                later = Box()
+
+            Probe()
+
+        message = str(raised.exception)
+        for expected in ('turn', 'axis', 'AttributeError', 'later'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_copys_index_is_not_reachable_from_a_site_callable(self):
+        """Design decision 5: a `.repeat()` copy's `index` is stamped
+        by `RepeatDeclaration.realize` AFTER the copy's construction --
+        which is also after a site joint's arguments already resolved,
+        against the PARENT, inside `ChildDeclaration.realize`. A site
+        callable is handed the declaring parent and only the declaring
+        parent; it has no copy to read `index` off at all."""
+
+        def reads_index(parent):
+            # The declaring parent has no 'index' of its own here, and
+            # even if it did, it would not be the COPY's index -- there
+            # is no copy in scope for this callable to name.
+            parent.index
+            return (0, 0, 1)
+
+        with self.assertRaises(ParameterError) as raised:
+            class Probe(AssemblyNode):
+                beads = Box(turn=Revolute(axis=reads_index,
+                                          unit='deg')).repeat(3)
+
+            Probe()
+
+        self.assertIn('AttributeError', str(raised.exception))
+
+
+##############################################
+# 4.2 declared_ports / declared_joints see a site joint
+
+class SiteJointEnumerationTest(BaseNodeTest):
+
+    def test_declared_ports_and_declared_joints_report_the_site(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), range=(-10, 10),
+                                      unit='deg'))
+
+        top = Top()
+        leaf_class = type(top.leaf)
+
+        self.assertIn('turn', declared_joints(leaf_class))
+        self.assertEqual(declared_joints(leaf_class)['turn'].range,
+                         (-10, 10))
+        self.assertIn('turn', declared_ports(leaf_class))
+        self.assertEqual(declared_ports(leaf_class)['turn'].domain,
+                         'rotational')
+        self.assertEqual(declared_ports(leaf_class)['turn'].unit, 'deg')
+        # The WRITTEN class still reports only what IT declares.
+        self.assertEqual(declared_joints(Leaf), {})
+        self.assertEqual(declared_ports(Leaf), {})
+
+
+##############################################
+# 5. The specialization: what it must and must not be
+
+class SpecializationIdentityTest(BaseNodeTest):
+
+    def test_identity_is_unchanged_across_differently_jointed_sites(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            plain = Leaf()
+            one_joint = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+            other_joint = Leaf(turn=Revolute(axis=(1, 0, 0), unit='deg'))
+
+        top = Top()
+
+        ids = {top.plain.uniq_id, top.one_joint.uniq_id,
+               top.other_joint.uniq_id}
+        self.assertEqual(len(ids), 1)
+        self.assertEqual(
+            {top.plain.scad_file, top.one_joint.scad_file,
+             top.other_joint.scad_file}.__len__(), 1)
+        self.assertEqual(
+            {top.plain.stl_file, top.one_joint.stl_file,
+             top.other_joint.stl_file}.__len__(), 1)
+
+
+class SpecializationClassIdentityTest(BaseNodeTest):
+
+    def test_isinstance_holds_and_the_class_reads_as_the_written_one(self):
+        import inspect
+
+        class ZScrew(Solid2Node):
+            """A screw."""
+
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            screw = ZScrew(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+
+        self.assertIsInstance(top.screw, ZScrew)
+        self.assertIsNot(type(top.screw), ZScrew)
+        self.assertEqual(type(top.screw).__name__, 'ZScrew')
+        self.assertEqual(type(top.screw).__qualname__, ZScrew.__qualname__)
+        self.assertEqual(type(top.screw).__module__, ZScrew.__module__)
+        self.assertEqual(inspect.getfile(type(top.screw)),
+                         inspect.getfile(ZScrew))
+
+
+class SpecializationSharingTest(BaseNodeTest):
+
+    def test_one_specialization_per_declaration_site(self):
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            pack = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg')).repeat(6)
+
+        top = Top()
+
+        self.assertEqual(len({type(child) for child in top.pack}), 1)
+
+        class TopTwo(AssemblyNode):
+            leaf = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        one, other = Top(), TopTwo()
+        # Two different sites declaring the SAME class with the SAME
+        # joint text get two DIFFERENT specialized classes -- and still
+        # share one artifact key.
+        self.assertIsNot(type(one.pack[0]), type(other.leaf))
+        self.assertEqual(one.pack[0].uniq_id, other.leaf.uniq_id)
+
+
+class SpecializationDiscoveryTest(BaseNodeTest):
+
+    def test_the_specialization_is_invisible_to_model_discovery(self):
+        from solid_node.core.loader import _defined_classes
+        from solid_node.node.base import AbstractBaseNode
+        from solid_node.node.sources import node_classes_in
+
+        module = sys.modules[__name__]
+        path = module.__file__
+        defined = {name for name, _klass
+                  in _defined_classes(path, module, AbstractBaseNode)}
+        self.assertIn('SpecializationDiscoveryLeaf', defined)
+        # No specialized subclass -- of ANY declared joint above --
+        # slipped into this module's own discovered set: every one is
+        # named after the class it specializes, and none of THOSE
+        # written names denote the specialization.
+        top = SpecializationDiscoveryTop()
+        self.assertIsNot(type(top.leaf), SpecializationDiscoveryLeaf)
+        self.assertEqual(type(top.leaf).__name__,
+                         'SpecializationDiscoveryLeaf')
+
+
+class SpecializationDiscoveryLeaf(Solid2Node):
+    def render(self):
+        return cube(1, center=True)
+
+
+class SpecializationDiscoveryTop(AssemblyNode):
+    leaf = SpecializationDiscoveryLeaf(
+        turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+
+class SpecializationMetaclassTest(BaseNodeTest):
+
+    def test_a_class_with_its_own_metaclass_specializes_through_it(self):
+        from solid_node.node.declarative import NodeMeta
+
+        class OwnMeta(NodeMeta):
+            built_through = []
+
+            def __new__(mcs, name, bases, namespace, **kwargs):
+                cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+                OwnMeta.built_through.append(cls)
+                return cls
+
+        class Custom(Solid2Node, metaclass=OwnMeta):
+            def render(self):
+                return cube(1, center=True)
+
+        OwnMeta.built_through.clear()
+
+        class Top(AssemblyNode):
+            leaf = Custom(turn=Revolute(axis=(0, 0, 1), unit='deg'))
+
+        top = Top()
+
+        self.assertIs(type(type(top.leaf)), OwnMeta)
+        self.assertIn(type(top.leaf), OwnMeta.built_through)
+
+
+class SpecializationOwnTypeGuardTest(BaseNodeTest):
+    """Task 5.6: the one identity check the change loosens,
+    `internal.py:166`'s guard against a render returning its own type,
+    PINNED directly against `validate()` for the ordinary case it still
+    catches -- unrelated to any site joint."""
+
+    def test_the_ordinary_own_type_guard_still_fires(self):
+        from solid_node.node.internal import InternalNode
+
+        class Wrapper(InternalNode):
+            def render(self):
+                return []
+
+        wrapper = Wrapper()
+        with self.assertRaises(Exception) as raised:
+            wrapper.validate([Wrapper()])
+        self.assertIn('own type', str(raised.exception))
+
+
+class SpecializationCacheBoundTest(BaseNodeTest):
+
+    def test_class_keyed_caches_stay_bounded_by_declaration_sites(self):
+        from solid_node.motion.joints import _declared_cache
+        from solid_node.node.declarative import _children_cache
+        from solid_node.parameters import _parameters_cache
+
+        class Leaf(Solid2Node):
+            def render(self):
+                return cube(1, center=True)
+
+        class Top(AssemblyNode):
+            pack = Leaf(turn=Revolute(axis=(0, 0, 1), unit='deg')).repeat(5)
+
+        # Pre-warm Top's OWN cache entry: realizing Top ALSO resolves
+        # Top's (empty) joints, which is one legitimate entry this test
+        # is not about, and must not be mistaken for a specialization
+        # per realized child.
+        declared_joints(Top)
+        declared_children(Top)
+        declared_parameters(Top)
+
+        before_declared = len(_declared_cache)
+        before_children = len(_children_cache)
+        before_parameters = len(_parameters_cache)
+
+        top = Top()
+        for child in top.pack:
+            declared_joints(type(child))
+            declared_children(type(child))
+            declared_parameters(type(child))
+
+        # ONE specialized class realized five times: at most one new
+        # entry per cache, not one per realized child.
+        self.assertLessEqual(len(_declared_cache) - before_declared, 1)
+        self.assertLessEqual(len(_children_cache) - before_children, 1)
+        self.assertLessEqual(len(_parameters_cache) - before_parameters, 1)

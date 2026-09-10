@@ -1554,3 +1554,78 @@ rather than folded into the closure:
   0.000e+00, no requirement touched) cannot be validated at all and is
   archived with `--yes` past a warning. Not a framework matter; noted so
   nobody fabricates a delta to satisfy the tool.
+
+# declaration-site-joint (2026-09-10, ADR-098)
+
+- **CLOSED: the declaration-site finding.** ADR-097 named the second
+  declarer and built none of it; ADR-098 builds it. Fourteen live
+  sightings in eight projects, all reproduced at maximum deviation
+  0.000e+00 in a read-only overlay: OpenCycloid's twelve orbiting
+  bodies (four site `Orbit`s, ten of them `.repeat()` copies, all
+  REFUSED by ADR-097 alone, now binding again); the Internal Cycloidal
+  Actuator's two disk `Orbit`s; InMoov-sim's seven finger `Revolute`s
+  and (recorded separately) its wrist axle; openflexure-microscope's
+  `GearLockScrew.orbit` on a `.repeat(2)`; Prusa3-vanilla's two belt
+  guide pairs; hangprinter's roller pair; openvmp's `Leg` (two sites)
+  and `CameraArm`; open_manipulator's two gripper fingers. Four
+  subclasses-for-metadata are deleted in their overlays: openvmp's
+  `Wheel` and `CameraArm` (with `CameraArm`'s `__init__` override and
+  its two instance attributes), OMX's `LeftFinger` and `RightFinger`.
+- **CORRECTED: the plan note's record.** `workflow/docs/motion-catalogue-2.md`
+  §3.3 gave three example sentences and named four validation projects;
+  measured against the source (`declaration-site-joint/evidence/sightings.md`
+  §5), two of the three examples are ADR-097's work, not this cycle's
+  (Poseidon's `ThreadedRod`, Prusa's Z screw, both already clean
+  own-frame declarations with no anchor needed), the third
+  (InMoov's wrist gear) is three-quarters ADR-097's (the axle is the
+  one piece this cycle actually serves, and for a different reason
+  than the note gives — shared catalogue hardware, not a conditional
+  frame), and the fourth (the actuator's `disk_one = CycloidalDisk(orbit=
+  Orbit(axis=(0, 1, 0)))`) is short by a `carries=` whose absence is a
+  2 mm error and a wrong phase with NO refusal to catch it. Poseidon is
+  not a validation project for this cycle at all. The corrected list of
+  eight — OpenCycloid, the Internal Cycloidal Actuator, Inmoov-sim,
+  OMX, openvmp, Prusa3-vanilla, hangprinter, openflexure-microscope —
+  is what `declaration-site-joint`'s own proposal and evidence.md
+  actually measure.
+- **NEW: a parent's hand-written motion and its own site joint read two
+  different frames on one child.** A parent's `self.child.rotate(...)`
+  in its own `simulate()` is inserted inside the child's rest placement
+  and is therefore read in the CHILD's frame; a site joint the SAME
+  parent declares on the SAME child is read in the PARENT's. After
+  ADR-098 a project can write both on one child and get two frames from
+  one author, with nothing in the framework to catch the mismatch. No
+  sighting in the catalogue is harmed by it today. Filed, not fixed;
+  triage: needs its own sighting before a direction is chosen (state
+  hand-written motion in the parent's frame too, at the cost of
+  carrying it always; or refuse the combination by name; or leave it,
+  documented, as the one seam where "declares" and "writes by hand" do
+  not agree).
+- **NEW: a relation cannot name a child a loop builds from data.**
+  openvmp's own written-down sentence
+  (`archive/2026-09-09-move-onto-motion/proposal.md:225-231`):
+  `front.yaw.drives(base['motion-front-wormgear/worm'].spin, ratio=...)`.
+  A relation is class metadata whose every segment is checked at CLASS
+  DEFINITION against the class the previous segment names; a child
+  built from a `.assy` file at construction time has no class-level
+  name to check against. `declaration-site-joint` measured the OTHER
+  half of this sighting — giving such a child a real, bindable
+  coordinate — and found it already answered by ADR-097 and ADR-088
+  alone (a project-side `TurningPart(StepPart)` subclass with a
+  declared parameter and a class-body callable, built by the project's
+  existing loop): no cycle in this campaign closes the relation-naming
+  half, and openvmp does not get the sentence it asked for. Triage:
+  needs its own cycle if a project ever needs it for real; openvmp's
+  eight sites stay hand-bound in its own `simulate()` until then.
+- **NEW: `type(x) is C` no longer holds for a child whose declaration
+  site gave it a joint.** The specialization (ADR-098) copies the
+  written class's `__name__`, `__qualname__`, `__module__` and source
+  file, deliberately (a joint is not identity), so `isinstance` holds
+  but an identity check against the exact class does not.
+  `solid_node/node/internal.py:166` is the one place in the framework
+  that makes this check — a guard against a render returning its own
+  type, `type(child) is type(self)` — and a site-jointed child of a
+  parent's own class would slip past it. Pinned for the ordinary case
+  (`SpecializationOwnTypeGuardTest`), not fixed; no sighting in the
+  catalogue reaches this guard with a site-jointed child of its own
+  parent's class today.
