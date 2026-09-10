@@ -745,8 +745,8 @@ before the project is refactored around its absence.
   child like a wiring is today but declaring a freedom rather than binding
   one, so a shared class can be given a joint where it is placed.
 
-- **Two joints on one body compose in binding order, which a relation
-  cannot see.** OpenCycloid's cycloidal disks orbit the main axis at the
+- **FIXED (cycle `joint-composition-order`, ADR-093). Two joints on one
+  body compose in binding order, which a relation cannot see.** OpenCycloid's cycloidal disks orbit the main axis at the
   eccentric radius while spinning at the reduced rate about their own
   centre: `R(in)·T(d)·R(out−in)`. Two `Revolute` joints on the disk state
   it — `orbit` about the parent's axis and `spin` about the disk's own
@@ -766,6 +766,13 @@ before the project is refactored around its absence.
   joints of one class compose in their DECLARATION order, innermost first,
   whatever order they are bound in. OpenCycloid is deferred at stage A
   until one exists.
+
+  The second form is now the contract: the joints declared on one class
+  compose in declaration order, innermost first, whatever order they are
+  bound in (ADR-093, cycle `joint-composition-order`). OpenCycloid still
+  waits on the OTHER two findings it carries — the `Orbit` primitive its
+  preferred sentence uses, and the fan-out over a repeated child below —
+  so its deferral stands on those, not on this one.
 - **A relation cannot fan out over a repeated child.** The same actuator's
   four eccentric bearings and six output pins are `.repeat()` children with
   a per-copy sign or phase; the couplings spec refuses a path through a
@@ -790,8 +797,9 @@ before the project is refactored around its absence.
   `simulate()` line instead of stating `input_angle.drives(motor_rotor.spin)`.
   Wanted: a subclass may replace a NAMED relation of its base, the way a
   redeclared port wins.
-- **A floating body's attitude is the same composition gap, from the
-  other side.** The hexapod's chassis has four freedoms against the
+- **FIXED for the composition half (cycle `joint-composition-order`,
+  ADR-093). A floating body's attitude is the same composition gap, from
+  the other side.** The hexapod's chassis has four freedoms against the
   ground — roll, pitch, yaw, lift — and its inverse kinematics hand-invert
   exactly `R_roll · R_pitch · R_yaw · T_height`. Four joints on the chassis
   would put that composition at the mercy of binding order. Wanted:
@@ -807,6 +815,10 @@ before the project is refactored around its absence.
   for later. Second sighting of the OpenCycloid finding; the hexapod is
   deferred at stage A on it, so one primitive unblocks both. Its eighteen
   leg joints are statable today and wait with it.
+
+  The four-declaration form above is exactly what the contract now
+  guarantees, so the hexapod is unblocked by ADR-093. The `Free` joint it
+  may still prefer is a separate, unbuilt primitive and stays open.
 - **Fan-out over a repeated child, second sighting: the abacus.** Each
   column's five beads are one `Bead` class repeated; the heaven bead is
   one relation with a clamp law, but the four earth beads each need the
@@ -832,7 +844,11 @@ before the project is refactored around its absence.
   The dog's `MovingHalf` also turns about the joint centre and slides
   along the channel — two joints on one body whose order matters
   (`T(slide)·R(turn)`), the third sighting of the composition-order gap.
-  Deferred at stage A on both.
+  Deferred at stage A on both. **That third sighting is FIXED** (cycle
+  `joint-composition-order`, ADR-093): `pivot` declared before `slide`
+  now composes `T(slide)·R(turn)` whatever binds them. The carried
+  lower-leg parts still want `Orbit`, which is NOT built, so
+  YouCanBuildDog's deferral stands on the orbit finding alone.
 - **A path on one body, per repeated copy: fender-bender's bracket
   release.** One freedom, `lift`, realized as `T(dx, dz, 0)·Rz(-tilt)` in
   each channel's own frame from nine measured waypoints, on five channels
@@ -847,6 +863,10 @@ before the project is refactored around its absence.
   Deferred at stage A. The two motions the API states today — the
   filament wheel's spin and the lock pin's draw — wait with it; the
   loop's `drop` port feeds molejo geometry and is not a forwarder.
+  One of its three blockers is gone — several joints on one body now
+  compose in declaration order (ADR-093) — and the other two, the
+  own-placed-origin anchor and the per-copy fan-out over `.repeat()`,
+  are untouched, so fender-bender's deferral stands on them.
 - **A joint on a child built from data, not from a class body.** OpenVMP
   Don1's links realize their parts in a loop from PartCAD `.assy`
   blueprints, one generic `StepPart` per entry named by the file. A joint
@@ -879,7 +899,8 @@ before the project is refactored around its absence.
   already computed — and a fan-out over LIST-HELD children where each
   copy gets a structurally different expression (the root's eight-way
   carry binding), which no single per-copy law would state either.
-- **Composition order, fourth sighting, and the minimal unblocker.** The
+- **FIXED (cycle `joint-composition-order`, ADR-093). Composition order,
+  fourth sighting, and the minimal unblocker.** The
   Internal Cycloidal Actuator's two disks each want `orbit` (about the
   drive axis, 1:1 with the eccentric shaft) and `spin` (about their own
   bore, `ratio=-1/8` with a mesh-phase offset) on ONE body: the tree is
@@ -892,7 +913,14 @@ before the project is refactored around its absence.
   preferred `Orbit` form, if one is built, anchors the carried point
   (`Orbit(axis, at=<carried point>)`) rather than taking a radius and a
   phase, because the eccentricity is a derived value there.
-- **Composition order, fifth sighting: a delta printer's rods.** The Mini
+
+  The contract exists: `spin` declared before `orbit` is applied inside
+  it, whatever order the two relations solve in. This project is
+  unblocked by ADR-093 alone and is the sighting that named it the
+  minimal unblocker. Its `Orbit` preference remains an open want, not a
+  blocker.
+- **FIXED for the composition half (cycle `joint-composition-order`,
+  ADR-093). Composition order, fifth sighting: a delta printer's rods.** The Mini
   Kossel's six rods each hang between a carriage and the effector; a rod's
   pose is a spin, a lean, a swing and a rise — four joints on one body
   whose order is the whole of its attitude and which a reader of the class
@@ -900,6 +928,9 @@ before the project is refactored around its absence.
   and pulleys are one joint each, so the composition contract is again the
   one thing missing; the delta law itself (three drivers to each rod) is
   the multi-source relation already recorded. Deferred at stage A.
+  The four joints on one rod now compose in declaration order (ADR-093);
+  the multi-source relation the delta law needs is a SEPARATE finding and
+  is still open, so kossel waits on that one.
 - **A bare number cannot be added to a dimensioned token.** The
   Pascaline's slide span, `CHANNEL_Y[1] - CHANNEL_Y[0] - SLIDE_WIDTH - 2 * clearance`
   with `clearance` a declared `Length`, is refused at class definition
@@ -926,8 +957,9 @@ before the project is refactored around its absence.
   one level into `Axis`. The four flexure legs (two rotations each, on
   repeated bodies, from a multi-source law) stay hand-written as
   followers; the principal chains are statable and the project proceeds.
-- **Composition order, sixth sighting, and a joint under a conditional
-  placement: the InMoov hand.** Eight phalanx bodies (middle phalanges,
+- **FIXED for the composition half (cycle `joint-composition-order`,
+  ADR-093). Composition order, sixth sighting, and a joint under a
+  conditional placement: the InMoov hand.** Eight phalanx bodies (middle phalanges,
   fingertips, thumb tip, the `dip` fasteners) each carry two
   non-commuting rotations, and the fingers are `.repeat(4)`; nesting the
   phalanges or naming the fingers one by one would state the motion
@@ -938,7 +970,13 @@ before the project is refactored around its absence.
   cannot see from their own classes. Deferred at stage A on the
   composition contract; the tendon ratios (`-50/FINGER_CLOSED` and
   siblings) and the 11:20 wrist train are ready to be sentences.
-- **Composition order, seventh sighting: the V8's connecting rods.** Each
+  The two non-commuting rotations per phalanx now compose in declaration
+  order (ADR-093). The conditional-placement form of the
+  declaration-site joint recorded in the same entry is UNTOUCHED and
+  still open, and Inmoov-sim waits on it.
+- **FIXED for the composition half (cycle `joint-composition-order`,
+  ADR-093). Composition order, seventh sighting: the V8's connecting
+  rods.** Each
   rod is `T(crank pin)·R(rod angle)` on one body, eight of them on
   `.repeat()` units driven through a per-unit phase; the pistons, valves,
   camshafts (`cam = crankshaft.turn / 2`, a derived coordinate) and the
@@ -946,6 +984,8 @@ before the project is refactored around its absence.
   pin>)` plus its own `Revolute`, or as two joints under the declaration
   order contract. Deferred at stage A. The four timing gears are the
   eighth own-placed-origin sighting (one class, four anchors).
+  The two-joint form is now statable (ADR-093); the own-placed-origin
+  finding the timing gears carry is untouched and still open.
 - **An ancestor's relation cannot SOURCE from a coordinate a descendant's
   relations solve.** The mirror of reaching by path: OpenFlexure's root
   stated `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=...)`,

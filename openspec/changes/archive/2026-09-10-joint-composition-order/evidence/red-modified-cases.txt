@@ -1,0 +1,88 @@
+......FFF.                                                               [100%]
+=================================== FAILURES ===================================
+________ MotionDisciplineTest.test_joint_motion_is_innermost_and_tagged ________
+
+self = <tests.test_joints.MotionDisciplineTest testMethod=test_joint_motion_is_innermost_and_tagged>
+
+    def test_joint_motion_is_innermost_and_tagged(self):
+        # `Bench` rotates the hinge by hand (10) and then binds its
+        # joint (25). Until the joints declared on one class were given
+        # a composition order this read ['r', 't', 'r', 't', 't'] -- the
+        # hand-written rotation innermost, because it was applied first.
+        # The joint block is now innermost as a whole, so the ANGLES are
+        # asserted too: a coincidental match of kinds must not pass.
+        bench = Bench()
+    
+        bench.set_state(angle=25)
+    
+        operations = bench.hinge.operations
+>       self.assertEqual([operation.serialized[0] for operation
+                          in operations], ['t', 'r', 't', 'r', 't'])
+E       AssertionError: Lists differ: ['r', 't', 'r', 't', 't'] != ['t', 'r', 't', 'r', 't']
+E       
+E       First differing element 0:
+E       'r'
+E       't'
+E       
+E       - ['r', 't', 'r', 't', 't']
+E       ?                 -----
+E       
+E       + ['t', 'r', 't', 'r', 't']
+E       ?  +++++
+
+tests/test_joints.py:442: AssertionError
+__________ MotionDisciplineTest.test_re_simulating_leaves_one_motion ___________
+
+self = <tests.test_joints.MotionDisciplineTest testMethod=test_re_simulating_leaves_one_motion>
+
+    def test_re_simulating_leaves_one_motion(self):
+        # The joint's rotation is at index 1 -- the middle of its own
+        # three-operation run, which is now the innermost thing on the
+        # node. It sat at index 2 while the hand-written rotation was
+        # applied first and therefore composed innermost.
+        bench = Bench()
+    
+        bench.set_state(angle=25)
+        bench.set_state(angle=25)
+        bench.set_state(angle=40)
+    
+        self.assertEqual(len(motions(bench.hinge)), 4)
+>       self.assertEqual(bench.hinge.operations[1].serialized[1], '40')
+E       AssertionError: ['0', '-10.0', '4.0'] != '40'
+
+tests/test_joints.py:466: AssertionError
+_ MotionDisciplineTest.test_the_joint_block_is_innermost_of_hand_written_motion _
+
+self = <tests.test_joints.MotionDisciplineTest testMethod=test_the_joint_block_is_innermost_of_hand_written_motion>
+
+    def test_the_joint_block_is_innermost_of_hand_written_motion(self):
+        # This test was `test_hand_written_and_joint_motion_coexist_in
+        # _order` and asserted ['10', '25']: the two kinds of motion
+        # composed in the order they were APPLIED, and `Bench` applies
+        # the hand-written rotation first. A joint's operations now sit
+        # inside every hand-written one, so the joint's 25 is innermost
+        # and the hand-written 10 outside it. If this ever reads
+        # ['10', '25'] again, that is a revert, not a coincidence.
+        bench = Bench()
+    
+        bench.set_state(angle=25)
+    
+>       self.assertEqual([operation.serialized[1] for operation
+                          in bench.hinge.operations
+                          if operation.serialized[0] == 'r'],
+                         ['25', '10'])
+E       AssertionError: Lists differ: ['10', '25'] != ['25', '10']
+E       
+E       First differing element 0:
+E       '10'
+E       '25'
+E       
+E       - ['10', '25']
+E       + ['25', '10']
+
+tests/test_joints.py:554: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_joints.py::MotionDisciplineTest::test_joint_motion_is_innermost_and_tagged
+FAILED tests/test_joints.py::MotionDisciplineTest::test_re_simulating_leaves_one_motion
+FAILED tests/test_joints.py::MotionDisciplineTest::test_the_joint_block_is_innermost_of_hand_written_motion
+3 failed, 7 passed in 1.30s

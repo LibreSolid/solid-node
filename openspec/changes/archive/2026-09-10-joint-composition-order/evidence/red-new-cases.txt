@@ -1,0 +1,293 @@
+FFFFFF.FFF                                                               [100%]
+=================================== FAILURES ===================================
+_ CompositionOrderTest.test_a_reversed_application_order_across_a_sweep_changes_nothing _
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_a_reversed_application_order_across_a_sweep_changes_nothing>
+
+    def test_a_reversed_application_order_across_a_sweep_changes_nothing(self):
+        bench = OrderedBench()
+    
+        bench.set_state(order=0, angle=35, offset=12)
+        first = serialized(bench.body)
+        first_matrix = _compose_world_matrix(bench.body)
+    
+        bench.set_state(order=1, angle=35, offset=12)
+    
+>       self.assertEqual(serialized(bench.body), first)
+E       AssertionError: Lists differ: [['t', ['0', '12', '0']], ['t', ['0', '-30.0', '4.0']],[73 chars]4']]] != [['t', ['0', '-30.0', '4.0']], ['r', '35', [0, 0, 1]], [73 chars]4']]]
+E       
+E       First differing element 0:
+E       ['t', ['0', '12', '0']]
+E       ['t', ['0', '-30.0', '4.0']]
+E       
+E       - [['t', ['0', '12', '0']],
+E       -  ['t', ['0', '-30.0', '4.0']],
+E       ? ^
+E       
+E       + [['t', ['0', '-30.0', '4.0']],
+E       ? ^
+E       
+E          ['r', '35', [0, 0, 1]],
+E          ['t', ['0', '30.0', '-4.0']],
+E       +  ['t', ['0', '12', '0']],
+E          ['t', ['0', '0', '4']]]
+
+tests/test_joints.py:881: AssertionError
+_ CompositionOrderTest.test_a_three_operation_joint_is_one_unbroken_run_at_its_slot _
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_a_three_operation_joint_is_one_unbroken_run_at_its_slot>
+
+    def test_a_three_operation_joint_is_one_unbroken_run_at_its_slot(self):
+        bench = ContiguityBench()
+        bench.render()
+        body = bench.body
+    
+>       self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 't', 'r', 't', 't', 'r', 't', 'r', 't'])
+E       AssertionError: Lists differ: ['t', 'r', 't', 'r', 't', 'r', 't', 't', 't'] != ['t', 't', 'r', 't', 't', 'r', 't', 'r', 't']
+E       
+E       First differing element 1:
+E       'r'
+E       't'
+E       
+E       - ['t', 'r', 't', 'r', 't', 'r', 't', 't', 't']
+E       ?                                ----------
+E       
+E       + ['t', 't', 'r', 't', 't', 'r', 't', 'r', 't']
+E       ?       +++++          +++++
+
+tests/test_joints.py:912: AssertionError
+_ CompositionOrderTest.test_hand_written_motion_sits_outside_the_whole_joint_block _
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_hand_written_motion_sits_outside_the_whole_joint_block>
+
+    def test_hand_written_motion_sits_outside_the_whole_joint_block(self):
+        bench = BothSidesBench()
+    
+        bench.set_state(angle=25)
+    
+        operations = bench.hinge.operations
+>       self.assertEqual([operation.serialized[0] for operation
+                          in operations],
+                         ['t', 'r', 't', 'r', 't', 't'])
+E       AssertionError: Lists differ: ['r', 't', 'r', 't', 't', 't'] != ['t', 'r', 't', 'r', 't', 't']
+E       
+E       First differing element 0:
+E       'r'
+E       't'
+E       
+E       - ['r', 't', 'r', 't', 't', 't']
+E       ?                      -----
+E       
+E       + ['t', 'r', 't', 'r', 't', 't']
+E       ?  +++++
+
+tests/test_joints.py:927: AssertionError
+__ CompositionOrderTest.test_inherited_joints_compose_inside_a_subclasss_own ___
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_inherited_joints_compose_inside_a_subclasss_own>
+
+    def test_inherited_joints_compose_inside_a_subclasss_own(self):
+        # Green before this cycle and load-bearing after it: the
+        # enumerator's order IS the composition order, so a later
+        # refactor of the walk would silently change geometry.
+        self.assertEqual(list(declared_joints(ThreeSub)), ['a', 'b', 'c'])
+    
+        body = ThreeSub()
+        body.translate(THREE_LIFT)
+        body.c = 15
+        body.b = 12
+        body.a = 35
+    
+        expected = (_translation(THREE_LIFT)
+                    @ _turn_about(C_AT, 15, (1, 0, 0), THREE_LIFT)
+                    @ _translation((0, 12, 0))
+                    @ _turn_about(SUB_A_AT, 35, (0, 0, 1), THREE_LIFT))
+>       assert_allclose(_compose_world_matrix(body), expected, atol=1e-12)
+E       AssertionError: 
+E       Not equal to tolerance rtol=1e-07, atol=1e-12
+E       
+E       Mismatched elements: 9 / 16 (56.2%)
+E       Max absolute difference among violations: 7.77363227
+E       Max relative difference among violations: 1.
+E        ACTUAL: array([[ 0.819152, -0.554032,  0.148453, 20.90519 ],
+E              [ 0.573576,  0.79124 , -0.212012, 20.144295],
+E              [ 0.      ,  0.258819,  0.965926,  4.204445],
+E              [ 0.      ,  0.      ,  0.      ,  1.      ]])
+E        DESIRED: array([[ 0.819152, -0.573576,  0.      , 28.678822],
+E              [ 0.554032,  0.79124 , -0.258819, 21.87831 ],
+E              [ 0.148453,  0.212012,  0.965926,  9.650618],
+E              [ 0.      ,  0.      ,  0.      ,  1.      ]])
+
+tests/test_joints.py:870: AssertionError
+__ CompositionOrderTest.test_re_binding_one_joint_of_several_keeps_its_place ___
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_re_binding_one_joint_of_several_keeps_its_place>
+
+    def test_re_binding_one_joint_of_several_keeps_its_place(self):
+        body = TwoFreedom()
+        body.translate(TWO_FREEDOM_LIFT)
+    
+        body.pivot = 35
+        body.slide = 12
+        body.pivot = -20
+    
+>       self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+E       AssertionError: Lists differ: ['t', 't', 'r', 't', 't'] != ['t', 'r', 't', 't', 't']
+E       
+E       First differing element 1:
+E       't'
+E       'r'
+E       
+E       - ['t', 't', 'r', 't', 't']
+E       ?            -----
+E       
+E       + ['t', 'r', 't', 't', 't']
+E       ?       +++++
+
+tests/test_joints.py:848: AssertionError
+____ CompositionOrderTest.test_relation_bound_joints_ignore_the_solve_order ____
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_relation_bound_joints_ignore_the_solve_order>
+
+    def test_relation_bound_joints_ignore_the_solve_order(self):
+        machine = Cycloidal()
+        swapped = CycloidalSwapped()
+    
+        machine.set_state(shaft=40)
+        swapped.set_state(shaft=40)
+    
+        expected = (_translation(DISK_LIFT)
+                    @ _turn_about(ORBIT_AT, 40, (0, 1, 0), DISK_LIFT)
+                    @ _turn_about(SPIN_AT, -20, (0, 1, 0), DISK_LIFT))
+>       self.assertEqual(serialized(machine.disk), serialized(swapped.disk))
+E       AssertionError: Lists differ: [['t', ['0', '0', '-20.0']], ['r', '-20.0', [0, 1, 0]], ['t'[118 chars]6']]] != [['t', ['0', '0', '6.0']], ['r', '40', [0, 1, 0]], ['t', ['0[118 chars]6']]]
+E       
+E       First differing element 0:
+E       ['t', ['0', '0', '-20.0']]
+E       ['t', ['0', '0', '6.0']]
+E       
+E       + [['t', ['0', '0', '6.0']],
+E       +  ['r', '40', [0, 1, 0]],
+E       +  ['t', ['0', '0', '-6.0']],
+E       - [['t', ['0', '0', '-20.0']],
+E       ? ^
+E       
+E       +  ['t', ['0', '0', '-20.0']],
+E       ? ^
+E       
+E          ['r', '-20.0', [0, 1, 0]],
+E          ['t', ['0', '0', '20.0']],
+E       -  ['t', ['0', '0', '6.0']],
+E       -  ['r', '40', [0, 1, 0]],
+E       -  ['t', ['0', '0', '-6.0']],
+E          ['t', ['0', '0', '6']]]
+
+tests/test_joints.py:834: AssertionError
+____ CompositionOrderTest.test_the_published_document_reads_innermost_first ____
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_the_published_document_reads_innermost_first>
+
+    def test_the_published_document_reads_innermost_first(self):
+        bench = BothSidesBench()
+        bench.set_state(angle=25)
+    
+        document = serialize_node(bench, lambda rigid: rigid.name)
+        hinge = document['children'][0]
+    
+>       self.assertEqual([operation[0] for operation
+                          in hinge['operations']],
+                         ['t', 'r', 't', 'r', 't', 't'])
+E       AssertionError: Lists differ: ['r', 't', 'r', 't', 't', 't'] != ['t', 'r', 't', 'r', 't', 't']
+E       
+E       First differing element 0:
+E       'r'
+E       't'
+E       
+E       - ['r', 't', 'r', 't', 't', 't']
+E       ?                      -----
+E       
+E       + ['t', 'r', 't', 'r', 't', 't']
+E       ?  +++++
+
+tests/test_joints.py:942: AssertionError
+_ CompositionOrderTest.test_two_animators_on_one_node_keep_the_declared_order __
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_two_animators_on_one_node_keep_the_declared_order>
+
+    def test_two_animators_on_one_node_keep_the_declared_order(self):
+        outer = OuterPivot()
+        body = outer.inner.body
+    
+        outer.render()
+        outer.inner.render()
+    
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+        for operation in body.operations[:3]:
+            self.assertIs(operation._animator, outer)
+        self.assertIs(body.operations[3]._animator, outer.inner)
+    
+        outer.render()
+    
+>       self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+E       AssertionError: Lists differ: ['t', 't', 'r', 't', 't'] != ['t', 'r', 't', 't', 't']
+E       
+E       First differing element 1:
+E       't'
+E       'r'
+E       
+E       - ['t', 't', 'r', 't', 't']
+E       ?            -----
+E       
+E       + ['t', 'r', 't', 't', 't']
+E       ?       +++++
+
+tests/test_joints.py:901: AssertionError
+_ CompositionOrderTest.test_two_joints_compose_in_declaration_order_either_way_round _
+
+self = <tests.test_joints.CompositionOrderTest testMethod=test_two_joints_compose_in_declaration_order_either_way_round>
+
+    def test_two_joints_compose_in_declaration_order_either_way_round(self):
+        first = PivotFirstBench()
+        second = SlideFirstBench()
+    
+        first.set_state(angle=35, offset=12)
+        second.set_state(angle=35, offset=12)
+    
+        self.assertEqual([operation[0] for operation
+                          in serialized(first.body)],
+                         ['t', 'r', 't', 't', 't'])
+>       self.assertEqual(serialized(first.body), serialized(second.body))
+E       AssertionError: Lists differ: [['t', ['0', '-30.0', '4.0']], ['r', '35', [0, 0, 1]], [73 chars]4']]] != [['t', ['0', '12', '0']], ['t', ['0', '-30.0', '4.0']],[73 chars]4']]]
+E       
+E       First differing element 0:
+E       ['t', ['0', '-30.0', '4.0']]
+E       ['t', ['0', '12', '0']]
+E       
+E       + [['t', ['0', '12', '0']],
+E       - [['t', ['0', '-30.0', '4.0']],
+E       ? ^
+E       
+E       +  ['t', ['0', '-30.0', '4.0']],
+E       ? ^
+E       
+E          ['r', '35', [0, 0, 1]],
+E          ['t', ['0', '30.0', '-4.0']],
+E       -  ['t', ['0', '12', '0']],
+E          ['t', ['0', '0', '4']]]
+
+tests/test_joints.py:817: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_joints.py::CompositionOrderTest::test_a_reversed_application_order_across_a_sweep_changes_nothing
+FAILED tests/test_joints.py::CompositionOrderTest::test_a_three_operation_joint_is_one_unbroken_run_at_its_slot
+FAILED tests/test_joints.py::CompositionOrderTest::test_hand_written_motion_sits_outside_the_whole_joint_block
+FAILED tests/test_joints.py::CompositionOrderTest::test_inherited_joints_compose_inside_a_subclasss_own
+FAILED tests/test_joints.py::CompositionOrderTest::test_re_binding_one_joint_of_several_keeps_its_place
+FAILED tests/test_joints.py::CompositionOrderTest::test_relation_bound_joints_ignore_the_solve_order
+FAILED tests/test_joints.py::CompositionOrderTest::test_the_published_document_reads_innermost_first
+FAILED tests/test_joints.py::CompositionOrderTest::test_two_animators_on_one_node_keep_the_declared_order
+FAILED tests/test_joints.py::CompositionOrderTest::test_two_joints_compose_in_declaration_order_either_way_round
+9 failed, 1 passed in 1.28s

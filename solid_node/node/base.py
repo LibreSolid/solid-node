@@ -290,6 +290,28 @@ def _compose_solid_matrix(node):
 # spun by its axle and steered by the steering assembly): each animator
 # only ever touches its own tagged operations, never the other's.
 #
+# The motion block itself has TWO parts, and they are ordered by what
+# the class says rather than by what ran first (ADR-093):
+#
+#     [ joint 1 ][ joint 2 ] ... [ hand-written, in call order ][ rest ]
+#
+# innermost on the left. Joint n is the n-th joint DECLARED on the
+# node's class -- `declared_joints` order, base classes before the
+# subclass, a redeclaration keeping the base's position -- and it goes
+# in at its own slot through `apply_joint_motion`, as one contiguous
+# run, however many operations its placement produced and whatever
+# order the coordinates were bound in. Hand-written motion goes to the
+# end of the whole motion block through `_insert_motion`, so it lands
+# outside every joint and keeps its call order among itself.
+#
+# Why: when both joints of a body are bound by relations, the order
+# they were APPLIED in is the couplings solver's pass order, a property
+# of where the relations were written and not of the class carrying the
+# joints. A reader of the class body could not see it, a derived
+# coordinate could silently change it, and a sweep and re-bind could
+# reverse it between two runs. Declaration order is visible, stable
+# across runs, and independent of which assembly animates which joint.
+#
 # An operation applied during render() is appended and tagged too, and
 # the lifecycle wrapper decides what it was once the render returns: a
 # render that read no driver is rest placement, run once, and its
@@ -308,7 +330,13 @@ def _insert_motion(node, operation):
     """Put `operation` at the end of the node's motion block: after the
     motion already applied, before every rest operation, so the part
     moves in its own frame and is then carried by its placement, and so
-    successive calls keep their call order at the head of the list."""
+    successive calls keep their call order at the head of the list.
+
+    This is the HAND-WRITTEN motion path. Joints have their own seam --
+    `apply_joint_motion`, which inserts by declaration slot at the head
+    of the motion block -- so a hand-written rotate()/translate() lands
+    at the end of the whole motion block and therefore OUTSIDE the joint
+    block, whichever was applied first."""
     operation._motion = True
     index = 0
     for existing in node.operations:
@@ -339,9 +367,11 @@ def _place_operation(node, operation):
     _tag_operation(node, operation, phase)
 
 
-def apply_motion(node, operation):
-    """Place `operation` on `node` as MOTION whatever phase is current,
-    and return it. The joint seam, and nothing else's.
+def apply_joint_motion(node, operations, slot):
+    """Place a joint's `operations` on `node` as one contiguous run of
+    MOTION at the position its declaration `slot` dictates, whatever
+    phase is current, and return them. The joint seam, and nothing
+    else's.
 
     `_place_operation` appends when no lifecycle phase is running, which
     is right for a placement stated in the parent's frame and wrong for
@@ -351,17 +381,49 @@ def apply_motion(node, operation):
     line, silently. A joint therefore never goes through the plain
     rotate()/translate() path.
 
-    Under a simulate phase nothing else changes: the operation is tagged
-    with the simulating assembly and swept before its next run, exactly
-    as a hand-written rotation there is. Outside any phase it is marked
-    as motion but untagged, so no sweep touches it and re-binding the
-    joint is what keeps it absolute.
+    `slot` is the joint's index in `declared_joints(type(node))`, and it
+    is what decides WHERE the run goes: the insertion index is the
+    length of the prefix of `node.operations` whose entries are motion,
+    carry a `_joint_slot`, and whose slot is <= this one. Equivalently:
+    after every joint of an earlier-or-equal slot, before the first
+    joint of a later slot, before every hand-written motion, before
+    every rest operation. So the composition a reader sees is the
+    DECLARATION order of the class -- first declared innermost -- and
+    not the order the coordinates happened to be bound in, which for a
+    relation-bound joint is the couplings solver's pass order and is
+    invisible in the class body (ADR-093).
+
+    The run is inserted at ONE index rather than one operation at a
+    time, so contiguity is an invariant this seam enforces instead of
+    one every caller has to preserve: a `Revolute` at an off-origin
+    anchor emits three operations and they are one unit at one slot.
+
+    The scan is tolerant of a missing operation in exactly the way
+    `Joint.clear` is: an operation a sweep or a checkpoint restore has
+    dropped is simply not there.
+
+    Under a simulate phase nothing else changes: each operation is
+    tagged with the simulating assembly and swept before its next run,
+    exactly as a hand-written rotation there is. Outside any phase they
+    are marked as motion but untagged, so no sweep touches them and
+    re-binding the joint is what keeps it absolute.
     """
-    _insert_motion(node, operation)
+    index = 0
+    for existing in node.operations:
+        if not getattr(existing, '_motion', False):
+            break
+        existing_slot = getattr(existing, '_joint_slot', None)
+        if existing_slot is None or existing_slot > slot:
+            break
+        index += 1
     phase = _phase.current()
-    if phase is not None:
-        _tag_operation(node, operation, phase)
-    return operation
+    for offset, operation in enumerate(operations):
+        operation._motion = True
+        operation._joint_slot = slot
+        node.operations.insert(index + offset, operation)
+        if phase is not None:
+            _tag_operation(node, operation, phase)
+    return operations
 
 
 # Filesystem-safe charset for the readable prefix: anything outside this

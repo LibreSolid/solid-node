@@ -22,8 +22,11 @@ with possibly symbolic values, and the serialized operation is that fact
 without an openscad build.
 """
 
+import math
 from unittest import TestCase
 
+import numpy as np
+from numpy.testing import assert_allclose
 from solid2 import cube
 
 from solid_node.motion.joints import (Joint, JointRangeError, Prismatic,
@@ -32,6 +35,7 @@ from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      TranslationalPort, declared_ports)
 from solid_node.node import AssemblyNode, Solid2Node
 from solid_node.node import phase as _phase
+from solid_node.node.base import _compose_world_matrix
 from solid_node.node.assembly import _sweep
 from solid_node.core.serializer import serialize_node
 from solid_node.parameters import Count, Length, ParameterError
@@ -424,13 +428,23 @@ class SelfTurning(AssemblyNode):
 class MotionDisciplineTest(BaseNodeTest):
 
     def test_joint_motion_is_innermost_and_tagged(self):
+        # `Bench` rotates the hinge by hand (10) and then binds its
+        # joint (25). Until the joints declared on one class were given
+        # a composition order this read ['r', 't', 'r', 't', 't'] -- the
+        # hand-written rotation innermost, because it was applied first.
+        # The joint block is now innermost as a whole, so the ANGLES are
+        # asserted too: a coincidental match of kinds must not pass.
         bench = Bench()
 
         bench.set_state(angle=25)
 
         operations = bench.hinge.operations
         self.assertEqual([operation.serialized[0] for operation
-                          in operations], ['r', 't', 'r', 't', 't'])
+                          in operations], ['t', 'r', 't', 'r', 't'])
+        self.assertEqual([operation.serialized[1] for operation
+                          in operations
+                          if operation.serialized[0] == 'r'],
+                         ['25', '10'])
         for operation in operations[:4]:
             self.assertTrue(getattr(operation, '_motion', False))
             self.assertIs(operation._animator, bench)
@@ -438,6 +452,10 @@ class MotionDisciplineTest(BaseNodeTest):
         self.assertFalse(hasattr(operations[4], '_animator'))
 
     def test_re_simulating_leaves_one_motion(self):
+        # The joint's rotation is at index 1 -- the middle of its own
+        # three-operation run, which is now the innermost thing on the
+        # node. It sat at index 2 while the hand-written rotation was
+        # applied first and therefore composed innermost.
         bench = Bench()
 
         bench.set_state(angle=25)
@@ -445,7 +463,7 @@ class MotionDisciplineTest(BaseNodeTest):
         bench.set_state(angle=40)
 
         self.assertEqual(len(motions(bench.hinge)), 4)
-        self.assertEqual(bench.hinge.operations[2].serialized[1], '40')
+        self.assertEqual(bench.hinge.operations[1].serialized[1], '40')
 
     def test_the_rest_placement_is_never_swept(self):
         bench = Bench()
@@ -521,7 +539,14 @@ class MotionDisciplineTest(BaseNodeTest):
         self.assertEqual(turning.operations[0].serialized[1], '12')
         self.assertIs(turning.operations[0]._animator, turning)
 
-    def test_hand_written_and_joint_motion_coexist_in_order(self):
+    def test_the_joint_block_is_innermost_of_hand_written_motion(self):
+        # This test was `test_hand_written_and_joint_motion_coexist_in
+        # _order` and asserted ['10', '25']: the two kinds of motion
+        # composed in the order they were APPLIED, and `Bench` applies
+        # the hand-written rotation first. A joint's operations now sit
+        # inside every hand-written one, so the joint's 25 is innermost
+        # and the hand-written 10 outside it. If this ever reads
+        # ['10', '25'] again, that is a revert, not a coincidence.
         bench = Bench()
 
         bench.set_state(angle=25)
@@ -529,7 +554,424 @@ class MotionDisciplineTest(BaseNodeTest):
         self.assertEqual([operation.serialized[1] for operation
                           in bench.hinge.operations
                           if operation.serialized[0] == 'r'],
-                         ['10', '25'])
+                         ['25', '10'])
+
+##############################################
+# 1.6b Composition order: several joints on one body
+
+# The rest placement every bench in this section applies, and the pivot
+# anchor stated in the PARENT's frame -- away from the body's placed
+# origin, so the pivot produces three operations and not one.
+TWO_FREEDOM_LIFT = [0, 0, 4]
+PIVOT_AT = (0, 30, 0)
+
+
+def _translation(vector):
+    matrix = np.eye(4)
+    matrix[:3, 3] = vector
+    return matrix
+
+
+def _rotation(degrees, axis):
+    """Rodrigues, written out here on purpose: the expected matrices in
+    this section have to be independent of the framework's own
+    `operation.matrix()`, or a wrong composition could be confirmed by
+    the code that produced it."""
+    axis = np.array(axis, dtype=float)
+    axis = axis / np.linalg.norm(axis)
+    angle = math.radians(degrees)
+    cross = np.array([[0.0, -axis[2], axis[1]],
+                      [axis[2], 0.0, -axis[0]],
+                      [-axis[1], axis[0], 0.0]])
+    matrix = np.eye(4)
+    matrix[:3, :3] = (np.eye(3) + math.sin(angle) * cross
+                      + (1 - math.cos(angle)) * cross @ cross)
+    return matrix
+
+
+def _turn_about(at, degrees, axis, lift):
+    """A revolute's own contribution, in the body's frame: the anchor
+    carried through the inverse of the rest placement `lift`."""
+    anchor = np.array(at, dtype=float) - np.array(lift, dtype=float)
+    return (_translation(anchor) @ _rotation(degrees, axis)
+            @ _translation(-anchor))
+
+
+class TwoFreedom(Solid2Node):
+    """Two freedoms on one body, declared pivot-innermost.
+
+    The pivot turns about z through a point 30 mm off the body's placed
+    origin and the slide runs along y, so `T_slide . R_pivot` and
+    `R_pivot . T_slide` are DIFFERENT transforms. That is deliberate: an
+    assertion on the operations list alone cannot tell a right
+    composition from a wrong one when the two operations commute, and
+    `test_the_fixture_joints_do_not_commute` fails loudly if this
+    fixture ever stops exercising the question.
+    """
+
+    pivot = Revolute(axis=(0, 0, 1), at=PIVOT_AT, unit='deg')
+    slide = Prismatic(axis=(0, 1, 0), unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+def _two_freedom_pose(angle, offset):
+    """Where `TwoFreedom` lands when the contract holds: the pivot
+    innermost, the slide outside it, the rest placement outside both."""
+    return (_translation(TWO_FREEDOM_LIFT) @ _translation((0, offset, 0))
+            @ _turn_about(PIVOT_AT, angle, (0, 0, 1), TWO_FREEDOM_LIFT))
+
+
+class PivotFirstBench(AssemblyNode):
+    """Binds the first-declared joint first."""
+
+    angle = Driver(default=0.0, unit='deg')
+    offset = Driver(default=0.0, unit='mm')
+
+    body = TwoFreedom()
+
+    def render(self):
+        self.body.translate(TWO_FREEDOM_LIFT)
+
+    def simulate(self):
+        self.body.pivot = self.angle
+        self.body.slide = self.offset
+
+
+class SlideFirstBench(PivotFirstBench):
+    """The same bench binding the two joints in the opposite order."""
+
+    def simulate(self):
+        self.body.slide = self.offset
+        self.body.pivot = self.angle
+
+
+# The cycloidal case: a spin and an orbit about parallel lines through
+# different points, both driven from ONE shaft coordinate, so the order
+# the solver reaches them in is the only thing that could decide the
+# composition.
+DISK_LIFT = [0, 0, 6]
+SPIN_AT = (0, 0, 26)
+ORBIT_AT = (0, 0, 0)
+
+
+class Disk(Solid2Node):
+
+    spin = Revolute(axis=(0, 1, 0), at=SPIN_AT, unit='deg')
+    orbit = Revolute(axis=(0, 1, 0), at=ORBIT_AT, unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class Cycloidal(AssemblyNode):
+
+    shaft = Driver(default=0.0, unit='deg')
+
+    disk = Disk()
+
+    shaft.drives(disk.spin, ratio=-0.5)
+    shaft.drives(disk.orbit)
+
+    def render(self):
+        self.disk.translate(DISK_LIFT)
+
+
+class CycloidalSwapped(AssemblyNode):
+    """The same machine with the two relation STATEMENTS written the
+    other way round: the class body's joints are unchanged, so the pose
+    must be unchanged."""
+
+    shaft = Driver(default=0.0, unit='deg')
+
+    disk = Disk()
+
+    shaft.drives(disk.orbit)
+    shaft.drives(disk.spin, ratio=-0.5)
+
+    def render(self):
+        self.disk.translate(DISK_LIFT)
+
+
+# Inheritance: a base declaring `a` then `b`, a subclass declaring `c`
+# and redeclaring `a` at a different anchor.
+THREE_LIFT = [0, 0, 4]
+BASE_A_AT = (0, 30, 0)
+SUB_A_AT = (0, 50, 0)
+C_AT = (0, 0, 10)
+
+
+class ThreeBase(Solid2Node):
+
+    a = Revolute(axis=(0, 0, 1), at=BASE_A_AT, unit='deg')
+    b = Prismatic(axis=(0, 1, 0), unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class ThreeSub(ThreeBase):
+
+    a = Revolute(axis=(0, 0, 1), at=SUB_A_AT, unit='deg')
+    c = Revolute(axis=(1, 0, 0), at=C_AT, unit='deg')
+
+
+class OrderedBench(AssemblyNode):
+    """One assembly binding BOTH joints by hand, with its binding order
+    chosen by a driver.
+
+    The obvious fixture -- one end bound by hand at one instant and by a
+    relation at the next -- cannot be written: a coordinate a wiring or
+    a relation binds may not also be bound by hand
+    (`WiringTest::test_binding_a_wired_child_end_by_hand_is_refused`).
+    A driver keeps the test's control explicit and off the time base.
+    """
+
+    order = Driver(default=0.0)
+    angle = Driver(default=0.0, unit='deg')
+    offset = Driver(default=0.0, unit='mm')
+
+    body = TwoFreedom()
+
+    def render(self):
+        self.body.translate(TWO_FREEDOM_LIFT)
+
+    def simulate(self):
+        if self.order < 0.5:
+            self.body.pivot = self.angle
+            self.body.slide = self.offset
+        else:
+            self.body.slide = self.offset
+            self.body.pivot = self.angle
+
+
+class InnerSlide(AssemblyNode):
+    """Animator B: binds the SECOND-declared joint of the shared body."""
+
+    body = TwoFreedom()
+
+    def render(self):
+        self.body.translate(TWO_FREEDOM_LIFT)
+
+    def simulate(self):
+        self.body.slide = 12
+
+
+class OuterPivot(AssemblyNode):
+    """Animator A: binds the FIRST-declared joint of the same body, two
+    levels down -- the wart's wheel spun by its axle and steered by the
+    steering assembly."""
+
+    inner = InnerSlide()
+
+    def simulate(self):
+        self.inner.body.pivot = 35
+
+
+class ThreeSlot(Solid2Node):
+    """A prismatic, a three-operation revolute, and a second revolute:
+    the contiguity guard the stacked cycles rely on."""
+
+    lift = Prismatic(axis=(0, 0, 1), unit='mm')
+    swing = Revolute(axis=(0, 0, 1), at=(0, 30, 0), unit='deg')
+    twist = Revolute(axis=(0, 1, 0), unit='deg')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class ContiguityBench(AssemblyNode):
+    """Binds the three joints out of declaration order, with a
+    hand-written rotation in the middle of the run for good measure."""
+
+    body = ThreeSlot()
+
+    def render(self):
+        self.body.translate([0, 0, 4])
+
+    def simulate(self):
+        self.body.twist = 15
+        self.body.rotate(7, [1, 0, 0])
+        self.body.swing = 35
+        self.body.lift = 12
+
+
+class BothSidesBench(AssemblyNode):
+    """Hand-written motion on BOTH sides of the binding: the joint block
+    is innermost and the two hand-written calls keep their call order
+    outside it."""
+
+    angle = Driver(default=0.0, unit='deg')
+
+    hinge = Hinge()
+
+    def render(self):
+        self.hinge.translate([0, 0, 4])
+
+    def simulate(self):
+        self.hinge.rotate(10, [0, 0, 1])
+        self.hinge.swing = self.angle
+        self.hinge.translate([0, 3, 0])
+
+
+class CompositionOrderTest(BaseNodeTest):
+    """The joints declared on one class compose in DECLARATION order,
+    innermost first, whatever order they are bound in."""
+
+    def test_the_fixture_joints_do_not_commute(self):
+        pivot = _turn_about(PIVOT_AT, 35, (0, 0, 1), TWO_FREEDOM_LIFT)
+        slide = _translation((0, 12, 0))
+
+        self.assertFalse(np.allclose(slide @ pivot, pivot @ slide))
+
+    def test_two_joints_compose_in_declaration_order_either_way_round(self):
+        first = PivotFirstBench()
+        second = SlideFirstBench()
+
+        first.set_state(angle=35, offset=12)
+        second.set_state(angle=35, offset=12)
+
+        self.assertEqual([operation[0] for operation
+                          in serialized(first.body)],
+                         ['t', 'r', 't', 't', 't'])
+        self.assertEqual(serialized(first.body), serialized(second.body))
+        expected = _two_freedom_pose(35, 12)
+        for bench in (first, second):
+            with self.subTest(bench=type(bench).__name__):
+                assert_allclose(_compose_world_matrix(bench.body),
+                                expected, atol=1e-12)
+
+    def test_relation_bound_joints_ignore_the_solve_order(self):
+        machine = Cycloidal()
+        swapped = CycloidalSwapped()
+
+        machine.set_state(shaft=40)
+        swapped.set_state(shaft=40)
+
+        expected = (_translation(DISK_LIFT)
+                    @ _turn_about(ORBIT_AT, 40, (0, 1, 0), DISK_LIFT)
+                    @ _turn_about(SPIN_AT, -20, (0, 1, 0), DISK_LIFT))
+        self.assertEqual(serialized(machine.disk), serialized(swapped.disk))
+        for node in (machine.disk, swapped.disk):
+            with self.subTest(node=node.__class__.__name__):
+                assert_allclose(_compose_world_matrix(node), expected,
+                                atol=1e-12)
+
+    def test_re_binding_one_joint_of_several_keeps_its_place(self):
+        body = TwoFreedom()
+        body.translate(TWO_FREEDOM_LIFT)
+
+        body.pivot = 35
+        body.slide = 12
+        body.pivot = -20
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+        self.assertEqual(len(motions(body)), 4)
+        assert_allclose(_compose_world_matrix(body),
+                        _two_freedom_pose(-20, 12), atol=1e-12)
+
+    def test_inherited_joints_compose_inside_a_subclasss_own(self):
+        # Green before this cycle and load-bearing after it: the
+        # enumerator's order IS the composition order, so a later
+        # refactor of the walk would silently change geometry.
+        self.assertEqual(list(declared_joints(ThreeSub)), ['a', 'b', 'c'])
+
+        body = ThreeSub()
+        body.translate(THREE_LIFT)
+        body.c = 15
+        body.b = 12
+        body.a = 35
+
+        expected = (_translation(THREE_LIFT)
+                    @ _turn_about(C_AT, 15, (1, 0, 0), THREE_LIFT)
+                    @ _translation((0, 12, 0))
+                    @ _turn_about(SUB_A_AT, 35, (0, 0, 1), THREE_LIFT))
+        assert_allclose(_compose_world_matrix(body), expected, atol=1e-12)
+
+    def test_a_reversed_application_order_across_a_sweep_changes_nothing(self):
+        bench = OrderedBench()
+
+        bench.set_state(order=0, angle=35, offset=12)
+        first = serialized(bench.body)
+        first_matrix = _compose_world_matrix(bench.body)
+
+        bench.set_state(order=1, angle=35, offset=12)
+
+        self.assertEqual(serialized(bench.body), first)
+        assert_allclose(_compose_world_matrix(bench.body), first_matrix,
+                        rtol=0, atol=0)
+        self.assertEqual(len(motions(bench.body)), 4)
+
+    def test_two_animators_on_one_node_keep_the_declared_order(self):
+        outer = OuterPivot()
+        body = outer.inner.body
+
+        outer.render()
+        outer.inner.render()
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+        for operation in body.operations[:3]:
+            self.assertIs(operation._animator, outer)
+        self.assertIs(body.operations[3]._animator, outer.inner)
+
+        outer.render()
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 'r', 't', 't', 't'])
+        self.assertEqual(len(motions(body)), 4)
+        assert_allclose(_compose_world_matrix(body),
+                        _two_freedom_pose(35, 12), atol=1e-12)
+
+    def test_a_three_operation_joint_is_one_unbroken_run_at_its_slot(self):
+        bench = ContiguityBench()
+        bench.render()
+        body = bench.body
+
+        self.assertEqual([operation[0] for operation in serialized(body)],
+                         ['t', 't', 'r', 't', 't', 'r', 't', 'r', 't'])
+        run = body.__dict__['_joint_motion']['swing']
+        self.assertEqual(len(run), 3)
+        index = body.operations.index(run[0])
+        self.assertEqual(index, 1)
+        self.assertEqual(body.operations[index:index + 3], run)
+        self.assertEqual(body.operations[index + 1].serialized[1], '35')
+
+    def test_hand_written_motion_sits_outside_the_whole_joint_block(self):
+        bench = BothSidesBench()
+
+        bench.set_state(angle=25)
+
+        operations = bench.hinge.operations
+        self.assertEqual([operation.serialized[0] for operation
+                          in operations],
+                         ['t', 'r', 't', 'r', 't', 't'])
+        self.assertEqual(operations[1].serialized[1], '25')
+        self.assertEqual(operations[3].serialized[1], '10')
+        self.assertEqual(numbers(operations[4].serialized), [0.0, 3.0, 0.0])
+        self.assertFalse(getattr(operations[5], '_motion', False))
+
+    def test_the_published_document_reads_innermost_first(self):
+        bench = BothSidesBench()
+        bench.set_state(angle=25)
+
+        document = serialize_node(bench, lambda rigid: rigid.name)
+        hinge = document['children'][0]
+
+        self.assertEqual([operation[0] for operation
+                          in hinge['operations']],
+                         ['t', 'r', 't', 'r', 't', 't'])
+        self.assertEqual(hinge['operations'][1][1], '25')
+        self.assertEqual(hinge['operations'][3][1], '10')
+        keys = set(document)
+        for child in document.get('children', ()):
+            keys.update(child)
+        self.assertLessEqual(
+            keys, {'name', 'type', 'color', 'mtime', 'operations', 'model',
+                   'children', 'flexible', 'piece'})
+
 
 
 ##############################################

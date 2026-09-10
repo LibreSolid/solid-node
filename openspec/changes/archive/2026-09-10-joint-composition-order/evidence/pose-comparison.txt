@@ -1,0 +1,329 @@
+=== Robotic-Arms/open_manipulator simulation.open_manipulator_x:OpenManipulatorX
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 15 poses, 43 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_open_manipulator_simulation_open_manipulator_x_OpenManipulatorX.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 15 poses, 43 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_open_manipulator_simulation_open_manipulator_x_OpenManipulatorX.after.json
+-- COMPARE
+max deviation 0.000e+00 over 15 poses
+compare exit 0
+=== Lab-Equipment/poseidon simulation.pump:PoseidonPump
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 7 poses, 14 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_pump_PoseidonPump.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 7 poses, 14 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_pump_PoseidonPump.after.json
+-- COMPARE
+max deviation 0.000e+00 over 7 poses
+compare exit 0
+=== Lab-Equipment/poseidon simulation.microscope:PoseidonMicroscope
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 7 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_microscope_PoseidonMicroscope.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 7 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_microscope_PoseidonMicroscope.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Lab-Equipment/poseidon simulation.poseidon:PoseidonSystem
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 49 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_poseidon_PoseidonSystem.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 49 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_poseidon_simulation_poseidon_PoseidonSystem.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== Actuators/OpenTorque-Actuator simulation.actuator:OpenTorqueActuator
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 7 poses, 23 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_actuator_OpenTorqueActuator.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 7 poses, 23 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_actuator_OpenTorqueActuator.after.json
+-- COMPARE
+max deviation 0.000e+00 over 7 poses
+compare exit 0
+=== Actuators/OpenTorque-Actuator simulation.actuator:ActuatorPosePreview
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 7 poses, 23 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_actuator_ActuatorPosePreview.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 7 poses, 23 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_actuator_ActuatorPosePreview.after.json
+-- COMPARE
+max deviation 0.000e+00 over 7 poses
+compare exit 0
+=== Actuators/OpenTorque-Actuator simulation.output_stack:OutputStackPreview
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_output_stack_OutputStackPreview.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_output_stack_OutputStackPreview.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Actuators/OpenTorque-Actuator simulation.reducer:ReducerPreview
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 7 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_reducer_ReducerPreview.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 7 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_reducer_ReducerPreview.after.json
+-- COMPARE
+max deviation 0.000e+00 over 7 poses
+compare exit 0
+=== Actuators/OpenTorque-Actuator simulation.reducer:ReducerPosePreview
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_reducer_ReducerPosePreview.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 10 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_OpenTorque-Actuator_simulation_reducer_ReducerPosePreview.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Robotic-Arms/BCN3D-Moveo simulation.moveo:Moveo
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 17 poses, 8 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_BCN3D-Moveo_simulation_moveo_Moveo.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 17 poses, 8 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_BCN3D-Moveo_simulation_moveo_Moveo.after.json
+-- COMPARE
+max deviation 0.000e+00 over 17 poses
+compare exit 0
+=== Robotic-Arms/openarm simulation.openarm:OpenArm
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 21 poses, 21 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_openarm_OpenArm.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 21 poses, 21 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_openarm_OpenArm.after.json
+-- COMPARE
+max deviation 0.000e+00 over 21 poses
+compare exit 0
+=== Robotic-Arms/openarm simulation.arm:ArmsAtRest
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 20 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_arm_ArmsAtRest.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 20 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_arm_ArmsAtRest.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Robotic-Arms/openarm simulation.gripper:GrippersAtThirtyDegrees
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 6 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_gripper_GrippersAtThirtyDegrees.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 6 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Arms_openarm_simulation_gripper_GrippersAtThirtyDegrees.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Robotic-Hands/HACKberry simulation.hackberry:Hackberry
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 17 poses, 58 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Hands_HACKberry_simulation_hackberry_Hackberry.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 17 poses, 58 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robotic-Hands_HACKberry_simulation_hackberry_Hackberry.after.json
+-- COMPARE
+max deviation 0.000e+00 over 17 poses
+compare exit 0
+=== Robots/openvmp simulation.don1.robot:Don1
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 53 poses, 499 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_openvmp_simulation_don1_robot_Don1.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 53 poses, 499 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_openvmp_simulation_don1_robot_Don1.after.json
+-- COMPARE
+max deviation 0.000e+00 over 53 poses
+compare exit 0
+=== Vibecoded-demos/pascaline pascaline.pascaline:Pascaline
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 27 poses, 35 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Vibecoded-demos_pascaline_pascaline_pascaline_Pascaline.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 27 poses, 35 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Vibecoded-demos_pascaline_pascaline_pascaline_Pascaline.after.json
+-- COMPARE
+max deviation 0.000e+00 over 27 poses
+compare exit 0
+=== Vibecoded-demos/pascaline pascaline.digit:Digit
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+BEFORE FAILED Vibecoded-demos/pascaline pascaline.digit:Digit
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+AFTER FAILED Vibecoded-demos/pascaline pascaline.digit:Digit
+-- COMPARE
+compare exit 1
+=== 3D-Printers/hangprinter simulation.hangprinter:Hangprinter
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 149 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_hangprinter_simulation_hangprinter_Hangprinter.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 149 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_hangprinter_simulation_hangprinter_Hangprinter.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== 3D-Printers/hangprinter simulation.winch:WinchABC
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 12 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_hangprinter_simulation_winch_WinchABC.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 12 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_hangprinter_simulation_winch_WinchABC.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Robots/AlbertPro simulation.albert:Albert
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 13 poses, 66 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_albert_Albert.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 13 poses, 66 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_albert_Albert.after.json
+-- COMPARE
+max deviation 0.000e+00 over 13 poses
+compare exit 0
+=== Robots/AlbertPro simulation.leg:LegBench
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 9 poses, 4 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_leg_LegBench.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 9 poses, 4 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_leg_LegBench.after.json
+-- COMPARE
+max deviation 0.000e+00 over 9 poses
+compare exit 0
+=== Robots/AlbertPro simulation.trunk:Trunk
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 2 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_trunk_Trunk.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 2 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Robots_AlbertPro_simulation_trunk_Trunk.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== 3D-Printers/snappy-reprap simulation.snappy_reprap:SnappyReprap
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 170 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_snappy-reprap_simulation_snappy_reprap_SnappyReprap.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 170 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_snappy-reprap_simulation_snappy_reprap_SnappyReprap.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== 3D-Printers/Prusa3-vanilla simulation.prusa_i3:PrusaI3
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 13 poses, 216 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_prusa_i3_PrusaI3.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 13 poses, 216 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_prusa_i3_PrusaI3.after.json
+-- COMPARE
+max deviation 0.000e+00 over 13 poses
+compare exit 0
+=== 3D-Printers/Prusa3-vanilla simulation.xaxis:XAxis
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 56 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_xaxis_XAxis.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 56 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_xaxis_XAxis.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== 3D-Printers/Prusa3-vanilla simulation.yaxis:YAxis
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 50 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_yaxis_YAxis.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 50 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_yaxis_YAxis.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== 3D-Printers/Prusa3-vanilla simulation.extruder:Extruder
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 26 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_extruder_Extruder.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 26 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_extruder_Extruder.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== 3D-Printers/Prusa3-vanilla simulation.frame:Frame
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 91 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_frame_Frame.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 91 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Prusa3-vanilla_simulation_frame_Frame.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Lab-Equipment/openflexure-microscope simulation.microscope.microscope:Microscope
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 113 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_openflexure-microscope_simulation_microscope_microscope_Microscope.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 113 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_openflexure-microscope_simulation_microscope_microscope_Microscope.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== 3D-Printers/Metamaquina2 metamaquina2.metamaquina2:Metamaquina2
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 452 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Metamaquina2_metamaquina2_metamaquina2_Metamaquina2.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 452 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/3D-Printers_Metamaquina2_metamaquina2_metamaquina2_Metamaquina2.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== Lab-Equipment/science-jubilee simulation.jubilee:Jubilee
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 11 poses, 35 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_science-jubilee_simulation_jubilee_Jubilee.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 11 poses, 35 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_science-jubilee_simulation_jubilee_Jubilee.after.json
+-- COMPARE
+max deviation 0.000e+00 over 11 poses
+compare exit 0
+=== Lab-Equipment/science-jubilee simulation.sonicator.assembly:Sonicator
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 4 poses, 22 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_science-jubilee_simulation_sonicator_assembly_Sonicator.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 4 poses, 22 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Lab-Equipment_science-jubilee_simulation_sonicator_assembly_Sonicator.after.json
+-- COMPARE
+max deviation 0.000e+00 over 4 poses
+compare exit 0
+=== Actuators/open_robot_actuator_hardware simulation.actuator:ActuatorModuleV1
+-- BEFORE
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/solid_node/__init__.py
+captured 7 poses, 19 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_open_robot_actuator_hardware_simulation_actuator_ActuatorModuleV1.before.json
+-- AFTER
+solid_node.__file__: /home/asa/devel/libresolid-studio/solid-node/WTs/composed-joints/solid_node/__init__.py
+captured 7 poses, 19 leaves -> /tmp/claude-1000/-home-asa-devel-libresolid-studio/51062ef7-4e6c-4bbf-8b75-db00d7533d96/scratchpad/poses/Actuators_open_robot_actuator_hardware_simulation_actuator_ActuatorModuleV1.after.json
+-- COMPARE
+max deviation 0.000e+00 over 7 poses
+compare exit 0

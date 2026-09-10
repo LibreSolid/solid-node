@@ -1,0 +1,51 @@
+--- Robotic-Arms/open_manipulator simulation.open_manipulator_x:OpenManipulatorX
+CLEAN simulation.open_manipulator_x:OpenManipulatorX
+--- Lab-Equipment/poseidon simulation.poseidon:PoseidonSystem
+CLEAN simulation.poseidon:PoseidonSystem
+--- Actuators/OpenTorque-Actuator simulation.actuator:OpenTorqueActuator
+CLEAN simulation.actuator:OpenTorqueActuator
+--- Robotic-Arms/BCN3D-Moveo simulation.moveo:Moveo
+CLEAN simulation.moveo:Moveo
+--- Robotic-Arms/openarm simulation.openarm:OpenArm
+CLEAN simulation.openarm:OpenArm
+--- Robotic-Hands/HACKberry simulation.hackberry:Hackberry
+CLEAN simulation.hackberry:Hackberry
+--- Robots/openvmp simulation.don1.robot:Don1
+CLEAN simulation.don1.robot:Don1
+--- Vibecoded-demos/pascaline pascaline.pascaline:Pascaline
+CLEAN pascaline.pascaline:Pascaline
+--- 3D-Printers/hangprinter simulation.hangprinter:Hangprinter
+CLEAN simulation.hangprinter:Hangprinter
+--- Robots/AlbertPro simulation.albert:Albert
+CLEAN simulation.albert:Albert
+--- 3D-Printers/snappy-reprap simulation.snappy_reprap:SnappyReprap
+CLEAN simulation.snappy_reprap:SnappyReprap
+--- 3D-Printers/Prusa3-vanilla simulation.prusa_i3:PrusaI3
+CLEAN simulation.prusa_i3:PrusaI3
+--- Lab-Equipment/openflexure-microscope simulation.microscope.microscope:Microscope
+CLEAN simulation.microscope.microscope:Microscope
+--- 3D-Printers/Metamaquina2 metamaquina2.metamaquina2:Metamaquina2
+CLEAN metamaquina2.metamaquina2:Metamaquina2
+--- Lab-Equipment/science-jubilee simulation.jubilee:Jubilee
+CLEAN simulation.jubilee:Jubilee
+--- Actuators/open_robot_actuator_hardware simulation.actuator:ActuatorModuleV1
+CLEAN simulation.actuator:ActuatorModuleV1
+--- Actuators/OpenCycloid simulation.actuator:OpenCycloid
+CLEAN simulation.actuator:OpenCycloid
+--- Robots/hexapod_spiderbot_model simulation.spiderbot:Spiderbot
+CLEAN simulation.spiderbot:Spiderbot
+--- Vibecoded-demos/abacus abacus.abacus:Abacus
+CLEAN abacus.abacus:Abacus
+--- Robots/YouCanBuildDog simulation.dog:Dog
+CLEAN simulation.dog:Dog
+--- 3D-Printers/fender-bender simulation.fender_bender:FenderBender
+CLEAN simulation.fender_bender:FenderBender
+--- Actuators/Internal-Cycloidal-Actuator simulation.actuator.machine:Actuator
+CLEAN simulation.actuator.machine:Actuator
+--- 3D-Printers/kossel simulation.kossel:Kossel
+CLEAN simulation.kossel:Kossel
+--- Robotic-Hands/Inmoov-sim Inmoov_sim.forearm:Forearm
+CLEAN Inmoov_sim.forearm:Forearm
+--- Vibecoded-demos/v8-engine v8_engine.v8_engine:Engine
+CLEAN v8_engine.v8_engine:Engine
+LEGACYDONE

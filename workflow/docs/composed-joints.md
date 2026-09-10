@@ -156,6 +156,15 @@ alongside `Revolute` and `Prismatic`.
 
 ## 4. Cycle 1 — `joint-composition-order`
 
+> **Taken up, 2026-09-10.** This section has been cut into the OpenSpec
+> change `joint-composition-order`, which is now the AUTHORITY for
+> everything below: its `proposal.md`, `design.md`, `tasks.md` and the
+> delta on `openspec/specs/joints/spec.md`, with ADR-093 recording the
+> decision. Where this section and those artifacts disagree, they are
+> right and this section is the older draft they were cut from. §5
+> (`orbit-joint`) and §6 (`free-joint`) remain provisional: nothing has
+> been proposed for either.
+
 ### 4.1 The rule, in one sentence
 
 A node's motion composes innermost-first as **the operations of its

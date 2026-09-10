@@ -502,14 +502,28 @@ snaps the inversion's residue to exact 0/1/−1, and applies ordinary
 `rotate(value, axis)`, `translate(anchor)` for a revolute, the two
 centring translations omitted when the line runs through the placed
 origin, and one `translate(value * axis)` for a prismatic. They are
-always placed as motion, whatever phase is current (`apply_motion` in
-`node/base.py`, the joint's own seam, because `_place_operation`
+always placed as motion, whatever phase is current (`apply_joint_motion`
+in `node/base.py`, the joint's own seam, because `_place_operation`
 appends outside a phase and a carried line must stay innermost);
 under a `simulate()` phase they are tagged and swept like any motion.
 A rest placement that is not numeric is refused by name rather than
-placing the body about a wrong line, a numeric binding outside the
-declared range raises `JointRangeError`, and hand-written motion and
-joint motion coexist on one node — nothing is deprecated.
+placing the body about a wrong line, and a numeric binding outside the
+declared range raises `JointRangeError`.
+
+Several joints on one body compose in **declaration order**, innermost
+first (ADR-093): the first joint `declared_joints()` reports is applied
+closest to the body and the last is outermost, whatever order their
+coordinates were bound in — by hand, by a wiring, or by relations a
+solver reached in an order the class body does not show — so a class
+read top to bottom reads a machine from the body outward. Each joint's
+operations are one contiguous run at its own slot, which is what makes
+re-binding one joint of several, a sweep and re-bind, and two
+assemblies animating different joints of one node all leave the
+composition alone. A node's motion block therefore has two parts:
+the joint block by declaration slot, then hand-written motion in call
+order OUTSIDE it (`_insert_motion`, unchanged, is the hand-written
+path). Hand-written motion and joint motion still coexist on one node —
+nothing is deprecated.
 
 **A relation** (spec `couplings`) says that one coordinate's motion IS
 another's: `a.drives(b, ratio=…, offset=…, law=…)`, written as a

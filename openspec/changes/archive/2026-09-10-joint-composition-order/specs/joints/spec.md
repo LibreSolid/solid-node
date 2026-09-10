@@ -237,7 +237,7 @@ joint and that operation, rather than placing the body wrongly.
 - **THEN** the child carries exactly one joint motion each time, for
   that instant, with nothing accumulated
 
-#### Scenario: Hand-written motion composes outside the joint block
+#### Scenario: Hand-written motion and joint motion coexist
 
 - **WHEN** an assembly's `simulate()` rotates a child by hand, then
   binds that child's joint, then translates the same child by hand again

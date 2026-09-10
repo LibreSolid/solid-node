@@ -261,6 +261,34 @@ at bind time. Nothing here is deprecated: a project that turns its parts
 by hand in `simulate()` keeps working, and both forms may sit on one
 node.
 
+**A body may have more than one freedom, and the class says how they
+stack.** The joints declared on one class compose in **declaration
+order**, innermost first: the first declared is applied closest to the
+body, the last declared is outermost, whatever order their coordinates
+happen to be bound in — by hand, by a wiring, or by relations solved in
+an order the class body does not show. So a class read from top to
+bottom reads the machine from the body outward::
+
+    class Chassis(AssemblyNode):
+        roll  = Revolute(axis=(1, 0, 0), unit='deg')   # innermost
+        pitch = Revolute(axis=(0, 1, 0), unit='deg')
+        yaw   = Revolute(axis=(0, 0, 1), unit='deg')
+        lift  = Prismatic(axis=(0, 0, 1), unit='mm')   # outermost
+
+Base-class joints come before a subclass's, and a subclass redeclaring
+an inherited joint keeps the position the base gave it. If a body's
+freedoms stack the wrong way round, reorder the declarations — there is
+no ordering keyword, because the declarations already are the order.
+Each joint's axis and anchor are carried through the node's **rest**
+placement only, never through a sibling joint's motion, so every joint's
+line is the line the parent's frame stated whatever the body's other
+freedoms are doing.
+
+Hand-written motion on the same node composes **outside the whole joint
+block**, keeping its call order among itself: the joints first,
+innermost, then every `rotate()`/`translate()` the `simulate()` applied,
+then the node's rest placement.
+
 Passing a coordinate down
 -------------------------
 

@@ -255,15 +255,39 @@ unbroken run — so the guarantee is measured rather than asserted.
   survives both `_sweep` and `Joint.clear` — the path `Joint.clear`'s
   docstring names, the test runner's checkpoint restore resurrecting an
   old object — the `<= slot` rule places the new run after it, leaving
-  the stale one innermost. `<` and `<=` differ only in this case. Open;
-  a test that restores a checkpoint between two bindings of one joint
-  would settle it.
+  the stale one innermost. `<` and `<=` differ only in this case.
+
+  **Settled during implementation (task 6.1); `<=` kept.** Two probes
+  restoring a node's operations list between two bindings of one joint,
+  exactly as `manager/test.py::restore_children_checkpoints` does. On the
+  runner's own path — a joint bound under a simulate phase — the
+  resurrected operations are still tagged with the animating assembly,
+  so `_sweep` drops them by animator identity even though `Joint.clear`
+  misses them by object identity, and no survivor is reachable: `<` and
+  `<=` cannot be distinguished there. A survivor IS constructible for a
+  joint bound OUTSIDE any lifecycle phase, where the operations are
+  untagged and no sweep touches them; the node then carries two runs of
+  one joint and its pose is wrong under both rules, `<` merely putting
+  the fresh run innermost of the stale one instead of outermost. `<=` is
+  kept because it preserves the pre-cycle relative order (`_insert_motion`
+  appended the fresh run after the stale one) and keeps a slot's
+  operations adjacent. No ratified behaviour changes and the spec delta
+  is unaffected. Evidence: `evidence.md` §6.1.
 - **A legacy render inside a joint's frame.** A `render()` that read a
   driver re-runs per binding and appends tagged but NON-motion
   operations, which `Joint._carry` composes into the rest placement it
   inverts — so such a node's carried axis moves with the binding. This
   predates the cycle and the cycle does not change it, but it is a
   latent hazard worth naming.
+
+  **Measured during implementation (task 6.2): no sighting.** All
+  twenty-five catalogue projects — the sixteen migrated and the nine
+  deferred — were constructed, driven at their defaults and walked with
+  `render()` under `warnings.simplefilter('always')`, and none emitted
+  the legacy-render `FutureWarning` at all, so none emits it on a node
+  that declares a joint; the 66 pose-capture runs emitted zero as well.
+  The hazard stays latent and named here, with no new finding for
+  `workflow/warts.md`. Evidence: `evidence.md` §6.2.
 - **`declared_joints`'s order becomes load-bearing.** A future
   refactor of the enumerator that changed its walk (e.g. sorting names)
   would now silently change geometry. Task 1.5 asserts the enumerator's

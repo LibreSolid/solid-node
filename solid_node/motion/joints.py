@@ -26,6 +26,26 @@ into the node's own frame by inverting the node's rest placement, which
 is exactly the arithmetic a project writes by hand today, and then
 places the body about the carried line.
 
+A body may declare more than one freedom, and the ORDER they are
+declared in is the order they compose in: the first declared is applied
+closest to the body, the last declared is outermost, whatever order
+their coordinates are bound in -- by hand, by a wiring, by a relation,
+or by several relations a solver reached in an order the class body does
+not show. A class read from top to bottom therefore reads a machine from
+the body outward::
+
+    class Chassis(AssemblyNode):
+        roll  = Revolute(axis=(1, 0, 0), unit='deg')   # innermost
+        pitch = Revolute(axis=(0, 1, 0), unit='deg')
+        yaw   = Revolute(axis=(0, 0, 1), unit='deg')
+        lift  = Prismatic(axis=(0, 0, 1), unit='mm')   # outermost
+
+`declared_joints` is that order, and the whole of it: base classes
+before the subclass, written order within a class body, a redeclared
+joint keeping the position its base gave it. Hand-written motion on the
+same node composes OUTSIDE the whole joint block, in call order among
+itself (ADR-093).
+
 A joint OWNS one coordinate, and that coordinate is a port: read on an
 instance a joint IS its bound port slot, and assigning to it binds
 through the one binding path `connect()` uses. It is not a `Port`
@@ -309,14 +329,25 @@ class Joint(Coordinate):
         a previous binding of this joint applied, and places the
         operations as motion -- innermost, before every rest operation,
         whatever lifecycle phase is current.
+
+        The whole placement goes in as ONE contiguous run at this
+        joint's own slot: its index in `declared_joints(type(node))`,
+        read straight off the per-class cache the enumerator already
+        keeps. That is what makes the composition the declaration order
+        of the class instead of the order the coordinates were bound in,
+        and it is why re-binding one joint of several returns it to its
+        own position rather than moving it outside its siblings.
         """
-        from solid_node.node.base import apply_motion
+        from solid_node.node.base import apply_joint_motion
 
         axis, anchor, _span = self.arguments(node)
         local_axis, local_anchor = self._carry(node, axis, anchor)
         self.clear(node)
-        applied = [apply_motion(node, operation) for operation
-                   in self.placement(node, value, local_axis, local_anchor)]
+        slot = list(declared_joints(type(node))).index(self.name)
+        applied = apply_joint_motion(
+            node,
+            list(self.placement(node, value, local_axis, local_anchor)),
+            slot)
         node.__dict__.setdefault('_joint_motion', {})[self.name] = applied
 
     def clear(self, node):
@@ -454,11 +485,25 @@ _declared_cache = {}
 
 
 def declared_joints(node_class):
-    """Every joint declared on `node_class`, by name.
+    """Every joint declared on `node_class`, by name, in DECLARATION
+    order -- which is the order they COMPOSE in: the first declared is
+    applied closest to the body and the last declared is outermost, so
+    a class body read from top to bottom reads a machine from the body
+    outward.
 
     Reads the class dictionaries directly, so nothing is instantiated:
-    a consumer can read a mechanism's freedoms off the class alone.
-    Walked base-first so a subclass redeclaring an inherited joint wins.
+    a consumer can read a mechanism's freedoms, and how they stack, off
+    the class alone.
+
+    The walk is base-first -- `reversed(node_class.__mro__)`, the MRO's
+    own linearization -- so a base class's joints come before the
+    subclass's, a class body's joints arrive in the order they were
+    written (PEP 520), and a subclass redeclaring an inherited joint
+    reuses its key and therefore KEEPS the base's position while taking
+    its own axis, anchor, range and unit. That is not an accident of the
+    implementation to be tidied later: this order is what the framework
+    composes by, so a refactor that changed the walk would change where
+    every machine's parts are.
     """
     cached = _declared_cache.get(node_class)
     if cached is None:

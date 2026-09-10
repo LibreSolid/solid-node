@@ -8,6 +8,54 @@ Changelog
 Unreleased
 ----------
 
+**The joints of one class compose in declaration order.** A body with
+more than one freedom used to compose them in the order their
+coordinates were BOUND — which, when relations bind them, is the
+couplings solver's pass order: a property of where the relations were
+written, not of the class carrying the joints. A reader of the class
+body could not see it, a derived coordinate could silently change it, a
+sweep and a re-bind could reverse it between two runs, and seven
+projects in the catalogue met it, six of them blocked outright. The
+joints declared on one class now compose in **declaration order**, the
+first declared innermost and the last outermost, whatever order they are
+bound in::
+
+    class Chassis(AssemblyNode):
+        roll  = Revolute(axis=(1, 0, 0), unit='deg')   # innermost
+        pitch = Revolute(axis=(0, 1, 0), unit='deg')
+        yaw   = Revolute(axis=(0, 0, 1), unit='deg')
+        lift  = Prismatic(axis=(0, 0, 1), unit='mm')   # outermost
+
+so a class read top to bottom reads a machine from the body outward.
+Base-class joints come before a subclass's, and a subclass redeclaring
+an inherited joint keeps the position the base gave it — which is what
+``declared_joints()`` already reported and is now the contract. Each
+joint's operations are one contiguous run at its own position, so
+re-binding one joint of several returns it to its place instead of
+moving it outside its siblings, a sweep and a re-bind compose the same
+way they did before, and two assemblies animating different joints of
+one node no longer decide the order between them by walk order. There is
+no ordering keyword: if a body's freedoms stack the wrong way round,
+reorder the declarations.
+
+**Hand-written motion now composes outside the whole joint block**,
+keeping its call order among itself — where before it interleaved with
+joint motion in the order it was applied. This is a visible behaviour
+change and the only part of this release no project asked for; it is
+what makes the joint block a contiguous, reorderable unit. It can only
+affect a node where a hand-written simulate-phase ``rotate``/
+``translate`` runs BEFORE that node's joint is bound. Measured across
+the sixteen migrated catalogue projects, every model, before and after,
+**maximum deviation 0.000e+00** — 32 models, 334 poses, 2 319 leaf world
+matrices, not a tolerance.
+
+Nothing else changes: no public name is added or removed, no ordering
+keyword exists, the document format, its keys and the viewer are
+untouched, and nothing is deprecated — a project that turns its parts by
+hand in ``simulate()`` keeps working, and both forms still sit on one
+node. (OpenSpec change ``joint-composition-order``; ADR-093, extending
+ADR-088.)
+
 **A face-box tier decides an enclosed exact pair without a boolean.** A
 whole-solid bound, in any frame, cannot separate a wheel running in the
 clearance gap between two plates from the plates it runs between: the
