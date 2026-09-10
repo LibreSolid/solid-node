@@ -22,7 +22,9 @@ from solid_node.node import AssemblyNode, Solid2Node
 from solid_node.motion.joints import Free, Revolute
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      SignalPort, TranslationalPort,
-                                     declared_ports)
+                                     declared_ports, get_coordinate,
+                                     set_coordinate)
+from solid_node.parameters import Length
 from solid_node.simulation import Driver
 
 from .base import BaseNodeTest
@@ -373,3 +375,76 @@ class MultiCoordinateWiringTest(BaseNodeTest):
         for expected in ('pose', 'Clash'):
             with self.subTest(expected=expected):
                 self.assertIn(expected, message)
+
+
+##############################################
+# get_coordinate: the reader beside set_coordinate (cycle: repeat-fan-out)
+
+class Instrument(Solid2Node):
+    """A declared parameter beside a multi-coordinate joint: the
+    parameter's name must not answer for a coordinate's."""
+
+    bore = Length(30.0, min=0)
+    pose = Free(angle_unit='deg', length_unit='mm')
+
+    def render(self):
+        return cube(2, center=True)
+
+
+class CoordinateReaderTest(BaseNodeTest):
+
+    def test_every_reported_name_reads_back(self):
+        instrument = Instrument()
+
+        for name in declared_ports(type(instrument)):
+            with self.subTest(name=name):
+                slot = get_coordinate(instrument, name)
+                self.assertIsInstance(slot, BoundPort)
+
+    def test_a_dotted_name_reads_back_what_it_was_bound_to(self):
+        instrument = Instrument()
+
+        set_coordinate(instrument, 'pose.roll', 12.0)
+
+        self.assertIs(get_coordinate(instrument, 'pose.roll'),
+                      instrument.pose.roll)
+        self.assertEqual(get_coordinate(instrument, 'pose.roll').value, 12.0)
+
+    def test_an_unbound_coordinate_reads_as_a_slot_with_no_value(self):
+        instrument = Instrument()
+
+        slot = get_coordinate(instrument, 'pose.x')
+
+        self.assertIsInstance(slot, BoundPort)
+        self.assertIsNone(slot.value)
+        self.assertIn('pose.x', declared_ports(type(instrument)))
+
+    def test_a_declared_parameters_name_is_refused(self):
+        instrument = Instrument()
+
+        with self.assertRaises(AttributeError) as raised:
+            get_coordinate(instrument, 'bore')
+
+        message = str(raised.exception)
+        self.assertIn('bore', message)
+        self.assertIn('pose.roll', message)
+
+    def test_a_coordinate_no_joint_owns_is_refused(self):
+        instrument = Instrument()
+
+        with self.assertRaises(AttributeError) as raised:
+            get_coordinate(instrument, 'pose.twist')
+
+        message = str(raised.exception)
+        self.assertIn('pose.twist', message)
+        self.assertIn('pose.roll', message)
+
+    def test_the_pair_round_trips_the_scaled_value(self):
+        gantry = Gantry()
+
+        for name in declared_ports(type(gantry)):
+            with self.subTest(name=name):
+                set_coordinate(gantry, name, 3.0)
+                port = declared_ports(type(gantry))[name]
+                expected = 3.0 * port.scale if port.scale else 3.0
+                self.assertEqual(get_coordinate(gantry, name).value, expected)

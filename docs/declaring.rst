@@ -288,8 +288,12 @@ declaration yields a **path reference** — ``anchor.turn``,
 a coordinate in the tree and is what a relation between two coordinates
 is written over (:doc:`Driving a machine <driving>`). Every segment is
 checked against the class the previous one names, so a misspelling is a
-class-definition error; a path through a repeated or list-held child is
-refused, because it names many coordinates and a relation has one end.
+class-definition error; a path through a **repeated** child names that
+coordinate of every copy — a *broadcast*, usable as the DRIVEN end of a
+relation and refused as its source (:doc:`Driving a machine
+<driving>`) — while a path through a **list-held** child stays refused,
+because its children carry their own arguments and are named one by
+one.
 
 A child's class need not itself be declarative. A legacy class with an
 ordinary ``__init__`` is realized by calling that constructor with the
@@ -333,11 +337,21 @@ Identical units use ``repeat(count)``:
 
 ``repeat`` means *identical parts*: one geometry, one build identity,
 one cached artifact, ``count`` placements — a quantity line on a bill of
-materials. Per-unit variation never lives in the declaration. Placement
-variation is ``enumerate`` plus constants in ``render()``; drive
-variation is port feeding (``unit.crank = angle + THROW_PHASES[pin]``).
-Children that differ geometrically are different parts: declare them
-individually or in a literal list.
+materials. Per-unit variation never lives in the declaration.
+Placement variation is ``enumerate`` plus constants in ``render()``;
+drive variation is a **broadcast relation** — one relation, written
+once, whose driven end reaches through the repeat — with a per-copy
+``law=`` for a per-copy sign, phase or rank, or plain port feeding for a
+uniform one (``unit.crank = angle + phase``). Children that differ
+geometrically are different parts: declare them individually or in a
+literal list.
+
+Every copy a repeat realizes carries its own 0-based position, readable
+as ``index`` — ``units-3`` reads ``index == 3`` — for a ``law=`` to read
+(:doc:`Driving a machine <driving>`). It is a plain attribute, not a
+declared parameter: it never enters the part's identity or its cached
+artifact, and a repeated class that already answers to ``index`` on its
+own is refused where the repeat is written.
 
 Two things to know about lists:
 

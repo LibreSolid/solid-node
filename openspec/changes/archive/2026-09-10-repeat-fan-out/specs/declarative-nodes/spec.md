@@ -182,6 +182,15 @@ its class's one joint.
 - **THEN** class definition raises naming the list-held declaration and
   saying its children carry their own arguments and are named one by one
 
+#### Scenario: A path through a repeated child is refused
+
+- **WHEN** a class declaring `units = Unit().repeat(count)` reads
+  `units.turn` and names it as the SOURCE of a relation, or reads on
+  through a second repeated declaration
+- **THEN** class definition raises naming the repeated declaration and
+  the path as written: a relation's source is one value while the copies
+  hold one each, and a broadcast fans out over one repeat
+
 #### Scenario: A path through a repeated child names every copy
 
 - **WHEN** a class declaring `units = Unit().repeat(count)` reads

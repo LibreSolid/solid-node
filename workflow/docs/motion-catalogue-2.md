@@ -31,7 +31,7 @@ Deferred projects and their stage-B proposals:
 
 | Finding | Sightings | Cycle |
 |---|---|---|
-| A relation cannot fan out over a `.repeat()` child | OpenCycloid (4 bearings, 6 pins, per-copy sign/phase), abacus (4 earth beads, law reads rank), OpenFlexure (identity: 3 nuts, lock screws), fender-bender (5 channels), InMoov (`Hand.simulate()`'s ten `connect()`s), V8 (8 units, per-unit phase) | 1 |
+| A relation cannot fan out over a `.repeat()` child | OpenCycloid (4 bearings, 6 pins, per-copy sign/phase), abacus (4 earth beads, law reads rank), OpenFlexure (identity: 3 nuts, lock screws), fender-bender (5 channels), InMoov (`Hand.simulate()`'s ten `connect()`s), V8 (8 units, per-unit phase) | 1 (InMoov's ten `connect()`s: 1+5, a per-copy SOURCE) |
 | A dotted coordinate name is written but not read by name | hexapod (`capture_poses.py`) | 1 |
 | A joint's `at` cannot mean the body's own placed origin | Thor (13 catalogue parts), V8 (4 timing gears), Poseidon, OMX, hexapod (`Femur.lift`, `Tibia.knee` restate the parent's translate), Pascaline (`Pawl.swing`), fender-bender | 2 |
 | A joint belongs to the declaration site as often as to the class | Poseidon (`ThreadedRod`), OMX (`VisualPack`, two three-line subclasses), Prusa i3 (`±17` by the parent's flag), OpenVMP (two `Link` subclasses, `CameraArm` sign = parent's handedness × own; 82 data-built parts), InMoov (wrist group under a conditional `present()`) | 3 |

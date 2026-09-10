@@ -507,6 +507,48 @@ mechanism shapes, and no vocabulary of gears. A returned object needs a
 ``forward(x)``, and an ``inverse(y)`` if the relation may ever be read
 backwards; a plain function is taken as forward-only.
 
+A relation over a repeated child
+---------------------------------
+
+A relation whose DRIVEN end reaches through a ``.repeat()``\ ed child is
+a **broadcast**: one relation, written once, resolving to one relation
+per realized copy. An abacus column used to bind its four beads by
+hand::
+
+    def simulate(self):
+        for index, bead in enumerate(self.earth_beads):
+            bead.travel = earth_lift(self.earth.value, index, self.stroke)
+
+One relation, with a per-copy ``law=``, replaces the loop::
+
+    earth.drives(earth_beads.travel, law=earth_lift)
+
+    def earth_lift(column, bead):
+        rank = bead.index          # the copy's own 0-based position
+        return lambda level: clamp(level, rank) * column.stroke
+
+``law=`` is called once per **copy**, at realization, with the copy as
+its second argument, instead of once per instance — the copy's own
+``index`` is what a per-copy sign, phase or rank reads, with no change
+to the callable's two-argument signature and nothing new for the
+framework to inspect. ``ratio=``/``offset=`` still work, resolved once
+against the declaring instance and shared, as the same ``Affine``, by
+every copy: a ratio names a value of the declaring class and has no way
+to see a copy.
+
+Every copy a repeat realizes carries its own ``index``, a plain 0-based
+attribute — not a declared parameter, and no part of the part's
+identity or its cached artifact.
+
+A repeated end is a driven end only. Named as the SOURCE —
+``beads.travel.drives(x)``, ``beads.drives(x)``, or reached through a
+path one level down — it is refused at class definition, naming the
+path as written, the repeated declaration and its class: a relation's
+source is one value, and the copies hold one each. Bound already, a
+broadcast is never read backwards, whatever its law offers: the n
+copies would have to agree on one source value, and the framework does
+not compare values to decide that.
+
 Derived coordinates
 -------------------
 

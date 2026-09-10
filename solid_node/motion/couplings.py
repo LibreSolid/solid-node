@@ -447,7 +447,7 @@ class PathRef(CoordinateRef):
     def __getattr__(self, attribute):
         if attribute.startswith('_'):
             raise AttributeError(attribute)
-        from solid_node.node.declarative import ChildDeclaration
+        from solid_node.node.declarative import ChildDeclaration, RepeatDeclaration
 
         owned = _coordinates_of(self.terminal)
         if owned is not None:
@@ -466,6 +466,12 @@ class PathRef(CoordinateRef):
                 f"parts.")
         found = read_through(self.terminal.node_class, attribute,
                              f'{self.written}.{attribute}')
+        if isinstance(found, RepeatDeclaration):
+            # The FIRST repeat this path steps onto: a broadcast from
+            # here on, not a refusal (ADR-095's own relaxation, extended
+            # to a repeated segment).
+            return BroadcastRef(self.root, self.segments + (attribute,),
+                               found, found)
         return PathRef(self.root, self.segments + (attribute,), found)
 
     def resolve(self, instance):
@@ -509,6 +515,120 @@ class PathRef(CoordinateRef):
 
     def __repr__(self):
         return f'<path {self.written}>'
+
+
+class BroadcastRef(PathRef):
+    """A path that passes through ONE repeated child declaration: the
+    same coordinate of every copy the repeat realizes, in copy order.
+
+    Shares `PathRef`'s shape -- `(root, segments, terminal)` -- and most
+    of its behaviour: class definition validates a `BroadcastRef`
+    exactly as a `PathRef`, because the CLASSES are all known there and
+    the repeat changes only how many REALIZED instances the path lands
+    on. `repeat` is the `RepeatDeclaration` this path passes through,
+    kept for the messages that name it (the source refusal, the
+    two-repeat refusal) -- not the position `design.md` describes in the
+    abstract, which this carries as the object itself.
+    """
+
+    def __init__(self, root, segments, terminal, repeat):
+        super().__init__(root, segments, terminal)
+        self.repeat = repeat
+
+    def key(self):
+        return ('broadcast', id(self.root), self.segments)
+
+    def check(self, role):
+        if role == 'driver':
+            raise TypeError(
+                f"'{self.written}' passes through the repeated declaration "
+                f"'{self.repeat._name}' of {self.repeat.node_class.__name__} "
+                f"(count={self.repeat.count!r}), so it cannot be the SOURCE "
+                f"of a relation: a relation's source is one value, and the "
+                f"copies hold one each. Bind the source from a coordinate "
+                f"the parent holds, or state the relation inside "
+                f"{self.repeat.node_class.__name__}.")
+        super().check(role)
+
+    def terms(self):
+        raise TypeError(
+            f"'{self.written}' passes through the repeated declaration "
+            f"'{self.repeat._name}' of {self.repeat.node_class.__name__}, so "
+            f"it cannot be a term of a derived coordinate: a formula has "
+            f"one value per term, and the copies hold one each. Write the "
+            f"relation with law=.")
+
+    def __getattr__(self, attribute):
+        if attribute.startswith('_'):
+            raise AttributeError(attribute)
+        from solid_node.node.declarative import ChildDeclaration, RepeatDeclaration
+
+        owned = _coordinates_of(self.terminal)
+        if owned is not None:
+            found = owned.get(f'{self.terminal.name}.{attribute}')
+            if found is None:
+                raise _refuse_several_coordinates(
+                    self.terminal, self.written,
+                    f", and no coordinate of it is called '{attribute}'")
+            return BroadcastRef(self.root, self.segments + (attribute,),
+                               found, self.repeat)
+        if not isinstance(self.terminal, (ChildDeclaration, RepeatDeclaration)):
+            raise TypeError(
+                f"cannot read '{attribute}' through {self.written}: that "
+                f"path already names a coordinate, and a coordinate has no "
+                f"parts.")
+        node_class = self.terminal.node_class
+        found = read_through(node_class, attribute,
+                             f'{self.written}.{attribute}')
+        if isinstance(found, RepeatDeclaration):
+            raise TypeError(
+                f"'{self.written}.{attribute}' passes through TWO repeated "
+                f"declarations -- '{self.repeat._name}' of "
+                f"{self.repeat.node_class.__name__} and '{found._name}' of "
+                f"{found.node_class.__name__} -- and a broadcast fans out "
+                f"over ONE repeat. State the relation inside the more "
+                f"deeply repeated class instead.")
+        return BroadcastRef(self.root, self.segments + (attribute,), found,
+                           self.repeat)
+
+    def resolve_all(self, instance):
+        """A `ResolvedEnd` per realized copy, in copy order -- empty for
+        a repeat that realized none."""
+        declared = self.declaration()
+        return [ResolvedEnd(node, declared, self)
+                for node in self._walk_copies(instance)]
+
+    def _walk_copies(self, instance):
+        segments = list(self.segments)
+        coordinate = _coordinate_of(self.terminal)
+        if segments and coordinate is not None:
+            del segments[-(str(coordinate.name).count('.') + 1):]
+        nodes = [instance]
+        for attribute in [self.root._name] + segments:
+            expanded = []
+            for node in nodes:
+                found = self._raw_step(node, attribute)
+                if isinstance(found, (list, tuple)):
+                    # The repeated segment: one node becomes n.
+                    expanded.extend(found)
+                else:
+                    expanded.append(found)
+            nodes = expanded
+        return nodes
+
+    def _raw_step(self, node, attribute):
+        try:
+            return getattr(node, attribute)
+        except AttributeError as failure:
+            raise CouplingError(
+                f"{type(node).__name__} '{getattr(node, 'name', node)}' has "
+                f"no realized '{attribute}', so the path {self.written} "
+                f"does not resolve on this instance ({failure}). A path is "
+                f"resolved against the children the instance actually "
+                f"realized.") from None
+
+    def __repr__(self):
+        return f'<broadcast {self.written}>'
 
 
 def _the_one_joint(declaration, written):
@@ -562,12 +682,21 @@ def read_through(node_class, attribute, written):
             return found
         if isinstance(found, ChildDeclaration):
             return found
-        if isinstance(found, RepeatDeclaration) or _is_declaration_list(found):
+        if isinstance(found, RepeatDeclaration):
+            # A repeated child is a PLACE too, exactly like a plain one:
+            # the coordinate it names is the same one of every copy,
+            # which is what makes the path a BROADCAST. The caller (a
+            # `PathRef`/`BroadcastRef` step, or a bare read off the
+            # repeat) is what turns this into one.
+            return found
+        if _is_declaration_list(found):
             raise TypeError(
-                f"'{written}' reaches a repeated declaration: "
-                f"'{attribute}' of {node_class.__name__} names many "
-                f"coordinates, and a relation has one end. State the "
-                f"relation inside the repeated class instead.")
+                f"'{written}' reaches a list-held child: {node_class.__name__}."
+                f"{attribute} holds {len(found)} children, each with its "
+                f"own arguments -- named '{attribute}-0', '{attribute}-1', "
+                f"and so on -- and a relation names ONE of them, not the "
+                f"list. They are named one by one; a relation cannot reach "
+                f"all of them through this path.")
         if isinstance(found, DriverDeclaration):
             raise SidewaysReadError(
                 f"cannot read the driver '{attribute}' off the "
@@ -884,9 +1013,14 @@ class Relation:
         return self.record_of(instance)
 
     def record_of(self, instance):
-        for record in instance.__dict__.get('_relations', ()):
-            if record.relation is self:
-                return record
+        matches = [record for record in instance.__dict__.get('_relations', ())
+                  if record.relation is self]
+        if isinstance(self.driven, BroadcastRef):
+            # A broadcast's shape, not its count: a tuple even when the
+            # repeat realized zero copies (design.md open question 2).
+            return tuple(matches)
+        if matches:
+            return matches[0]
         raise AttributeError(
             f'{self} is not resolved on this {type(instance).__name__}')
 
@@ -902,9 +1036,39 @@ class Relation:
         return f'<relation {self.described()}>'
 
     def resolve(self, instance):
+        """This instance's record of the relation -- ONE for an
+        ordinary relation, one PER REALIZED COPY for a broadcast (see
+        `couplings` spec, "Each end of a relation resolves to a
+        coordinate, or to one per copy of a repeated child")."""
         from solid_node.parameters import evaluate
 
         driver = self.driver.resolve(instance)
+        if isinstance(self.driven, BroadcastRef):
+            driven_ends = self.driven.resolve_all(instance)
+            if self.callable_law is None:
+                values = instance.__dict__.get('_parameters', {})
+                law = Affine(
+                    1 if self.ratio is None else evaluate(self.ratio, values),
+                    0 if self.offset is None
+                    else evaluate(self.offset, values))
+                # The SAME law object for every copy: a ratio names a
+                # value of the DECLARING class and has no way to see a
+                # copy (design.md decision 5).
+                return [RelationRecord(self, driver, driven, law,
+                                       copy=driven.node)
+                        for driven in driven_ends]
+            records = []
+            for driven in driven_ends:
+                # Called once per COPY, at realization, with the copy
+                # itself: the owner of the driven coordinate under a
+                # broadcast is the copy (couplings spec, "The law of a
+                # relation is an affine pair, or project code passed
+                # in").
+                returned = self.callable_law(driver.node, driven.node)
+                law = as_law(returned, self.described())
+                records.append(RelationRecord(self, driver, driven, law,
+                                              copy=driven.node))
+            return records
         driven = self.driven.resolve(instance)
         if self.callable_law is not None:
             returned = self.callable_law(driver.node, driven.node)
@@ -914,19 +1078,23 @@ class Relation:
             law = Affine(
                 1 if self.ratio is None else evaluate(self.ratio, values),
                 0 if self.offset is None else evaluate(self.offset, values))
-        return RelationRecord(self, driver, driven, law)
+        return [RelationRecord(self, driver, driven, law)]
 
 
 class RelationRecord:
     """One instance's resolved relation: what it relates, the law it got
-    at realization, and which way the last run solved it."""
+    at realization, and which way the last run solved it.
 
-    def __init__(self, relation, driver_end, driven_end, law):
+    `copy` is the realized COPY this record applies to, for a broadcast
+    -- None for an ordinary relation's one record."""
+
+    def __init__(self, relation, driver_end, driven_end, law, copy=None):
         self.relation = relation
         self.driver_end = driver_end
         self.driven_end = driven_end
         self.law = law
         self.direction = None
+        self.copy = copy
 
     @property
     def name(self):
@@ -949,7 +1117,10 @@ class RelationRecord:
         return self.driven_end.node
 
     def described(self):
-        return self.relation.described()
+        base = self.relation.described()
+        if self.copy is None:
+            return base
+        return f'{base}, copy {getattr(self.copy, "name", self.copy)}'
 
     def __repr__(self):
         return (f'<relation {self.described()} '
@@ -1067,13 +1238,20 @@ def coordinate_ref(value, role='end'):
         raise _refuse_several_coordinates(value, value.name or repr(value))
     if isinstance(value, ChildDeclaration):
         return PathRef(value, (), value)
+    if isinstance(value, RepeatDeclaration):
+        # The repeat's own one joint, bare: `earth.drives(beads)` or
+        # `beads.drives(earth)`. `check(role)` refuses the second as a
+        # SOURCE; the first is an ordinary broadcast.
+        return BroadcastRef(value, (), value, value)
     if isinstance(value, DriverDeclaration):
         return DriverRef(value)
-    if isinstance(value, RepeatDeclaration) or _is_declaration_list(value):
+    if _is_declaration_list(value):
+        name = _named_in_body(value) or repr(value)
         raise TypeError(
-            f'a repeated declaration names many coordinates, and a relation '
-            f'has one {role} end. State the relation inside the repeated '
-            f'class instead.')
+            f"'{name}' holds {len(value)} children, each with its own "
+            f"arguments -- named '{name}-0', '{name}-1', and so on, one by "
+            f"one -- so it cannot be the {role} end of a relation naming "
+            f"all of them at once. Name one child by its own attribute.")
     raise TypeError(
         f'{value!r} is not a coordinate, so it cannot be the {role} end of a '
         f'relation. An end is a port, a joint, a child declaration, a path '
@@ -1129,8 +1307,16 @@ def resolve_declared_relations(node):
     relations = declared_relations(type(node))
     if not relations:
         return
-    node.__dict__['_relations'] = [relation.resolve(node)
-                                   for relation in relations]
+    records = []
+    for relation in relations:
+        # A broadcast resolves to n records at the position of its
+        # declaration, in copy order; an ordinary relation to one. The
+        # flattened list is what keeps the fixpoint's own iteration --
+        # and its "declaration order, copy order within it" -- a single
+        # flat pass (couplings spec, "Relations are solved from the
+        # bound side").
+        records.extend(relation.resolve(node))
+    node.__dict__['_relations'] = records
 
 
 ##############################################
@@ -1301,6 +1487,15 @@ def _step_relation(record, claimed, bound):
         record.direction = 'forward'
         return True
     if driven_bound:
+        if isinstance(record.relation.driven, BroadcastRef):
+            # A broadcast is read forward only, whatever its law offers:
+            # the n copies would have to agree on one source value, and
+            # the framework does not compare values to decide that
+            # (couplings spec, "Three refusals"). Deferred here exactly
+            # as a non-invertible law is -- the author's own binding may
+            # still reach the driver end -- and `_refuse` raises if it
+            # never does.
+            return False
         if not invertible(record.law):
             # Deferred: another relation may still bind the driver end,
             # and a law that is never needed backwards is never refused.
@@ -1369,6 +1564,15 @@ def _refuse(assembly, records, derived, wirings):
         driver_bound = record.driver_end.bound()
         driven_bound = record.driven_end.bound()
         if driven_bound and not driver_bound:
+            if isinstance(record.relation.driven, BroadcastRef):
+                raise NotInvertible(
+                    f'{record.described()}: {record.driven_end.described()} '
+                    f'is bound, so the relation would have to be read '
+                    f'backwards -- but a broadcast is read forward only, '
+                    f'whatever its law offers: the copies hold one value '
+                    f'each, and deriving one source value from them would '
+                    f'mean comparing values, which the framework does not '
+                    f'do. Bind {record.driver_end.described()} instead.')
             raise NotInvertible(
                 f'{record.described()}: {record.driven_end.described()} is '
                 f'the bound end, so the relation has to be read backwards, '

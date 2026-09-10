@@ -41,6 +41,20 @@ enumerated port name is therefore NOT guaranteed to be a Python
 identifier, and a consumer SHALL reach a coordinate by the name the
 enumerator reports rather than by attribute access on the node.
 
+A NAME THE ENUMERATOR REPORTS SHALL BE A NAME THE FRAMEWORK CAN READ
+BACK. The system SHALL export from `solid_node.motion.ports` a matched
+pair over those names: `set_coordinate(node, name, value)`, which binds
+the coordinate through the one binding path every binder takes, and
+`get_coordinate(node, name)`, which SHALL return that coordinate's bound
+value slot — the same slot reading the coordinate on the node yields, so
+a slot nothing has bound reads its value as `None`. Both SHALL accept a
+name of one segment and a name of several alike. A name the enumerator
+does NOT report SHALL be refused by `get_coordinate`, naming the node,
+the name asked for and the names the enumerator does report, rather than
+answered with `None`; the membership test SHALL be against the
+enumeration and not against attribute lookup, so a declared parameter
+whose name resembles a coordinate's cannot answer for one.
+
 Ports in this version are kinematic only: a port SHALL NOT expose a
 flow variable (torque, force). The declaration shape reserves that
 extension per ADR-056; introducing it is a future spec change.
@@ -78,6 +92,36 @@ extension per ADR-056; introducing it is a future spec change.
   declares two joints and `relative = a - b` over them
 - **THEN** three entries appear by name, `relative` carrying the domain
   and unit its terms share, and the enumeration constructed no instance
+
+#### Scenario: Every reported name reads back
+
+- **WHEN** a consumer iterates `declared_ports` of a realized node
+  declaring a plain port, a one-coordinate joint, a derived coordinate
+  and a joint owning six, and calls `get_coordinate(node, name)` for each
+- **THEN** every call yields that coordinate's value slot, carrying its
+  domain and unit, and none of them raises
+
+#### Scenario: A dotted name reads back what it was bound to
+
+- **WHEN** `set_coordinate(node, 'pose.roll', 12.0)` is called and then
+  `get_coordinate(node, 'pose.roll')`
+- **THEN** the slot returned reads `12.0`, and it is the same slot
+  `node.pose.roll` yields
+
+#### Scenario: An unbound coordinate reads as a slot with no value
+
+- **WHEN** `get_coordinate(node, 'pose.x')` is called on a node whose
+  `pose.x` nothing has bound
+- **THEN** the slot is returned and its value is `None`, and the name is
+  still reported by the enumerator
+
+#### Scenario: A name the enumerator does not report is refused
+
+- **WHEN** `get_coordinate(node, 'bore')` is called, `bore` being a
+  declared parameter, or `get_coordinate(node, 'pose.twist')` for a
+  coordinate no joint owns
+- **THEN** it raises naming the node, the name asked for and the names
+  the enumerator does report, and no value is returned
 
 #### Scenario: A joint owning several coordinates enumerates each of them
 

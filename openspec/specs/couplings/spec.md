@@ -35,7 +35,10 @@ say its name; the same relation SHALL be recorded once, not twice. A
 named relation read off the CLASS SHALL yield the declaration with its
 two ends and its law as written; read off an INSTANCE it SHALL yield
 that instance's record of the relation: its two resolved coordinates,
-its law, and which direction it was solved in on the last run.
+its law, and which direction it was solved in on the last run. A
+relation that resolves to SEVERAL records — a broadcast over a repeated
+child — SHALL read off an instance as the tuple of those records, in
+copy order.
 
 A relation SHALL be recorded even when it is written inside a class-body
 comprehension, where the executing frame reports a copy of the
@@ -99,122 +102,6 @@ independently of every other instance of that class.
 - **THEN** each instance's relation resolves and solves against its own
   coordinates, and neither reads the other's values
 
-### Requirement: Each end of a relation resolves to one coordinate
-
-The system SHALL resolve both ends of a relation to a coordinate. The
-kinds of end SHALL be:
-
-- a PORT or JOINT declared on the class stating the relation, resolving
-  to that instance's own coordinate;
-- a CHILD DECLARATION, resolving to the realized child's ONE joint's
-  coordinate;
-- a PATH REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
-  `shoulder.art2.art3.wrist` — resolving to the coordinate of the
-  realized descendant the path names;
-- a `Driver` declaration, resolving to the driver's value, which SHALL
-  be a SOURCE only;
-- a DERIVED COORDINATE of the class.
-
-A PATH REFERENCE SHALL be read segment by segment, and a COORDINATE at
-its end SHALL occupy as many TRAILING SEGMENTS as the name the port
-enumerator reports it under has dot-separated parts: one for a plain port
-or the coordinate of a joint that owns one, and two for a coordinate of a
-joint that owns several — `chassis.pose.roll` names the realized child
-`chassis` and its coordinate `pose.roll`. Every segment before those
-SHALL be a child the previous segment's class declares, as it is today.
-
-A path that STOPS on a joint owning several coordinates — `chassis.pose`
-— SHALL be refused at class definition naming the joint and listing its
-coordinates, with the advice to name one, because a relation has one end.
-A path naming a part that such a joint does not own — `chassis.pose.twist`
-— SHALL be refused the same way, listing what it does own.
-
-A child declaration named as an end SHALL mean the one joint of that
-child's class. A child whose class declares NO joint, or more than one,
-SHALL be refused at class definition, naming the child attribute, its
-class, and the joints that class declares, with the advice to name the
-coordinate. A child whose class declares exactly one joint, that joint
-owning several coordinates, SHALL be refused the same way, listing that
-joint's coordinates.
-
-A relation SHALL bind either end through the SAME path an author's
-assignment takes, whatever the coordinate's name is: a coordinate whose
-name has more than one segment SHALL be bound through the joint that owns
-it, and never by setting an attribute of that name on the node.
-
-A `Driver` named as the DRIVEN end SHALL be refused at class
-definition, naming the driver, because a driver's value belongs to the
-bound snapshot and is set by `set_state`.
-
-The ends SHALL resolve at realization, at the end of the instance's
-construction and after its children are realized, since an end may be a
-child or a descendant of one. Whatever the classes alone decide SHALL
-be refused AT CLASS DEFINITION — an attribute no class along a path
-declares, a node end with the wrong number of joints, a driver as a
-driven end, a path through a repeated or list-held child, `ratio=` or
-`offset=` given together with `law=` — and whatever depends on the
-instance SHALL be refused AT REALIZATION, naming the relation, the path
-as written, the node the walk stopped at and what that node declares.
-
-#### Scenario: A node end is its one joint
-
-- **WHEN** an assembly declares `power = TrainArbor(index=0)` and
-  `centre = TrainArbor(index=1)`, `TrainArbor` declaring exactly one
-  `Revolute` named `turn`, and states `power.drives(centre)`
-- **THEN** the relation's ends are the two realized arbors' `turn`
-  coordinates, and binding one places the other
-
-#### Scenario: A node with two joints is refused
-
-- **WHEN** a class body states `wrist.drives(tool)` where `tool`'s class
-  declares two joints, or none
-- **THEN** class definition raises naming the child attribute, its
-  class and the joints it declares, with the advice to name the
-  coordinate
-
-#### Scenario: A path reaches a descendant's coordinate
-
-- **WHEN** a root states `art3.drives(shoulder.art2.art3.wrist)`, three
-  levels of declared children below it
-- **THEN** the relation's driven end is the realized wrist coordinate
-  of that descendant, and no intermediate class declared or forwarded a
-  port for it
-
-#### Scenario: A driver may not be driven
-
-- **WHEN** a class body states `centre.turn.drives(some_driver)`
-- **THEN** class definition raises naming the driver and saying its
-  value belongs to the bound snapshot
-
-#### Scenario: A path through a repeated child is refused
-
-- **WHEN** a class declaring `units = Unit().repeat(count)` states
-  `power.drives(units.turn)`
-- **THEN** class definition raises naming the repeated declaration and
-  advising that the relation be stated inside the repeated class
-
-#### Scenario: A path that does not resolve on the instance fails at realization
-
-- **WHEN** a path names a child of a class realized through an ordinary
-  constructor that does not produce it
-- **THEN** realization raises naming the relation, the path as written,
-  the node the walk stopped at and what that node declares
-
-#### Scenario: A path reaches one coordinate of a multi-coordinate joint
-
-- **WHEN** a root declaring `chassis = Chassis()`, `Chassis` declaring
-  `pose = Free()`, states `tilt.drives(chassis.pose.pitch)`
-- **THEN** the relation's driven end is that realized chassis's
-  `pose.pitch` coordinate, binding it places the chassis, and the other
-  five coordinates are untouched
-
-#### Scenario: A path stopping on a multi-coordinate joint is refused
-
-- **WHEN** a class body states `tilt.drives(chassis.pose)`, or
-  `tilt.drives(chassis.pose.twist)`
-- **THEN** class definition raises naming the joint and listing the
-  coordinates it owns, with the advice to name one of them
-
 ### Requirement: The law of a relation is an affine pair, or project code passed in
 
 The system SHALL provide `Affine(ratio, offset=0)`, exported from
@@ -229,18 +116,30 @@ to zero.
 defaulting to a ratio of one and an offset of zero, and their values MAY
 be plain numbers, declared-parameter tokens or derived formulas,
 resolved against the declaring instance at realization exactly as a
-child declaration's arguments are.
+child declaration's arguments are. Under a BROADCAST they SHALL be
+resolved ONCE against the declaring instance and every copy SHALL get the
+SAME affine law: a ratio names a value of the declaring class and has no
+way to see a copy, and `law=` is what per-copy variation is stated with.
 
 `law=` SHALL take a CALLABLE of two arguments, which the framework SHALL
-call exactly ONCE for each realized instance of the declaring class, at
-realization, with the realized nodes that OWN the two coordinates —
-driver first, driven second. The owner of a coordinate SHALL be: the
+call exactly ONCE for each relation it resolves to, at realization, with
+the realized nodes that OWN the two coordinates — driver first, driven
+second. The owner of a coordinate SHALL be: the
 realized child for a node end; the realized descendant that declares the
 named port or joint for a path end, or the named node itself when the
-path ends on a node; and the declaring instance itself for a port, a
+path ends on a node; the realized COPY for a broadcast end; and the
+declaring instance itself for a port, a
 joint, a derived coordinate or a driver of that class. A law function
 MAY therefore read anything a realized node has — a built library
 object, an index, a resolved parameter.
+
+For an ordinary relation the callable SHALL be called once for each
+realized instance of the declaring class; for a BROADCAST it SHALL be
+called once per realized COPY, the copy being the node that owns the
+driven coordinate, so a per-copy law reads the copy's own `index` and
+needs no further argument. The callable's signature SHALL be unchanged
+by a broadcast, and the framework SHALL inspect nothing about it to
+decide what to pass.
 
 The callable SHALL return a LAW: an object with a callable `forward`
 taking the driver's value and returning the driven's, and OPTIONALLY a
@@ -273,6 +172,22 @@ definition.
 - **THEN** the callable is called once per realized parent, with the two
   realized arbor nodes, and the returned `Affine` is the relation's law
   for that parent for every later run
+
+#### Scenario: A law is called once per copy and is handed the copy
+
+- **WHEN** a class declaring `beads = Bead().repeat(4)` states
+  `earth.drives(beads.travel, law=earth_lift)`, where
+  `earth_lift(driver, driven)` reads `driven.index`
+- **THEN** the callable ran four times at realization, each call received
+  that copy as its second argument and read its own index, and the four
+  laws returned are the four copies' laws for every later run
+
+#### Scenario: A ratio broadcasts unchanged to every copy
+
+- **WHEN** the same class states `earth.drives(beads.travel, ratio=2.0)`
+  and `earth` is bound to `3`
+- **THEN** every copy's `travel` holds `6`, and the ratio was resolved
+  once against the declaring instance
 
 #### Scenario: A law runs once, not once per instant
 
@@ -417,6 +332,20 @@ animator tag and the same sweep, as when an author binds it. The
 framework SHALL perform no unit conversion of its own: what converts is
 the ratio or law the author wrote.
 
+A BROADCAST relation SHALL be resolved into ONE RELATION PER REALIZED
+COPY, and those relations SHALL take part in the solve exactly as any
+other relation does: each is bound, refused and recorded on its own. They
+SHALL occupy the position of the declaration in the pass order, in COPY
+ORDER within it, so declaration order remains the order of the pass. A
+broadcast over a repeat that realized NO copies SHALL be zero relations:
+it SHALL bind nothing and refuse nothing. A broadcast SHALL cover every
+copy the repeat REALIZED, whether or not a `render()` later omitted it,
+because the ends of a relation resolve at realization. A NAMED broadcast
+read off a realized instance SHALL yield the tuple of its per-copy
+records, in copy order, where a named ordinary relation yields one
+record; every message about one of those records SHALL name the copy it
+applies to as well as the relation as written.
+
 Because each class solves its own relations in its own instance's
 phase, a relation declared on an ancestor and reaching a descendant's
 coordinate by path SHALL be solved BEFORE that descendant's own
@@ -500,6 +429,22 @@ runner.
   scale, exactly as a wiring or a `connect()` gives, and the framework
   applied no other conversion
 
+#### Scenario: A broadcast solves in declaration order, copy by copy
+
+- **WHEN** a class declares a relation, then a broadcast over four
+  copies, then a third relation, and the assembly is simulated
+- **THEN** the six relations solved are the first, the four copies in
+  index order, and the third, and reading the named broadcast off the
+  instance yields four records in copy order
+
+#### Scenario: A broadcast over an empty repeat states nothing
+
+- **WHEN** a class declaring `beads = Bead().repeat(count)` with a
+  resolved `count` of zero states `earth.drives(beads.travel)` and binds
+  `earth`
+- **THEN** the assembly simulates with nothing bound by that relation and
+  nothing refused
+
 #### Scenario: A relation places a repeated child
 
 - **WHEN** an assembly stating a relation between two of its own
@@ -526,9 +471,14 @@ when it has one — and the coordinates involved:
   the framework SHALL NOT compare two values to decide whether a
   redundant statement agrees, because they are ordinarily symbolic
   expressions, and the message SHALL name both binders;
-- a NOT INVERTIBLE law: the driven end is the bound one and the
+- a NOT INVERTIBLE relation: the driven end is the bound one and the
   relation's law offers no inverse, or is an affine law whose ratio is
-  numerically zero.
+  numerically zero, or the relation is one copy of a BROADCAST — which
+  SHALL never be read backwards whatever its law offers, because the
+  copies hold one value each and one source cannot be derived from them
+  without comparing values, which the framework does not do. The message
+  SHALL say which of those reasons applies, and for a broadcast SHALL
+  name the copy.
 
 Each error SHALL be of its own kind, exported from the couplings
 module, so a project or a test can catch exactly one.
@@ -568,9 +518,134 @@ module, so a project or a test can catch exactly one.
 - **THEN** solving raises naming the relation, its law and both ends,
   and says the law has no inverse
 
+#### Scenario: A broadcast is never read backwards
+
+- **WHEN** a class states `earth.drives(beads.travel)` over four copies,
+  leaves `earth` unbound, and its `simulate()` binds one copy's `travel`
+- **THEN** solving raises the not-invertible error naming the relation,
+  the copy, the bound coordinate and the fact that a broadcast is read
+  forward only, and it says so even though the identity law it carries
+  would invert
+
 #### Scenario: A forward-only law used forwards is fine
 
 - **WHEN** the same relation has its DRIVER end bound instead
 - **THEN** the driven end is bound through the law's forward face and
   nothing is refused
+
+### Requirement: Each end of a relation resolves to a coordinate, or to one per copy of a repeated child
+
+The system SHALL resolve both ends of a relation to a coordinate. The
+kinds of end SHALL be:
+
+- a PORT or JOINT declared on the class stating the relation, resolving
+  to that instance's own coordinate;
+- a CHILD DECLARATION, resolving to the realized child's ONE joint's
+  coordinate;
+- a PATH REFERENCE — `anchor.turn`, `motion_works.cannon.turn`,
+  `shoulder.art2.art3.wrist` — resolving to the coordinate of the
+  realized descendant the path names;
+- a `Driver` declaration, resolving to the driver's value, which SHALL
+  be a SOURCE only;
+- a DERIVED COORDINATE of the class.
+
+A PATH REFERENCE SHALL be read segment by segment, and a COORDINATE at
+its end SHALL occupy as many TRAILING SEGMENTS as the name the port
+enumerator reports it under has dot-separated parts: one for a plain port
+or the coordinate of a joint that owns one, and two for a coordinate of a
+joint that owns several — `chassis.pose.roll` names the realized child
+`chassis` and its coordinate `pose.roll`. Every segment before those
+SHALL be a child the previous segment's class declares, as it is today.
+
+A path that STOPS on a joint owning several coordinates — `chassis.pose`
+— SHALL be refused at class definition naming the joint and listing its
+coordinates, with the advice to name one, because a relation has one end.
+A path naming a part that such a joint does not own — `chassis.pose.twist`
+— SHALL be refused the same way, listing what it does own.
+
+A child declaration named as an end SHALL mean the one joint of that
+child's class. A child whose class declares NO joint, or more than one,
+SHALL be refused at class definition, naming the child attribute, its
+class, and the joints that class declares, with the advice to name the
+coordinate. A child whose class declares exactly one joint, that joint
+owning several coordinates, SHALL be refused the same way, listing that
+joint's coordinates.
+
+A relation SHALL bind either end through the SAME path an author's
+assignment takes, whatever the coordinate's name is: a coordinate whose
+name has more than one segment SHALL be bound through the joint that owns
+it, and never by setting an attribute of that name on the node.
+
+A `Driver` named as the DRIVEN end SHALL be refused at class
+definition, naming the driver, because a driver's value belongs to the
+bound snapshot and is set by `set_state`.
+
+The ends SHALL resolve at realization, at the end of the instance's
+construction and after its children are realized, since an end may be a
+child or a descendant of one. Whatever the classes alone decide SHALL
+be refused AT CLASS DEFINITION — an attribute no class along a path
+declares, a node end with the wrong number of joints, a driver as a
+driven end, a path through a repeated or list-held child, `ratio=` or
+`offset=` given together with `law=` — and whatever depends on the
+instance SHALL be refused AT REALIZATION, naming the relation, the path
+as written, the node the walk stopped at and what that node declares.
+
+#### Scenario: A node end is its one joint
+
+- **WHEN** an assembly declares `power = TrainArbor(index=0)` and
+  `centre = TrainArbor(index=1)`, `TrainArbor` declaring exactly one
+  `Revolute` named `turn`, and states `power.drives(centre)`
+- **THEN** the relation's ends are the two realized arbors' `turn`
+  coordinates, and binding one places the other
+
+#### Scenario: A node with two joints is refused
+
+- **WHEN** a class body states `wrist.drives(tool)` where `tool`'s class
+  declares two joints, or none
+- **THEN** class definition raises naming the child attribute, its
+  class and the joints it declares, with the advice to name the
+  coordinate
+
+#### Scenario: A path reaches a descendant's coordinate
+
+- **WHEN** a root states `art3.drives(shoulder.art2.art3.wrist)`, three
+  levels of declared children below it
+- **THEN** the relation's driven end is the realized wrist coordinate
+  of that descendant, and no intermediate class declared or forwarded a
+  port for it
+
+#### Scenario: A driver may not be driven
+
+- **WHEN** a class body states `centre.turn.drives(some_driver)`
+- **THEN** class definition raises naming the driver and saying its
+  value belongs to the bound snapshot
+
+#### Scenario: A path through a repeated child is refused
+
+- **WHEN** a class declaring `units = Unit().repeat(count)` states
+  `power.drives(units.turn)`
+- **THEN** class definition raises naming the repeated declaration and
+  advising that the relation be stated inside the repeated class
+
+#### Scenario: A path that does not resolve on the instance fails at realization
+
+- **WHEN** a path names a child of a class realized through an ordinary
+  constructor that does not produce it
+- **THEN** realization raises naming the relation, the path as written,
+  the node the walk stopped at and what that node declares
+
+#### Scenario: A path reaches one coordinate of a multi-coordinate joint
+
+- **WHEN** a root declaring `chassis = Chassis()`, `Chassis` declaring
+  `pose = Free()`, states `tilt.drives(chassis.pose.pitch)`
+- **THEN** the relation's driven end is that realized chassis's
+  `pose.pitch` coordinate, binding it places the chassis, and the other
+  five coordinates are untouched
+
+#### Scenario: A path stopping on a multi-coordinate joint is refused
+
+- **WHEN** a class body states `tilt.drives(chassis.pose)`, or
+  `tilt.drives(chassis.pose.twist)`
+- **THEN** class definition raises naming the joint and listing the
+  coordinates it owns, with the advice to name one of them
 

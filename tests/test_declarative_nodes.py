@@ -19,9 +19,10 @@ import os
 
 from solid2 import cube
 
+from solid_node.motion.joints import Prismatic
 from solid_node.node import AssemblyNode, Solid2Node, declared_children
 from solid_node.node.base import _build_uniq_id
-from solid_node.node.declarative import ChildDeclaration
+from solid_node.node.declarative import ChildDeclaration, declared_child_nodes
 from solid_node.parameters import (Count, Flag, Length, ParameterError, Ratio,
                                    Scalar, declared_parameters)
 
@@ -381,6 +382,120 @@ class ChildDeclarationTest(BaseNodeTest):
         with self.assertRaisesRegex(ParameterError,
                                     "'fitted' is not declared"):
             Cabinet()
+
+
+##############################################
+# 1.2 (cycle: repeat-fan-out) The copy's index
+
+class Bead(Solid2Node):
+    """A rigid leaf: one joint, no `index` of its own."""
+
+    travel = Prismatic(axis=(0, 0, 1), unit='mm')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class RepeatColumn(AssemblyNode):
+    beads = Bead().repeat(4)
+
+
+class Ranked(Solid2Node):
+    """A class that already answers to 'index' on its own."""
+
+    index = Count(0, min=0)
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class Half(Solid2Node):
+    """The abacus's own shape: a repeated class declaring `count`, not
+    `index`, of its own (Vibecoded-demos/abacus/abacus/frame_half.py)."""
+
+    count = Count(9, min=1)
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class Halves(AssemblyNode):
+    """The abacus's own shape, one level up: a parent's own `count`
+    passed by reference into a repeated child that declares a `count`
+    of its own (Vibecoded-demos/abacus/abacus/frame.py:35-43)."""
+
+    count = Count(2, min=1)
+    halves = Half(count=count).repeat(2)
+
+
+class RepeatIndexTest(BaseNodeTest):
+
+    def test_a_copy_reads_its_position(self):
+        column = RepeatColumn()
+
+        self.assertEqual([bead.index for bead in column.beads],
+                         [0, 1, 2, 3])
+
+    def test_the_position_is_not_identity(self):
+        column = RepeatColumn()
+        plain = Bead()
+
+        ids = {bead.uniq_id for bead in column.beads}
+        self.assertEqual(ids, {plain.uniq_id})
+        for bead in column.beads:
+            with self.subTest(bead=bead):
+                self.assertNotIn('index',
+                                 bead.__dict__.get('_parameters', {}))
+
+    def test_a_zero_repeat_still_carries_nothing(self):
+        class Empty(AssemblyNode):
+            beads = Bead().repeat(0)
+
+        self.assertEqual(Empty().beads, [])
+
+    def test_a_repeat_of_a_class_that_declares_index_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Parent(AssemblyNode):
+                arbors = Ranked().repeat(4)
+
+        message = str(raised.exception)
+        for expected in ('Parent', 'arbors', 'Ranked'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_parent_declaring_index_is_not_refused(self):
+        """InMoov's real shape: the PARENT declares `index`, the
+        REPEATED class does not, so the check -- against the repeated
+        class only -- lets it through."""
+        class Hand(AssemblyNode):
+            index = Count(0, min=0)
+            fingers = Bead().repeat(4)
+
+        hand = Hand()
+
+        self.assertEqual(len(hand.fingers), 4)
+        self.assertEqual(hand.index, 0)
+        self.assertEqual([finger.index for finger in hand.fingers],
+                         [0, 1, 2, 3])
+
+    def test_halves_still_realizes(self):
+        """The abacus's real shape is NOT refused: `Half` declares
+        `count`, not `index`. If this goes red, the decision to stamp
+        `index` and not `count` is wrong."""
+        halves = Halves()
+
+        self.assertEqual([half.count for half in halves.halves], [2, 2])
+        self.assertEqual([half.index for half in halves.halves], [0, 1])
+
+    def test_a_copys_index_does_not_become_a_child_name(self):
+        column = RepeatColumn()
+
+        self.assertEqual([bead.name for bead in column.beads],
+                         [f'beads-{index}' for index in range(4)])
+        self.assertEqual(len(declared_child_nodes(column)), 4)
+        for bead in column.beads:
+            with self.subTest(bead=bead.name):
+                self.assertNotEqual(bead.name, 'index')
 
 
 class InstanceCheckTest(BaseNodeTest):

@@ -26,7 +26,7 @@ from solid_node.core.serializer import (bind_document, drivers_table,
                                         serialize_node, symbolic_document)
 from solid_node.motion.couplings import (Affine, CouplingError,
                                          DerivedCoordinate, DoublyBound,
-                                         NotInvertible, Relation,
+                                         ForwardOnly, NotInvertible, Relation,
                                          UnreachedCoordinate,
                                          declared_relations)
 from solid_node.motion.joints import (Free, JointRangeError, Prismatic,
@@ -36,7 +36,7 @@ from solid_node.motion.ports import (RotationalPort, SignalPort,
 from solid_node.node import AssemblyNode, Solid2Node
 from solid_node.node.declarative import SidewaysReadError
 from solid_node.node.qualified import DriverToken
-from solid_node.parameters import Count, Length
+from solid_node.parameters import Count, Length, Ratio
 from solid_node.simulation import Driver
 
 from .base import BaseNodeTest
@@ -248,18 +248,25 @@ class RelationEndTest(BaseNodeTest):
             with self.subTest(expected=expected):
                 self.assertIn(expected, message)
 
-    def test_a_path_through_a_repeated_child_is_refused(self):
-        with self.assertRaises(SidewaysReadError) as raised:
+    def test_a_repeated_child_named_as_the_source_is_refused(self):
+        """cycle: repeat-fan-out. Renamed from '...is_refused': a
+        repeated child as the DRIVEN end is now a broadcast (see
+        FanOutTest below) and no longer refused here; only naming it as
+        the SOURCE stays refused, and the exception is now a TypeError
+        raised by the relation's own check, not a SidewaysReadError
+        raised while reading the path."""
+        with self.assertRaises(TypeError) as raised:
             class Bad(AssemblyNode):
                 count = Count(3, min=1)
-                knob = Driver(default=0.0, unit='deg')
+                power = RotationalPort(unit='deg')
                 units = Pulley().repeat(count)
 
-                knob.drives(units.turn)
+                units.turn.drives(power)
 
         message = str(raised.exception)
-        self.assertIn('units', message)
-        self.assertIn('repeated', message)
+        for expected in ('units', 'Pulley', 'repeated'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
 
     def test_a_path_that_does_not_resolve_fails_at_realization(self):
         class Hollow(AssemblyNode):
@@ -312,6 +319,523 @@ class RelationEndTest(BaseNodeTest):
                 arm.elbow_driver.drives(pulley.turn)
 
         self.assertIn('elbow_driver', str(raised.exception))
+
+
+##############################################
+# 1.3b Fan-out over a repeated child (cycle: repeat-fan-out)
+
+class Bead(Solid2Node):
+    """One joint, no `index` of its own -- the fan-out fixture leaf."""
+
+    travel = Prismatic(axis=(0, 0, 1), unit='mm')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class FanColumn(AssemblyNode):
+    """A repeat with nothing driving it: the shape every broadcast test
+    below states its own relation on."""
+
+    beads = Bead().repeat(4)
+
+
+class FanLeg(AssemblyNode):
+    """A plain child under a repeated child: `legs.femur.travel` is one
+    fan-out, not two."""
+
+    femur = Bead()
+
+
+def bead_travels(nodes):
+    return [bead.travel.value for bead in nodes]
+
+
+class FanOutTest(BaseNodeTest):
+
+    ##############################################
+    # 2. The broadcast end resolves
+
+    def test_a_repeated_driven_end_is_n_relations(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel)
+
+        column = Column()
+        column.set_state(earth=3.0)
+
+        self.assertEqual(bead_travels(column.beads), [3.0] * 4)
+        for bead in column.beads:
+            with self.subTest(bead=bead.name):
+                self.assertEqual(bead.operations[-1].serialized,
+                                 ['t', ['0', '0', '3.0']])
+
+    def test_a_repeated_node_end_is_the_copies_one_joint(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads)
+
+        column = Column()
+        column.set_state(earth=5.0)
+
+        self.assertEqual(bead_travels(column.beads), [5.0] * 4)
+
+    def test_a_repeated_node_with_no_joint_reaches_the_existing_message(self):
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                plates = Link().repeat(4)
+
+                earth.drives(plates)
+
+        message = str(raised.exception)
+        self.assertIn('Link', message)
+        self.assertIn('joint', message)
+        self.assertNotIn('one repeat', message)
+
+    def test_a_repeat_one_level_down_binds_only_its_own_copies(self):
+        class Rig(AssemblyNode):
+            drive = Driver(default=0.0, unit='mm')
+            first = FanColumn()
+            second = FanColumn()
+
+            drive.drives(first.beads.travel)
+
+        rig = Rig()
+        rig.set_state(drive=7.0)
+
+        self.assertEqual(bead_travels(rig.first.beads), [7.0] * 4)
+        self.assertEqual(bead_travels(rig.second.beads), [None] * 4)
+
+    def test_a_plain_child_under_the_copies_is_one_fan_out(self):
+        class Hexapod(AssemblyNode):
+            yaw = Driver(default=0.0, unit='mm')
+            legs = FanLeg().repeat(6)
+
+            yaw.drives(legs.femur.travel)
+
+        hexapod = Hexapod()
+        hexapod.set_state(yaw=2.0)
+
+        self.assertEqual([leg.femur.travel.value for leg in hexapod.legs],
+                         [2.0] * 6)
+
+    def test_two_repeated_segments_are_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Cage(AssemblyNode):
+                joints = Bead().repeat(2)
+
+            class Bad(AssemblyNode):
+                yaw = SignalPort()
+                legs = Cage().repeat(4)
+
+                yaw.drives(legs.joints.travel)
+
+        message = str(raised.exception)
+        for expected in ('legs', 'joints', 'Cage', 'Bead'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_list_held_child_bare_is_refused_with_its_own_message(self):
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                power = SignalPort()
+                plates = [Bead(), Bead()]
+
+                power.drives(plates)
+
+        message = str(raised.exception)
+        self.assertIn('plates', message)
+        self.assertIn('one by one', message)
+        self.assertNotIn('one repeat', message)
+
+    def test_a_list_held_child_through_a_path_is_refused(self):
+        class Frame(AssemblyNode):
+            plates = [Bead(), Bead()]
+
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                power = SignalPort()
+                frame = Frame()
+
+                power.drives(frame.plates.travel)
+
+        message = str(raised.exception)
+        self.assertIn('plates', message)
+        self.assertIn('one by one', message)
+
+    def test_a_list_in_the_same_body_is_a_bare_python_error(self):
+        """Pre-existing and out of this cycle's scope: a class-body
+        list is a plain Python list, not a declaration object, so
+        reading an attribute off it in the SAME body never reaches the
+        framework at all (measured, evidence/probe_list_held_today.py).
+        """
+        with self.assertRaises(AttributeError) as raised:
+            class Bad(AssemblyNode):
+                power = SignalPort()
+                plates = [Bead(), Bead()]
+
+                power.drives(plates.travel)
+
+        self.assertIn("'list' object has no attribute 'travel'",
+                     str(raised.exception))
+
+    def test_a_repeated_source_is_refused_three_ways(self):
+        def travel_form():
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                beads = Bead().repeat(4)
+
+                beads.travel.drives(earth)
+
+        def bare_node_form():
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                beads = Bead().repeat(4)
+
+                beads.drives(earth)
+
+        def path_form():
+            class Column(AssemblyNode):
+                beads = Bead().repeat(4)
+
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                column = Column()
+
+                column.beads.travel.drives(earth)
+
+        for form in (travel_form, bare_node_form, path_form):
+            with self.subTest(form=form.__name__):
+                with self.assertRaises(TypeError) as raised:
+                    form()
+                message = str(raised.exception)
+                self.assertIn('beads', message)
+                self.assertIn('Bead', message)
+
+    def test_a_broadcast_in_a_formula_is_refused(self):
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                beads = Bead().repeat(4)
+
+                bad = beads.travel - earth
+
+        message = str(raised.exception)
+        self.assertIn('beads', message)
+        self.assertIn('law=', message)
+
+    def test_a_repeat_of_a_multi_coordinate_joint_lists_its_coordinates(self):
+        class Floater(Solid2Node):
+            pose = Free(angle_unit='deg', length_unit='mm')
+
+            def render(self):
+                return cube(1, center=True)
+
+        with self.assertRaises(TypeError) as raised:
+            class Bad(AssemblyNode):
+                tilt = SignalPort()
+                floaters = Floater().repeat(4)
+
+                tilt.drives(floaters.pose)
+
+        message = str(raised.exception)
+        for expected in ('pose', 'roll', 'pitch', 'yaw', 'x', 'y', 'z'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    ##############################################
+    # 3. The law, the ratio, and the solve
+
+    def test_a_law_is_called_once_per_copy_and_handed_the_copy(self):
+        calls = []
+
+        def earth_lift(driver, driven):
+            calls.append((driver, driven, driven.index))
+            return ForwardOnly(lambda level: level + driven.index)
+
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel, law=earth_lift)
+
+        column = Column()
+
+        self.assertEqual(len(calls), 4)
+        self.assertEqual([index for _driver, _driven, index in calls],
+                         [0, 1, 2, 3])
+        self.assertTrue(all(driver is column for driver, _d, _i in calls))
+        self.assertEqual([driven for _d, driven, _i in calls],
+                         list(column.beads))
+
+        column.set_state(earth=10.0)
+        self.assertEqual(bead_travels(column.beads), [10.0, 11.0, 12.0, 13.0])
+
+        for value in (20.0, 30.0):
+            column.set_state(earth=value)
+        self.assertEqual(len(calls), 4)
+
+    def test_the_laws_signature_is_unchanged(self):
+        """No `inspect` of any kind is reachable from the framework's
+        side: a callable of signature `(*args)` still works."""
+        def law(*args):
+            driven = args[1]
+            return ForwardOnly(lambda level: level + getattr(driven,
+                                                              'index', 0))
+
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            other = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(3)
+            single = Bead()
+
+            earth.drives(beads.travel, law=law)
+            other.drives(single.travel, law=law)
+
+        column = Column()
+        column.set_state(earth=1.0, other=1.0)
+
+        self.assertEqual(bead_travels(column.beads), [1.0, 2.0, 3.0])
+        self.assertEqual(column.single.travel.value, 1.0)
+
+    def test_a_ratio_broadcasts_the_same_resolved_number(self):
+        class Column(AssemblyNode):
+            scale = Ratio(2.0)
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel, ratio=scale)
+
+        column = Column(scale=4.0)
+        column.set_state(earth=3.0)
+
+        self.assertEqual(bead_travels(column.beads), [12.0] * 4)
+
+    def test_declaration_order_is_copy_order_and_is_irrelevant(self):
+        order = []
+
+        def watching(name):
+            def law(driver, driven):
+                order.append((name, getattr(driven, 'index', None)))
+                return ForwardOnly(lambda level: level)
+            return law
+
+        class Forwards(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            beads = Bead().repeat(3)
+            c = SignalPort()
+
+            a.drives(b, law=watching('first'))
+            b.drives(beads.travel, law=watching('broadcast'))
+            b.drives(c, law=watching('third'))
+
+        order.clear()
+        Forwards()
+
+        self.assertEqual(order,
+                         [('first', None), ('broadcast', 0),
+                          ('broadcast', 1), ('broadcast', 2),
+                          ('third', None)])
+
+    def test_a_named_broadcast_reads_as_a_tuple_of_records(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            fan = earth.drives(beads.travel)
+
+        column = Column()
+        column.set_state(earth=1.0)
+
+        records = Column.fan.__get__(column)
+        self.assertEqual(len(records), 4)
+        self.assertTrue(all(record.direction == 'forward'
+                            for record in records))
+
+        class Empty(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            count = Count(0, min=0)
+            beads = Bead().repeat(count)
+
+            fan = earth.drives(beads.travel)
+
+        empty = Empty()
+        empty.set_state(earth=1.0)
+        self.assertEqual(Empty.fan.__get__(empty), ())
+
+    def test_a_zero_count_broadcast_binds_nothing_and_refuses_nothing(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            count = Count(0, min=0)
+            beads = Bead().repeat(count)
+
+            earth.drives(beads.travel)
+
+        column = Column()
+        column.set_state(earth=3.0)
+
+        self.assertEqual(column.beads, [])
+
+    def test_omitted_copies_are_still_driven(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel)
+
+            def render(self):
+                return [bead for index, bead in enumerate(self.beads)
+                       if index != 2]
+
+        column = Column()
+        column.set_state(earth=6.0)
+        tree = column.render()
+
+        self.assertEqual(bead_travels(column.beads), [6.0] * 4)
+        self.assertEqual(len(tree), 3)
+
+    def test_the_second_run_re_solves(self):
+        class Column(AssemblyNode):
+            earth = Driver(default=0.0, unit='mm')
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel)
+
+        column = Column()
+        for value in (1.0, 2.0, 3.0):
+            column.set_state(earth=value)
+            self.assertEqual(bead_travels(column.beads), [value] * 4)
+
+    def test_symbolic_values_pass_through_a_broadcast(self):
+        """`ratio=` resolves ONCE against the declaring instance and the
+        SAME `Affine` -- symbolic or numeric alike -- is every copy's
+        law (design.md decision 5): checked here by object identity,
+        which is what makes a symbolic operand ride through unchanged
+        on every copy rather than being re-evaluated per copy."""
+        class Column(AssemblyNode):
+            earth = SignalPort()
+            beads = Bead().repeat(3)
+
+            fan = earth.drives(beads.travel, ratio=2.0)
+
+        column = Column()
+
+        laws = {id(record.law) for record in Column.fan.__get__(column)}
+        self.assertEqual(len(laws), 1)
+
+        column.earth = 5.0
+        column.render()
+        self.assertEqual(bead_travels(column.beads), [10.0] * 3)
+
+    ##############################################
+    # 4. The refusals under a broadcast
+
+    def test_a_broadcast_is_never_inverted(self):
+        """A single copy, so no OTHER copy's unreached coordinate is
+        what the solver reports first: this proves the broadcast rule,
+        not an ordering accident. The DEFAULT identity law would invert
+        perfectly well, which is what proves it is the broadcast that
+        refuses, not the law."""
+        class Column(AssemblyNode):
+            earth = SignalPort()
+            beads = Bead().repeat(1)
+
+            earth.drives(beads.travel)
+
+            def simulate(self):
+                self.beads[0].travel = 9.0
+
+        column = Column()
+        with self.assertRaises(NotInvertible) as raised:
+            column.render()
+
+        message = str(raised.exception)
+        for expected in ('beads-0', 'forward only'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_a_doubly_bound_copy_names_that_copy(self):
+        class Column(AssemblyNode):
+            earth = SignalPort()
+            beads = Bead().repeat(4)
+
+            earth.drives(beads.travel)
+
+            def simulate(self):
+                self.earth = 3.0
+                self.beads[2].travel = 9.0
+
+        column = Column()
+        with self.assertRaises(DoublyBound) as raised:
+            column.render()
+
+        self.assertIn('beads-2', str(raised.exception))
+
+    def test_a_wired_copy_and_a_broadcast_are_two_binders(self):
+        class Column(AssemblyNode):
+            earth = SignalPort()
+            beads = Bead(travel=earth).repeat(4)
+
+            earth.drives(beads.travel)
+
+            def simulate(self):
+                self.earth = 3.0
+
+        column = Column()
+        with self.assertRaises(DoublyBound) as raised:
+            column.render()
+
+        message = str(raised.exception)
+        self.assertIn('beads-0', message)
+        self.assertIn('wir', message)
+
+    def test_the_wiring_path_still_works_alone(self):
+        """GREEN before the change and after it: the evidence for
+        building no wiring keyword on .repeat()."""
+        class Column(AssemblyNode):
+            earth = SignalPort()
+            beads = Bead(travel=earth).repeat(4)
+
+            def simulate(self):
+                self.earth = 3.0
+
+        column = Column()
+        column.render()
+
+        self.assertEqual([bead.name for bead in column.beads],
+                         ['beads-0', 'beads-1', 'beads-2', 'beads-3'])
+        self.assertEqual(bead_travels(column.beads), [3.0] * 4)
+        self.assertEqual({bead.uniq_id for bead in column.beads},
+                         {'Bead-aa06a2f044b4'})
+        self.assertEqual([len(bead.operations) for bead in column.beads],
+                         [1, 1, 1, 1])
+
+    def test_a_wired_source_solved_by_a_relation_binds_in_the_same_pass(self):
+        """A supporting characterisation, not a broadcast: the wiring
+        must keep binding once its source -- itself solved by an
+        ordinary relation -- is bound in the same pass, with a repeated
+        wired child alongside it."""
+        class Column(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+            pulley = Pulley()
+            earth = TranslationalPort(unit='mm')
+            beads = Bead(travel=earth).repeat(3)
+
+            pulley.turn.drives(earth, ratio=2.0)
+
+            def simulate(self):
+                self.pulley.turn = self.angle
+
+        column = Column()
+        column.set_state(angle=5.0)
+
+        self.assertEqual(bead_travels(column.beads), [10.0] * 3)
 
 
 ##############################################

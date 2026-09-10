@@ -399,6 +399,37 @@ def set_coordinate(node, name, value):
     setattr(getattr(node, head) if head else node, tail, value)
 
 
+def get_coordinate(node, name):
+    """The bound slot of the coordinate `name` of `node`, whatever kind
+    of name it is: the reader that matches `set_coordinate`, and the
+    pair that makes a name `declared_ports` reports a name the
+    framework can read back as well as write.
+
+    Mirrors `set_coordinate` segment for segment: a name of one part is
+    an attribute of the node, and a name of several -- `pose.roll` -- is
+    the head read and the tail taken off what it yields. What is
+    returned is the SLOT -- the same `BoundPort` `node.pose.roll` itself
+    yields, carrying the coordinate's domain, unit and scale -- not its
+    value, so a slot nothing has bound reads back with `value is None`
+    rather than being confused with a name that names no coordinate at
+    all.
+
+    A name the enumerator does not report is refused by name, naming
+    the node, the name asked for and the names it does report, rather
+    than answered with `None`: the membership test is against
+    `declared_ports`, not against `getattr`, so a declared PARAMETER
+    whose name resembles a coordinate's cannot answer for one.
+    """
+    reported = declared_ports(type(node))
+    if name not in reported:
+        names = ', '.join(sorted(reported)) or 'none'
+        raise AttributeError(
+            f"{type(node).__name__} has no coordinate '{name}'; "
+            f"declared_ports reports: {names}.")
+    head, _dot, tail = name.rpartition('.')
+    return getattr(getattr(node, head) if head else node, tail)
+
+
 @dataclass(frozen=True)
 class Time:
     """A root assembly's time base: `time = Time(loop=<seconds>)`.

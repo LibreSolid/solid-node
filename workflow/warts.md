@@ -800,6 +800,18 @@ before the project is refactored around its absence.
 
   where the law is handed the copy (its index) as the driven node. Second
   reason OpenCycloid is deferred.
+
+  **FIXED (cycle `repeat-fan-out`, ADR-096).** A relation whose DRIVEN end
+  passes through a repeated child now resolves to one relation per
+  realized copy, `law=` called once per copy with the copy as its second
+  argument, so `eccentric_shaft.spin.drives(eccentric_bearings.orbit,
+  law=per_copy_sign)` states it in one line and `per_copy_sign` reads the
+  copy's own `index` with no new argument. No `.repeat(n, orbit=...)`
+  keyword was built: an identity wiring over a repeat already worked
+  (measured, `evidence/probe_wiring_repeat.py`), and what it could not do
+  — take its source from a path — is exactly what a broadcast relation
+  states. OpenCycloid becomes refactorable at stage B in its own
+  repository's own cycle; nothing in the framework waits on it.
 - **Two smaller sightings from OpenTorque (planetary reducer, not
   deferred).** (a) The one-class-body rule again: the root cannot say
   `reducer.planet_1.orbit.drives(output_stack.planet_carrier_b.turn)`
@@ -856,6 +868,15 @@ before the project is refactored around its absence.
   a loop in `Column.simulate()` and a joints-only refactor would be
   cosmetic; the abacus is deferred at stage A on the same primitive as
   OpenCycloid's bearings and pins.
+
+  **FIXED (cycle `repeat-fan-out`, ADR-096), the same primitive as
+  OpenCycloid's.** `earth.drives(earth_beads.travel, law=earth_lift)`
+  now states it in one line, and `earth_lift(column, bead)` reads
+  `bead.index` for the rank — the abacus's own real shape
+  (`FrameHalf(count=count, ...).repeat(2)`, where `FrameHalf` declares a
+  `count` of its own) is what decided the copy carries `index` and not
+  `count`. The abacus becomes refactorable at stage B in its own
+  repository's own cycle.
 - **A carried body: the orbit primitive, second sighting.** YouCanBuildDog's
   five lower-leg parts per leg translate by `R(θ)·s − s` with their
   attitude fixed — one coordinate, but not one coordinate on one axis.
@@ -901,9 +922,10 @@ before the project is refactored around its absence.
   filament wheel's spin and the lock pin's draw — wait with it; the
   loop's `drop` port feeds molejo geometry and is not a forwarder.
   One of its three blockers is gone — several joints on one body now
-  compose in declaration order (ADR-093) — and the other two, the
-  own-placed-origin anchor and the per-copy fan-out over `.repeat()`,
-  are untouched, so fender-bender's deferral stands on them.
+  compose in declaration order (ADR-093) — and a second is now gone too:
+  **FIXED (cycle `repeat-fan-out`, ADR-096)**, the per-copy fan-out over
+  `.repeat()`. The own-placed-origin anchor is the one blocker still
+  untouched, so fender-bender's deferral stands on it alone.
 - **A joint on a child built from data, not from a class body.** OpenVMP
   Don1's links realize their parts in a loop from PartCAD `.assy`
   blueprints, one generic `StepPart` per entry named by the file. A joint
@@ -1004,7 +1026,17 @@ before the project is refactored around its absence.
   with the IDENTITY law: the three stage nuts and the gear lock screws
   simply follow one coordinate each, so a `.repeat(n, travel=column.travel)`
   wiring would do without any per-copy law — the weakest form of the
-  fan-out finding, worth building first. (b) The third 2026-09-09 limit
+  fan-out finding, worth building first.
+
+  **FIXED (cycle `repeat-fan-out`, ADR-096).** Measured, not assumed:
+  `Bead(travel=earth).repeat(4)` already binds every copy through the
+  existing per-instance wiring mechanism
+  (`evidence/probe_wiring_repeat.py`), because a wiring is downward-only
+  and needs no PATH for its source — `shaft_pin.turn.drives(gear_screws.orbit)`
+  is the case a wiring cannot state, and it is exactly a broadcast
+  relation with the default ratio of one. No `.repeat(n, travel=...)`
+  keyword was built; it would have given the identity case a second
+  spelling and the path case nothing. (b) The third 2026-09-09 limit
   again: a coordinate a class's own relation binds is unbound inside that
   class's own `simulate()`, which forced the actuator's thread ratio up
   one level into `Axis`. The four flexure legs (two rotations each, on
@@ -1231,7 +1263,13 @@ suites green with no test edited. Two findings, neither blocking.
   with the callables evaluated against the realized PARENT. The wrist
   pinion did escape (`wrist.drives(drive.pinion.spin, offset=...)`)
   because `WristDrive` is built in the pinion's frame. `Hand.simulate()`'s
-  ten `connect()` calls remain on the `.repeat()` fan-out finding.
+  ten `connect()` calls were carried on the `.repeat()` fan-out finding;
+  **moved to the tuple-source cycle instead** now that fan-out is FIXED
+  (cycle `repeat-fan-out`, ADR-096), because a broadcast has one SOURCE
+  and `Hand` drives each of its four repeated fingers from a DIFFERENT
+  driver. That is a per-copy source, not a per-copy law, and closes with
+  a future cycle's tuple source (`(driver_a, driver_b, ...).drives(...)`),
+  the law picking by `finger.index`.
 
 # hexapod_spiderbot_model stage B (2026-09-10, first project on Free)
 
@@ -1256,5 +1294,13 @@ leaves, 34/34 green, no test edited. One finding, not blocking.
   exported beside `set_coordinate`, and the ports spec saying that a
   name the enumerator reports is a name the framework can read back.
   Nothing in the project needs it (`self.pose.roll.value` reads fine).
+
+  **FIXED (cycle `repeat-fan-out`, ADR-096).** `get_coordinate(node,
+  name)` is exported from `solid_node.motion.ports` beside
+  `set_coordinate`, mirroring it segment for segment, returning the
+  bound slot — `None` value for an unbound one — and refusing a name
+  `declared_ports` does not report by name rather than answering `None`
+  for that case too. The ports spec now states the pairing as a
+  requirement.
 - The "own-placed-origin" anchor sighting again: `Femur.lift` and
   `Tibia.knee` restate the parent's `translate` as `at`.

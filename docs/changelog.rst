@@ -8,6 +8,52 @@ Changelog
 Unreleased
 ----------
 
+**A relation broadcasts over a repeated child.** ``.repeat(n)`` says one
+part, n placements; nothing said *one relation, n copies*, so a machine
+whose repeated parts move was a machine whose motion was written back
+out by hand. An abacus column bound its four beads by hand::
+
+    def simulate(self):
+        for index, bead in enumerate(self.earth_beads):
+            bead.travel = earth_lift(self.earth.value, index, self.stroke)
+
+One relation, with a per-copy ``law=``, now replaces the loop::
+
+    earth.drives(earth_beads.travel, law=earth_lift)
+
+    def earth_lift(column, bead):
+        return lambda level: clamp(level, bead.index) * column.stroke
+
+A relation whose DRIVEN end reaches through a repeated child is a
+**broadcast**: it resolves to one relation per realized copy, at the
+position its declaration was written, in copy order. ``law=`` is called
+once per COPY at realization — the copy is the driven end's owner under
+a broadcast, so a per-copy sign, phase or rank is one attribute read,
+the copy's own ``index`` — with no change to the callable's two-argument
+signature. ``ratio=``/``offset=`` still resolve once against the
+declaring instance and the same ``Affine`` is every copy's law. Every
+copy a repeat realizes now carries its own 0-based ``index``, a plain
+instance attribute: never a declared parameter, never part of a part's
+identity or its cached artifact, and refused where the repeat is written
+if the repeated class already answers to that name. A repeated end is a
+driven end only — named as the source, in any spelling, it is refused
+at class definition naming the repeated declaration and its class — and,
+once bound, a broadcast is never read backwards, whatever its law
+offers: the copies hold one value each, and the framework does not
+compare values to decide they agree.
+
+``get_coordinate(node, name)`` joins ``set_coordinate`` in
+``solid_node.motion.ports``: the reader for any name the port enumerator
+reports, plain or dotted (``pose.roll``), returning the bound slot
+rather than the value so an unbound coordinate reads back as ``None``
+rather than being confused with a name that names no coordinate at all.
+
+Nothing else changes: no new document key, no viewer or serialization
+change, nothing deprecated, and a pose comparison over every project on
+the catalogue that uses ``.repeat()`` with the motion layer moves
+nothing. (OpenSpec change ``repeat-fan-out``; ADR-096, extending
+ADR-089 and depending on ADR-061, ADR-063 and ADR-093.)
+
 **A body that floats is one declaration.** A walking robot's chassis has
 no parent to be jointed to: it stands where its legs put it, six freedoms
 against the ground. Nothing said that. The hexapod in the catalogue

@@ -285,7 +285,22 @@ enumerated list exactly as a literal list does; the body is recognized while
 the comprehension runs, and class-level names remain invisible to it as
 Python defines. `.repeat(count)` on a declaration, where `count` is an
 integer or a `Count` token, SHALL declare count-many identical children
-named `<attr>-<index>`. Realization SHALL proceed top-down from the root's
+named `<attr>-<index>`. Every child a repeat realizes SHALL carry its
+own 0-based position in the repeat, readable on the realized node as
+`index`. That position SHALL NOT be a declared parameter, SHALL NOT
+enter the node's identity, and SHALL NOT make the copies different
+parts: a repeat is one geometry, one build identity and one cached
+artifact, whatever a copy's index is used for. Per-unit GEOMETRY is
+therefore not what a repeat states, and children that differ
+geometrically SHALL be declared individually or in a literal list.
+
+A repeat of a class that already answers to the name `index` — as a
+declared parameter, a port, a joint, a child declaration, or any other
+attribute of the class — SHALL be refused AT CLASS DEFINITION, where the
+repeat is written, naming the declaring class, the attribute, the
+repeated class and what it found, because a declaration wins over an
+instance attribute of the same name and the position would otherwise be
+silently invisible. Realization SHALL proceed top-down from the root's
 bound values in declaration order, and by the time any `render()` runs
 every parameter SHALL be a plain value.
 
@@ -322,8 +337,12 @@ what that attribute IS on the declared class:
   segment names, and a segment naming an attribute no class along the
   path declares SHALL be refused at class definition naming the path,
   the segment and what that class declares;
-- a REPEATED or LIST-HELD child declaration SHALL be refused, because
-  such a path names many coordinates and a relation has one end;
+- a REPEATED child declaration SHALL yield a path reference that names
+  the same coordinate of every copy — the BROADCAST the `couplings`
+  capability specifies — usable as the DRIVEN end of a relation and
+  refused as its source;
+- a LIST-HELD child declaration SHALL be refused, because its children
+  carry their own arguments and are named one by one;
 - a DECLARED PARAMETER, or anything else, SHALL keep raising as it does
   today, advising that the shared parameter be declared on this class
   and passed to both children. A parameter is a value belonging to a
@@ -371,6 +390,21 @@ its class's one joint.
 - **THEN** `self.units` holds six distinct instances named `units-0`
   through `units-5`, all with the same resolved parameters
 
+#### Scenario: A copy carries its position
+
+- **WHEN** the same class is realized with `count=6`
+- **THEN** the six copies read `index` as `0` through `5` in order, all
+  six share one `uniq_id` and one cached artifact, and none of their
+  resolved parameters carries an index
+
+#### Scenario: A repeat of a class that declares its own index is refused
+
+- **WHEN** a class body declares `arbors = Arbor().repeat(4)` where
+  `Arbor` declares a parameter, port or joint named `index`
+- **THEN** class definition raises naming the declaring class, the
+  attribute, `Arbor` and the declaration it found, with the advice to
+  rename it or declare the children in a list
+
 #### Scenario: A legacy class is a valid child
 
 - **WHEN** a declarative parent declares `guard = Guard(thickness=wall)`
@@ -409,12 +443,29 @@ its class's one joint.
 - **THEN** class definition raises naming the path, the segment and the
   ports, joints and children that class declares
 
+#### Scenario: A path through a list-held child is refused
+
+- **WHEN** a class reads `frame.plates.turn`, where `plates` is a
+  list-held child declaration of `Frame`
+- **THEN** class definition raises naming the list-held declaration and
+  saying its children carry their own arguments and are named one by one
+
 #### Scenario: A path through a repeated child is refused
 
 - **WHEN** a class declaring `units = Unit().repeat(count)` reads
-  `units.turn`
+  `units.turn` and names it as the SOURCE of a relation, or reads on
+  through a second repeated declaration
 - **THEN** class definition raises naming the repeated declaration and
-  advising that the relation be stated inside the repeated class
+  the path as written: a relation's source is one value while the copies
+  hold one each, and a broadcast fans out over one repeat
+
+#### Scenario: A path through a repeated child names every copy
+
+- **WHEN** a class declaring `units = Unit().repeat(count)` reads
+  `units.turn`
+- **THEN** the read yields a path reference that names that coordinate
+  of every copy, which the `couplings` capability admits as a driven end
+  and refuses as a source
 
 #### Scenario: A wired coordinate is not a parameter
 
@@ -446,6 +497,7 @@ its class's one joint.
   declares no parameter `spin`
 - **THEN** realization raises the `TypeError` it raises today, naming the
   class, the unknown keyword and the declared parameters
+
 ### Requirement: Realization at the root and framework-owned identity
 
 The system SHALL realize a declarative root with its defaults when
@@ -456,7 +508,8 @@ keyword arguments with a `TypeError` that lists the declared names. Its
 `uniq_id` SHALL be derived from the class and the resolved values of its
 declared parameters, never from a hand-forwarded map, and `name` SHALL stay
 out of it. Repeated identical children SHALL share one `uniq_id` and one
-artifact. The loader SHALL construct the root with the caller's overrides,
+artifact, and the position a copy carries SHALL NOT enter that
+identity. The loader SHALL construct the root with the caller's overrides,
 or with none, and bind declared driver defaults exactly as it does today.
 
 #### Scenario: One number moves the machine
@@ -465,6 +518,13 @@ or with none, and bind declared driver defaults exactly as it does today.
   `cylinders` and `block`
 - **THEN** both subtrees read the same `32.0` and their leaves' `uniq_id`s
   differ from those of `Engine()`
+
+#### Scenario: A copy's position is not part of its identity
+
+- **WHEN** a class declaring `units = Unit().repeat(8)` is realized
+- **THEN** the eight copies read eight different `index` values and
+  share one `uniq_id`, the same one a single un-repeated `Unit()` of the
+  same arguments has
 
 #### Scenario: Unknown and positional arguments are rejected
 

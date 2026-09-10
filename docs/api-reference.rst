@@ -243,6 +243,8 @@ parent assembly binds it every ``simulate()`` with
 
 .. autofunction:: solid_node.motion.ports.declared_ports
 
+.. autofunction:: solid_node.motion.ports.get_coordinate
+
 Joints
 ======
 

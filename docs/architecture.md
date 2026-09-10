@@ -596,6 +596,24 @@ itself a coordinate: it owns a `Port` as a joint does, reads on an
 instance as a bound slot, is reported by `declared_ports()`, and solves
 in both directions through its one unknown.
 
+**A relation whose driven end passes through a `.repeat()`ed child is a
+BROADCAST** (ADR-096): it resolves to one relation per realized copy, at
+the position its declaration was written, in copy order, so the fixpoint
+still runs one flat pass. `law=` is called once per COPY rather than
+once per instance — the owner of the driven coordinate under a broadcast
+is the copy, which is what lets a per-copy sign, phase or rank be one
+attribute read, the copy's `index` (a plain 0-based instance attribute
+`RepeatDeclaration.realize` stamps AFTER construction — never a declared
+parameter, never part of identity, never a child name); `ratio=`/`offset=`
+resolve once against the declaring instance and the resulting `Affine`
+is shared by every copy. A repeated end is a driven end only: named as a
+source it is refused at class definition, and once bound it is never
+read backwards, whatever its law offers — the n copies would have to
+agree on one source value, which the framework does not decide by
+comparing values. `get_coordinate(node, name)`, exported beside
+`set_coordinate`, is the matching reader for any name `declared_ports`
+reports, plain or dotted.
+
 **The simulate phase runs in a fixed order** (ADR-089 over ADR-066):
 first the framework CLEARS the value and binder record of every
 coordinate this assembly bound through a wiring or a relation in its
@@ -1581,7 +1599,7 @@ The short list that changes must not silently break:
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088 |
-| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089 |
+| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |

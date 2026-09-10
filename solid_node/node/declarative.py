@@ -237,10 +237,16 @@ class ChildDeclaration:
         """
         if attribute.startswith('_'):
             raise AttributeError(attribute)
-        from solid_node.motion.couplings import PathRef, read_through
+        from solid_node.motion.couplings import (BroadcastRef, PathRef,
+                                                  read_through)
 
         held = f'{self._name}.{attribute}' if self._name else attribute
         found = read_through(self.node_class, attribute, held)
+        if isinstance(found, RepeatDeclaration):
+            # The first (and, so far, only) repeated segment this path
+            # steps onto: a BROADCAST from here on, not a value -- the
+            # couplings capability's own reading of a repeated child.
+            return BroadcastRef(self, (attribute,), found, found)
         return PathRef(self, (attribute,), found)
 
     def drives(self, other, ratio=None, offset=None, law=None):
@@ -303,24 +309,62 @@ class RepeatDeclaration:
             f"realized on this instance")
 
     def __getattr__(self, attribute):
-        """A path through a repeated declaration names many
-        coordinates, and a relation has one end."""
+        """A repeated declaration names a PLACE too, exactly as a plain
+        child declaration does: the coordinate it reaches is the same
+        one of every realized copy, which is what makes it a BROADCAST
+        (`solid_node.motion.couplings.BroadcastRef`) rather than an
+        ordinary path -- usable as the DRIVEN end of a relation and
+        refused as its source."""
         if attribute.startswith('_'):
             raise AttributeError(attribute)
+        from solid_node.motion.couplings import BroadcastRef, read_through
+
         held = f'{self._name}.{attribute}' if self._name else attribute
-        raise SidewaysReadError(
-            f"cannot read '{attribute}' through {held}: "
-            f"'{self._name}' is a repeated declaration, so it names "
-            f"{self.declaration.node_class.__name__} many times and the "
-            f"path names many coordinates. State the relation inside "
-            f"{self.declaration.node_class.__name__} instead, where it "
-            f"applies per instance.")
+        found = read_through(self.node_class, attribute, held)
+        if isinstance(found, RepeatDeclaration):
+            _refuse_two_repeats(held, self, found)
+        return BroadcastRef(self, (attribute,), found, self)
+
+    def drives(self, other, ratio=None, offset=None, law=None):
+        """The repeat's own one joint, named as an end: reached here,
+        rather than through `__getattr__`, so `beads.drives(x)` reaches
+        the SOURCE refusal instead of a nonsense path error (`drives`
+        is not an attribute `read_through` would find on the repeated
+        class)."""
+        from solid_node.motion.couplings import relate
+
+        return relate(self, other, ratio, offset, law)
 
     def _adopt(self, owner, name):
         # The held declaration never reached the class namespace under
         # its own name, so it is named and validated through this one.
         self.declaration._name = name
         self.declaration.__set_name__(owner, name)
+        self._check_index(owner, name)
+
+    def _check_index(self, owner, name):
+        """A repeated class that already answers to `index` is refused
+        HERE, where the repeat is written: a copy's own position is
+        stamped as a plain instance attribute, which a declaration of
+        the same name -- a parameter, a port, a joint, a child, a
+        property or a method -- wins over silently
+        (evidence/probe_shadow.py). Checked on the REPEATED class only:
+        a PARENT that happens to declare its own `index` (InMoov's
+        `Hand`) is untouched."""
+        node_class = self.declaration.node_class
+        found = getattr(node_class, 'index', None)
+        if found is None:
+            return
+        raise TypeError(
+            f"{owner.__name__}.{name}: cannot repeat {node_class.__name__}, "
+            f"which already declares 'index' ({found!r}). Each copy a "
+            f"repeat realizes carries its own 0-based position as the "
+            f"plain instance attribute 'index', and a declaration of that "
+            f"name on {node_class.__name__} would win over it silently -- "
+            f"the framework's value would sit in the instance dict, unread. "
+            f"Rename {node_class.__name__}'s 'index', or declare the "
+            f"children individually or in a list instead of repeating "
+            f"them.")
 
     @property
     def node_class(self):
@@ -334,11 +378,36 @@ class RepeatDeclaration:
             raise ParameterError(
                 f"{owner}: repeat count for '{self._name}' must be a "
                 f"non-negative integer, got {count!r}")
-        return [self.declaration.realize(values, owner) for _ in range(count)]
+        copies = []
+        for index in range(count):
+            child = self.declaration.realize(values, owner)
+            # AFTER construction: a legacy (non-declarative) child calls
+            # super().__init__() LAST, after building its own children,
+            # so a slot consumed during __init__ would land on the wrong
+            # node. No sighting needs `index` during construction (every
+            # broadcast law is declared on the PARENT and read at the
+            # end of ITS OWN construction, well after this); see
+            # design.md decision 3.
+            child.__dict__['index'] = index
+            copies.append(child)
+        return copies
 
     def __repr__(self):
         return (f'<declared {self.node_class.__name__} {self._name or ""} '
                 f'x {self.count!r}>')
+
+
+def _refuse_two_repeats(written, first, second):
+    """A path passing through two repeated declarations: `legs.joints`
+    where both `legs` and `joints` are `.repeat()`s. A broadcast fans
+    out over exactly one repeat, because n x m relations from one
+    sentence is not a thing a reader can count."""
+    raise TypeError(
+        f"'{written}' passes through two repeated declarations -- "
+        f"'{first._name}' of {first.node_class.__name__} and "
+        f"'{second._name}' of {second.node_class.__name__} -- and a "
+        f"broadcast fans out over ONE repeat. State the relation inside "
+        f"the more deeply repeated class instead.")
 
 
 def _is_child_list(value):

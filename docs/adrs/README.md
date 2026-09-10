@@ -73,6 +73,7 @@ that way.
 - [ADR-093](NODE/ADR-093-joints-of-one-class-compose-in-declaration-order.md) — The joints of one class compose in declaration order, innermost first — **Accepted**, extends 088, depends on 023/028/066
 - [ADR-094](NODE/ADR-094-an-orbit-carries-a-point-and-derives-its-radius.md) — An orbit carries a point, and derives its radius: `Orbit`, with no typed radius or phase — **Accepted**, extends 088, depends on 022/093
 - [ADR-095](NODE/ADR-095-a-free-joint-owns-six-coordinates.md) — A free joint owns six coordinates: `Free`, one declaration for a floating body — **Accepted**, extends 088, depends on 093, related to 089/094
+- [ADR-096](NODE/ADR-096-a-relation-broadcasts-over-a-repeated-child.md) — A relation broadcasts over a repeated child: one relation per realized copy, `index` on the copy — **Accepted**, extends 089, depends on 061/063/093
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073
