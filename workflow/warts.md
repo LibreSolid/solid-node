@@ -1232,3 +1232,29 @@ suites green with no test edited. Two findings, neither blocking.
   pinion did escape (`wrist.drives(drive.pinion.spin, offset=...)`)
   because `WristDrive` is built in the pinion's frame. `Hand.simulate()`'s
   ten `connect()` calls remain on the `.repeat()` fan-out finding.
+
+# hexapod_spiderbot_model stage B (2026-09-10, first project on Free)
+
+Found resuming the SpiderBot on ADR-093 and ADR-095. Stage B went through
+unchanged: `pose = Free(...)` on the chassis driven by four root
+relations, three `Revolute` declarations for eighteen leg freedoms, the
+root's `simulate()` gone; poses bit-identical over 28 poses and 172
+leaves, 34/34 green, no test edited. One finding, not blocking.
+
+- **A dotted coordinate name can be written but not read by name.**
+  `declared_ports(Chassis)` reports a `Free`'s six coordinates under
+  dotted keys (`pose.roll`, ...), and `set_coordinate(node, 'pose.roll',
+  value)` binds one; but there is no reader: `getattr(node, 'pose.roll')`
+  raises `AttributeError`, so every consumer that iterates
+  `declared_ports` and reads each name — the shop's own
+  `capture_poses.py` was the first — records an error for all six. Exactly
+  the consequence ADR-095 predicted, arriving on the primitive's first
+  use. Wanted, the read counterpart of the writer:
+
+      get_coordinate(node, 'pose.roll')      # the bound slot, or None
+
+  exported beside `set_coordinate`, and the ports spec saying that a
+  name the enumerator reports is a name the framework can read back.
+  Nothing in the project needs it (`self.pose.roll.value` reads fine).
+- The "own-placed-origin" anchor sighting again: `Femur.lift` and
+  `Tibia.knee` restate the parent's `translate` as `at`.
