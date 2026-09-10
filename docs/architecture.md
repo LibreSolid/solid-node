@@ -879,9 +879,12 @@ the engine's own `status()` (ADR-074): a mesh Manifold refuses raises by
 file name with the engine's reason, a mesh trimesh doubts and the engine
 accepts is compared, and selection, the broad phase and the exact path
 never judge a mesh at all. It culls provably disjoint pairs with a
-conservative world-AABB broad-phase, and reads `is_empty()`/`volume()`
-straight off lazy-transformed Manifolds — verdict-identical to the naive
-faceted path. Exact pairs share the same AABB
+conservative world-AABB broad-phase of its own — always world axis here,
+whatever indexing frame the whole-assembly interference index below may
+have chosen for its own candidates (ADR-091) — and reads
+`is_empty()`/`volume()` straight off lazy-transformed Manifolds —
+verdict-identical to the naive faceted path. Exact pairs share the same
+world-AABB
 broad phase, then use OCCT common and interpret “contains no solid” as empty;
 kernel failure raises and never falls back. `volume_epsilon` is ignored with a
 warning when every comparison in a call was exact.
@@ -924,14 +927,29 @@ The root-level integrity boundary is the first rigid node on every branch
 in a selected subtree is one connected body; it reads each topmost rigid
 node's local STL. `assertNoSolidInterference(node)` is its world-space
 assembly complement: zero or one selected solid passes without geometry work;
-otherwise a sweep-and-prune index estimates interval pressure on X, Y and Z,
-chooses the least-pressure axis (X, then Y, then Z on ties), and emits the
-potentially interacting pairs in the historical X-order before each is settled
-by an exact same-kernel
+otherwise the whole-assembly index takes its conservative bounds in a chosen
+INDEXING FRAME (ADR-091) — the world frame, or the placement frame of one of
+the assembly's `_INDEXING_FRAME_CANDIDATES` largest topmost solids by
+local-bounds diagonal, whichever scores the smallest total (padded) box
+volume, ties resolved to the earliest candidate with world first. A bound
+taken in a non-world frame is enlarged by a fixed absolute margin
+(`_INDEXING_FRAME_MARGIN`) absorbing the extra inversion and matrix product
+the frame change costs in float residue, so a flush-contact pair does not
+fall through it; world boxes are never padded, so an assembly that gains
+nothing from the choice is indexed exactly as it is today. The choice can
+only change which candidate pairs are emitted, never a verdict — a bound
+taken in any invertible frame remains a superset of the solid's placed
+geometry expressed in that frame, so box disjointness in one common frame
+stays a necessary condition for intersection whichever frame was chosen.
+Given that box list, a sweep-and-prune index estimates interval pressure on
+X, Y and Z, chooses the least-pressure axis (X, then Y, then Z on ties), and
+emits the potentially interacting pairs in the historical X-order before each
+is settled by an exact same-kernel
 intersection — the sole verification path, with no whole-assembly measurement.
 Exact zero-volume boundary contact passes, every positive candidate volume
 fails, and no public volume epsilon or private numerical tolerance is exposed.
-Correctness rests on the broad phase being complete, which is proved by
+Correctness rests on the broad phase being complete in whichever frame it
+indexed, which is proved by
 framework tests rather than re-checked at runtime (ADR-040). Up to 8,192
 accepted candidates are buffered to restore that order; at the cap the buffer
 is discarded and the original streaming X sweep is used, preserving bounded
@@ -953,7 +971,10 @@ feature or down through an assembly), and groundedness propagates from
 supporter to supported, so a mutual-lean cycle is grounded exactly when a
 member reaches ground. `supports=[(supported, supporter), ...]` declares holds
 the drop cannot prove — press fits, glue, friction — without grounding
-anything by itself. The broad phase is the same sweep-and-prune, run over the
+anything by itself. This assertion's own boxes stay world-axis always, never
+in an indexing frame chosen for the interference assertion above, because
+gravity is a world-frame fact (ADR-048) and a projection along it is only
+meaningful in that frame. The broad phase is the same sweep-and-prune, run over the
 displaced and placed boxes at once so an emitted cross-half pair is exactly a
 directed overlap; exact pairs still route to the kernel. Zero or one selected
 solid passes without geometry work; a zero `gravity`, a non-positive

@@ -467,11 +467,157 @@ def _boxes_disjoint(box1, box2):
     return bool(np.any(box1[1] < box2[0]) or np.any(box2[1] < box1[0]))
 
 
+def _framed_bounds(local_bounds, matrix, inverse_frame):
+    """The conservative AABB of a solid's 8 local-bounds corners under
+    ``inverse_frame @ matrix`` -- the same box ``_world_bounds`` computes,
+    generalised to an arbitrary INDEXING FRAME's inverse (ADR-091).
+
+    Proof sketch (design.md section 1, stated in full in the ADR and in
+    tests/test_broad_phase_culling.py's "Broad-phase completeness"
+    comment block): for any invertible affine frame F, inv(F) carries a
+    solid's local box onto a box that still contains the solid, because
+    inv(F) is affine and the solid is inside its local box before the
+    map. So two solids whose boxes are disjoint under one common F
+    cannot share material, in ANY frame -- box overlap in one common
+    frame remains a necessary condition for intersection, whichever
+    frame the caller chose. ``inverse_frame = np.eye(4)`` reproduces
+    ``_world_bounds`` exactly, bit for bit: the world frame is not an
+    approximation of this generalisation, it IS this generalisation at
+    the identity.
+    """
+    return _world_bounds(local_bounds, inverse_frame @ matrix)
+
+
 # The adaptive sweep buffers only sparse candidates so it can restore the
 # existing X-sweep diagnostic order. Dense candidates stream that X sweep
 # directly instead of retaining a quadratic pair list. This is an internal
 # tuning value, not a public assertion-control knob.
 _ADAPTIVE_CANDIDATE_BUFFER_LIMIT = 8192
+
+# The candidate indexing frames assertNoSolidInterference's whole-assembly
+# index scores (ADR-091): the world frame plus the placement frames of the
+# K largest topmost solids by local-bounds diagonal. An internal tuning
+# value, not a public assertion-control knob -- see design.md section 2
+# of openspec/changes/broad-phase-indexing-frame for why 3 and why the
+# largest solids.
+_INDEXING_FRAME_CANDIDATES = 3
+
+# The fixed absolute margin (mm) a NON-WORLD candidate's boxes are
+# enlarged by before they are scored or swept (ADR-091). A frame box
+# costs an inversion and two matrix products of float residue where a
+# world box costs one product (~1e-13 x |coordinate| of residue); without
+# this margin, two solids in exact flush contact -- non-empty at 0.0mm^3,
+# which the broad-phase completeness requirement counts as a candidate
+# that must still be emitted -- could come out of that arithmetic
+# separated by residue and be culled, where the world index of the same
+# axis-aligned placement emits them exactly. Enlargement can only ADD
+# candidates, never remove one, so it cannot cost correctness -- only, at
+# this scale, an occasional boolean a world-axis index would not have
+# paid. World boxes are NEVER padded (they are record[2], already
+# computed by one matrix product), so candidate zero stays today's
+# boxes bit for bit and an axis-aligned assembly's world frame wins the
+# score STRICTLY rather than by the tie rule. An internal tuning value,
+# not a public assertion-control knob.
+_INDEXING_FRAME_MARGIN = 1e-6
+
+
+def _diagonal(local_bounds):
+    """The Euclidean length of a solid's own local-bounds diagonal --
+    the size measure ADR-091 ranks candidate indexing frames by. A
+    property of the part itself, independent of where it currently sits
+    and of the very world-axis inflation this ranking is meant to avoid
+    paying for."""
+    low, high = local_bounds
+    return float(np.linalg.norm(np.asarray(high) - np.asarray(low)))
+
+
+def _ranked_solid_candidates(records):
+    """Selection indices of the ``_INDEXING_FRAME_CANDIDATES`` largest
+    topmost solids among ``records``, by local-bounds diagonal
+    descending, ties broken by selection index ascending -- the
+    non-world indexing-frame candidates, in the order they are scored
+    (design.md section 2)."""
+    order = sorted(range(len(records)),
+                   key=lambda index: (-_diagonal(records[index][7]), index))
+    return order[:_INDEXING_FRAME_CANDIDATES]
+
+
+def _padded_box(box):
+    """``box`` enlarged by ``_INDEXING_FRAME_MARGIN`` on every side."""
+    low, high = box
+    return low - _INDEXING_FRAME_MARGIN, high + _INDEXING_FRAME_MARGIN
+
+
+def _box_volume(box):
+    """The product of a box's three extents -- the per-solid term the
+    indexing-frame score (design.md section 3) sums over an assembly."""
+    low, high = box
+    return float(np.prod(np.asarray(high) - np.asarray(low)))
+
+
+def _candidate_frame_boxes(records, inverse_frame):
+    """Every record's padded box under ``inverse_frame``, or ``None`` if
+    the frame is unusable (a non-finite box: guarded per design.md
+    section 3 by dropping the candidate rather than scoring it)."""
+    boxes = []
+    for record in records:
+        box = _padded_box(
+            _framed_bounds(record[7], record[6], inverse_frame))
+        if not (np.all(np.isfinite(box[0])) and np.all(np.isfinite(box[1]))):
+            return None
+        boxes.append(box)
+    return boxes
+
+
+def _indexing_frame_boxes(records):
+    """The whole-assembly index's boxes, taken in the chosen indexing
+    frame (ADR-091): the world frame, or the placement frame of one of
+    the ``_INDEXING_FRAME_CANDIDATES`` largest topmost solids, whichever
+    scores the smallest total box volume. Ties resolve to the earliest
+    candidate, world first, so an assembly that gains nothing from the
+    frame choice is indexed exactly as it is today.
+
+    The choice can only change WHICH candidate pairs
+    ``_bounds_candidates`` emits, never a verdict: a bound taken in any
+    invertible frame remains a superset of the solid's placed geometry
+    in that frame (see ``_framed_bounds``), so box disjointness in one
+    common frame remains a necessary condition for intersection whatever
+    frame this function picked.
+
+    World is candidate zero and is never padded -- its boxes are
+    ``record[2]``, already computed by ``_place_solid``, reused here
+    rather than recomputed, so this candidate is today's boxes bit for
+    bit. Every other candidate's boxes are enlarged by
+    ``_INDEXING_FRAME_MARGIN`` before they are scored, because the
+    frame-change arithmetic (an inversion and two matrix products) is
+    not exact where a world box's one product is; the world candidate
+    carries none of that residue and so needs no margin. A candidate
+    whose own placement matrix cannot be inverted, or whose boxes are
+    not finite, is dropped rather than scored; if every non-world
+    candidate is dropped this returns the world boxes, exactly today's
+    behaviour.
+    """
+    world_boxes = [record[2] for record in records]
+    if not records:
+        return world_boxes
+    best_boxes = world_boxes
+    best_score = sum(_box_volume(box) for box in world_boxes)
+    for candidate_index in _ranked_solid_candidates(records):
+        matrix = records[candidate_index][6]
+        try:
+            inverse_frame = np.linalg.inv(matrix)
+        except np.linalg.LinAlgError:
+            continue
+        if not np.all(np.isfinite(inverse_frame)):
+            continue
+        boxes = _candidate_frame_boxes(records, inverse_frame)
+        if boxes is None:
+            continue
+        score = sum(_box_volume(box) for box in boxes)
+        if score < best_score:
+            best_score = score
+            best_boxes = boxes
+    return best_boxes
 
 
 def _axis_order_and_pressure(bounds, axis):
@@ -622,13 +768,22 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape,
                  faceted_identity):
     """One placed-solid record: ``(solid, deferred_placed_manifold,
     world_bounds, placed_exact_shape_or_None, faceted_identity,
-    exact_identity, matrix)``.
+    exact_identity, matrix, local_bounds)``.
 
-    The last three carry what the verdict memo needs and nothing reads
-    otherwise: one identity per evaluation path, so a record is keyed by
-    the geometry the path it takes actually compares, and the matrix the
-    record was placed by, so a pair's RELATIVE placement can be formed
-    without re-deriving it from the node tree.
+    The three fields after ``world_bounds`` carry what the verdict memo
+    needs and nothing reads otherwise: one identity per evaluation path,
+    so a record is keyed by the geometry the path it takes actually
+    compares, and the matrix the record was placed by, so a pair's
+    RELATIVE placement can be formed without re-deriving it from the
+    node tree. The trailing ``local_bounds`` (record[7], ADR-091) is the
+    solid's own UNPLACED bounds -- what a box taken in an indexing frame
+    other than world needs, since that box is no longer ``record[2]``
+    itself but a fresh AABB of these same 8 corners under a different
+    matrix (see ``_framed_bounds``/``_indexing_frame_boxes``, used only
+    by ``assertNoSolidInterference``'s own index). ``world_bounds``
+    (record[2]) stays exactly what it always was -- the world-axis box
+    every OTHER reader (the verdict memo, the gravity-support graph)
+    keeps using unchanged.
     """
     return (solid, _DeferredManifold(
                 stl_file, matrix, faceted_identity[1]),
@@ -636,7 +791,8 @@ def _place_solid(solid, stl_file, local_bounds, matrix, shape,
             None if shape is None else placed_shape(shape, matrix),
             faceted_identity,
             None if shape is None else shape_identity(shape),
-            matrix)
+            matrix,
+            local_bounds)
 
 
 def _placed_assembly_solids(node):
@@ -1286,9 +1442,14 @@ def _verdict_key(identity1, matrix1, identity2, matrix2, path):
 def _record_key(first, second, identity_index, path):
     """The verdict key for a pair of placement records, or None.
 
-    A record built outside ``_place_solid`` -- the virtual floor, which is
-    a Manifold with no geometry file behind it -- carries no identity and
-    is therefore never cached.
+    The guard means "this record was not built by ``_place_solid``" --
+    the virtual floor is a Manifold with no geometry file behind it and
+    carries no identity, so it is never cached. A real ``_place_solid``
+    record is now an 8-tuple (``record[7]`` holds local bounds, ADR-091),
+    so the ``len(...) <= 6`` threshold still separates the two: any
+    FUTURE trailing field appended to ``_place_solid`` must keep this
+    guard's intent true by staying above 6, not by changing this
+    comparison.
     """
     if len(first) <= 6 or len(second) <= 6:
         return None
@@ -1735,10 +1896,13 @@ class TestCase(BaseTestCase):
 
         The spatial index is the sole verification path. Positive-volume
         interference is by definition material shared by SOME two solids, and
-        any such pair has overlapping conservative world bounds -- so a
-        complete broad phase reduces the assembly question to the pairs it
-        emits. Triple overlap and full containment are covered by that same
-        argument, not special-cased. Completeness is proved in
+        any such pair has overlapping conservative bounds in whichever frame
+        the index took them -- world axes, or an INDEXING FRAME the index
+        chose among world and the placement frames of the assembly's own
+        largest solids (ADR-091) -- so a complete broad phase reduces the
+        assembly question to the pairs it emits regardless of which frame
+        that was. Triple overlap and full containment are covered by that
+        same argument, not special-cased. Completeness is proved in
         tests/test_broad_phase_culling.py rather than re-checked here against
         a whole-assembly volume comparison: that comparison cost time
         proportional to the assembly's total triangle count on every passing
@@ -1751,7 +1915,7 @@ class TestCase(BaseTestCase):
 
         solids = _placed_assembly_solids(node)
         for first, second in _bounds_candidates(
-                [item[2] for item in solids]):
+                _indexing_frame_boxes(solids)):
             is_empty, volume = _candidate_intersection(
                 solids, first, second, 'assertNoSolidInterference',
                 'one of the two solids in a candidate pair has no exact '

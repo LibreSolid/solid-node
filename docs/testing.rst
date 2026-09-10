@@ -423,8 +423,18 @@ the model and add a pair-specific distance or fit contract with a
 manufacturing margin expressed in length.
 
 Internally, the assertion places each selected solid's cached Manifold, builds
-one conservative world AABB per solid, and uses a sweep-and-prune index to emit
-only the pairs whose boxes overlap. Each emitted pair meets an exact Manifold
+one conservative bound per solid in a CHOSEN INDEXING FRAME, and uses a
+sweep-and-prune index to emit only the pairs whose boxes overlap. The chosen
+frame is the world frame, or the placement frame of one of the assembly's
+largest topmost solids by local-bounds diagonal — whichever scores the
+smallest total box volume, world winning ties — so an assembly sharing one
+outermost rigid turn (a common ``facing`` applied to every part, say) is not
+charged for every box growing under that turn. A bound taken in a non-world
+frame is enlarged by a small fixed margin absorbing the extra arithmetic the
+frame change costs, so a flush-contact pair is never lost to it; world bounds
+are never enlarged, so an assembly that gains nothing from the choice is
+indexed exactly as it always was. The choice can only change which candidate
+pairs are emitted, never a verdict. Each emitted pair meets an exact Manifold
 intersection. Nothing is computed over the assembly as a whole, so the cost
 tracks the number of interacting pairs rather than the model's total triangle
 count. This is a CPU geometry-kernel path (Manifold may use its own CPU
@@ -556,10 +566,13 @@ and must be declared in ``supports``, the same trade the reachability phase
 already makes.
 
 Internally it reuses the assembly-integrity machinery: the same cached
-Manifolds, the same conservative world AABBs, and the same sweep-and-prune
-index, asked a directed question — solid *i* displaced against solid *j*
-placed — so only pairs whose displaced and placed boxes overlap ever meet a
-Boolean, in the drop and lift sweeps alike. A pair of exact solids has its
+Manifolds and the same sweep-and-prune index, asked a directed question —
+solid *i* displaced against solid *j* placed — so only pairs whose displaced
+and placed boxes overlap ever meet a Boolean, in the drop and lift sweeps
+alike. Its own bounds, unlike assembly integrity's, stay conservative world
+AABBs always: gravity is a world-frame fact, so a projection along it (the
+grounded seeds, the virtual floor) is only meaningful in that frame, and no
+indexing frame is ever chosen for this assertion. A pair of exact solids has its
 support edge decided by the boundary-representation kernel, as in assembly
 integrity, while contact patches and mass properties are read off the placed
 faceted geometry: statics needs a patch's extent and direction, not Boolean

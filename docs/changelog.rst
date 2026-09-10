@@ -8,6 +8,26 @@ Changelog
 Unreleased
 ----------
 
+**The whole-assembly interference index chooses its own indexing
+frame.** A world-axis conservative bound is exact for an axis-aligned
+part and grows under rotation; when every part in an assembly shares
+one outermost rigid turn, every box grows and the index no longer sees
+how sparse the assembly really is. ``assertNoSolidInterference`` now
+indexes its candidate pairs in a chosen frame: the world frame, or the
+placement frame of one of the assembly's largest topmost solids by
+local-bounds diagonal, whichever scores the smallest total box volume,
+world winning ties. A bound taken in a non-world frame is enlarged by a
+small fixed margin absorbing the extra arithmetic the frame change
+costs, so a flush-contact pair is never lost to it; world bounds are
+never enlarged, so an assembly that gains nothing from the choice is
+indexed exactly as it always was. The choice can only change which
+candidate pairs are emitted, never a verdict, a message, or an epsilon.
+``assertAssemblySupported``'s own bounds are unaffected and stay
+world-axis, because gravity is a world-frame fact. No public surface
+changes: no flag, no environment variable, no assertion argument.
+(OpenSpec change ``broad-phase-indexing-frame``; ADR-091, extending
+ADR-029.)
+
 **The verdict memo absorbs float noise between two rigid motions.** A
 pair carried together by a rotating parent recomposes a relative matrix
 that differs from the previous instant's by float noise far below any

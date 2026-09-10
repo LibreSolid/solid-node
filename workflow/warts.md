@@ -997,14 +997,34 @@ of them empty. Placement, BREP copies and keyframe binding are under
   hits, 1823 → 3117) and wall time 779.37 s → 533.39 s (31.6% faster,
   keeping the same test verdict). Full counts and the quantum-0 control
   run in `evidence.md` of the `quantise-verdict-memo` OpenSpec change.
-- **A common rigid turn inflates every world box.** The clock declares
-  `facing = 45°` on its root and the movement's AABBs are taken on world
-  axes, so every box grows by up to √2 and pairs that never meet
-  overlap. At `--set facing=0` the same model yields 69 candidate pairs
-  and 6.4 s per instant, three times fewer. The broad phase should take
-  its boxes in the root's frame (the placement common to every solid
-  stripped), which cannot change which pairs meet. **Filed:** cycle
-  `broad-phase-in-the-root-frame`.
+- **A common rigid turn inflates every world box. Fixed** by cycle
+  `broad-phase-indexing-frame` (ADR-091, extending ADR-029). The clock
+  declares `facing` on each child of its root — `Clock.render()` applies
+  `rotate(self.facing, Z)` to each direct child, not to the root, which
+  carries no placement of its own — so every topmost rigid solid shares
+  one outermost rigid turn, and the movement's AABBs, taken on world
+  axes, all grow by up to √2 and pairs that never meet overlap. At
+  `--set facing=0` the same model yields fewer candidate pairs (see
+  below). The broad phase now takes its boxes in a chosen INDEXING
+  FRAME instead of always on world axes: the world frame, or the
+  placement frame of one of the assembly's `K = 3` largest topmost
+  solids by local-bounds diagonal, whichever scores the smallest total
+  (padded) box volume — a fix that reaches the turn wherever it was
+  declared, not only on a root that carries no placement of its own.
+  Measured on `wall_clock_02` at the first swing-sweep instant: 116
+  candidate pairs at the declared `facing=45` before, 67 at
+  `--set facing=0`; after, 67 at `facing=45` (chosen frame: `standoffs`,
+  tied with `plates` — the fused frame this bullet is about, both among
+  the top two candidates by diagonal) and 67 at `facing=0` (world frame,
+  unaffected) — the chosen frame recovers the un-turned candidate count
+  exactly. Over the full 48-instant swing sweep
+  (`test_movement_runs_free_through_a_swing`, exact kernel, default
+  `facing=45`, measured against the tree after `quantise-verdict-memo`):
+  booleans 2526 → 1089 (56.9% fewer) and wall time 533.39 s → 265.99 s
+  (50.1% faster), same test verdict. Full counts, the chooser's own
+  ranking and scores, and the honest comparison against the finding's
+  3x forecast are in `evidence.md` of the `broad-phase-indexing-frame`
+  OpenSpec change.
 - **One enclosing solid defeats whole-solid boxes.** The fused frame
   (both plates and their pillars, one solid) sits in 40 of the 118 pairs;
   its box encloses the whole movement, so nothing is culled against it,
