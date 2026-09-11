@@ -17,7 +17,7 @@ architectural choice, read [`docs/adrs/`](adrs/README.md).
   export.
 - `solid_node/core/loader.py` — node and test loading conventions.
 - `solid_node/test.py` — mesh-oriented test cases and assertions.
-- `solid_node/viewers/` — the OpenSCAD viewer and snapshotter, the lookup of
+- `solid_node/viewers/` — the OpenSCAD snapshot renderer, the lookup of
   the installed `solid-node-viewer` package (its lightweight entry-point
   provider is imported and called here), and the staging half of the web
   snapshot renderer. The viewer's serving and capture modules run in separate

@@ -8,74 +8,11 @@ import logging
 import os
 import shutil
 import sys
-import errno
-from subprocess import Popen
 
-from solid_node.core import load_node
 from solid_node.openscad import require_openscad
 
 
 logger = logging.getLogger('viewers.openscad')
-OPENSCAD_PID = ".openscad.pid"
-
-
-class OpenScadViewer:
-    """Shows the rendered project in OpenSCAD."""
-
-    def __init__(self, path, overrides=None):
-        self.pid_file = OPENSCAD_PID
-        self.path = path
-        self.node = load_node(path, overrides=overrides)
-        self.proc = None
-
-    @property
-    def pid(self):
-        if self.proc:
-            return self.proc.pid
-        else:
-            try:
-                with open(self.pid_file) as pid_file:
-                    return int(pid_file.read())
-            except (FileNotFoundError, TypeError, ValueError):
-                return None
-
-    @property
-    def running(self):
-        pid = self.pid
-        if not pid:
-            return
-        try:
-            os.kill(pid, 0)
-        except OSError as err:
-            if err.errno == errno.ESRCH:
-                # PID does not exist
-                return False
-            elif err.errno == errno.EPERM:
-                # no permission to send a signal to process
-                return True
-            else:
-                raise
-        else:
-            return True
-
-    def start(self):
-        if self.running:
-            return
-        openscad = require_openscad(
-            'the requested OpenSCAD viewer',
-            'opening that viewer launches OpenSCAD')
-        self.proc = Popen([openscad, self.node.scad_file])
-        with open(self.pid_file, 'w') as pid_file:
-            pid_file.write(f'{self.proc.pid}')
-
-    def quit(self):
-        pid = self.pid
-        if pid:
-            os.kill(pid, 15)
-        try:
-            os.remove(self.pid_file)
-        except FileNotFoundError:
-            pass
 
 
 class OpenScadRenderer:

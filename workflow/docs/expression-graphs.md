@@ -1,12 +1,11 @@
 # Expression graphs and removing OpenSCAD as the core broker
 
-Status: working memorandum. The first two stages are implemented; the pilot's
-next accepted direction is proposed, not yet ratified or implemented.
+Status: working memorandum. All three stages are implemented; the OpenSCAD
+viewer removal completed the accepted sequence.
 Date: 2026-09-11.
 This document is not authority over baseline specs or accepted ADRs. It records
-the sequence, originating evidence, completed outcomes, and the rationale for
-the next change. The OpenSCAD viewer removal still needs OpenSpec ratification,
-implementation, and proof.
+the sequence, originating evidence, completed outcomes, and the rationale and
+proof for the three changes.
 
 ## Accepted direction
 
@@ -15,8 +14,8 @@ accepted in ADR-101, which fixed Curta Type I-3x's export failure. The
 separately scoped geometry lifecycle change followed in ADR-102 and removed
 OpenSCAD as the framework's assembly and build broker.
 
-The pilot has now accepted removing the OpenSCAD GUI as a `solid develop`
-viewer and removing its installation-dependent fallback for v0.7. OpenSCAD
+The pilot accepted and implemented removal of the OpenSCAD GUI as a
+`solid develop` viewer and of its installation-dependent fallback for v0.7. OpenSCAD
 was solid-node's first reliable viewer; as the browser viewer gained tree
 navigation, independent driver controls, instructions and continuously
 evaluated flexible parts, the OpenSCAD GUI was used less and represented less
@@ -86,7 +85,7 @@ OpenSCAD has several distinct architectural roles today:
 | Motion representation | Framework-owned construction-time graph; ADR-101 | Complete |
 | Assembly and build broker | Native materialization precedes optional SCAD presentation; ADR-102 | Complete |
 | Modelling technology | OpenSCAD and SolidPython produce geometry | Preserve support |
-| Interactive viewer | OpenSCAD GUI remains selectable and is the fallback when the browser package is absent | Remove the GUI viewer and fallback in the proposed v0.7 change |
+| Interactive viewer | Browser viewer is the sole interactive surface; OpenSCAD GUI and fallback removed | Complete in `remove-openscad-viewer` |
 | Snapshot renderer | OpenSCAD renders one numerically bound pose | Retain separately, with its existing default |
 
 The OpenSCAD executable is already conditional on the paths that invoke it.
@@ -179,7 +178,7 @@ The completed `remove-openscad-broker` cycle is recorded by ADR-102 and
 `as_scad()` as an optional compatibility/output consumer, moved faceted fusion
 to Manifold, and proved native project builds without assembly-wide SCAD.
 
-## Accepted next direction: remove OpenSCAD as a viewer
+## Completed third change: remove OpenSCAD as a viewer
 
 Supporting a modelling backend does not require using its application as the
 framework's viewer. OpenSCAD cannot faithfully present the machine experience
@@ -198,10 +197,12 @@ explain both the historical transition and the retained boundary: OpenSCAD and
 SolidPython modelling, SCAD output and OpenSCAD snapshots remain supported;
 OpenSCAD is no longer an interactive solid-node viewer.
 
-## Current planning step
+## Completed implementation
 
-The standalone `remove-openscad-viewer` OpenSpec proposal carries this
-decision from framework `main` at `748d6d9`. Ratify its CLI migration,
-retained snapshot/modelling boundaries, release explanation, and planned proof
-before implementation. This change does not authorize publishing the
-framework or the separately founded, not-yet-released viewer package.
+The standalone `remove-openscad-viewer` OpenSpec cycle carried this decision
+from framework `main` at `748d6d9`. It removed the CLI/GUI lifecycle, retained
+and proved the snapshot and modelling boundaries, and added the v0.7 release
+explanation. Its completed record is
+`openspec/changes/archive/2026-09-11-remove-openscad-viewer/`. This change did
+not publish the framework or the separately founded, not-yet-released viewer
+package.

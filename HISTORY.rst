@@ -5,14 +5,22 @@ History
 Unreleased
 ----------
 
+* **BREAKING:** OpenSCAD is no longer a ``solid develop`` viewer or automatic
+  fallback. It was solid-node's first reliable viewer, but as machine
+  simulation gained independent drivers, instructions and continuously
+  evaluated flexible parts, the browser viewer became the faithful machine
+  surface and the OpenSCAD GUI became a roadmap burden. Install
+  ``solid-node[viewer]`` and run ordinary ``solid develop`` (or ``--web``), or
+  use ``--no-web`` for the viewerless watch loop. ``OpenScadNode``,
+  ``Solid2Node``, legacy SCAD evaluation, SCAD output and the default
+  fixed-pose OpenSCAD snapshot renderer remain supported.
 * **BREAKING:** the browser viewer is no longer part of solid-node. It is
   the separate ``solid-node-viewer`` package, licensed AGPL-3.0-only, and
   installed through the new ``viewer`` extra: ``pip install
   "solid-node[viewer]"``. The framework stays Apache-2.0 and complete
-  without it. ``solid develop`` opens the browser viewer when the package
-  is installed and the OpenSCAD GUI otherwise; ``--web`` and ``--openscad``
-  are explicit and never substituted. ``solid export`` (unless
-  ``--no-widget``), the Sphinx directive, ``solid viewer`` and
+  for non-interactive use without it. ``solid develop`` requires the package;
+  ``--web`` remains an explicit spelling of that default. ``solid export``
+  (unless ``--no-widget``), the Sphinx directive, ``solid viewer`` and
   ``solid snapshot --renderer web`` need the extra and say so when it is
   absent; the snapshot default stays OpenSCAD regardless. The framework
   reaches the viewer through one entry point and runs it as a separate

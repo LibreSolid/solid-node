@@ -9,7 +9,9 @@ No special intermediate-value API is needed.
 Build and export compile the reachable graph into the existing schema-4
 ``bindings`` table. The browser's document language and controls have not changed.
 OpenSCAD and SolidPython remain supported modelling technologies; this change
-does not remove any geometry backend or decide the future of the OpenSCAD viewer.
+removed no geometry backend. A subsequent v0.7 decision removed the OpenSCAD
+GUI from ``solid develop`` while retaining those modelling technologies and
+the fixed-pose OpenSCAD snapshot renderer.
 
 Text compatibility
 ------------------

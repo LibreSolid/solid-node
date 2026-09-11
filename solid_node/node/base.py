@@ -545,8 +545,8 @@ class AbstractBaseNode(metaclass=NodeMeta):
     # this node's mesh.
     _parent = None
 
-    # Set to false to render scad directly instead of stls
-    # Only works in openscad viewer
+    # Set to false to present this node's SCAD directly instead of importing
+    # its optimized STL.
     optimize = True
 
     # Whether the render in progress left this node out of the machine.

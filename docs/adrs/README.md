@@ -96,6 +96,7 @@ that way.
 - [ADR-073](BUILD/ADR-073-named-project-models-and-per-model-build-directories.md) — Named project models and per-model build directories — **Accepted**, amends 005, 024, 038
 - [ADR-084](BUILD/ADR-084-one-fresh-builder-per-sealed-source-generation.md) — One fresh builder per sealed source generation — **Accepted**, amends 067
 - [ADR-086](BUILD/ADR-086-state-dependent-scad-publishes-at-assembly-phase-completion.md) — State-dependent SCAD publishes at assembly phase completion — **Accepted**, extends 038
+- [ADR-103](BUILD/ADR-103-the-browser-is-the-only-interactive-development-viewer.md) — The browser is the only interactive development viewer — **Accepted**, amends 046/068/102
 
 ### IPC — inter-process communication
 - [ADR-015](IPC/ADR-015-fastapi-unified-stack-for-http-services.md) — FastAPI + Uvicorn HTTP stack — **Accepted, amended** (broker consumer removed)

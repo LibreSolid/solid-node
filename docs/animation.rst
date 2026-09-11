@@ -47,9 +47,6 @@ Rendered with ``solid export`` — press play to see the pointer rotate:
    :height: 360px
 
 At this point you should see a rotating pointer in the viewer.
-If you are using the Openscad viewer, you need to enable animation
-(View -> Animate) and set fps and number of frames.
-Reload is not automatic in Openscad while animating.
 
 Positioning operations
 ======================

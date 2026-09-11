@@ -38,11 +38,13 @@ Quickstart
 The ``viewer`` extra installs the browser viewer, `solid-node-viewer
 <https://github.com/LibreSolid/solid-node-viewer>`_. It is a separate
 package because it is licensed differently: solid-node is **Apache-2.0**,
-the viewer is **AGPL-3.0-only**. Install ``solid-node`` without the extra and
-the framework is complete with OpenSCAD as its viewer — ``solid develop``
-opens the OpenSCAD GUI, ``solid export --no-widget`` and the default snapshot
-renderer work as before — and the commands that need the browser viewer name
-the extra. To discover the installed bundle, the framework imports and calls
+the viewer is **AGPL-3.0-only**. It is the sole interactive development
+viewer: ``solid develop`` requires the extra and names that installation
+remedy when it is absent. A plain ``solid-node`` installation remains useful
+without an interactive viewer: it builds, tests, exports with ``--no-widget``,
+runs the ``--no-web`` development watch loop, and takes fixed-pose snapshots
+through OpenSCAD. OpenSCAD and SolidPython modelling and SCAD output remain
+supported. To discover the installed bundle, the framework imports and calls
 only the viewer's lightweight entry-point provider. It launches the viewer's
 serving and browser-capture code in separate processes and does not import
 those modules.
@@ -77,10 +79,9 @@ its widget live in the separate `solid-node-viewer
 <https://github.com/LibreSolid/solid-node-viewer>`_ repository, and the tests
 that need a viewer skip unless that package is installed. `OpenSCAD
 <https://openscad.org/>`_ is conditional: put it on the PATH when working on
-SolidPython2/Solid2 or raw OpenSCAD nodes, faceted fusions, symbolic Solid2
-animation values, the ``solid develop --openscad`` viewer, or the default
-OpenSCAD snapshot renderer. All-exact projects — CadQuery, build123d, or the
-two mixed — build, test, and export without it; use
+SolidPython2/Solid2 or raw OpenSCAD nodes, symbolic Solid2 animation values,
+or the default OpenSCAD snapshot renderer. All-exact projects — CadQuery,
+build123d, or the two mixed — build, test, and export without it; use
 ``solid snapshot --renderer web`` for snapshots on a machine without OpenSCAD.
 
 `manifold3d <https://pypi.org/project/manifold3d/>`_ is installed by default
@@ -163,7 +164,7 @@ Where things live
 * ``solid_node/simulation/`` — drivers, instructions, the stepped ``Sim``
   loop, and ``ScenarioTest``
 * ``solid_node/test.py`` — mesh-oriented test cases and assertions
-* ``solid_node/viewers/`` — the OpenSCAD viewer and snapshotter, the lookup
+* ``solid_node/viewers/`` — the OpenSCAD snapshot renderer, the lookup
   of the installed ``solid-node-viewer`` package, and the staging half of the
   web snapshot renderer (the photograph itself is the viewer's)
 * ``tests/`` — Python test suite

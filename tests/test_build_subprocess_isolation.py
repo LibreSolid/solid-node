@@ -139,9 +139,8 @@ class SubprocessTargetsSurviveAFreshInterpreterTest(TestCase):
         # add_arguments is how the CLI reaches this command, and it is what
         # leaves an unpicklable ArgumentParser on the command object.
         command.add_arguments(ArgumentParser())
-        args = Namespace(path='model.py', openscad=True, web=False,
-                         web_dev=True, debug_builder=False, debug_web=False,
-                         no_web=False, callback=None)
+        args = Namespace(path='model.py', web=False, web_dev=False,
+                         debug_builder=False, no_web=True, callback=None)
 
         started = []
 
@@ -153,8 +152,7 @@ class SubprocessTargetsSurviveAFreshInterpreterTest(TestCase):
             started.append(child)
             return child
 
-        with patch('solid_node.manager.develop.require_openscad'), \
-             patch('solid_node.manager.develop.Process',
+        with patch('solid_node.manager.develop.Process',
                    side_effect=record) as process:
             with self.assertRaises(SystemExit):
                 command.handle(args)

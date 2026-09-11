@@ -14,11 +14,11 @@ from solid2 import cube
 from solid2.core.object_base import OpenSCADConstant
 
 from solid_node.manager.snapshot import Snapshot
-from solid_node.manager.develop import Develop
 from solid_node.node import (Build123dNode, CadQueryNode, FusionNode,
                              JScadNode, Solid2Node)
 from solid_node.openscad import OpenScadUnavailable, openscad_binary
-from solid_node.viewers.openscad import OpenScadRenderer, OpenScadViewer
+from solid_node.viewers import openscad as openscad_viewer
+from solid_node.viewers.openscad import OpenScadRenderer
 
 
 class ExactBox(CadQueryNode):
@@ -163,18 +163,8 @@ class OpenScadDependencyTest(TestCase):
                     RuntimeError, 'animated-arm.*symbolic.*OpenSCAD'):
                 node.as_number(OpenSCADConstant('$t'))
 
-    def test_viewer_missing_binary_names_requested_viewer(self):
-        node = Mock(scad_file='/tmp/project.scad')
-        with patch('solid_node.openscad.shutil.which', return_value=None), \
-             patch('solid_node.viewers.openscad.load_node',
-                   return_value=node), \
-             patch('solid_node.viewers.openscad.Popen',
-                   side_effect=AssertionError('must fail before launch')):
-            viewer = OpenScadViewer('project.py')
-            viewer.pid_file = os.path.join(self.directory.name, 'viewer.pid')
-            with self.assertRaisesRegex(
-                    RuntimeError, 'OpenSCAD viewer.*binary.*install OpenSCAD'):
-                viewer.start()
+    def test_gui_viewer_is_not_an_openscad_dependency_path(self):
+        self.assertFalse(hasattr(openscad_viewer, 'OpenScadViewer'))
 
     def test_renderer_missing_binary_names_web_alternative(self):
         renderer = OpenScadRenderer()
@@ -192,24 +182,6 @@ class OpenScadDependencyTest(TestCase):
                 renderer.render(Mock(scad_file='part.scad'), args, 'part.png',
                                 runner)
         self.assertFalse(os.path.exists('part.png'))
-
-    def test_develop_openscad_fails_before_starting_any_process(self):
-        manager = Develop()
-        manager.parser = Mock()
-        args = argparse.Namespace(
-            path='part.py', openscad=True, web=False, web_dev=False,
-            debug_web=False, no_web=False, callback=None,
-            debug_builder=False,
-        )
-        with patch('solid_node.openscad.shutil.which', return_value=None), \
-             patch('solid_node.manager.develop.Process') as process, \
-             patch('sys.stderr', new_callable=io.StringIO) as stderr:
-            with self.assertRaises(SystemExit):
-                manager.handle(args)
-
-        process.assert_not_called()
-        self.assertIn('requested OpenSCAD viewer', stderr.getvalue())
-        self.assertIn('install OpenSCAD', stderr.getvalue())
 
     def test_snapshot_does_not_substitute_the_web_renderer(self):
         snapshot = Snapshot()

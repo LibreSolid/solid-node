@@ -1,6 +1,6 @@
 # ADR-046: Conditional OpenSCAD dependency
 
-**Status:** Accepted, requiring set amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md)
+**Status:** Accepted, requiring set amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md) and [ADR-103](../BUILD/ADR-103-the-browser-is-the-only-interactive-development-viewer.md)
 
 **Date:** 2026-08-13
 

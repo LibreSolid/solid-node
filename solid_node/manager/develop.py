@@ -8,11 +8,9 @@ from subprocess import Popen
 from solid_node.core.builder import Builder, BuildOutcome, get_build_dir
 from solid_node.core.loader import ProjectManifestError, select_model
 from solid_node.core.processes import Process
-from solid_node.viewers.openscad import OpenScadViewer
 from solid_node.viewers.bundle import (
     INSTALL_REMEDY, has_bundle, viewer_command,
 )
-from solid_node.openscad import OpenScadUnavailable, require_openscad
 
 
 logger = logging.getLogger('manager.develop')
@@ -27,9 +25,6 @@ logger = logging.getLogger('manager.develop')
 # The browser viewer is not one of these targets at all: it is another
 # package's program, `solid-node-viewer serve`, started with Popen on the
 # project's build directory.
-
-def run_openscad_viewer(path, overrides):
-    OpenScadViewer(path, overrides=overrides).start()
 
 
 def run_builder(path, overrides, is_reload=False, callback=None,
@@ -60,8 +55,8 @@ def web_viewer_command(path, web_dev=False):
 class Develop:
     """Runs all processes required for developing with solid-node.
     Monitors filesystem and executes transpilations and compilations on background,
-    and runs a viewer: the browser viewer of the solid-node-viewer package when
-    it is installed, the OpenSCAD GUI otherwise.
+    and runs the browser viewer from the solid-node-viewer package unless the
+    viewerless watch loop was explicitly requested.
     """
 
     needs_node = True
@@ -70,16 +65,13 @@ class Develop:
         self.parser = parser
         parser.add_argument('--web', action='store_true',
                             help='View the project in the browser through the installed '
-                                 'solid-node-viewer (the default when it is installed)')
+                                 'solid-node-viewer (the default)')
         parser.add_argument('--web-dev', action='store_true',
                             help='Browser viewer with its own npm dev server proxied in, '
                                  'for working on the viewer itself')
         parser.add_argument('--no-web', action='store_true',
                             help='Run the builder watch loop with no viewer, for a host '
                                  'that publishes its own view of the build directory')
-        parser.add_argument('--openscad', action='store_true',
-                            help='Show project in OpenSCAD (the default when '
-                                 'solid-node-viewer is not installed)')
         parser.add_argument('--debug-builder', action='store_true',
                             help='Debug mode supports breakpoints, but reload is not automatic')
         parser.add_argument('--callback', metavar='URL',
@@ -110,56 +102,28 @@ class Develop:
         if no_web and wants_web:
             self.parser.error(
                 '--no-web cannot be combined with --web or --web-dev')
-        if callback and (args.openscad or self.web_dev):
+        if callback and self.web_dev:
             self.parser.error(
-                '--callback is not available with --openscad or --web-dev')
+                '--callback is not available with --web-dev')
 
-        # Which viewer opens. An explicit flag is honoured or refused, never
-        # substituted. With no flag, the browser viewer runs when its package
-        # is installed and the OpenSCAD GUI runs otherwise -- a workbench
-        # choice with nothing downstream of it, unlike a snapshot's renderer.
-        viewer_installed = has_bundle()
-        if no_web:
-            run_web = run_openscad = False
-        elif wants_web or args.openscad:
-            run_web = wants_web
-            run_openscad = args.openscad
-            if run_web and not viewer_installed:
-                sys.stderr.write(f'Error: {INSTALL_REMEDY}\n')
-                raise SystemExit(1)
-        else:
-            run_web = viewer_installed
-            run_openscad = not viewer_installed
-
-        if run_openscad:
-            try:
-                require_openscad(
-                    'the requested OpenSCAD viewer',
-                    'opening that viewer launches OpenSCAD')
-            except OpenScadUnavailable as error:
-                if args.openscad:
-                    sys.stderr.write(f'Error: {error}\n')
-                else:
-                    sys.stderr.write(
-                        f'Error: nothing can show this project. {INSTALL_REMEDY} '
-                        f'-- or install OpenSCAD for the GUI viewer: {error}\n')
-                raise SystemExit(1)
+        # Interactive development has one viewer. Resolve it before starting
+        # either child so a missing optional package never leaves a watch loop
+        # running without the requested surface. `--no-web` deliberately
+        # bypasses discovery for an external host or a builder-only session.
+        run_web = not no_web
+        if run_web and not has_bundle():
+            sys.stderr.write(f'Error: {INSTALL_REMEDY}\n')
+            raise SystemExit(1)
 
         builder_proc = None
         web_proc = None
-        openscad_proc = None
-
-        if run_openscad:
-            openscad_proc = Process(target=run_openscad_viewer,
-                                    args=(self.path, self.overrides))
-            openscad_proc.start()
 
         if run_web:
             web_proc = self.web()
 
         if args.debug_builder:
             return run_builder(self.path, self.overrides, callback=callback,
-                               scad_output=run_openscad)
+                               scad_output=False)
 
         # Only the very first builder attempt is "startup": a project
         # that is already broken at launch exits cleanly instead of
@@ -180,7 +144,7 @@ class Develop:
                 builder_proc = Process(target=run_builder,
                                        args=(self.path, self.overrides,
                                              not first_run, callback,
-                                             run_openscad))
+                                             False))
                 builder_proc.start()
 
                 try:
@@ -199,9 +163,6 @@ class Develop:
                     continue
                 if first_run and exitcode:
                     logger.error('Initial build failed, exiting')
-                    if openscad_proc is not None:
-                        openscad_proc.terminate()
-                        openscad_proc.join()
                     if web_proc is not None:
                         web_proc.terminate()
                         web_proc.wait()

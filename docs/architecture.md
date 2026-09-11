@@ -349,9 +349,9 @@ does not itself require the OpenSCAD binary. A sheet leaf writes one artifact
 the others do not: a nominal DXF of its profile, in millimeters with arcs
 preserved, beside its `.stl` and `.brep` and under the same freshness rules,
 which its skip guard also requires. A flexible leaf writes another: a
-per-binding snapshot STL, so the assembled SCAD document stays complete for
-the OpenSCAD GUI — a snapshot camera, never animation, the treatment
-drivers already receive. The camera declines where there is no instant to
+per-binding snapshot STL, so the assembled SCAD document and fixed-pose
+OpenSCAD snapshot renderer stay complete — a snapshot camera, never
+animation, the treatment drivers already receive. The camera declines where there is no instant to
 photograph: a port fed by animation time, which nothing binds on this path
 (ADR-008), yields no artifact and no geometry rather than failing the build
 or inventing a moment. An unbound port, or one still carrying a raw driver
@@ -903,7 +903,7 @@ never read source contents or parse Python.
 
 OpenSCAD availability is resolved once per process, at the first operation
 that actually requires it (ADR-046/102). Solid2/raw-SCAD STL rendering, a
-declared legacy SCAD-only adapter, Solid2 symbolic-value evaluation, the OpenSCAD GUI viewer, and the
+declared legacy SCAD-only adapter, Solid2 symbolic-value evaluation, and the
 OpenSCAD snapshot renderer are the complete requiring set. A missing binary
 raises one actionable error naming the operation and remedy before subprocess
 launch; an all-exact build never performs the check.
@@ -1244,8 +1244,9 @@ their own origins. Collision remains world-framed and time-dependent.
 
 The browser viewer is not in this repository. It is `solid-node-viewer`, an
 independent AGPL-3.0-only package installed through the `viewer` extra
-(ADR-068); the framework is Apache-2.0 and complete without it, with the
-OpenSCAD GUI as its viewer and the OpenSCAD CLI as its snapshot renderer.
+(ADR-068/103); the framework is Apache-2.0 and complete for non-interactive
+use without it. The OpenSCAD CLI remains the default fixed-pose snapshot
+renderer, not an interactive viewer.
 The framework touches the viewer in exactly two ways. `solid_node/viewers/
 bundle.py` loads the viewer's `solid_node.viewer` entry point — a
 standard-library-only function returning the bundle path, the export page
@@ -1254,11 +1255,13 @@ and the declared API version — and nothing else of it; `solid viewer`,
 bundle there and name one remedy when it is absent. Everything else runs the
 viewer as a separate process through `sys.executable -m solid_node_viewer`.
 
-`solid develop` opens the browser viewer when its package is installed and
-OpenSCAD otherwise; `--web` and `--openscad` are explicit and never
-substituted. The browser viewer is the viewer's `serve --build-dir` process
-on the project's atomically published build directory, restarted after each
-completed build as the in-process server was, so the reload channel's
+`solid develop` opens only the browser viewer and fails before starting
+development processes with the `viewer`-extra remedy when its package is
+absent; `--web` remains an explicit spelling of the default, and `--no-web`
+runs the builder watch loop without viewer discovery. The browser viewer is
+the viewer's `serve --build-dir` process on the project's atomically published
+build directory, restarted after each completed build as the in-process server
+was, so the reload channel's
 "greet a reconnecting browser with `reload`" contract is unchanged. The
 server, the React development shell, the bundle routes and the reload and
 build-error surfaces are specified in the viewer's `development-server`
@@ -1726,8 +1729,8 @@ The short list that changes must not silently break:
 | Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096, 100 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
-| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |
+| CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079, 103 |
 | Test framework | `solid_node/test.py`, `manager/test.py` | `test-framework` | 009–011, 025, 029, 040, 048, 052, 070, 073 |
-| Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068 (the viewer itself: solid-node-viewer) |
+| Viewer lookup & snapshot staging | `solid_node/viewers/bundle.py`, `viewers/browser.py`, `viewers/openscad.py` | `viewer-distribution`, `web-snapshot` | 015, 018, 041, 068, 103 (the viewer itself: solid-node-viewer) |
 | Export | `core/export.py`, `core/serializer.py`, `core/expressions.py` | `export` | 020, 034, 043, 051, 057, 068, 080, 085 |
 | Sphinx embedding | `solid_node/sphinx.py` | `sphinx-embedding` | 020 |

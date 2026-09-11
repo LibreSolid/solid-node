@@ -8,15 +8,27 @@ Changelog
 Unreleased
 ----------
 
+**OpenSCAD is no longer an interactive viewer.** OpenSCAD was solid-node's
+first reliable development viewer, but the browser viewer became the faithful
+machine surface as simulation gained independent drivers, instructions and
+continuously evaluated flexible parts. The GUI and its installation-dependent
+fallback represented progressively less of the machine while burdening the
+v0.7 roadmap, so ``solid develop --openscad`` and the OpenSCAD PID lifecycle
+are removed. Install ``solid-node[viewer]`` and run ``solid develop`` (or the
+retained explicit ``--web`` spelling); use ``--no-web`` for a viewerless watch
+loop. OpenSCAD and SolidPython modelling through ``OpenScadNode`` and
+``Solid2Node``, legacy SCAD evaluation, SCAD output, and the default fixed-pose
+OpenSCAD snapshot renderer all remain supported.
+
 **Native geometry no longer passes through OpenSCAD as a core broker.** Node
 preparation now links and validates the tree and materializes backend-owned
 artifacts before optional SCAD presentation. Exact geometry remains in OCCT;
 faceted fusions union current child meshes directly with Manifold. Export,
 tests and browser development do not construct assembly SCAD, while ordinary
-builds, direct SCAD APIs, Solid2/raw OpenSCAD modelling, and the OpenSCAD viewer
-remain supported. Producer recipes migrate affected fusion caches without
-changing node identities or filenames. Existing ``as_scad``-only project
-adapters retain an explicit compatibility bridge.
+builds, direct SCAD APIs, Solid2/raw OpenSCAD modelling, and the OpenSCAD
+snapshot renderer remain supported. Producer recipes migrate affected fusion
+caches without changing node identities or filenames. Existing
+``as_scad``-only project adapters retain an explicit compatibility bridge.
 
 **A relation may name several coordinates at each end.** A mechanism that
 reads several coordinates and moves several — a delta printer's rod, a

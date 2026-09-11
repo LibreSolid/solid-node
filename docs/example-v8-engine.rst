@@ -7,7 +7,7 @@ V8 engine
 The V8 engine was vibe-coded as a testing project to demonstrate
 solid-node and strengthen the framework. It has enough nested
 rotations and translations to test the parity between Python,
-OpenSCAD, browser viewer and embedded widget for all rendering
+OpenSCAD output, browser viewer and embedded widget for all rendering
 operations — and since increment 9 its valve springs are flexible
 parts: each spring's height follows the valve it seats through a
 connected port, so the springs compress in the browser as the engine

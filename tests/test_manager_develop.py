@@ -2,14 +2,13 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""`solid develop`: a builder loop beside a viewer it does not own.
+"""`solid develop`: a builder loop beside the viewer it does not own.
 
-The web viewer is solid-node-viewer's `serve` command, launched with Popen
-through this interpreter; the builder and the OpenSCAD viewer are spawned
-children handed module-level targets. Whether the browser viewer is the
-default depends on whether that package is installed. Every test here patches the lookup and
-the process constructors, so the suite says the same thing with or without
-the viewer present.
+The browser viewer is solid-node-viewer's `serve` command, launched with
+Popen through this interpreter. The builder remains a spawned child handed a
+module-level target. Every test patches package discovery and process
+construction, so the suite says the same thing with or without the separately
+installed viewer present.
 """
 
 import argparse
@@ -21,8 +20,7 @@ from unittest import TestCase
 from unittest.mock import patch, MagicMock, call
 
 from solid_node.core.builder import BuildOutcome
-from solid_node.manager.develop import Develop, run_builder, run_openscad_viewer
-from solid_node.openscad import OpenScadUnavailable
+from solid_node.manager.develop import Develop, run_builder
 
 VIEWER = [sys.executable, '-m', 'solid_node_viewer']
 BUILD_DIR = '/work/project/_build'
@@ -31,7 +29,6 @@ BUILD_DIR = '/work/project/_build'
 def default_args(**overrides):
     values = dict(
         path='.',
-        openscad=False,
         web=False,
         web_dev=False,
         debug_builder=False,
@@ -51,11 +48,10 @@ class DevelopHarness(TestCase):
         patches = [
             patch('solid_node.manager.develop.has_bundle', return_value=True),
             patch('solid_node.manager.develop.get_build_dir', return_value=BUILD_DIR),
-            patch('solid_node.manager.develop.require_openscad'),
             patch('solid_node.manager.develop.Popen'),
             patch('solid_node.manager.develop.Process'),
         ]
-        (self.has_bundle, self.get_build_dir, self.require_openscad,
+        (self.has_bundle, self.get_build_dir,
          self.popen, self.process) = (p.start() for p in patches)
         for p in patches:
             self.addCleanup(p.stop)
@@ -72,10 +68,8 @@ class DevelopHarness(TestCase):
         instances.append(last)
         return instances
 
-    def run_develop(self, args, *exitcodes, openscad=False):
+    def run_develop(self, args, *exitcodes):
         instances = self.builders(*exitcodes)
-        if openscad:
-            instances.insert(0, MagicMock())
         self.process.side_effect = instances
         with self.assertRaises(SystemExit):
             self.develop.handle(args)
@@ -87,23 +81,17 @@ class DefaultViewerTest(DevelopHarness):
         self.run_develop(default_args())
         self.popen.assert_called_once_with(
             VIEWER + ['serve', '--build-dir', BUILD_DIR])
-        self.require_openscad.assert_not_called()
 
-    def test_openscad_is_the_default_when_the_viewer_is_not_installed(self):
+    def test_default_without_the_viewer_fails_even_with_openscad_available(self):
         self.has_bundle.return_value = False
-        self.run_develop(default_args(), openscad=True)
-        self.popen.assert_not_called()
-        self.assertEqual(self.process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
-        self.require_openscad.assert_called_once()
-
-    def test_nothing_to_open_fails_before_any_process(self):
-        self.has_bundle.return_value = False
-        self.require_openscad.side_effect = OpenScadUnavailable('the OpenSCAD viewer', 'it launches OpenSCAD')
-        with redirect_stderr(io.StringIO()) as errors, self.assertRaises(SystemExit):
+        with patch('solid_node.openscad.openscad_binary',
+                   return_value='/usr/bin/openscad') as openscad, \
+             redirect_stderr(io.StringIO()) as errors, \
+             self.assertRaises(SystemExit):
             self.develop.handle(default_args())
         message = errors.getvalue()
         self.assertIn('pip install "solid-node[viewer]"', message)
-        self.assertIn('OpenSCAD', message)
+        openscad.assert_not_called()
         self.popen.assert_not_called()
         self.process.assert_not_called()
 
@@ -118,18 +106,10 @@ class ExplicitViewerTest(DevelopHarness):
         self.popen.assert_not_called()
         self.process.assert_not_called()
 
-    def test_openscad_alone_suppresses_the_web_viewer(self):
-        self.run_develop(default_args(openscad=True), openscad=True)
-        self.popen.assert_not_called()
-        self.assertEqual(self.process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
-        self.assertEqual(
-            self.process.call_args_list[1],
-            call(target=run_builder, args=('.', [], False, None, True)))
-
-    def test_openscad_and_web_together_open_both(self):
-        self.run_develop(default_args(openscad=True, web=True), openscad=True)
-        self.popen.assert_called_once()
-        self.assertEqual(self.process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
+    def test_explicit_web_uses_the_same_browser_viewer(self):
+        self.run_develop(default_args(web=True))
+        self.popen.assert_called_once_with(
+            VIEWER + ['serve', '--build-dir', BUILD_DIR])
 
     def test_web_dev_asks_the_viewer_to_start_its_frontend(self):
         self.run_develop(default_args(web_dev=True))
@@ -141,21 +121,6 @@ class ExplicitViewerTest(DevelopHarness):
         Develop().add_arguments(parser)
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             parser.parse_args(['--debug-web'])
-
-
-class OpenscadProcessStartedTest(DevelopHarness):
-    """Regression for B4: `--openscad` once built the process and never
-    started it, so the window never opened."""
-
-    def test_openscad_process_is_constructed_and_started(self):
-        openscad_instance = MagicMock()
-        builder = MagicMock()
-        builder.join.side_effect = KeyboardInterrupt
-        self.process.side_effect = [openscad_instance, builder]
-        with self.assertRaises(SystemExit):
-            self.develop.handle(default_args(openscad=True))
-        self.assertEqual(self.process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
-        openscad_instance.start.assert_called_once()
 
 
 class ViewerProcessLifecycleTest(DevelopHarness):
@@ -213,8 +178,8 @@ class NoWebModeTest(DevelopHarness):
 
     def test_no_web_does_not_need_the_viewer_or_openscad(self):
         self.has_bundle.return_value = False
-        self.require_openscad.side_effect = OpenScadUnavailable('the OpenSCAD viewer', 'it launches OpenSCAD')
         self.run_develop(default_args(no_web=True))
+        self.has_bundle.assert_not_called()
         self.assertEqual(self.process.call_count, 1)
 
     def test_no_web_passes_the_callback_to_the_builder(self):
@@ -236,3 +201,18 @@ class NoWebModeTest(DevelopHarness):
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.develop.handle(default_args(no_web=True, web_dev=True))
         self.popen.assert_not_called()
+
+    def test_no_web_rejects_the_explicit_web_spelling(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.develop.handle(default_args(no_web=True, web=True))
+        self.popen.assert_not_called()
+
+
+class CallbackValidationTest(DevelopHarness):
+
+    def test_web_dev_rejects_callback_before_any_process(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.develop.handle(default_args(
+                web_dev=True, callback='http://listener/build-ready'))
+        self.popen.assert_not_called()
+        self.process.assert_not_called()

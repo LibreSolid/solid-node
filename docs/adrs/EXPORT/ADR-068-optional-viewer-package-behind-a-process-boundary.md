@@ -1,6 +1,6 @@
 # ADR-068: Optional Viewer Package Behind a Process Boundary
 
-**Status:** Accepted
+**Status:** Accepted, development-viewer selection amended by [ADR-103](../BUILD/ADR-103-the-browser-is-the-only-interactive-development-viewer.md)
 **Date:** 2026-09-05
 **Change:** `optional-viewer-package`
 **Amends:**

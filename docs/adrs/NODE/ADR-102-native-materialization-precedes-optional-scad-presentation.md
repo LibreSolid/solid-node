@@ -1,6 +1,6 @@
 # ADR-102: Native materialization precedes optional SCAD presentation
 
-**Status:** Accepted
+**Status:** Accepted, OpenSCAD viewer consequence amended by [ADR-103](../BUILD/ADR-103-the-browser-is-the-only-interactive-development-viewer.md)
 
 **Date:** 2026-09-11
 

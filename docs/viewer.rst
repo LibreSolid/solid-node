@@ -10,19 +10,19 @@ the node, opens a viewer, watches the source files, and rebuilds
 whenever you save — the CAD equivalent of a web framework's
 development server.
 
-Two viewers exist. The **browser viewer** is a separate package,
+The **browser viewer** is a separate package,
 `solid-node-viewer <https://github.com/LibreSolid/solid-node-viewer>`_,
-installed with ``pip install "solid-node[viewer]"``; the **OpenSCAD
-viewer** is the OpenSCAD GUI itself. ``solid develop`` opens the browser
-viewer when its package is installed and OpenSCAD otherwise, and
-``--web`` or ``--openscad`` chooses one explicitly. A requested viewer
-that cannot open is reported, never replaced by the other.
+installed with ``pip install "solid-node[viewer]"``. It is the sole
+interactive viewer opened by ``solid develop``; without it the command fails
+before starting the development processes and names the extra to install.
+``--web`` remains an explicit spelling of the default, and ``--no-web`` runs
+only the watch-and-build loop for an external host.
 
 The two packages are licensed differently: solid-node under Apache-2.0
 and the viewer under AGPL-3.0-only. The framework is complete without the
-viewer — it builds, tests, exports (``--no-widget``) and snapshots through
-OpenSCAD — and reaches the viewer only as a separate process when it is
-installed.
+viewer — it builds, tests, exports (``--no-widget``), develops with
+``--no-web``, and takes fixed-pose snapshots through OpenSCAD — and reaches
+the browser viewer only as a separate process when it is installed.
 
 The web viewer
 ==============
@@ -63,24 +63,20 @@ The backend port is 8000 by default, configurable with the
 pin its ports there — and several projects can run side by side. The
 viewer's server inherits that environment.
 
-The Openscad viewer
-===================
+OpenSCAD snapshots are a separate capability
+============================================
 
-To use OpenSCAD as a viewer:
+OpenSCAD remains a supported modelling and output technology. To photograph
+one numerically bound pose through its renderer:
 
 .. code-block:: bash
 
-    $ solid develop --openscad
+    $ solid snapshot --renderer openscad
 
-This is also what ``solid develop`` does on its own when the browser
-viewer is not installed. Solid Node keeps a `.scad` file of the tree up
-to date and OpenScad picks up the changes. To see animations, enable
-View → Animate and set fps and number of frames; note that reload is not
-automatic in Openscad while animating.
-
-OpenScad has no notion of drivers: a driven machine appears at its
-currently bound state, and a flexible part as a still snapshot of that
-state. To drive a machine by hand, use the web viewer.
+That fixed-pose snapshot renderer remains the default for ``solid snapshot``.
+It is not an interactive viewer: OpenSCAD has no notion of the independent
+driver controls and instructions, and flexible geometry is evaluated only at
+the selected state. Use the browser viewer to drive a machine by hand.
 
 Hacking on the viewer itself
 ============================

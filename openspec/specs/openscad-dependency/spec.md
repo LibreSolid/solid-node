@@ -18,12 +18,12 @@ The paths that require it are exactly:
   adapter that supplies such geometry through the compatibility boundary;
 - evaluating a legacy `Solid2Node` symbolic value through `as_number()` when
   it needs OpenSCAD evaluation, not a natively evaluable graph value;
-- opening the OpenSCAD GUI viewer with `solid develop --openscad`;
 - rendering an image with `solid snapshot --renderer openscad`.
 
 No other operation SHALL require it. In particular, a project whose model is
-entirely exact under the `exact-geometry` capability SHALL build, test, and
-publish with no OpenSCAD binary on the PATH. Adding an exact backend SHALL NOT
+entirely exact under the `exact-geometry` capability SHALL build, test, publish,
+and develop through an installed browser viewer with no OpenSCAD binary on the
+PATH. Adding an exact backend SHALL NOT
 extend this list: `Build123dNode` writes its own STL and BREP through the same
 OCCT kernel `CadQueryNode` uses, so a project of `Build123dNode` leaves — or
 of `CadQueryNode` and `Build123dNode` leaves mixed — carries no OpenSCAD
@@ -48,6 +48,13 @@ still require the binary when their own geometry must be produced.
 - **WHEN** a project whose every node is exact is built, tested and published
   on a machine with no `openscad` on the PATH
 - **THEN** the build, the test run and the publication all succeed
+
+#### Scenario: An all-exact project develops without OpenSCAD
+
+- **WHEN** `solid develop` runs for an all-exact project with the browser
+  viewer installed and no `openscad` on the PATH
+- **THEN** the build and browser viewer run normally and no OpenSCAD
+  availability check occurs
 
 #### Scenario: A build123d project needs no OpenSCAD
 
@@ -116,12 +123,6 @@ never reaches a requiring path is never asked for the binary.
   backend renders through OpenSCAD, and pointing at installation — not with a
   bare `FileNotFoundError`
 
-#### Scenario: The GUI viewer cannot open
-
-- **WHEN** `solid develop --openscad` runs and no `openscad` is on the PATH
-- **THEN** it reports that the OpenSCAD viewer was requested and the binary is
-  missing
-
 #### Scenario: The OpenSCAD renderer cannot run
 
 - **WHEN** `solid snapshot --renderer openscad` runs and no `openscad` is on
@@ -140,28 +141,3 @@ never reaches a requiring path is never asked for the binary.
 
 - **WHEN** an all-exact project is built on a machine with no `openscad`
 - **THEN** no availability check fails, because no requiring path is reached
-
-### Requirement: The default development viewer follows installation, and says so
-
-`solid develop` without a viewer flag SHALL require the OpenSCAD binary only
-when the `solid-node-viewer` package is not installed, because then the
-OpenSCAD GUI is the viewer it opens. When neither the viewer package nor the
-binary is available, it SHALL fail before starting any development process
-with one error naming both remedies: installing the `viewer` extra, or
-installing OpenSCAD. With the viewer package installed, `solid develop`
-without `--openscad` SHALL NOT require the binary, so a project whose model is
-exact develops with the web viewer and no OpenSCAD installed.
-
-#### Scenario: Developing an exact project without OpenSCAD
-
-- **WHEN** `solid develop` runs on an all-exact project with `solid-node-viewer`
-  installed, no `openscad` on the PATH and no `--openscad` flag
-- **THEN** the build and the web viewer run normally and the binary is never
-  required
-
-#### Scenario: Nothing to open
-
-- **WHEN** `solid develop` runs with no viewer flag, no `solid-node-viewer` and
-  no `openscad` on the PATH
-- **THEN** it fails naming `pip install "solid-node[viewer]"` and OpenSCAD
-  installation, and starts no builder

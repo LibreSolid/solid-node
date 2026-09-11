@@ -3,40 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import tempfile
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
-from solid_node.viewers.openscad import OpenScadViewer
+from unittest.mock import patch
 from .base import BaseNodeTest
 from . import flat_project
-
-
-class OpenScadViewerPidTest(TestCase):
-    """Regression for B15(a): OpenScadViewer.pid only caught
-    (FileNotFoundError, TypeError), but an empty/corrupt pid file makes
-    int() raise ValueError, which crashed both `pid` and `running`."""
-
-    def setUp(self):
-        patcher = patch('solid_node.viewers.openscad.load_node',
-                        return_value=MagicMock())
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-        self.viewer = OpenScadViewer('fake/project.py')
-        fh = tempfile.NamedTemporaryFile(delete=False)
-        fh.close()
-        self.viewer.pid_file = fh.name
-        self.addCleanup(lambda: os.path.exists(fh.name) and os.remove(fh.name))
-
-    def test_empty_pid_file_returns_none_without_raising(self):
-        open(self.viewer.pid_file, 'w').write('')
-
-        self.assertIsNone(self.viewer.pid)
-
-    def test_empty_pid_file_running_is_falsy(self):
-        open(self.viewer.pid_file, 'w').write('')
-
-        self.assertFalse(self.viewer.running)
 
 
 class StlGenerationLockedTest(BaseNodeTest):

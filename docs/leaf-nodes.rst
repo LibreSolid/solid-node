@@ -7,7 +7,7 @@ Modeling parts
 
 Make sure you have completed the :doc:`Quickstart <quickstart>`.
 At this point, you should be able to view your project in the viewer
-- either Openscad or the web viewer - and have a source code to edit.
+and have source code to edit.
 
 In Solid Node, a project is organized in a tree structure, with leaf
 nodes and internal nodes. **Leaf nodes** use underlying modelling
@@ -990,11 +990,10 @@ a flexible part declares schema version 3 rather than 2, which is what
 tells a viewer it must evaluate shape specs — see
 :doc:`Embedding models <embedding>`.
 
-OpenScad has no equivalent, so it gets a snapshot: the part is evaluated
-at its current state and written as an ordinary STL that the assembled
-`.scad` imports, which keeps the document complete enough for the
-OpenScad GUI to open any project. It is a still, not an animation — the
-same treatment every other machine input already gets there.
+SCAD has no equivalent live evaluator, so it gets a snapshot: the part is
+evaluated at its current state and written as an ordinary STL that the
+assembled `.scad` imports. This keeps SCAD output and the OpenSCAD snapshot
+renderer complete at that pose. It is a still, not an animation.
 
 Exact, with an honest tolerance
 -------------------------------

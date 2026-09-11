@@ -59,14 +59,18 @@ class CommandFirstGrammarTest(TestCase):
 
         self.assertEqual(ctx.exception.code, 2)
 
-    def test_develop_rejects_callback_with_openscad(self):
+    def test_develop_rejects_removed_openscad_option(self):
+        stderr = io.StringIO()
         with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',
-                                        '--openscad', '--callback',
-                                        'http://listener']):
-            with self.assertRaises(SystemExit) as ctx:
-                manage()
+                                        '--openscad']):
+            with patch('solid_node.manager.develop.Develop.handle') as handle:
+                with redirect_stderr(stderr):
+                    with self.assertRaises(SystemExit) as ctx:
+                        manage()
 
         self.assertEqual(ctx.exception.code, 2)
+        self.assertIn('unrecognized arguments: --openscad', stderr.getvalue())
+        handle.assert_not_called()
 
     def test_develop_rejects_callback_with_web_dev(self):
         with patch.object(sys, 'argv', ['solid', 'develop', 'model.py',

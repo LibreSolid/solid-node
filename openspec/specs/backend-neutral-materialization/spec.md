@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Defines geometry preparation and composition without SCAD as an intermediate, while retaining OpenSCAD as a supported modelling, output and viewer boundary.
+Defines geometry preparation and composition without SCAD as an intermediate,
+while retaining OpenSCAD as a supported modelling, output and fixed-pose
+snapshot boundary.
 
 ## Requirements
 
@@ -161,10 +163,12 @@ placement order, colours and optimized artifact imports. The normal
 the same prepared machine and canonical geometry as other consumers.
 
 The system SHALL preserve OpenSCAD and Solid2 modelling support and legacy
-SCAD-only adapter overrides. The OpenSCAD GUI and snapshot renderer SHALL
-remain selectable with unchanged defaults and missing-tool behavior. Flexible
-SCAD output SHALL retain its numeric-snapshot and symbolic-time limitations;
-it SHALL NOT be described as supporting live independent driver controls.
+SCAD-only adapter overrides. The OpenSCAD snapshot renderer SHALL remain
+selectable with its existing default and missing-tool behavior. Flexible SCAD
+output SHALL retain its numeric-snapshot and symbolic-time limitations; it
+SHALL NOT be described as supporting live independent driver controls. The
+OpenSCAD GUI SHALL NOT be offered as a solid-node viewer or automatic
+development fallback.
 
 SCAD text is presentation, not the machine's identity. Equivalent output text
 is permitted where artifact references replace obsolete fusion expressions,
@@ -180,18 +184,25 @@ different geometry engine.
 #### Scenario: A normal build remains useful to OpenSCAD users
 
 - **WHEN** an ordinary `solid build` completes
-- **THEN** its SCAD deliverables remain available for the OpenSCAD GUI and
+- **THEN** its SCAD deliverables remain available for OpenSCAD and
   repeated unchanged builds avoid rewriting identical presentation files
 
 #### Scenario: SCAD and browser view the same fused part
 
-- **WHEN** a faceted fusion is viewed through SCAD and in a browser export
+- **WHEN** a faceted fusion is rendered from SCAD and in a browser export
 - **THEN** both consume the canonical fused artifact rather than independently
   fusing the ingredients with different engines
 
-#### Scenario: Viewer policy has not been replaced
+#### Scenario: Viewer policy is independent of SCAD support
 
 - **WHEN** `solid develop` runs without the optional browser viewer package
   and OpenSCAD is available
-- **THEN** it continues to use OpenSCAD under the existing fallback policy
-  rather than requiring installation of the browser viewer
+- **THEN** it fails naming the viewer extra rather than treating modelling or
+  SCAD-output support as an interactive viewer
+
+#### Scenario: The OpenSCAD snapshot boundary remains
+
+- **WHEN** `solid snapshot --renderer openscad` renders a numerically bound
+  machine pose
+- **THEN** it uses the retained SCAD presentation and OpenSCAD renderer with
+  the existing snapshot behavior

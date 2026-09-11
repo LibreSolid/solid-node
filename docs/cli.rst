@@ -33,27 +33,20 @@ solid develop
 ::
 
     solid develop [reference] [--set NAME=VALUE ...] [--web] [--web-dev]
-                         [--no-web] [--openscad] [--debug-builder]
+                         [--no-web] [--debug-builder]
                          [--callback URL]
 
 Runs everything needed to develop a project: monitors the filesystem,
 rebuilds the parts that changed, and opens a viewer that reloads
-automatically. Which viewer depends on what is installed: the browser
-viewer when the separate `solid-node-viewer
-<https://github.com/LibreSolid/solid-node-viewer>`_ package is present
+automatically. The viewer comes from the separate `solid-node-viewer
+<https://github.com/LibreSolid/solid-node-viewer>`_ package
 (``pip install "solid-node[viewer]"``; see :doc:`the viewer <viewer>`),
-the OpenSCAD GUI otherwise. An explicit flag is honoured or refused, never
-swapped for the other viewer.
+and the command fails before starting development processes when it is absent.
 
 ``--web``
-    View the project in the browser at http://localhost:8000. The default
-    when ``solid-node-viewer`` is installed; without it, the command fails
-    naming the extra to install.
-
-``--openscad``
-    Open the project in the OpenSCAD GUI. The default when
-    ``solid-node-viewer`` is not installed. OpenSCAD reloads the generated
-    code when it changes, except while animating.
+    Explicitly view the project in the browser at http://localhost:8000,
+    the same behavior as the default. Without ``solid-node-viewer``, the
+    command fails naming the extra to install.
 
 ``--web-dev``
     For working on the browser viewer itself, from a source checkout of
@@ -78,7 +71,7 @@ swapped for the other viewer.
     build and every later complete rebuild. Available in normal web mode and
     with ``--no-web``. The callback is best effort: delivery failures are
     logged and never stop development. It cannot be combined with
-    ``--openscad`` or ``--web-dev``.
+    ``--web-dev``.
 
 ``--set NAME=VALUE``
     Set a declared parameter of the root node (:doc:`Declaring a machine

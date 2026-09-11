@@ -29,7 +29,9 @@ became a fifth modelling backend. See :doc:`Driving a machine
 The browser viewer has since become its own package, `solid-node-viewer
 <https://github.com/LibreSolid/solid-node-viewer>`_, licensed AGPL-3.0-only
 and installed through ``pip install "solid-node[viewer]"``; the framework
-stays Apache-2.0 and complete without it. See :doc:`the viewer <viewer>`.
+stays Apache-2.0 and its non-interactive operations remain complete without
+it, while interactive ``solid develop`` requires it. See :doc:`the viewer
+<viewer>`.
 
 **Upgrading to 0.6 requires reinstalling the environment** (the shared
 OCCT binding moves and its versions cannot coexist), and a host that
