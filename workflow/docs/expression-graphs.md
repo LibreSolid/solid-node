@@ -1,25 +1,36 @@
 # Expression graphs and removing OpenSCAD as the core broker
 
-Status: provisional pre-spec plan, recording the pilot's accepted direction.
+Status: working memorandum. The first two stages are implemented; the pilot's
+next accepted direction is proposed, not yet ratified or implemented.
 Date: 2026-09-11.
-This is not a ratified OpenSpec change, a settled interface, or an implemented
-capability. Implementation details and compatibility boundaries still need a
-proposal and proof. Baseline specs and accepted ADRs remain authoritative.
+This document is not authority over baseline specs or accepted ADRs. It records
+the sequence, originating evidence, completed outcomes, and the rationale for
+the next change. The OpenSCAD viewer removal still needs OpenSpec ratification,
+implementation, and proof.
 
 ## Accepted direction
 
-Give solid-node ownership of its motion expressions, beginning with a shared
-expression graph that fixes Curta Type I-3x's export failure. Design that work
-as the first step toward removing OpenSCAD as the framework's internal broker.
-Follow with a separately scoped change to the geometry assembly and build
-lifecycle. Assess OpenSCAD's viewer role separately; removing that role is an
-open possibility, not an accepted decision.
+solid-node now owns its motion expressions through the construction-time graph
+accepted in ADR-101, which fixed Curta Type I-3x's export failure. The
+separately scoped geometry lifecycle change followed in ADR-102 and removed
+OpenSCAD as the framework's assembly and build broker.
+
+The pilot has now accepted removing the OpenSCAD GUI as a `solid develop`
+viewer and removing its installation-dependent fallback for v0.7. OpenSCAD
+was solid-node's first reliable viewer; as the browser viewer gained tree
+navigation, independent driver controls, instructions and continuously
+evaluated flexible parts, the OpenSCAD GUI was used less and represented less
+of the machine. Maintaining that second, less faithful viewer now burdens the
+roadmap opened by the simulation capabilities introduced and further developed
+in v0.7.
 
 OpenSCAD remains a supported modelling technology. solid-node supports the
 underlying modelling technologies; this work does not remove `OpenScadNode`,
 `Solid2Node`, or the ability to use existing OpenSCAD and SolidPython designs.
 OpenSCAD-specific evaluation and output belong at the boundaries that need
-them, rather than in the representation every backend must use.
+them, rather than in the representation every backend must use. The fixed-pose
+OpenSCAD snapshot renderer is also retained as a distinct capability and keeps
+its existing default; it does not need to present live machine controls.
 
 ## Originating evidence: Curta Type I-3x
 
@@ -72,23 +83,24 @@ OpenSCAD has several distinct architectural roles today:
 
 | Role | Current position | Planned treatment |
 | --- | --- | --- |
-| Motion representation | Driver tokens, animation time and symbolic math use SolidPython expression strings | Replace with a framework-owned graph first |
-| Assembly and build broker | Every backend passes through `as_scad()`; non-exact fusions use OpenSCAD | Address in a separate architectural change |
+| Motion representation | Framework-owned construction-time graph; ADR-101 | Complete |
+| Assembly and build broker | Native materialization precedes optional SCAD presentation; ADR-102 | Complete |
 | Modelling technology | OpenSCAD and SolidPython produce geometry | Preserve support |
-| Viewer and snapshot renderer | OpenSCAD presents generated SCAD alongside the optional browser viewer | Assess separately; no removal decision |
+| Interactive viewer | OpenSCAD GUI remains selectable and is the fallback when the browser package is absent | Remove the GUI viewer and fallback in the proposed v0.7 change |
+| Snapshot renderer | OpenSCAD renders one numerically bound pose | Retain separately, with its existing default |
 
 The OpenSCAD executable is already conditional on the paths that invoke it.
 That does not make the internal representation independent: even exact and
 imported-mesh nodes participate in the SCAD assembly lifecycle. Removing the
 executable from an installation cannot fix the expression construction defect.
 
-## First change: shared motion expressions
+## Completed first change: shared motion expressions
 
-The intended outcome is that composed motion laws preserve reuse from the
+The intended outcome was that composed motion laws preserve reuse from the
 moment expressions are built through publication. Reusing a value should add
 references to its operands, not copies of all its descendants.
 
-The proposed scope is:
+The implemented scope was:
 
 1. Introduce a framework-owned expression representation for time, drivers,
    arithmetic and the symbolic face of `solid_node.math`. Preserve ordinary
@@ -113,7 +125,7 @@ The proposed scope is:
    value cannot prevent arbitrary external code from explicitly constructing
    an enormous string; the supported boundary must be stated honestly.
 
-The proposal must settle graph ownership and lifetime, handling of mixed
+The proposal had to settle graph ownership and lifetime, handling of mixed
 legacy and graph operands in either order, and preservation of public
 serialization behavior. Traversal, hashing and rendering must handle deep
 graphs without recursively expanding shared subgraphs. Repeated builds must
@@ -125,7 +137,7 @@ internally. A compact piecewise/lookup primitive may be useful later, but is
 not required to fix general duplication and could introduce a separate viewer
 contract. More memory, baked poses and reduced controls do not meet this goal.
 
-### Planned proof
+### Planned proof and completion
 
 - Establish a small red reproducer on the real framework symbolic path before
   implementing the change. Include reuse within one law, composition across
@@ -147,43 +159,49 @@ contract. More memory, baked poses and reduced controls do not meet this goal.
   controls, including carry engagement and spring deformation. Successful
   JSON publication or a green numerical suite is not visual proof.
 
-Curta's remaining mechanical validation resumes after the framework fix has
-been validated against the originating machine. This note records no completed
-implementation or new full-export measurement.
+The completed `expression-graphs` cycle is recorded by ADR-101 and
+`openspec/changes/archive/2026-09-11-expression-graphs/`. Its final fresh
+Curta export peaked at 1,179,168,768 bytes (1.098 GiB) under the enforced
+8,000,000,000-byte aggregate limit; its warm export peaked at 831,078,400
+bytes (0.774 GiB). The archive carries the exact commits, commands, parity and
+browser evidence. Curta's remaining mechanical validation resumed after that
+framework acceptance.
 
-## Follow-up: assembly without SCAD as broker
+## Completed follow-up: assembly without SCAD as broker
 
-The next architectural change should make machine structure, placement and
-artifact production independent of SCAD. Each modelling adapter should produce
-geometry through its own appropriate path; OpenSCAD conversion should be used
-where the selected backend or requested output needs it.
+The next architectural change made machine structure, placement and artifact
+production independent of SCAD. Each modelling adapter now produces geometry
+through its own appropriate path; OpenSCAD conversion is used where the
+selected backend or requested output needs it.
 
-This requires a separate proposal because the current node lifecycle,
-`as_scad()` adapter contract, artifact caching and non-exact fusion behavior
-are specified behavior. Replacing the non-exact fusion path requires geometry
-evidence and an explicit design decision, not an assumed engine substitution.
-The expression graph is a useful prerequisite; this broader work should not
-delay the focused Curta fix.
+The completed `remove-openscad-broker` cycle is recorded by ADR-102 and
+`openspec/changes/archive/2026-09-11-remove-openscad-broker/`. It preserved
+`as_scad()` as an optional compatibility/output consumer, moved faceted fusion
+to Manifold, and proved native project builds without assembly-wide SCAD.
 
-## Open question: OpenSCAD as a viewer
+## Accepted next direction: remove OpenSCAD as a viewer
 
 Supporting a modelling backend does not require using its application as the
-framework's viewer. Assess whether OpenSCAD can faithfully present the machine
-experience defined by independent ports, drivers and interactions, rather than
-only display geometry or a time-based animation. The current flexible-part
-SCAD path presents a snapshot rather than continuously evaluated shape.
+framework's viewer. OpenSCAD cannot faithfully present the machine experience
+defined by independent drivers, instructions and continuously evaluated
+flexible parts: it knows only `$t`, substitutes other drivers with one numeric
+state, and treats flexible geometry as a fixed snapshot. Those limitations are
+acceptable for an explicitly fixed-pose renderer, not for the framework's
+interactive viewer.
 
-The pilot may choose a limited OpenSCAD viewing role or remove that role.
-Neither is decided here. The assessment must cover controls, flexible parts,
-snapshots and what `solid develop` does without the optional browser viewer.
-The browser viewer is a separate AGPL package; its process and licensing
-boundary remain in force. Any viewer changes belong to that repository under
-its own records.
+The v0.7 change therefore removes `solid develop --openscad`, its GUI/PID
+lifecycle, and the automatic fallback when `solid-node-viewer` is absent.
+Ordinary `solid develop` requires the separately packaged browser viewer;
+`solid develop --no-web` remains the viewerless watch loop. The viewer stays a
+separate AGPL package behind its existing process boundary. The release must
+explain both the historical transition and the retained boundary: OpenSCAD and
+SolidPython modelling, SCAD output and OpenSCAD snapshots remain supported;
+OpenSCAD is no longer an interactive solid-node viewer.
 
-## Next planning step
+## Current planning step
 
-Cut a standalone framework OpenSpec proposal for construction-time expression
-sharing, preserving this note as its originating context. Address the affected
-parts of ADR-080 explicitly, without rewriting its historical measurements.
-Ratify the compatibility boundaries and planned proof before implementation.
-The geometry lifecycle follow-up and viewer decision remain separately scoped.
+The standalone `remove-openscad-viewer` OpenSpec proposal carries this
+decision from framework `main` at `748d6d9`. Ratify its CLI migration,
+retained snapshot/modelling boundaries, release explanation, and planned proof
+before implementation. This change does not authorize publishing the
+framework or the separately founded, not-yet-released viewer package.
