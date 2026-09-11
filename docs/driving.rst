@@ -873,7 +873,7 @@ When it refuses
 ---------------
 
 Solving refuses by name rather than posing a machine it cannot justify.
-Each of the three is its own error kind in
+Each of the four is its own error kind in
 ``solid_node.motion.couplings``, and each message names the node paths,
 the relation as written and the ends:
 
@@ -893,11 +893,22 @@ the relation as written and the ends:
     the driven end is the bound one, so the law has to be read
     backwards, and it offers no inverse.
 
+``PrematureRead``
+    your own ``simulate()`` read a coordinate that a relation, a derived
+    coordinate or a wiring of your own class bound only afterwards, so
+    the value it read was not this run's; the message names the read's
+    source location and the binder. A read whose value your own
+    ``simulate()`` binds itself is the ordinary rest default and is not
+    refused.
+
 Wirings take part in the same solve, so passing a coordinate down from a
 coordinate a relation solves works without ordering anything by hand;
-and at the start of each run the framework clears what it bound through
-a wiring or a relation last time, so every instant re-solves from your
-fresh binding. What your own code bound is never cleared: that is yours.
+and at the start of each run the framework clears what was bound during
+the previous run — through a wiring, a relation, or your own
+``simulate()`` alike — so every instant re-solves from fresh bindings and
+a rest default written as ``if self.turn.value is None: self.turn = 0``
+applies again on every run. A value bound outside any run, before the
+first ``render()``, is not cleared.
 
 Instructions
 ============
