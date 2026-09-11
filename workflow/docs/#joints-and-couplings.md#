@@ -1,0 +1,418 @@
+# Joints and couplings: a first declarative mechanics layer
+
+Status: design note, **not ratified, not implemented, not a public API
+promise**. Date: 2026-09-09. Written after the pilot reviewed
+`mechanics-ontology.md` against wall clock 01 and Thor and set its class
+catalogue aside. This note records the direction settled in that discussion
+and the first layer proposed under it, for revision by the pilot. No project
+or framework implementation is changed by this document.
+
+## The decision behind it
+
+`mechanics-ontology.md` grew from a survey of 29 project integrations. A
+survey produces a row per thing seen, and its rows became classes: seventeen
+submodules and some sixty names. Applied to clock 01, its own step one needed
+typed interface descriptors, a joint family, an angle-constant change to the
+dimension algebra and a network compiler, to remove about 150 lines of clock
+motion code. The pilot's objection: that trades one obfuscation, lots of
+code, for another, lots of things to learn. What made drivers and ports
+expressive was not vocabulary but one primitive with one verb.
+
+The history of mechanism theory ran this experiment already. Reuleaux
+(*Theoretische Kinematik*, 1875) decomposed every machine into *kinematic
+pairs* closed into chains: six lower pairs with surface contact (revolute,
+prismatic, screw, cylindrical, spherical, planar) and higher pairs with line
+or point contact (gear teeth, cams, rolling wheels). That part survived and
+was formalized: Hervé (1978) listed the subgroups of the rigid-motion group
+SE(3), and the lower pairs are exactly their mechanical generators. On top of
+the pairs Reuleaux also built a symbol notation and a classification of
+mechanisms, the direction that Artobolevsky's five-volume catalogue later
+took to its end. Moon's history records that "Reuleaux's symbol notation all
+but died with his passing"; nobody builds on the classification. Every
+simulation format in use today is the pairs plus one more thing, a coupling
+between two joint coordinates:
+
+| System | Pairs | Couplings |
+| --- | --- | --- |
+| MuJoCo | `hinge`, `slide`, `ball`, `free` joints inside the body tree | `equality/joint` with `polycoef`; `tendon/fixed` as a linear combination of joints |
+| Modelica MultiBody | `Joints.Revolute`, `Joints.Prismatic`, spherical, universal, planar | `Rotational.IdealGear`, `Joints.GearConstraint`, loop constraints |
+| STEP AP242 kinematics | revolute, prismatic, cylindrical, screw, spherical, planar, universal pairs | gear and rack-and-pinion as low-order pairs "with motion coupling"; point-on-curve and point-on-surface for cams |
+| URDF / SDF | joint types | `mimic` (multiplier, offset); `gearbox` |
+
+The pilot's intention is that solid-node's mechanics layer fits MuJoCo and
+Modelica. So the layer is Reuleaux's two categories, stated the way those
+systems state them: a **joint** that is a pair, and a **coupling** that
+relates two joint coordinates. Not a catalogue of mechanisms.
+
+The shop's `docs/mujoco-viability.md` (2026-09-06) reached the same first
+step from the other side: there is no joint topology to export from a
+solid-node tree today, because a revolute joint is "an emergent property of
+the author having written `self.rotate(self.angle, [0, 0, 1])`", and its
+recommendation was "declared joints first".
+
+## The layer: three concepts, one verb
+
+### 1. A joint is a port that knows what it moves
+
+Two kinds to start, the two one-coordinate lower pairs both targets have
+natively:
+
+```python
+elbow = Revolute(axis=(0, 1, 0), at=(0, 0, 81.5), range=(-135, 135), unit='deg')
+carriage = Prismatic(axis=(1, 0, 0), range=(0, 200), unit='mm')
+```
+
+A joint is declared on the node it moves. Its axis and anchor are stated in
+the parent's frame, where MuJoCo puts a hinge's `axis` and `pos` and where a
+Modelica Revolute sits between two frames. Binding the joint moves the body.
+The rest placement a project already applies in `render()` stays as it is;
+the framework composes the joint motion about the anchor on top of it,
+carrying the axis and pivot into the part's own frame. That is the arithmetic
+Thor's `placing.py` does by hand (`rotate_about`, `into_local`, `turn_about`,
+`axis_sign`), and it leaves the project.
+
+A joint is a port. It binds in `simulate()` like any port, it can be passed
+to children as a token so several leaves share one coordinate, and a
+`Driver` at the root is what an independent joint reads. The screw pair
+comes later as a revolute with a pitch; neither target has a native screw
+joint and both build it from hinge plus slide plus a coupling.
+
+### 2. A coupling is `a.drives(b)`
+
+Written in a class body, on the declaration on the left, between two joint
+coordinates:
+
+```python
+power.drives(centre)
+centre.turn.drives(motion_works.cannon.turn, offset=hand_setting)
+elbow_pulley.turn.drives(elbow_belt.travel, ratio=pitch_arc(117))
+```
+
+- **The law belongs to the class on the left, not to the verb.** `drives` is
+  the only word. What "an arbor drives an arbor" means is a method on the
+  project's `Arbor`: the tooth ratio, the sign of an external pair, the
+  registration. What "the anchor drives the escape wheel" means is the
+  project's escapement law. A class that says nothing gets the default, an
+  affine relation with `ratio` and `offset`. The framework holds no list of
+  shapes; a class that drives in a way nobody has written yet is written in
+  the project and moves into the framework only when a second project writes
+  it. The existing `solid_node.mechanisms` functions (`meshed_angle`,
+  `screw_travel`, ...) remain available as ways to compute a ratio and
+  offset; they are not vocabulary.
+- **Direction is mechanical; solving is not.** The sentence states which way
+  power goes. At realization the framework finds which coordinates are
+  bound, by a driver or by `simulate()`, and orients each relation from the
+  known side. An affine law inverts itself, so a clock solved backwards from
+  its escapement costs the author nothing. A law that cannot be inverted is
+  refused by name at realization, not turned into a pose.
+- **A relation may name a declaration by path.** `art5.drives(shoulder.art2.art3.art4.art56.wrist)`
+  from the root, so a driver reaches a deep joint without every intermediate
+  node redeclaring and forwarding the port. The tree of parts stays the tree
+  of parts; the drive network is laid over it.
+- **Naming is optional.** `great_pair = power.drives(centre)` when a test
+  wants to reach the relation; a bare statement otherwise.
+
+Every affine coupling lowers to the same expression math the viewer already
+evaluates (ADR-076), so no new cross-runtime surface is needed.
+
+### 3. A derived coordinate is a formula over joints
+
+```python
+relative_elbow = art3.elbow - shoulder      # the elbow belt is anchored below the shoulder
+left_pinion = wrist + 2 * tool              # a bevel differential, seen from outside
+```
+
+Same mechanism as derived parameters, over ports instead of tokens. Thor's
+elbow belt and wrist differential need it, and it is the one concept here
+that is not a Reuleaux pair. In MuJoCo a linear one is a `tendon/fixed`.
+
+## Fit with the targets
+
+| solid-node | MuJoCo | Modelica MultiBody |
+| --- | --- | --- |
+| `Revolute`, `Prismatic` with axis, anchor, range | `joint type="hinge"` / `"slide"` with `axis`, `pos`, `range`, inside the body | `Joints.Revolute(n=axis)` / `Joints.Prismatic` between frames, with limits |
+| `a.drives(b)` affine | `equality/joint` with `polycoef` (linear case) | `Rotational.IdealGear` ratio, or `Joints.GearConstraint` |
+| derived coordinate, linear | `tendon/fixed` | a sum of gear couplings |
+| `a.drives(b, law=...)` non-polynomial | no constraint form; the escapement would be real contact | no ideal element; a custom equation |
+| `Driver` | `actuator` on the joint | an input signal on the joint |
+| tree of nodes with rest placements | body tree with `pos`/`quat` and mesh geoms | `FixedTranslation` and `Body` per part |
+
+The fourth row is the honesty line. A prescribed law is kinematic-only; an
+exporter must report it rather than emit nothing silently. The ontology
+document's distinction between geometry-derived, prescribed and approximated
+behaviour survives as that label.
+
+## What it does to wall clock 01
+
+Illustrative, with the proposed names. The leaves still come from the
+`clocks` library through the built movement; only how they move changes.
+
+```python
+# ---- shared/parts.py: the leaves that carry a law ----------------------
+
+class Arbor(CadQueryNode):
+    '''A printed wheel and pinion, one body, two toothed faces.'''
+    index = Count(min=0)
+    #: read off the built movement at realization, like the shape is
+    wheel_teeth = Count(...)
+    pinion_teeth = Count(...)
+    wheel_gap = Angle(...)        # where MrBunsy's Gear puts a gap at zero
+    pinion_tip = Angle(...)       # and a tooth tip
+
+    def drives(self, other: 'Arbor'):
+        '''In a going train my wheel always drives the next arbor's pinion:
+        an external pair, so the sense reverses.'''
+        return self.affine(other,
+                           ratio=-self.wheel_teeth / other.pinion_teeth,
+                           offset=registration(self.wheel_gap, other.pinion_tip))
+
+
+class MotionWorksPart(Arbor):
+    def drives(self, other):
+        '''Here it is the pinion that drives the wheel.'''
+        return self.affine(other,
+                           ratio=-self.pinion_teeth / other.wheel_teeth,
+                           offset=registration(...))
+
+
+# ---- shared/assemblies.py -------------------------------------------------
+
+class TrainArbor(AssemblyNode):
+    '''One arbor: what turns together at one bearing.'''
+    index = Count(min=0)
+    #: about the plates' z, at the bearing the plates give this index;
+    #: `at` is in the parent's frame, so the render() translate goes
+    turn = Revolute(axis=Z, at=bearing_of(index), unit='deg')
+
+    wheel = Arbor(index=index, turn=turn)      # the port passed down: one coordinate
+        rod = ArborRod(index=index, turn=turn)
+
+
+class MotionWorks(AssemblyNode):
+    cannon = MotionWorksPart(index=0)
+    arbor = MotionWorksPart(index=1)
+    hour_holder = MotionWorksPart(index=2)
+    minute_hand = Hand(index=0)
+    hour_hand = Hand(index=1)
+
+    cannon.drives(arbor)
+    arbor.drives(hour_holder)
+    cannon.drives(minute_hand)                 # pushed on: ratio 1, offset 0
+    hour_holder.drives(hour_hand)
+
+
+class Pendulum(AssemblyNode):
+    swing = Revolute(axis=Z, unit='deg')       # at the anchor's bearing, see Movement
+    holder = PendulumHolder(turn=swing)
+    rod = PendulumRod(turn=swing)
+    bob = Bob(turn=swing)
+
+
+class Movement(AssemblyNode):
+    seconds = SignalPort(unit='s')
+
+    power = TrainArbor(index=0)
+    centre = TrainArbor(index=1)
+    third = TrainArbor(index=2)
+    escape = TrainArbor(index=3)
+    anchor = TrainArbor(index=4)
+    pendulum = Pendulum()
+    motion_works = MotionWorks()
+
+    # the going train, in the direction the power goes
+    power.drives(centre)
+    centre.drives(third)
+    third.drives(escape)
+
+    # the anchor's tail carries the pendulum; the cannon pinion is a
+    # friction fit on the minute arbor, set once when the hands go on
+    anchor.turn.drives(pendulum.swing)
+    centre.turn.drives(motion_works.cannon.turn, offset=hand_setting)
+
+    def simulate(self):
+        # The one prescribed law in the clock, and the only line of
+        # motion code left: where the escapement holds the wheel and
+        # where it has swung the anchor to, at this second. Everything
+        # else above is solved from these two, backwards through the
+        # train to the great wheel and forwards into the hands.
+        t = self.seconds.value
+        self.escape.turn = escape_wheel_angle(t, self.built.escapement, ...)
+        self.anchor.turn = anchor_angle(t, self.built.escapement, ...)
+
+
+class WallClock01(AssemblyNode):
+    time = Time(loop=TIMELINE)
+    plates = Frame(index=0)
+    standoffs = Frame(index=1)
+    movement = Movement(seconds=time)
+
+    def render(self):
+        for part in children_of(self):
+            part.rotate(UPRIGHT, [1, 0, 0])
+            part.rotate(self.facing, Z)
+```
+
+Reading down: each arbor is one revolute pair about the plates' z at its
+bearing, and the printed wheel and the steel rod both take that one
+coordinate. The train is three sentences, and the law for "an arbor drives an
+arbor" is written once on the project's `Arbor`, with the tooth counts and
+the registration it already reads off the library. The motion works is four
+sentences with its own law, because there the pinion drives the wheel. The
+pendulum is a second revolute on the anchor's coordinate. The escapement
+stays exactly the code it is today, bound in `simulate()`, visibly the only
+place a law is written rather than declared.
+
+Gone from the project: `Movement.arbor_angles`, `motion_works_angles`,
+`gear_pair`, `line_of_centres`, the two wrappers in `depthing.py`, the
+`simulate()` of `TrainArbor`, `MotionWorks`, `Hands` and `Pendulum`, the
+`simulate_for_seconds` fan-out, and the bearing translate in
+`TrainArbor.render()`. Colours and the library build are untouched.
+
+At realization the framework resolves the declarations to bound joints,
+notices that `escape.turn` and `anchor.turn` are bound by `simulate()` and
+`seconds` by the root, orients `third.drives(escape)` backwards, then
+`centre.drives(third)`, then `power.drives(centre)`, and carries
+`centre.turn` forward through the cannon offset into the hands. The existing
+test that six hours turns the hour hand half way round becomes the only place
+the twelve-to-one is stated: change a tooth count and the test, not the model,
+notices.
+
+## What it does to Thor
+
+Thor has no central angle function; it has seven root drivers forwarded down
+five levels of ports, and at each level a `simulate()` that turns a child
+about an axis, spins gears and motors at ratios and feeds belts. Against the
+layer:
+
+- **Fits directly.** Every transmission is affine: base pinion in the base
+  ring (10:50), two shoulder pinions in the upper arm's internal ring (10:60),
+  each pinion to its motor (1:1), the elbow belt's drive pulley, optical disc
+  and motor (117:20), the forearm yaw pinion (-20:10) and the slewing race's
+  ball cage (1/2), the wrist pinions and pulleys at twice the tool roll in
+  opposite senses with motors at 2:1 behind them, and the belts' molejo
+  `travel` ports taking the pulley arc. The differential needs no class: left
+  is wrist plus twice tool, right is wrist minus twice tool.
+- **Needs the joint.** The elbow axis is 81.5 mm from the forearm's origin,
+  the wrist axis 111.5 mm up the forearm, and half the parts come out of
+  FreeCAD facing the other way. `Revolute(axis=..., at=...)` in the parent
+  frame is what removes `placing.py`.
+- **Needs derived coordinates.** `elbow - shoulder` because the elbow belt is
+  anchored on the shoulder housing; the differential sums above.
+- **Needs relations by path.** Thirty lines of `self.art3.wrist = self.wrist`
+  and five nodes declaring `yaw, wrist, tool, grip` only to forward them.
+- **Direction reads better than in the clock.** `shoulder_motor.drives(upper_arm, ratio=1/6)`
+  is the physically true sentence; the value still flows from the `art2`
+  driver backwards. The clock states the kinematic direction because its
+  escapement law does not invert; Thor's laws all do.
+
+A sample, the upper arm and the shoulder housing:
+
+```python
+class Art2(AssemblyNode):
+    shoulder = Revolute(axis=(0, 0, 1), range=SHOULDER_TRAVEL, unit='deg')
+    art3 = Art3()
+    elbow_pulley = Pulley(teeth=117)
+    elbow_belt = flexibles.ElbowBelt()
+    relative_elbow = art3.elbow - shoulder
+    relative_elbow.drives(elbow_pulley.turn)
+    elbow_pulley.turn.drives(elbow_belt.travel, ratio=pitch_arc(117))
+
+
+class Art1(AssemblyNode):
+    art2 = Art2()
+    shoulder_pinion_1 = Gear(teeth=10)
+    shoulder_motor_1 = Motor()
+    art2.shoulder.drives(shoulder_pinion_1.turn, ratio=60 / 10)   # internal ring, same sense
+    shoulder_pinion_1.turn.drives(shoulder_motor_1.spin)
+```
+
+The awkward case: each gripper jaw is the coupler of a parallelogram. It
+translates on a circle and never turns, which is not one coordinate driven by
+one law. Kinematically it can be two prismatic joints each driven by a law
+of the grip opening, labelled prescribed. Physically it is a closed loop,
+which is `equality/connect` in MuJoCo and a loop constraint in Modelica, and
+that is outside this layer.
+
+Roughly, Thor's motion code is two hundred lines across six `simulate()`
+methods and the placing helpers. It becomes a few dozen sentences, and the
+placing helpers leave the project. Parts, design placements, fasteners and
+belts are untouched.
+
+## Framework surface, and the records it touches
+
+- **Declarative nodes.** The spec refuses reading an attribute off a child
+  declaration in a class body (scenario "A sideways read is refused"). This
+  layer needs a narrow relaxation: reading a *port* off a declaration, at any
+  depth, yields a path reference resolved per parent instance at realization.
+  Reading a *parameter* stays refused. ADR-061 is extended, not reversed.
+- **Ports.** `Revolute` and `Prismatic` are port subclasses carrying axis,
+  anchor and range; binding applies the motion. Ports may be passed to child
+  declarations as tokens are. ADR-056's deferred flow variable is untouched,
+  and nothing here precludes it.
+- **Declaration arguments resolved against the instance.** Clock 01's tooth
+  counts and bearing positions come out of the library's ratio search on the
+  built movement, not from literal tokens. Joint and coupling arguments must
+  resolve at realization against the instance, the way child arguments do.
+- **Mechanisms.** No new module. The existing laws stay as functions. The
+  degree-literal question ADR-076 left open (an `Angle` constant in the
+  algebra) is not required by this layer because joint values are port
+  values, not declared tokens; it is still open.
+- **Network resolution, private.** Inventory bound coordinates, orient each
+  relation, lower to expressions, and raise on a coordinate no relation or
+  binding reaches, on two bindings of one coordinate, and on a
+  non-invertible law needed backwards. Errors name the node paths and the
+  relation.
+
+## Acceptance
+
+1. Clock 01 and Thor render, pass their existing suites, and their motion
+   code shrinks as described. Pixels remain evidence.
+2. Changing a tooth count in clock 01 propagates to the hands with no other
+   edit, and the six-hour test fails when the twelve-to-one is broken.
+3. A coordinate nothing reaches, a doubly bound coordinate, and a
+   non-invertible law needed backwards each fail by name at realization.
+4. A walk of the realized tree builds a `mujoco.MjSpec`: bodies with mesh
+   geoms, hinges and slides with axis, position and range, `equality/joint`
+   and `tendon/fixed` for the couplings, actuators for the drivers, and
+   compiles with contacts disabled for the clock train and for Thor.
+   Prescribed laws are reported, not silently dropped. This proves the layer
+   carries what MuJoCo needs before any dynamics question is asked. The
+   Modelica emission is the same walk producing text, checked for shape
+   until OpenModelica is available.
+
+## Deliberately out
+
+Closed loops and their solver (Grübler mobility, the gripper), stateful
+mechanisms (ratchets, engagement, neutral), the screw pair, mass and density,
+non-holonomic contact (a wheel on ground), and any flow variable on ports.
+Each has a place to go later without reshaping the three concepts above, and
+each is named as an exclusion in the ports spec, ADR-056 or
+`docs/mujoco-viability.md` already.
+
+## Relationship to `mechanics-ontology.md`
+
+That document stays as the coverage survey it is: evidence of which kinds of
+motion the local catalogue contains, and a checklist the primitive must
+eventually satisfy. Its class catalogue is not the plan. Its sufficiency
+order (clock 01 first, then compound and reversible relations, then loops and
+multi-input constraints, then orbit versus spin, then state) still reads as a
+sensible order of fixtures.
+
+## References
+
+- F. Reuleaux, *Theoretische Kinematik*, 1875; *The Kinematics of
+  Machinery*, Kennedy translation, 1876 (public domain; Cornell KMODDL).
+- F. C. Moon, "Franz Reuleaux: Contributions to 19th C. Kinematics and
+  Theory of Machines", *Applied Mechanics Reviews* 56(2), 2003.
+- J. M. Hervé, "Analyse structurelle des mécanismes par groupe des
+  déplacements", *Mechanism and Machine Theory* 13, 1978.
+- A. Müller, "Screw and Lie Group Theory in Multibody Kinematics",
+  arXiv:2306.17415, tables 1 and 2 (motion subgroups of SE(3) and their
+  lower-pair generators).
+- MuJoCo XML reference: `joint`, `equality/joint`, `tendon/fixed`.
+- Modelica Standard Library, `Mechanics.MultiBody.Joints`,
+  `Mechanics.Rotational.Components.IdealGear`.
+- ISO 10303-242 kinematics pair entities.
+- Shop: `docs/mujoco-viability.md` (2026-09-06).
+- Framework: ADR-056, ADR-061, ADR-076; `openspec/specs/declarative-nodes`,
+  `openspec/specs/ports`, `openspec/specs/mechanisms`.
