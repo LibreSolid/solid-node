@@ -21,21 +21,23 @@ declared children under the `declarative-nodes` capability, in which case
 the framework substitutes the realized declared children minus the omitted
 ones before any consumer sees the result. A `LeafNode.render()` SHALL
 return a single geometry object, never a list and never `None`. Validation
-runs on every `assemble()` and enforces these contracts before any SCAD
-generation.
+runs during framework preparation before geometry production or SCAD
+presentation. Public `assemble()` uses that same preparation and retains its
+SCAD result; neutral consumers compose the tree without a SCAD union.
 
 #### Scenario: Internal node returns children
 
 - **WHEN** an `InternalNode` subclass's `render()` returns a list of
   `AbstractBaseNode` instances
-- **THEN** `assemble()` links each child, assembles it, and unions the
-  results (union applied only when there is more than one child)
+- **THEN** preparation links and prepares each child; `assemble()` presents
+  the assembly's children together, or the canonical fused geometry for a
+  fusion, preserving their placements
 
 #### Scenario: Internal node returns nothing
 
 - **WHEN** an `InternalNode` subclass with declared children defines a
   `render()` that positions them and returns nothing
-- **THEN** `assemble()` links, assembles and unions the declared children
+- **THEN** `assemble()` links, prepares and presents the declared children
   exactly as if `render()` had returned them in declaration order
 
 #### Scenario: Structural contract violations are rejected
@@ -48,12 +50,15 @@ generation.
   an object whose module does not start with the adapter's declared
   `namespace`
 - **THEN** validation raises an error during `assemble()`
-
 ### Requirement: Template-method render lifecycle
 
-The system SHALL control the node lifecycle through `assemble()`, which users
-do not override: render → simulate (assemblies only) → validate → `as_scad` →
-`generate_scad` → optional optimized STL import → apply queued operations.
+The system SHALL control preparation, validation, native artifact production
+and placement through a framework-owned lifecycle. Users SHALL NOT override
+that lifecycle. Native geometry consumers SHALL NOT require `as_scad()` or
+SCAD generation to prepare the tree or produce its native artifacts.
+Public `assemble()` SHALL remain a SCAD compatibility entry point over the
+same prepared tree: it requests SCAD presentation, preserves optimized imports
+and colours, and applies queued operations in their existing order.
 `assemble()` SHALL be idempotent — the result is memoized and `render()` is
 called at most once per instance. On an assembly the framework SHALL run
 `simulate()` after `render()` ONCE PER ENUMERATION of the tree, under the
@@ -64,7 +69,8 @@ walk's own descent within that same enumeration SHALL return the
 children at rest without running that assembly's phase again. Every
 assembly's motion is therefore in place before the walk reads any of the
 tree's geometry. Users override `render()` and `simulate()`, never
-`assemble()`.
+`assemble()` or the framework's preparation lifecycle. The same simulation
+ordering SHALL hold for native preparation and SCAD compatibility consumers.
 
 #### Scenario: Assemble is memoized
 
@@ -101,6 +107,12 @@ tree's geometry. Users override `render()` and `simulate()`, never
   subtree's geometry was composed, so a coordinate bound while the
   second subtree simulated still moves a body in the first
 
+#### Scenario: Native preparation is independent of SCAD presentation
+
+- **WHEN** an assembly of native artifact-owning leaves is exported or built
+  for geometry tests and its SCAD presentation methods are unavailable
+- **THEN** structure, validation, motion, geometry and publication succeed
+  without invoking those presentation methods
 ### Requirement: Rigid vs non-rigid distinction
 
 The system SHALL distinguish rigid nodes (`rigid = True`; can produce a cached
@@ -187,8 +199,11 @@ solid-import leaf, `StepNode` (with `step_source` and `part`), whose part is
 one product of a STEP document under the `step-import`
 capability, and one
 flexible leaf kind, `MolejoNode`, whose part is a molejo shape spec fed by
-ports under the `flexible-parts` capability. Each adapter
-SHALL implement `as_scad()`; adapters
+ports under the `flexible-parts` capability. Native adapters SHALL provide
+geometry through their artifact/evaluation capability without requiring a
+custom `as_scad()` implementation. SCAD output SHALL remain available through
+the compatibility presentation layer. Existing SCAD-only adapter overrides
+SHALL remain usable through the explicit legacy boundary; adapters
 declaring a `namespace` (`Solid2Node`, `CadQueryNode`, `Build123dNode`,
 `OpenScadNode`, `Build123dSheetNode`, `StepNode`, `MolejoNode`) get
 namespace-based render
@@ -222,13 +237,16 @@ Python evaluator, and `StlNode` through no
 external tool at all: its artifact is materialized from the committed mesh.
 `StepNode` needs no external tool either: the kernel that reads its document
 is the one that writes its artifacts.
-Every adapter still emits SCAD, so the assembled document remains complete and
-the OpenSCAD GUI viewer can still open any project; emitting it does not imply
-that OpenSCAD renders it.
+Every adapter SHALL remain representable on the SCAD output path, so the
+assembled document retains its existing coverage, including the flexible-part
+snapshot limitations. SCAD presentation does not imply OpenSCAD artifact
+production and SHALL NOT be a prerequisite for a native adapter's geometry.
 
-An adapter that produces its artifact inside `as_scad()` SHALL produce it only
-when that artifact is not up to date, and SHALL return the same SCAD output in
-either case. This covers every artifact the adapter owns; the sheet adapter's
+An adapter's native artifact producer SHALL produce an artifact only when it
+is not up to date. A compatibility `as_scad()` request SHALL reuse that same
+producer when needed and SHALL return equivalent SCAD presentation whether the
+artifact was already current or just materialized. This covers every artifact
+the adapter owns; the sheet adapter's
 DXF is produced and guarded under the same rule, and the flexible adapter's
 snapshot artifact is guarded per binding as the `flexible-parts` capability
 specifies.
@@ -351,6 +369,19 @@ exact question is unaffected.
 - **THEN** its `.scad` artifacts are written as before, so the OpenSCAD GUI
   viewer can open the project when the binary is available
 
+#### Scenario: Native adapter participation needs no SCAD hook
+
+- **WHEN** a native adapter provides its validated local mesh artifact but no
+  custom SCAD conversion method
+- **THEN** it participates in assembly, export and geometry tests, and explicit
+  SCAD presentation can import that artifact through the compatibility layer
+
+#### Scenario: A legacy adapter override is honored
+
+- **WHEN** a project supplies geometry by overriding only the historical
+  `as_scad()` hook, including on a built-in adapter subclass
+- **THEN** the legacy boundary honors that override rather than silently using
+  an inherited native producer that would return different geometry
 ### Requirement: Parameter-hashed artifact identity
 
 The system SHALL give each node instance a `uniq_id` of the form
@@ -504,4 +535,3 @@ naming the fusion, before SCAD, BREP, or STL publication.
 - **THEN** validation raises naming the fusion and explaining that a fusion
   requires at least one rigid child
 - **AND** no SCAD, BREP, or STL artifact for that fusion is published
-

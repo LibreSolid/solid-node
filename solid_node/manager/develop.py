@@ -32,13 +32,15 @@ def run_openscad_viewer(path, overrides):
     OpenScadViewer(path, overrides=overrides).start()
 
 
-def run_builder(path, overrides, is_reload=False, callback=None):
+def run_builder(path, overrides, is_reload=False, callback=None,
+                scad_output=False):
     Builder(
         path,
         is_reload=is_reload,
         callback=callback,
         lifecycle=True,
         overrides=overrides,
+        scad_output=scad_output,
     ).start()
 
 
@@ -156,7 +158,8 @@ class Develop:
             web_proc = self.web()
 
         if args.debug_builder:
-            return run_builder(self.path, self.overrides, callback=callback)
+            return run_builder(self.path, self.overrides, callback=callback,
+                               scad_output=run_openscad)
 
         # Only the very first builder attempt is "startup": a project
         # that is already broken at launch exits cleanly instead of
@@ -176,7 +179,8 @@ class Develop:
 
                 builder_proc = Process(target=run_builder,
                                        args=(self.path, self.overrides,
-                                             not first_run, callback))
+                                             not first_run, callback,
+                                             run_openscad))
                 builder_proc.start()
 
                 try:

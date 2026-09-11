@@ -186,7 +186,7 @@ class StlNode(LeafNode):
     def render(self):
         return self
 
-    def as_scad(self, _):
+    def materialize(self, _):
         # The artifact is this node's own, always: there is no
         # import-the-file-in-place path. It is produced only when it is
         # stale, and the SCAD is the same either way.
@@ -194,6 +194,10 @@ class StlNode(LeafNode):
             _write_binary_stl(self._materialized_mesh(), self.stl_file,
                               self.mtime_ns, self.source_digest,
                               self.source_fingerprint)
+
+    def as_scad(self, rendered):
+        if not self._up_to_date(self.stl_file):
+            self.materialize(rendered)
         return import_stl(self.local_stl)
 
     ##############################################

@@ -122,6 +122,9 @@ class ExplicitViewerTest(DevelopHarness):
         self.run_develop(default_args(openscad=True), openscad=True)
         self.popen.assert_not_called()
         self.assertEqual(self.process.call_args_list[0], call(target=run_openscad_viewer, args=('.', [])))
+        self.assertEqual(
+            self.process.call_args_list[1],
+            call(target=run_builder, args=('.', [], False, None, True)))
 
     def test_openscad_and_web_together_open_both(self):
         self.run_develop(default_args(openscad=True, web=True), openscad=True)
@@ -164,7 +167,7 @@ class ViewerProcessLifecycleTest(DevelopHarness):
         with self.assertRaises(SystemExit):
             self.develop.handle(default_args())
         self.assertEqual(self.process.call_args_list, [
-            call(target=run_builder, args=('.', [], False, None)),
+            call(target=run_builder, args=('.', [], False, None, False)),
         ])
         web = self.popen.return_value
         web.terminate.assert_called_once()
@@ -180,18 +183,20 @@ class ViewerProcessLifecycleTest(DevelopHarness):
     def test_first_builder_invocation_is_not_flagged_as_reload(self):
         self.run_develop(default_args())
         self.assertEqual(self.process.call_args_list[0],
-                         call(target=run_builder, args=('.', [], False, None)))
+                         call(target=run_builder,
+                              args=('.', [], False, None, False)))
 
     def test_second_builder_invocation_is_flagged_as_reload(self):
         self.run_develop(default_args(), 0)
         self.assertEqual(self.process.call_args_list[1],
-                         call(target=run_builder, args=('.', [], True, None)))
+                         call(target=run_builder,
+                              args=('.', [], True, None, False)))
 
     def test_callback_is_passed_to_the_builder(self):
         self.run_develop(default_args(callback='http://listener/build-ready'))
         self.assertEqual(self.process.call_args_list[0], call(
             target=run_builder,
-            args=('.', [], False, 'http://listener/build-ready'),
+            args=('.', [], False, 'http://listener/build-ready', False),
         ))
 
 
@@ -203,7 +208,7 @@ class NoWebModeTest(DevelopHarness):
         self.run_develop(default_args(no_web=True))
         self.popen.assert_not_called()
         self.assertEqual(self.process.call_args_list, [
-            call(target=run_builder, args=('.', [], False, None)),
+            call(target=run_builder, args=('.', [], False, None, False)),
         ])
 
     def test_no_web_does_not_need_the_viewer_or_openscad(self):
@@ -215,15 +220,16 @@ class NoWebModeTest(DevelopHarness):
     def test_no_web_passes_the_callback_to_the_builder(self):
         self.run_develop(default_args(no_web=True, callback='http://listener/build-ready'))
         self.assertEqual(self.process.call_args_list, [
-            call(target=run_builder, args=('.', [], False, 'http://listener/build-ready')),
+            call(target=run_builder,
+                 args=('.', [], False, 'http://listener/build-ready', False)),
         ])
 
     def test_no_web_reload_cycle_does_not_restart_a_viewer(self):
         self.run_develop(default_args(no_web=True), BuildOutcome.SOURCE_CHANGED.value)
         self.popen.assert_not_called()
         self.assertEqual(self.process.call_args_list, [
-            call(target=run_builder, args=('.', [], False, None)),
-            call(target=run_builder, args=('.', [], True, None)),
+            call(target=run_builder, args=('.', [], False, None, False)),
+            call(target=run_builder, args=('.', [], True, None, False)),
         ])
 
     def test_no_web_rejects_an_explicit_web_request(self):

@@ -163,19 +163,24 @@ class SheetLeafNode(ExactLeafNode):
             and self._up_to_date(self.dxf_file)
         )
 
-    def as_scad(self, rendered):
+    def _prepare_can_be_skipped(self):
+        return (
+            super()._prepare_can_be_skipped()
+            and self._up_to_date(self.dxf_file)
+        )
+
+    def materialize(self, rendered):
         """The exact adapter's STL and BREP, plus this part's cut file.
 
         Same guard as the other artifacts: produced only when it is not
         already the file these sources would produce, and the returned SCAD
         is the same either way.
         """
-        scad = super().as_scad(rendered)
+        super().materialize(rendered)
         if not self._up_to_date(self.dxf_file):
             self._write_dxf(self.validated_profile(), self.dxf_file,
                             self.mtime_ns, self.source_digest,
                             self.source_fingerprint)
-        return scad
 
     ##############################################
     # Backend hooks

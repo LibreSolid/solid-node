@@ -1,6 +1,6 @@
 # ADR-002: Template Method Pattern for Node Lifecycle
 
-**Status:** Accepted
+**Status:** Accepted, lifecycle sequence amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md)
 **Date:** 2023-07-09
 **Depends on:** [ADR-001: Composite Pattern for Node Tree Architecture](./ADR-001-composite-pattern-node-tree-architecture.md)
 **Related to:** [ADR-004: Multi-CAD Backend Adapter Pattern](./ADR-004-multi-cad-backend-adapter-pattern.md)

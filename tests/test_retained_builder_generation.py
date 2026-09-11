@@ -32,6 +32,7 @@ class _StableNode:
         self.children = ()
         self.rigid = False
         self.mtime_ns = 0
+        self._prepare = Mock()
         self.assemble = Mock()
 
 
@@ -185,7 +186,7 @@ class ReloadFailureWaitTest(_InProcessBuilderTest):
             is_reload=True, watch=True)
         self.addCleanup(self.builder.observer.stop)
         self.node = _StableNode()
-        self.node.assemble.side_effect = RuntimeError('broken reload')
+        self.node._prepare.side_effect = RuntimeError('broken reload')
         self.node.trigger_stl = Mock()
 
     def test_reload_failure_waits_outside_lock_without_more_geometry(self):
@@ -213,7 +214,7 @@ class ReloadFailureWaitTest(_InProcessBuilderTest):
             outcome = asyncio.run(scenario())
 
         self.assertEqual(outcome, BuildOutcome.SOURCE_CHANGED)
-        self.node.assemble.assert_called_once_with()
+        self.node._prepare.assert_called_once_with()
         self.node.trigger_stl.assert_not_called()
         error = json.loads(
             (Path(self.temporary.name) / 'errors.json').read_text())
@@ -245,7 +246,7 @@ class OneShotLaterPassFailureTest(_InProcessBuilderTest):
 
             self.assertEqual(outcome, BuildOutcome.FAILED)
             self.assertEqual(calls, 2)
-            node.assemble.assert_called_once_with()
+            node._prepare.assert_called_once_with()
             builder._write_viewer_snapshot.assert_not_called()
             error = json.loads((Path(root) / 'errors.json').read_text())
             self.assertIn('later retained pass failed', error['error'])
@@ -329,7 +330,7 @@ class RetainedGenerationRaceTest(_InProcessBuilderTest):
         outcome = self.run_builder(builder)
 
         self.assert_stood_down(builder, outcome)
-        self.node.assemble.assert_called_once_with()
+        self.node._prepare.assert_called_once_with()
         builder.generate_stl.assert_not_awaited()
 
     def test_source_replaced_between_retained_passes_stands_down(self):

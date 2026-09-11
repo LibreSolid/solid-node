@@ -247,8 +247,7 @@ class Test:
             raise
         with project_build_lock():
             node.set_keyframe(time)
-            rendered = node.render()
-            node.assemble()
+            node._prepare()
             node.build_stls()
         return node
 

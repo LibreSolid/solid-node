@@ -653,9 +653,7 @@ class StlRackProjectTest(BuildDirTestCase):
                                     near_extent[2]], atol=1e-3)
 
     def test_a_part_designed_to_fit_fuses_with_the_imported_mesh(self):
-        """The whole point of the leaf: the fusion is faceted, so it
-        unions through the OpenSCAD mesh path, and the result is one
-        solid holding both parts."""
+        """The imported mesh participates in direct faceted fusion."""
         fusion = rack.PostedBracket()
         fusion.assemble()
 
@@ -666,5 +664,8 @@ class StlRackProjectTest(BuildDirTestCase):
 
         self.assertEqual(len(fused.split(only_watertight=False)), 1)
         self.assertGreater(fused.volume, bracket.mesh.volume)
-        self.assertLess(fused.volume,
-                        bracket.mesh.volume + post.mesh.volume)
+        # The post is exactly tangent to the bore. Manifold's symbolic
+        # perturbation keeps the analytic sum; OpenSCAD's former result was
+        # 6.6e-5 mm³ lower from tessellation/boolean noise.
+        self.assertAlmostEqual(
+            fused.volume, bracket.mesh.volume + post.mesh.volume, places=4)

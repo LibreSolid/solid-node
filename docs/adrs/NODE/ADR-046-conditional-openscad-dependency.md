@@ -1,6 +1,6 @@
 # ADR-046: Conditional OpenSCAD dependency
 
-**Status:** Accepted
+**Status:** Accepted, requiring set amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md)
 
 **Date:** 2026-08-13
 
@@ -29,7 +29,7 @@ OpenSCAD is a conditional dependency checked only at the operation that uses
 it. The complete requiring set is:
 
 - Solid2 and raw OpenSCAD leaf STL rendering;
-- faceted `FusionNode` STL rendering;
+- legacy SCAD-only adapter overrides;
 - `Solid2Node.as_number()` symbolic-value evaluation;
 - `solid develop --openscad`; and
 - `solid snapshot --renderer openscad`.
@@ -59,8 +59,8 @@ clause is superseded.
 
 ## Consequences
 
-- All-exact CadQuery projects build, test, and export without OpenSCAD, and
-  make no availability check.
+- Native CadQuery/build123d/imported-mesh projects build, test, and export
+  without OpenSCAD, including faceted fusions, and make no availability check.
 - Existing OpenSCAD-backed behavior and output are unchanged when the binary
   is present.
 - Missing binaries fail before process launch with context and a remedy; no

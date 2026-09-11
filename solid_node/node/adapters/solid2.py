@@ -22,6 +22,12 @@ class Solid2Node(LeafNode):
         """Doesn't do anything, as solid2 objects are already OpenScad objects"""
         return rendered
 
+    def materialize(self, rendered):
+        # This adapter's native artifact language is SCAD; keep the boundary
+        # local instead of imposing it on parents and sibling adapters.
+        self.model = rendered
+        self.generate_scad()
+
     def as_number(self, n):
         """Receives a solid2 function result and calculates its number.
         uses an openscad process internally to do the calculation."""

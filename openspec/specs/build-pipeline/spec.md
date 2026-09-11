@@ -181,9 +181,13 @@ Whichever directory a command was run from, a project therefore has one build
 directory per model and — because the build lock is derived from it — one
 build lock per model.
 
-Artifacts per node: `.scad` (base geometry,
-no transforms), `.stl` (rendered), and `.stl.lock` during rendering. A node
-that is exact under the `exact-geometry` capability SHALL additionally write
+The ordinary `solid build` and SCAD presentation path SHALL retain `.scad`
+(base geometry, no transforms) deliverables. Geometry/document-only consumers
+under `backend-neutral-materialization` SHALL NOT require or generate assembly
+SCAD deliverables, but SHALL still produce SCAD source when a selected backend
+needs it. Other artifacts remain `.stl` (rendered) and `.stl.lock` during
+external rendering. A node that is exact under the `exact-geometry` capability
+SHALL additionally write
 `.brep`, holding that node's unplaced exact geometry under the same basename.
 World-space spatial math does not use on-disk artifacts — the `mesh`
 property loads the plain `.stl` and applies operations in memory (the
@@ -282,11 +286,11 @@ SHALL NOT alter any document's schema.
 - **WHEN** a project that declares no models is built
 - **THEN** its artifacts, `viewer.json` and `errors.json` are written in the
   build root itself, at the paths they have today
-
 ### Requirement: Mtime-equality caching
 
-The system SHALL treat an artifact as up to date on its metadata-only path iff
-it exists, its mtime equals the node's `mtime`, and its recorded source-set
+Subject to the producer recipe identity requirement below, the system SHALL
+treat an artifact as up to date on its metadata-only path iff it exists,
+its mtime equals the node's `mtime`, and its recorded source-set
 fingerprint equals the current fingerprint of every file tracked for the node
 (`node.files`, aggregated recursively from children). `node.mtime` remains the
 maximum source-file mtime across that set. After generating an artifact the
@@ -320,9 +324,11 @@ Where the system cannot store the exact stamp, the artifact SHALL fail the
 metadata-only path and enter content verification. Currency SHALL fail only in
 the safe direction for every observable source change.
 
-Whenever artifact mtime equality or source-set fingerprint equality fails, the
-system SHALL consult a content-verified fallback before rebuilding. It SHALL
-compare a digest of the node's tracked sources, as they are on disk now,
+When the producer recipe is compatible but artifact mtime equality or
+source-set fingerprint equality fails, the system SHALL consult a
+content-verified fallback before rebuilding. A mismatched producer recipe
+SHALL NOT enter that fallback. The fallback SHALL compare a digest of the
+node's tracked sources, as they are on disk now,
 against the digest recorded for that artifact when it was produced. When they
 agree, the system SHALL restamp the artifact to the current `node.mtime`,
 record the current source-set fingerprint with the digest, and treat it as
@@ -362,7 +368,8 @@ rather than looping.
 The currency record SHALL live inside the build directory, SHALL NOT be
 referenced by the published viewer document, and SHALL NOT change publication
 semantics. A successful sweep SHALL keep the record belonging to an artifact
-it keeps and SHALL NOT leave one behind for an artifact it removes. The reader
+it keeps and SHALL NOT leave one behind for an artifact it removes. For a
+producer whose recipe is unchanged, the reader
 SHALL accept a legacy digest-only record as having no fingerprint, validate it
 through the content fallback even when artifact mtime equality succeeds, and
 upgrade a matching record without re-deriving geometry. An unknown or malformed
@@ -404,7 +411,8 @@ SHALL track more files rather than fewer.
 
 #### Scenario: A timestamp moves but no content changes
 
-- **WHEN** every source file's mtime is rewritten with no byte changed, as a
+- **WHEN** the producer recipe is unchanged and every source file's mtime is
+  rewritten with no byte changed, as a
   clone, branch switch, stash pop, or copy can do
 - **THEN** the digest match prevents geometry from being re-derived, every
   artifact is restamped and records the current fingerprint, and the published
@@ -418,15 +426,16 @@ SHALL track more files rather than fewer.
 
 #### Scenario: The fast path is not slowed
 
-- **WHEN** an artifact's mtime and recorded source-set fingerprint match the
-  node's current source state
+- **WHEN** the producer recipe is compatible and an artifact's mtime and
+  recorded source-set fingerprint match the node's current source state
 - **THEN** currency is decided without reading source bytes for a digest or
   parsing Python source
 
 #### Scenario: A legacy digest-only record upgrades safely
 
-- **WHEN** an artifact's mtime equals the node mtime but its sidecar contains a
-  valid legacy digest with no source-set fingerprint
+- **WHEN** the producer recipe is unchanged and an artifact's mtime equals the
+  node mtime but its sidecar contains a valid legacy digest with no source-set
+  fingerprint
 - **THEN** the digest is verified and, if it matches, the artifact is not
   re-derived and the sidecar is upgraded with the current fingerprint
 
@@ -481,8 +490,8 @@ SHALL track more files rather than fewer.
 
 #### Scenario: Unchanged sources skip rendering
 
-- **WHEN** `generate_stl` runs and both the STL mtime and source-set fingerprint
-  match
+- **WHEN** `generate_stl` runs, the producer recipe is compatible, and both
+  the STL mtime and source-set fingerprint match
 - **THEN** no OpenSCAD process is launched
 
 #### Scenario: Missing exact geometry is not current
@@ -527,7 +536,6 @@ SHALL track more files rather than fewer.
   unmodified sources
 - **THEN** a differently named snapshot is produced and prior currency remains
   untouched until sweep
-
 ### Requirement: Concurrent render locking
 
 The system SHALL guard STL generation with a `.stl.lock` file containing the
@@ -701,8 +709,10 @@ A `FusionNode` whose subtree is exact SHALL NOT use this protocol. It composes
 its own geometry under the `exact-geometry` capability and SHALL produce its
 `.stl` by tessellating that composition in process, stamping the mtime as any
 other artifact producer does, without launching a subprocess and without
-raising `StlRenderStart`. A fusion with any non-exact descendant keeps the
-subprocess protocol unchanged.
+raising `StlRenderStart`. A fusion with any non-exact descendant SHALL
+produce its artifact through direct mesh composition under
+`backend-neutral-materialization`, not this OpenSCAD subprocess protocol.
+Its OpenSCAD-authored children still use this protocol where required.
 
 Tessellation of an exact composition SHALL use the same deflection the
 `CadQueryNode` adapter already uses for leaf STL export, so a fused solid's
@@ -734,15 +744,15 @@ mesh is of the same quality as the leaves around it.
   OpenSCAD subprocess is launched for it, and `build_stls()` returns without
   waiting on a render job for that node
 
-#### Scenario: A faceted fusion keeps the subprocess protocol
+#### Scenario: A faceted fusion composes current child meshes
 
 - **WHEN** a `FusionNode` holding a non-exact descendant is built
-- **THEN** its STL is rendered by an OpenSCAD subprocess signalled by
-  `StlRenderStart`, as before
+- **THEN** its child artifacts become current before the fusion unions them
+  directly, and no OpenSCAD render job is launched for the fusion itself
 
 #### Scenario: The renderer is missing for a node that needs it
 
-- **WHEN** a stale mesh-backend node must be rendered and no `openscad` is on
+- **WHEN** a stale OpenSCAD-backed leaf must be rendered and no `openscad` is on
   the PATH
 - **THEN** the build fails naming that node and the reason its backend needs
   OpenSCAD, and no subprocess launch error surfaces in its place
@@ -752,7 +762,6 @@ mesh is of the same quality as the leaves around it.
 - **WHEN** `build_stls()` completes for a tree whose every rigid node is exact
 - **THEN** no OpenSCAD availability check is performed and the absence of the
   binary is never reported
-
 ### Requirement: Build subprocesses are isolated from the parent process
 
 Every subprocess a build command starts to load a node, render an artifact, or
@@ -1123,3 +1132,51 @@ Atomic text and currency publication SHALL compare the desired state with the st
 
 - **WHEN** a tracked source's metadata changes while its node-scoped content stays byte-identical
 - **THEN** content verification refreshes the artifact stamp and currency record as required, without rewriting byte-identical SCAD content or reporting stale geometry current
+
+### Requirement: Producer recipe identity qualifies artifact currency
+
+The system SHALL distinguish artifacts made by different geometry or
+presentation recipes even when their project sources and parameter identity
+are unchanged. A producer recipe change SHALL invalidate the affected
+artifact before metadata or content-restamp reuse can certify it. A missing
+legacy recipe record SHALL be incompatible for a producer changed by this
+cycle, while unchanged producer recipes SHALL retain legacy source-record
+compatibility.
+
+A faceted fusion SHALL incorporate the current direct-mesh recipe and the
+relevant recipes of its child geometry into its currency. Nested fusions
+SHALL NOT reuse an enclosing artifact produced using superseded child
+geometry recipes. Recipe identity SHALL NOT change node names, parameter
+identity or artifact paths. Printed-piece identity SHALL continue to derive
+from the actual produced STL bytes.
+
+Recipe records SHALL remain private build metadata, published atomically
+with the existing source-currency discipline. This qualification SHALL NOT
+relax source checks, generation checks, artifact observations or publication
+ordering, and SHALL NOT turn every framework edit into an all-project rebuild.
+
+#### Scenario: An old fusion cache does not mask the new producer
+
+- **WHEN** a project's sources are unchanged but its fusion STL was produced
+  through the old OpenSCAD fusion recipe
+- **THEN** the first new build recomputes that fusion by direct mesh union and
+  records its new recipe, and the next unchanged build reuses it
+
+#### Scenario: A nested fusion follows its child's recipe
+
+- **WHEN** an enclosing fusion has a source-current artifact but a nested
+  fusion's production recipe has changed
+- **THEN** both affected fusion artifacts are rebuilt in dependency order
+
+#### Scenario: Unchanged exact geometry stays cached
+
+- **WHEN** exact leaf and exact fusion artifacts have unchanged source state
+  and unchanged production recipes
+- **THEN** upgrading this cycle does not re-derive their geometry merely
+  because the framework version changed
+
+#### Scenario: Content equality cannot bless the wrong recipe
+
+- **WHEN** an artifact's project-source digest matches but its recorded
+  producer recipe does not
+- **THEN** the artifact is rebuilt rather than restamped as current

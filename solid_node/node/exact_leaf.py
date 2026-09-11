@@ -61,8 +61,8 @@ class ExactLeafNode(LeafNode):
         self.validate(rendered)
         return shape_from_rendered(rendered)
 
-    def as_scad(self, rendered):
-        """Export the model to STL and returns a scad code to render it.
+    def materialize(self, rendered):
+        """Export native BREP and STL artifacts.
 
         The export is skipped when the artifact on disk was already produced
         from these sources -- the same guard generate_stl() has always had,
@@ -92,4 +92,8 @@ class ExactLeafNode(LeafNode):
             write_stl(shape, self.stl_file, self.mtime_ns,
                       linear_deflection, angular_deflection, digest,
                       fingerprint)
+    def as_scad(self, rendered):
+        """Present the canonical native artifact to SCAD."""
+        if not self._up_to_date(self.stl_file):
+            self.materialize(rendered)
         return import_stl(self.local_stl)

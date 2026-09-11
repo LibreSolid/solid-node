@@ -24,6 +24,7 @@ export's `manifest.json`.
 
 import json
 import os
+from unittest.mock import patch
 
 from solid_node.core.builder import Builder, project_build_lock
 from solid_node.core.export import export_node
@@ -272,6 +273,13 @@ class FlexibleExportTest(BaseNodeTest):
     def export(self, node):
         out_dir = os.path.join(self.build_dir, 'export_out')
         return export_node(node, out_dir, widget=False), out_dir
+
+    def test_geometry_export_does_not_request_a_flexible_scad_snapshot(self):
+        with patch.object(
+                fixture.Spring, 'as_scad',
+                side_effect=AssertionError('flexible SCAD requested')):
+            manifest, _ = self.export(bound_engine())
+        self.assertIsNotNone(find(manifest['root'], 'spring')['flexible'])
 
     def test_the_manifest_carries_the_spec_and_declares_version_three(self):
         """As `FlexiblePublishedBuildTest` above: the shared lift

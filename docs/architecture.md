@@ -25,14 +25,14 @@ place it. From that single tree, the framework derives everything else:
                            │  load_node()                (BUILD)
                            ▼
                       node tree                          (NODE)
-         render() → simulate() → validate() → as_scad()
+       render/simulate → validate → native materialize
                            │
            ┌───────────────┼──────────────────┐
            ▼               ▼                  ▼
-      .scad files     world meshes      serialized ops
-      → openscad      (trimesh /        ($t expressions)
-      → .stl cache    manifold3d)             │
-      (BUILD)         (TEST-FRAMEWORK)        ▼
+     optional SCAD      STL/BREP         serialized ops
+      presentation    (OCCT / JSCAD /   ($t expressions)
+      → OpenSCAD       imported mesh /        │
+      where selected   manifold3d)             ▼
            │                            viewer.json / manifest.json
            ▼                            → solid-node-viewer (separate
       dev loop, OpenSCAD snapshot,        AGPL package, own process)
@@ -42,19 +42,20 @@ place it. From that single tree, the framework derives everything else:
 Three architectural commitments shape almost every subsystem:
 
 1. **Geometry follows the strongest backend path available**
-   (ADR-004/044/045/046/047). Every backend still produces SCAD and an STL.
-   Solid2 and raw `.scad` leaves, and faceted fusions containing them, render
-   through OpenSCAD. The OCCT backends — CadQuery and build123d — preserve
+   (ADR-004/044/045/046/047/102). Native preparation precedes optional SCAD
+   presentation. Solid2 and raw `.scad` leaves render through OpenSCAD because
+   it is their backend; faceted fusions compose current child meshes directly
+   through Manifold. The OCCT backends — CadQuery and build123d — preserve
    BREP geometry, and all-exact fusions compose and tessellate in OCCT
    without OpenSCAD, whichever of the two produced each child. JSCAD produces
    its STL through its own `jscad` tool, and a flexible part through molejo's
    evaluators — mesh, STL and B-rep from one analytic spec.
    OpenSCAD is therefore conditional on
    the paths that invoke it, not a universal framework prerequisite. The same
-   rule governs the `manifold3d` mesh engine (ADR-052): it decides faceted
-   geometry, so it is required by comparisons involving a part without exact
-   geometry and by `assertAssemblySupported`, whose statics phase is faceted
-   for every body — and by nothing else. Both are resolved once per process at
+   rule governs the `manifold3d` mesh engine (ADR-052/102): it decides faceted
+   fusion and faceted comparison geometry, and is also required by
+   `assertAssemblySupported`, whose statics phase is faceted for every body.
+   Both tools are resolved once per process at
    the point of use and report by name when absent.
 2. **The build artifact is the currency, mtime is its clock**
    (ADR-006/026/033/050/081). STLs are cached per parameter-hashed identity
@@ -91,9 +92,11 @@ Three architectural commitments shape almost every subsystem:
 subclasses return child lists from `render()`, `LeafNode` subclasses
 return one geometry object, and validation enforces the split on every
 assembly. Users implement `render()`; the framework owns the
-non-overridable `assemble()` pipeline — render → validate → `as_scad`
-→ SCAD generation → optimized STL import → apply operations — memoized
-per instance (ADR-002).
+non-overridable lifecycle. `_prepare()` renders/simulates, validates, links the
+tree and materializes native artifacts; `assemble()` is the separately
+memoized compatibility consumer that presents SCAD, imports optimized STL and
+applies operations (ADR-002/102). Geometry-only consumers stop after native
+preparation.
 
 A node is authored in one of two forms, freely mixed in one tree. The
 **constructor form** builds children in `__init__` and forwards
@@ -213,7 +216,8 @@ one backend — every exact adapter converts its render result to one shared
 OCCT shape at the adapter boundary, so the exact layer holds a single type and
 a fusion may mix CadQuery and build123d children (ADR-047). Because that
 conversion makes everything after it backend-neutral, the contract itself —
-`exact`, `shape()`, `as_scad()` — lives once on `ExactLeafNode`, the internal
+`exact`, `shape()`, native materialization and `as_scad()` presentation —
+lives once on `ExactLeafNode`, the internal
 base every exact adapter extends; each supplies only its `namespace` and any
 validation its own API needs. Adapters remain distinct types regardless of the
 bases they share. Because build123d
@@ -224,7 +228,7 @@ additionally rejects a render result that is not a solid, and accepts a
 One leaf kind has no modelling backend at all. `StlNode` is a part that
 arrives as an STL mesh: it declares `stl_source` beside its wrapper
 module, resolves and tracks it like `JScadNode` does its `.js`, and
-materializes its own artifact from it inside `as_scad()` — selected body,
+materializes its own artifact through its native producer — selected body,
 `adjust` correction, binary export, stamped with the source mtime, so no
 external tool runs for the leaf at all (ADR-054). Three rules make the import
 honest rather than credulous. A mesh that is not watertight is refused at
@@ -336,7 +340,7 @@ Exact nodes expose unplaced BREP geometry through
 `shape()`; placement remains the caller's responsibility through the same
 composed matrices as the mesh path. An exact `FusionNode` fuses its placed
 children in OCCT and represents that fuse in both BREP and STL (ADR-045).
-Each adapter still emits SCAD, but artifact production follows its backend:
+Each adapter can still present SCAD, but artifact production follows its backend:
 Solid2 and raw OpenSCAD leaves use OpenSCAD, CadQuery and build123d — sheet
 parts included — use OCCT, JSCAD uses `jscad`, a flexible leaf uses molejo's
 Python evaluator, and an imported mesh uses no
@@ -869,9 +873,11 @@ renderer waits and publication must still match that generation. A missing,
 replaced, retargeted, newly selected or changed contributor returns
 `SOURCE_CHANGED` before a stale document can be published.
 
-STL generation is normally asynchronous: `StlRenderStart` carries a spawned
-`openscad` process, PID lock files guard concurrency, and
-`build_stls()` loops until nothing is stale. The metadata-only currency path is
+STL generation is asynchronous only at an actual OpenSCAD backend:
+`StlRenderStart` carries that spawned process, PID lock files guard concurrency,
+and `build_stls()` loops until nothing is stale. Exact and imported producers
+run natively; faceted fusion unions current child meshes through Manifold in
+dependency order. The metadata-only currency path is
 **artifact mtime equality plus source-set fingerprint equality** — generated
 files are back-dated with `os.utime` to the max source mtime (ADR-006), and a
 sidecar records path, filesystem identity, size, mtime, and change time for
@@ -886,16 +892,18 @@ whatever resolution the filesystem stores — a float stamp is not, and on a
 millisecond-resolution filesystem it left every artifact permanently stale
 and this loop non-terminating (ADR-050).
 
-A timestamp or fingerprint mismatch invokes the node-scoped content digest
-(ADR-060/071). Equal content restamps the artifact and refreshes the sidecar
+A producer recipe mismatch is first a hard cache miss for artifacts whose
+production semantics changed; faceted fusion includes child recipes so nested
+caches migrate. A timestamp or fingerprint mismatch then invokes the node-scoped content digest
+(ADR-060/071/102). Equal content restamps the artifact and refreshes the sidecar
 without rendering, which preserves cheap clone, checkout, relocation, and
 sibling-only changes. A legacy digest-only sidecar follows this path once and
 upgrades in place. Settled checks stat tracked files and read the sidecar, but
 never read source contents or parse Python.
 
 OpenSCAD availability is resolved once per process, at the first operation
-that actually requires it (ADR-046). Mesh-backend STL rendering, faceted
-fusion, Solid2 symbolic-value evaluation, the OpenSCAD GUI viewer, and the
+that actually requires it (ADR-046/102). Solid2/raw-SCAD STL rendering, a
+declared legacy SCAD-only adapter, Solid2 symbolic-value evaluation, the OpenSCAD GUI viewer, and the
 OpenSCAD snapshot renderer are the complete requiring set. A missing binary
 raises one actionable error naming the operation and remedy before subprocess
 launch; an all-exact build never performs the check.
@@ -903,10 +911,10 @@ launch; an all-exact build never performs the check.
 A rigid, optimizing **leaf** whose artifacts are current assembles by
 importing its STL — `render()` and `as_scad()` never run (ADR-033), so
 the check happens before the expensive work rather than after it.
-Internal nodes always render: their file set is the union of their
-children's and is only known by walking them. The adapters that write
-their artifact inside `as_scad()` — CadQuery, build123d, sheet, JSCAD — carry
-the same guard, for nodes that opt out of optimization. A flexible leaf
+Internal nodes always prepare: their file set is the union of their
+children's and is only known by walking them. Native adapter materializers —
+CadQuery, build123d, sheet, JSCAD and imported STL — carry the same guard for
+nodes that opt out of optimization. A flexible leaf
 carries it per binding: mtime equality decides *source* currency within one
 binding exactly as elsewhere, and a different binding is a different file
 rather than a question mtime is asked and cannot answer (ADR-057).

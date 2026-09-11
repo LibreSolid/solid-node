@@ -8,6 +8,16 @@ Changelog
 Unreleased
 ----------
 
+**Native geometry no longer passes through OpenSCAD as a core broker.** Node
+preparation now links and validates the tree and materializes backend-owned
+artifacts before optional SCAD presentation. Exact geometry remains in OCCT;
+faceted fusions union current child meshes directly with Manifold. Export,
+tests and browser development do not construct assembly SCAD, while ordinary
+builds, direct SCAD APIs, Solid2/raw OpenSCAD modelling, and the OpenSCAD viewer
+remain supported. Producer recipes migrate affected fusion caches without
+changing node identities or filenames. Existing ``as_scad``-only project
+adapters retain an explicit compatibility bridge.
+
 **A relation may name several coordinates at each end.** A mechanism that
 reads several coordinates and moves several — a delta printer's rod, a
 Pascaline's pawl deflecting from two drums, a flexure stage's leg leaning

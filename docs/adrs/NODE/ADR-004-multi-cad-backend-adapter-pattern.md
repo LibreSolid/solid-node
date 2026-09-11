@@ -1,7 +1,8 @@
 # ADR-004: Multi-CAD Backend Adapter Pattern
 
 **Status:** Accepted; universal-compilation-target clause superseded by
-[ADR-046](ADR-046-conditional-openscad-dependency.md)
+[ADR-046](ADR-046-conditional-openscad-dependency.md), native production
+contract amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md)
 **Date:** 2023-07-25
 **Related to:** [ADR-002: Template Method Pattern for Node Lifecycle](./ADR-002-template-method-pattern-for-node-lifecycle.md)
 

@@ -103,6 +103,12 @@ class FlexibleNode(LeafNode):
     #: the concrete adapter, like `namespace`.
     tech = None
 
+    def _uses_legacy_scad_materialization(self):
+        # Flexible SCAD is a per-binding snapshot presentation, never a
+        # time-invariant native artifact. Geometry-only preparation carries
+        # the analytic spec and binding and deliberately produces no snapshot.
+        return False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

@@ -78,6 +78,7 @@ that way.
 - [ADR-098](NODE/ADR-098-a-joint-may-be-declared-where-a-child-is-placed.md) — A joint may be declared where a child is placed: a site-declared joint reads the declaring parent's frame, carried innermost — **Accepted**, extends 097, revives 094's `_OWN_PLACED_ORIGIN` sentinel, extends the slot of 093, gives a spelling to 095's open frame question
 - [ADR-099](NODE/ADR-099-the-enumerations-simulate-phases-are-one-tree-pass.md) — The enumeration's simulate phases are one tree pass: relations defer to a whole-tree fixpoint, a read of a coordinate a relation binds is refused, a coordinate is cleared with the motion it caused, a subclass replaces a named relation — **Accepted**, revises 089, cites 093/096
 - [ADR-100](NODE/ADR-100-a-relation-may-name-several-coordinates-at-each-end.md) — A relation may name several coordinates at each end: `&` groups a source, a tuple or `&` groups a driven end, the law's two arguments shaped rather than spread, one record per copy holding all its ends — **Accepted**, extends 089, depends on 096, cites 099
+- [ADR-102](NODE/ADR-102-native-materialization-precedes-optional-scad-presentation.md) — Native materialization precedes optional SCAD presentation — **Accepted**, amends 002/004/045/046 and artifact currency
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

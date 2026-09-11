@@ -55,6 +55,15 @@ class LeafNode(AbstractBaseNode):
             and (not self.exact or self._up_to_date(self.brep_file))
         )
 
+    def _prepare_can_be_skipped(self):
+        """Native geometry does not depend on a presentation sidecar."""
+        return (
+            self.optimize
+            and self.rigid
+            and self._up_to_date(self.stl_file)
+            and (not self.exact or self._up_to_date(self.brep_file))
+        )
+
     def as_scad(self, rendered):
         """Internally, the project is composed using OpenScad to render
         all STLs, so each LeafNode subclass must be able to output
@@ -78,3 +87,18 @@ class LeafNode(AbstractBaseNode):
         if self.namespace and not type(rendered).__module__.startswith(self.namespace):
             raise Exception(f"{self.__class__} is a LeafNode and should render "
                             f"as {self.namespace} child, not {type(rendered)}")
+    def _uses_legacy_scad_materialization(self):
+        """Honor a project leaf's explicit ``as_scad`` override.
+
+        Built-in adapters that own both materialization and presentation are
+        native.  An earlier class in the MRO owning only ``as_scad`` is the
+        legacy extension seam and must still drive its artifact production.
+        """
+        mro = type(self).mro()
+        scad_owner = next(
+            index for index, cls in enumerate(mro)
+            if 'as_scad' in cls.__dict__)
+        materialize_owner = next(
+            index for index, cls in enumerate(mro)
+            if 'materialize' in cls.__dict__)
+        return scad_owner < materialize_owner

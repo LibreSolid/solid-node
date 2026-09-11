@@ -97,16 +97,19 @@ class OpenScadDependencyTest(TestCase):
                     RuntimeError, 'housing.*Solid2Node.*install OpenSCAD'):
                 node.generate_stl()
 
-    def test_faceted_fusion_uses_the_same_dependency_contract(self):
+    def test_faceted_fusion_does_not_use_openscad_after_children_are_current(self):
         node = FacetedPair()
-        node.assemble()
+        node.build_stls()
+        os.remove(node.stl_file)
 
-        with patch('solid_node.openscad.shutil.which', return_value=None), \
+        with patch('solid_node.node.base.require_openscad',
+                   side_effect=AssertionError(
+                       'faceted fusion must not check OpenSCAD')), \
              patch('solid_node.node.base.Popen', side_effect=AssertionError(
                  'the subprocess must not be attempted')):
-            with self.assertRaisesRegex(
-                    RuntimeError, 'FacetedPair.*backend.*OpenSCAD'):
-                node.generate_stl()
+            node.generate_stl()
+
+        self.assertTrue(os.path.exists(node.stl_file))
 
     def test_exact_fusion_never_consults_openscad(self):
         node = ExactPair()

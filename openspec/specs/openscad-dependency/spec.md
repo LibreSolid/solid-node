@@ -14,9 +14,10 @@ paths that use it, not as a blanket installation requirement.
 The paths that require it are exactly:
 
 - rendering the STL of a `Solid2Node` or `OpenScadNode` leaf, whose
-  `as_scad()` emits SCAD for OpenSCAD to render;
-- rendering the STL of a `FusionNode` that is not exact;
-- evaluating a `Solid2Node` symbolic value through `as_number()`;
+  authored geometry is SCAD for OpenSCAD to render, or a legacy SCAD-only
+  adapter that supplies such geometry through the compatibility boundary;
+- evaluating a legacy `Solid2Node` symbolic value through `as_number()` when
+  it needs OpenSCAD evaluation, not a natively evaluable graph value;
 - opening the OpenSCAD GUI viewer with `solid develop --openscad`;
 - rendering an image with `solid snapshot --renderer openscad`.
 
@@ -28,17 +29,19 @@ OCCT kernel `CadQueryNode` uses, so a project of `Build123dNode` leaves — or
 of `CadQueryNode` and `Build123dNode` leaves mixed — carries no OpenSCAD
 dependency.
 
-`JScadNode` is deliberately NOT among the requiring paths. It writes its own
-STL through the separate `jscad` binary inside `as_scad()` and stamps the
-mtime, so the render protocol finds that artifact current and never launches
-OpenSCAD for it. A `JScadNode` therefore carries an external-binary dependency
+`JScadNode` is deliberately NOT among the requiring paths. Its native producer
+writes its own STL through the separate `jscad` binary and stamps the mtime,
+so it never launches OpenSCAD for that artifact. A `JScadNode` therefore
+carries an external-binary dependency
 of its own, on `jscad`, which this capability does not describe. Giving that
 binary the same conditional-dependency treatment — enumeration, guarantee,
 and actionable failure — is deferred to a later cycle; until then a missing
 `jscad` still fails at its subprocess launch.
 
-Declaring the dependency conditional SHALL NOT change what any of those paths
-does when the binary is present.
+The retained requiring paths SHALL preserve their behavior when the binary
+is present. Faceted fusion SHALL instead use its direct mesh-composition
+capability, independent of OpenSCAD availability; its OpenSCAD-authored children
+still require the binary when their own geometry must be produced.
 
 #### Scenario: An all-exact project needs no OpenSCAD
 
@@ -78,6 +81,17 @@ does when the binary is present.
 - **THEN** its behaviour and output are what they were before the dependency
   was declared conditional
 
+#### Scenario: Imported meshes can fuse without OpenSCAD
+
+- **WHEN** a fusion of valid imported STL leaves is built with `manifold3d`
+  available and no OpenSCAD binary
+- **THEN** the fused artifact is produced without an OpenSCAD availability check
+
+#### Scenario: Mixed fusion requires OpenSCAD only for an authored leaf
+
+- **WHEN** a fusion has a stale `Solid2Node` child and an imported STL child
+- **THEN** OpenSCAD is required for the Solid2 child's artifact, not for the
+  fusion's mesh composition
 ### Requirement: A missing OpenSCAD binary is reported actionably
 
 When a path listed above requires the OpenSCAD binary and it cannot be found,
@@ -151,4 +165,3 @@ exact develops with the web viewer and no OpenSCAD installed.
   no `openscad` on the PATH
 - **THEN** it fails naming `pip install "solid-node[viewer]"` and OpenSCAD
   installation, and starts no builder
-

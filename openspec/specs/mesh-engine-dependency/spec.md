@@ -14,6 +14,9 @@ running the test runner SHALL NOT require the mesh engine.
 
 The paths that require it are exactly:
 
+- producing a stale non-exact `FusionNode` artifact by directly unioning its
+  children's meshes;
+
 - evaluating an intersection between two nodes that do not both carry exact
   geometry — the faceted fast path and the `.mesh` fallback of the shared
   intersection helper, and therefore `assertNotIntersecting`,
@@ -33,9 +36,10 @@ entirely exact under the `exact-geometry` capability SHALL run
 every intersection-volume and perturbation assertion with no `manifold3d`
 installed.
 
-Declaring the dependency conditional SHALL NOT change what any of those paths
-does when the mesh engine is present: same verdicts, same messages, same
-broad-phase candidate sets.
+Adding faceted fusion to this requiring set SHALL NOT change existing
+assertion behavior when the mesh engine is present: same verdicts, same
+messages, same broad-phase candidate sets. Exact fusion and assembly grouping
+SHALL NOT resolve the mesh engine merely to prepare or produce geometry.
 
 The system SHALL NOT substitute a different engine, degrade a verdict, skip an
 assertion, or emit a warning in place of a result when the mesh engine is
@@ -69,6 +73,17 @@ not describe them.
 - **THEN** the comparison is evaluated through the cached Manifolds exactly as
   before
 
+#### Scenario: Faceted fusion names its missing engine
+
+- **WHEN** a non-exact fusion needs to produce its artifact and `manifold3d`
+  cannot be imported
+- **THEN** it fails naming the engine and the fusion operation, without trying
+  OpenSCAD, publishing concatenated geometry, or silently retaining a stale STL
+
+#### Scenario: Current fusion does not resolve its engine
+
+- **WHEN** a fusion's artifact and producer recipe are current
+- **THEN** artifact reuse performs no mesh-engine resolution or new union
 ### Requirement: An unavailable mesh engine fails actionably at the point of use
 
 When a requiring path is reached and `manifold3d` cannot be imported, the system
@@ -107,4 +122,3 @@ today.
 - **WHEN** an assertion selects a solid whose STL is not watertight
 - **THEN** it raises a `ValueError` naming that STL file, whether or not the
   mesh engine is installed and whether or not that solid is ever compared
-

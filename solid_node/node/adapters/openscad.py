@@ -69,6 +69,10 @@ class OpenScadNode(LeafNode):
         """Returns the rendered argument (do nothing)"""
         return rendered
 
+    def materialize(self, rendered):
+        self.model = rendered
+        self.generate_scad()
+
     @property
     def scad_code(self):
         """The contents of the code, plus a module call"""

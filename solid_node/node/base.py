@@ -87,7 +87,7 @@ def _publish_scad(path, content, mtime_ns, digest, fingerprint):
 
 
 def _atomic_write_bytes(path, content, mtime_ns, digest=None,
-                        fingerprint=None):
+                        fingerprint=None, recipe=None):
     """`_atomic_write_text` for a binary artifact.
 
     Same contract, and it matters for the same reason: the stamp is
@@ -103,7 +103,7 @@ def _atomic_write_bytes(path, content, mtime_ns, digest=None,
         with os.fdopen(descriptor, 'wb') as output:
             output.write(content)
         os.utime(temporary, ns=(time.time_ns(), mtime_ns))
-        currency.publish(temporary, path, digest, fingerprint)
+        currency.publish(temporary, path, digest, fingerprint, recipe)
     except Exception:
         if os.path.exists(temporary):
             os.remove(temporary)
@@ -693,6 +693,12 @@ class AbstractBaseNode(metaclass=NodeMeta):
         # Holds the result of render()
         self.model = None
 
+        # Native preparation is independent of SCAD presentation.  The
+        # rendered value belongs to this instance only; artifact currency is
+        # still on disk and no prepared tree is shared globally.
+        self._prepared = False
+        self._prepared_rendered = None
+
         self.root = self.basedir
 
         # Assembled is done only once
@@ -793,26 +799,22 @@ class AbstractBaseNode(metaclass=NodeMeta):
     def assemble(self, root=None):
         """Renders this node and returns an optimized version
         with all operations applied"""
-        # A builder phase shares one distinct-path census across this whole
-        # recursive call.  Register each nested producer's known closure before
-        # its render/as_scad work can consume a foreign contributor.
-        track_sources(self.files)
         if self._assembled:
             return self._assembled
 
-        if root:
-            self.root = root
+        self._prepare(root)
 
-        if self._render_can_be_skipped():
+        if self.optimize and self.rigid and self._up_to_date(self.stl_file):
             # Everything below would recompute an artifact that is
             # already on disk and already current. import_optimized()
             # imports it instead; self.model stays unset and is
             # rendered lazily if something actually asks for the scad.
+            if self.model is None:
+                self.model = import_stl(self.local_stl)
+            self.generate_scad()
             assembled = self.import_optimized()
         else:
-            rendered = self.render()
-
-            self.validate(rendered)
+            rendered = self._require_rendered()
             self.model = self.as_scad(rendered)
             if not self.optimize:
                 self.model = self._colorize(self.model)
@@ -830,6 +832,44 @@ class AbstractBaseNode(metaclass=NodeMeta):
         self._assembled = assembled
 
         return assembled
+
+    def _prepare(self, root=None):
+        """Prepare native structure and geometry without presenting SCAD."""
+        track_sources(self.files)
+        if root:
+            self.root = root
+        if self._prepared:
+            return self
+        if not self._prepare_can_be_skipped():
+            rendered = self.render()
+            self.validate(rendered)
+            self._prepared_rendered = rendered
+            if self._uses_legacy_scad_materialization():
+                # A project adapter that overrides the established SCAD hook
+                # is an explicit request to keep using that artifact path.
+                # Preserve it without making SCAD the path for native leaves.
+                self.model = self.as_scad(rendered)
+                self.generate_scad()
+            else:
+                self.materialize(rendered)
+        self._prepared = True
+        return self
+
+    def _require_rendered(self):
+        if self._prepared_rendered is None:
+            rendered = self.render()
+            self.validate(rendered)
+            self._prepared_rendered = rendered
+        return self._prepared_rendered
+
+    def materialize(self, rendered):
+        """Produce backend-owned artifacts from one validated render."""
+
+    def _prepare_can_be_skipped(self):
+        return False
+
+    def _uses_legacy_scad_materialization(self):
+        return False
 
     def _render_can_be_skipped(self):
         """Whether assemble() can import this node's artifact instead of
@@ -850,8 +890,8 @@ class AbstractBaseNode(metaclass=NodeMeta):
         scad gets it rendered on demand rather than getting None.
         """
         if self.model is None:
-            rendered = self.render()
-            self.validate(rendered)
+            self._prepare()
+            rendered = self._require_rendered()
             self.model = self.as_scad(rendered)
             if not self.optimize:
                 self.model = self._colorize(self.model)
@@ -999,7 +1039,7 @@ class AbstractBaseNode(metaclass=NodeMeta):
             self.scad_file, content, mtime_ns, digest, fingerprint)
 
     def trigger_stl(self):
-        self.assemble()
+        self._prepare()
         logger.info('Triggering children')
         for child in self.children:
             child.trigger_stl()
@@ -1228,6 +1268,10 @@ class AbstractBaseNode(metaclass=NodeMeta):
         """
         if not os.path.exists(path):
             return False
+        expected_recipe = self._artifact_recipe(path)
+        if (expected_recipe is not None
+                and currency.recorded_recipe(path) != expected_recipe):
+            return False
         artifact_mtime_ns = os.stat(path).st_mtime_ns
         node_mtime_ns = self.mtime_ns
         fingerprint = self.source_fingerprint
@@ -1268,8 +1312,18 @@ class AbstractBaseNode(metaclass=NodeMeta):
         currency.restamp(path, self.mtime_ns)
         if fingerprint is None:
             fingerprint = self.source_fingerprint
-        currency.record(path, digest, fingerprint)
+        currency.record(path, digest, fingerprint,
+                        self._artifact_recipe(path))
         return True
+
+    def _artifact_recipe(self, path):
+        """Private producer revision expected for an affected artifact."""
+        return None
+
+    @property
+    def geometry_recipe(self):
+        """Stable ingredient revision used by enclosing fusion recipes."""
+        return f'{type(self).__module__}.{type(self).__qualname__}:native-v1'
 
     def _make_build_dirs(self):
         # The build directory is absolute once anchored on the project root,

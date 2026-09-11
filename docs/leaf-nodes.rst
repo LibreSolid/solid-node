@@ -20,6 +20,16 @@ covered in :doc:`Combining parts <assemblies>`.
 Each node implements the `render()` method. Leaf nodes return an object
 of the underlying library.
 
+The framework prepares that object through the adapter's native artifact
+producer before any optional SCAD presentation. Built-in exact adapters write
+BREP and STL through OCCT, imported meshes stay meshes, JSCAD uses its own
+tool, and only Solid2/raw OpenSCAD leaves use OpenSCAD to produce geometry.
+Adapter authors adding a native backend implement ``materialize(rendered)``;
+``as_scad(rendered)`` remains the presentation hook. Existing project adapters
+that only override ``as_scad`` keep working through an explicit legacy bridge,
+and therefore may still require OpenSCAD. A native producer failure never
+silently selects that bridge.
+
 This page and the next build nodes the constructor way, with an
 ``__init__`` that takes the part's parameters. A part can instead
 *declare* its parameters in the class body and let the framework derive

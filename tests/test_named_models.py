@@ -445,12 +445,12 @@ class TestCommandTest(NamedProjectTest):
     def render(self):
         raise RuntimeError('render failed deliberately')
 ''',
-            'assembly': '''
+            'preparation': '''
     def render(self):
         return cube(1)
 
-    def assemble(self, root=None):
-        raise RuntimeError('assembly failed deliberately')
+    def _prepare(self, root=None):
+        raise RuntimeError('preparation failed deliberately')
 ''',
             'artifact generation': '''
     def render(self):
@@ -466,7 +466,8 @@ class TestCommandTest(NamedProjectTest):
             source.write(
                 'from solid2 import cube\n'
                 'from solid_node.node import Solid2Node\n\n'
-                'class AClock(Solid2Node):\n' + failures[stage])
+                'class AClock(Solid2Node):\n' + failures[stage]
+                + f'\n# cache discriminator: {stage * 3}\n')
         self.forget_project()
 
     def run_all_tests(self, failfast=False):
@@ -503,8 +504,8 @@ class TestCommandTest(NamedProjectTest):
                          set(), 'a model built into the flat root')
 
     def test_all_counts_each_model_preparation_failure_and_goes_on(self):
-        for stage in ('construction', 'render', 'assembly',
-                      'artifact generation'):
+        for stage in ('construction', 'render', 'artifact generation',
+                      'preparation'):
             with self.subTest(stage=stage):
                 shutil.rmtree(self.build_root, ignore_errors=True)
                 self.break_first_model(stage)

@@ -153,6 +153,16 @@ class InternalNode(AbstractBaseNode):
 
         return rendered
 
+    def materialize(self, children):
+        """Prepare children and aggregate their source ownership."""
+        self._link_children(children)
+        for child in children:
+            child._prepare(self.root)
+            self.files.update(child.files)
+            for path, names in child.scope.items():
+                self.scope[path] = self.scope.get(path, frozenset()) | names
+        self.children = children
+
     def validate(self, rendered):
         """Check that rendered result is a list"""
         if type(rendered) not in (list, tuple):

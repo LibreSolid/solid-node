@@ -42,17 +42,18 @@ class JScadNode(LeafNode):
     def render(self):
         return self
 
-    def as_scad(self, _):
+    def materialize(self, _):
         # An STL already produced from this jscad source needs no
         # second run of the external renderer.
         if self._up_to_date(self.stl_file):
-            return import_stl(self.local_stl)
+            return
 
         directory = os.path.dirname(self.stl_file) or '.'
         os.makedirs(directory, exist_ok=True)
         descriptor, temporary = tempfile.mkstemp(
             prefix=f'.{os.path.basename(self.stl_file)}.',
-            suffix='.tmp', dir=directory)
+            # JSCAD selects its exporter from the final extension.
+            suffix='.tmp.stl', dir=directory)
         os.close(descriptor)
         # A zero-byte placeholder is not successful renderer output.  The
         # random name remains private under the project build lock.
@@ -69,7 +70,7 @@ class JScadNode(LeafNode):
             if proc.returncode:
                 raise CalledProcessError(proc.returncode, cmd)
             if not os.path.exists(temporary):
-                return import_stl(self.local_stl)
+                return
 
             phase = current_phase()
             if phase is not None:
@@ -86,4 +87,8 @@ class JScadNode(LeafNode):
                 os.remove(temporary)
             except FileNotFoundError:
                 pass
+
+    def as_scad(self, rendered):
+        if not self._up_to_date(self.stl_file):
+            JScadNode.materialize(self, rendered)
         return import_stl(self.local_stl)

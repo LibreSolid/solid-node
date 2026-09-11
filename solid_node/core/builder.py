@@ -232,7 +232,7 @@ class Builder(FileSystemEventHandler):
     """Monitor model sources. On any relevant change, exit for a rebuild."""
     def __init__(self, path, is_reload=False, build_dir=None,
                  watch=True, callback=None,
-                 lifecycle=False, overrides=None):
+                 lifecycle=False, overrides=None, scad_output=True):
         super().__init__()
         self.path = path
         # The root's `--set` words, carried into every load this builder
@@ -252,6 +252,7 @@ class Builder(FileSystemEventHandler):
         self.watch = watch
         self.callback = callback
         self.lifecycle = lifecycle
+        self.scad_output = scad_output
 
         self.file_changed = None
         self._watched_sources = set()
@@ -353,14 +354,14 @@ class Builder(FileSystemEventHandler):
                 return BuildOutcome.SOURCE_CHANGED
 
             try:
-                # Assembly is artifact production: exact and imported leaves
-                # write BREP/STL here, and every node can write SCAD.
+                # Preparation discovers structure and lets native adapters
+                # materialize without constructing an assembly-wide SCAD tree.
                 if self._source_generation is None:
-                    self.node.assemble()
+                    self.node._prepare()
                 else:
                     with self._source_generation.phase(
                             self.node.files, label='assembly'):
-                        self.node.assemble()
+                        self.node._prepare()
             except SourceChanged:
                 return BuildOutcome.SOURCE_CHANGED
             except Exception as error:
@@ -407,6 +408,7 @@ class Builder(FileSystemEventHandler):
                 # it.
                 logger.info('Published artifacts are already current')
                 try:
+                    self._present_scad_if_requested()
                     if self._source_generation is None:
                         published = self._write_viewer_snapshot()
                     else:
@@ -445,6 +447,7 @@ class Builder(FileSystemEventHandler):
                             # result; only a renderer this child completed may
                             # continue the retained generation.
                             return outcome
+                    self._present_scad_if_requested()
                     if self._source_generation is None:
                         self._write_viewer_snapshot()
                     else:
@@ -470,6 +473,16 @@ class Builder(FileSystemEventHandler):
         if not self.watch:
             return BuildOutcome.CURRENT
         return await self.wait_for_change()
+
+    def _present_scad_if_requested(self):
+        """Publish compatibility SCAD only for a consumer that requested it."""
+        if not self.scad_output:
+            return
+        if self._source_generation is None:
+            self.node.assemble()
+            return
+        with self._source_generation.phase(self.node.files, label='assembly'):
+            self.node.assemble()
 
     async def _on_reload_exception(self, exc, stage, error_message=None):
         """Handle an exception raised while (re)importing project

@@ -333,13 +333,16 @@ class ExactArtifactTest(TestCase):
 
         self.assertFalse(builder._artifacts_are_current())
 
-    def test_mixed_fusion_keeps_the_openscad_render_protocol(self):
+    def test_mixed_fusion_uses_direct_mesh_composition(self):
         fusion = MixedFusion()
-        fusion.assemble()
-        process = Mock(pid=12345)
-        with patch('solid_node.node.base.Popen', return_value=process):
-            with self.assertRaises(StlRenderStart):
-                fusion.generate_stl()
+        fusion.build_stls()
+        os.remove(fusion.stl_file)
+        with patch('solid_node.node.base.require_openscad',
+                   side_effect=AssertionError('fusion must not use OpenSCAD')), \
+             patch('solid_node.node.base.Popen',
+                   side_effect=AssertionError('fusion must not launch')):
+            fusion.generate_stl()
+        self.assertTrue(os.path.exists(fusion.stl_file))
 
 
 class ExactIntersectionTest(TestCase):

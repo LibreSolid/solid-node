@@ -329,25 +329,28 @@ def describes(name):
 
 
 def _recorded_source(artifact):
-    """Return `(digest, fingerprint)` from a current or legacy record."""
+    """Return `(digest, fingerprint, recipe)` from a current/legacy record."""
     try:
         with open(sidecar(artifact)) as stream:
             content = stream.read().strip()
     except OSError:
-        return None, None
+        return None, None, None
     if not content:
-        return None, None
+        return None, None, None
     if not content.startswith('{'):
-        return content, None
+        return content, None, None
     try:
         record = json.loads(content)
     except (json.JSONDecodeError, TypeError):
-        return None, None
-    if (not isinstance(record, dict) or record.get('version') != 2
+        return None, None, None
+    if (not isinstance(record, dict) or record.get('version') not in (2, 3)
             or not isinstance(record.get('digest'), str)
             or not isinstance(record.get('fingerprint'), str)):
-        return None, None
-    return record['digest'], record['fingerprint']
+        return None, None, None
+    recipe = record.get('recipe') if record.get('version') == 3 else None
+    if recipe is not None and not isinstance(recipe, str):
+        return None, None, None
+    return record['digest'], record['fingerprint'], recipe
 
 
 def recorded_digest(artifact):
@@ -358,6 +361,11 @@ def recorded_digest(artifact):
 def recorded_fingerprint(artifact):
     """The source-set metadata fingerprint recorded for `artifact`, or None."""
     return _recorded_source(artifact)[1]
+
+
+def recorded_recipe(artifact):
+    """The private producer recipe recorded for `artifact`, or None."""
+    return _recorded_source(artifact)[2]
 
 
 def drop(artifact):
@@ -371,7 +379,7 @@ def drop(artifact):
                      artifact, error)
 
 
-def record(artifact, digest, fingerprint=None):
+def record(artifact, digest, fingerprint=None, recipe=None):
     """Vouch for `artifact`, or for nothing when `digest` is None.
 
     A fingerprint produces the current versioned record. Omitting it writes the
@@ -390,10 +398,15 @@ def record(artifact, digest, fingerprint=None):
     path = sidecar(artifact)
     if fingerprint is None:
         desired = f'{digest}\n'.encode()
-    else:
+    elif recipe is None:
         desired = (json.dumps(
             {'version': 2, 'digest': digest, 'fingerprint': fingerprint},
             sort_keys=True, separators=(',', ':')) + '\n').encode()
+    else:
+        desired = (json.dumps({
+            'version': 3, 'digest': digest, 'fingerprint': fingerprint,
+            'recipe': recipe,
+        }, sort_keys=True, separators=(',', ':')) + '\n').encode()
     try:
         with ArtifactSnapshot(path) as existing:
             if existing.read_bytes() == desired:
@@ -421,7 +434,7 @@ def record(artifact, digest, fingerprint=None):
         logger.debug('Could not record the sources of %s: %s', artifact, error)
 
 
-def publish(temporary, artifact, digest, fingerprint=None):
+def publish(temporary, artifact, digest, fingerprint=None, recipe=None):
     """Move a finished artifact into place with its source record.
 
     The ordering is the contract: the old record goes BEFORE the new
@@ -433,7 +446,7 @@ def publish(temporary, artifact, digest, fingerprint=None):
     """
     drop(artifact)
     os.replace(temporary, artifact)
-    record(artifact, digest, fingerprint)
+    record(artifact, digest, fingerprint, recipe)
 
 
 def restamp(artifact, mtime_ns):

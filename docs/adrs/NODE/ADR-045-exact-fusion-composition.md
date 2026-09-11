@@ -1,6 +1,6 @@
 # ADR-045: Exact fusion composition
 
-**Status:** Accepted
+**Status:** Accepted, faceted route amended by [ADR-102](ADR-102-native-materialization-precedes-optional-scad-presentation.md)
 
 **Date:** 2026-08-13
 
@@ -30,8 +30,9 @@ the shapes in OCCT. Its STL is tessellated synchronously from that fused shape
 at CadQuery's existing leaf deflection; it does not launch OpenSCAD or raise
 `StlRenderStart`. Its BREP and STL receive the same source mtime.
 
-A fusion containing any faceted descendant retains the OpenSCAD subprocess
-protocol unchanged.
+A fusion containing any faceted descendant used the OpenSCAD subprocess
+protocol at this decision. ADR-102 replaces that route with direct Manifold
+composition while retaining this decision's exact OCCT path.
 
 Fusion STL publication removes degenerate faces produced by tessellation.
 Caller validation found that OCCT returned one valid fused solid for

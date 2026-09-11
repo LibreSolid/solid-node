@@ -216,7 +216,7 @@ class LockParticipantsTest(TestCase):
         runner = Test()
         node = Mock()
         observed = []
-        for phase in ('set_keyframe', 'render', 'assemble', 'build_stls'):
+        for phase in ('set_keyframe', 'build_stls'):
             getattr(node, phase).side_effect = (
                 lambda *_, phase=phase: observed.append(
                     (phase, lock_is_held(self.build_dir))))
@@ -228,25 +228,23 @@ class LockParticipantsTest(TestCase):
 
         self.assertEqual(observed, [
             ('set_keyframe', True),
-            ('render', True),
-            ('assemble', True),
             ('build_stls', True),
         ])
         self.assertFalse(lock_is_held(self.build_dir),
                          'a test sweep would block the next build')
 
-    def test_builder_assembles_while_holding_the_lock(self):
+    def test_builder_prepares_while_holding_the_lock(self):
         import asyncio
         from solid_node.core.builder import Builder, BuildOutcome
         builder = Builder('model.py', build_dir=self.build_dir, watch=False)
         node = Mock(mtime_ns=0)
         observed = []
 
-        def fail_during_assembly():
+        def fail_during_preparation():
             observed.append(lock_is_held(self.build_dir))
-            raise RuntimeError('deliberate assembly failure')
+            raise RuntimeError('deliberate preparation failure')
 
-        node.assemble.side_effect = fail_during_assembly
+        node._prepare.side_effect = fail_during_preparation
         with patch.dict(os.environ, {'SOLID_BUILD_DIR': self.build_dir}), \
              patch('solid_node.core.builder.load_node', return_value=node):
             outcome = asyncio.run(builder._start())

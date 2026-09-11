@@ -176,6 +176,9 @@ class FakeNode:
     def assemble(self):
         pass
 
+    def _prepare(self):
+        pass
+
     @property
     def mtime(self):
         return self.mtime_ns / 1e9
