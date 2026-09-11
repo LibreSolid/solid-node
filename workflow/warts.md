@@ -1714,3 +1714,39 @@ rather than folded into the closure:
   whenever the parent's own rest placement of that child is conditional.
   Triage: one sentence in `docs/driving.rst`'s site paragraph and in the
   shop craft skill; no framework change.
+
+# deferred-read-is-current (2026-09-11, worktree deferred-read-current on ADR-099)
+
+- **FIXED: a deferred relation read its source one enumeration stale on
+  every re-pose.** Sighted in openflexure-microscope's stage B, restoring
+  the root sentence `z_axis.actuator.column.travel.drives(body.
+  lower_strut.swing, law=…)` — an ancestor sourcing from a coordinate a
+  descendant's own relation solves, the exact shape ADR-099 promises.
+  Correct on the FIRST `render()`; on every later `set_state()`, the
+  driven end read the value the source held at the end of the PREVIOUS
+  enumeration, never the current one. A second, independently-measured
+  sighting (OpenTorque's `reducer.planet_1.orbit.drives(
+  output_stack.planet_carrier_b.turn)`, landing 4.320e+02 mm off on a
+  second `set_state()`) confirmed the same cause on a different shape
+  (two separate descendant subtrees rather than one chain into a leaf).
+  Cause, measured: tree order runs an ancestor's own relation attempt
+  BEFORE the descendant that owns the source has cleared and rebound it
+  this enumeration; `ResolvedEnd.bound()` asked only whether the slot
+  held a non-`None` value, which a stale leftover from the previous
+  enumeration also satisfies, so the ancestor's own attempt solved
+  immediately from stale data instead of deferring — and once solved,
+  the descendant's later fresh rebind is never revisited this
+  enumeration. Fixed in `deferred-read-is-current`
+  (`solid_node/motion/couplings.py`, `solid_node/node/phase.py`,
+  `solid_node/motion/ports.py`): a non-fresh value now reads as unbound,
+  and this attempt defers, exactly when the assembly that bound it
+  (tracked as `BoundPort._bound_by`) is the one currently attempting or
+  one of its own descendants — still due to run before this pass
+  concludes. A naive "not bound this enumeration means unbound" rule is
+  WRONG and was measured to be: it defers forever a value bound by an
+  assembly outside the current pass's own subtree, which the serializer
+  produces routinely (`serialize_node`'s own recursive `render()` at
+  every level, each opening a NEW enumeration over a narrower subtree
+  once its parent's has already closed — ADR-099's own accepted
+  "idempotent re-attempt" case) and which a hand-bound coordinate set
+  before the first `render()` ever opened one also produces.

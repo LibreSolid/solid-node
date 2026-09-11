@@ -351,6 +351,25 @@ therefore those bound during the current enumeration of the tree: by
 this author's `simulate()`, by an ancestor's wiring or relation already
 applied in this enumeration, or by a driver read.
 
+Because a coordinate this instance's own attempt reads as an END is not
+necessarily the current enumeration's value — tree order runs an
+ancestor's own attempt before the descendant that owns a deferred
+source has cleared and rebound it, so at the moment of the read that
+source may still hold what the PREVIOUS enumeration left there — an end
+whose value is not yet fresh for this enumeration SHALL read as UNBOUND
+for as long as the assembly that bound it is still due to attempt again
+before this pass concludes: that assembly's own attempt currently
+running, or one of that assembly's own descendants'. It SHALL read as
+bound, unchanged, when nothing left to run in this pass will touch it
+again — a value bound outside any enumeration, or one whose binder's
+assembly lies outside the subtree the current pass walks, exactly as a
+node the walker revisits after its owning enumeration has already
+closed is allowed to trust what is already there. This SHALL NOT change
+which relation is deferred versus solved once a pass concludes, and
+SHALL NOT change `_enum_marker`'s own meaning or the clear-with-the-
+motion rule above: it decides only what one attempt, mid-pass, is
+allowed to treat as already answered.
+
 A binding made OUTSIDE any simulate phase — in `__init__`, in a test, or
 through a `render()` no walker drove — SHALL NOT be recorded and SHALL
 NOT be cleared, exactly as an operation applied outside a phase is never
@@ -518,6 +537,21 @@ runner.
 - **THEN** each run finds the coordinate unbound, binds it and places
   the body, so the body stands at the bound value on every run instead
   of standing at rest holding a stale number
+
+#### Scenario: A deferred relation's source is read fresh on every re-pose
+
+- **WHEN** a root states a relation sourced from a coordinate a
+  descendant's own relation solves — the shape "An ancestor sources
+  from a coordinate a descendant solves" — and the tree is re-posed
+  three or more times with different values for whatever the descendant
+  ultimately reads its source from
+- **THEN** after EVERY re-pose the driven end equals the law applied to
+  the source's CURRENT enumeration's value, never the value the source
+  held at the end of the PREVIOUS enumeration, because the root's own
+  attempt — which runs before the descendant has cleared and rebound
+  that source this enumeration — reads a value still carrying the
+  previous enumeration's mark as UNBOUND and defers, and the pass's own
+  fixpoint solves it only once the descendant's fresh rebind has landed
 
 ### Requirement: Three refusals keep a wrong drive network from becoming a pose
 

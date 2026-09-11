@@ -94,6 +94,16 @@ class BoundPort:
     # bound this slot. See `clear_solved`.
     _enum_marker = None
 
+    # The assembly whose OWN simulate phase most recently bound this
+    # slot -- not necessarily the node the slot belongs to, which may be
+    # a descendant several levels below whoever actually solved it -- or
+    # None before anything bound it inside a phase. Set by
+    # `phase.note_bound`; read by `couplings.ResolvedEnd.bound` to tell
+    # a value still WAITING for that assembly's next attempt (this
+    # enumeration) apart from one nothing due to run in this pass will
+    # ever touch again.
+    _bound_by = None
+
     def __init__(self, declaration, node):
         self.declaration = declaration
         self.node = node

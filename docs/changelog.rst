@@ -27,6 +27,15 @@ run on, at a stale number with no operation left to show for it. See
 "Relations: one coordinate drives another" and "Joints: where a part
 may move".
 
+**A deferred relation now reads its source's current value, not the
+previous enumeration's.** An ancestor's relation sourced from a
+coordinate a descendant's own relation solves was correct on the FIRST
+``render()`` and stale on every ``set_state()`` after: the ancestor's
+own attempt runs before the descendant has cleared and rebound the
+source this pass, found a value still sitting there from before, and
+solved immediately instead of deferring. The driven end now tracks
+whatever the source holds at the end of the CURRENT enumeration.
+
 **A joint may be declared where a child is placed.** The other half of
 "a joint is stated in the frame of whoever declares it" (below): a joint
 passed as a KEYWORD where a parent declares a child is the parent's own

@@ -82,10 +82,22 @@ def note_bound(slot):
     current. Recorded on the phase so its own NEXT run's `clear_solved`
     knows what to drop; a binding made in a RENDER phase or with no phase
     at all is not recorded, exactly as an operation applied there is
-    never swept."""
+    never swept.
+
+    Also stamps `slot._bound_by` with the attempting assembly itself --
+    not the coordinate's own node, which may be a descendant several
+    levels below whoever actually solved it. `couplings.ResolvedEnd`
+    reads this to tell "the assembly that will rebind this slot has not
+    attempted yet THIS enumeration, so a value still on it is last
+    enumeration's" apart from "nothing due to run in this pass will ever
+    touch it again, so whatever is on it now is this pass's answer" --
+    a leftover from before a bind was ever recorded (`_bound_by`
+    defaults to `None` on the slot) reads as the second case, exactly as
+    one bound outside any phase always has."""
     phase = current()
     if phase is not None and phase.kind == SIMULATE:
         phase.bound.append(slot)
+        slot._bound_by = phase.assembly
 
 
 ##############################################

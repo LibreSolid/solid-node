@@ -1138,6 +1138,19 @@ class RelationRecord:
                 f'solved {self.direction or "not yet"}>')
 
 
+def _is_descendant_or_self(node, ancestor):
+    """Whether `node` IS `ancestor` or hangs below it, through the
+    `_parent` links a walker's own linking sets (`_link_children`) --
+    the same climb `qualified.instance_path` makes, stopped at the
+    first match instead of collecting names."""
+    current = node
+    while current is not None:
+        if current is ancestor:
+            return True
+        current = getattr(current, '_parent', None)
+    return False
+
+
 class ResolvedEnd:
     """One end of one instance's relation: the realized node that owns
     the coordinate, and the way to read and bind it."""
@@ -1160,7 +1173,48 @@ class ResolvedEnd:
     def bound(self):
         if self.is_driver:
             return True
-        return self.slot._value is not None
+        if self.slot._value is None:
+            return False
+        if self.slot._enum_marker is _current_enumeration():
+            # Bound during THIS pass -- by whichever assembly, including
+            # one still ahead of whatever is currently attempting
+            # (design.md section 6's "some OTHER assembly has ALREADY
+            # bound it" case): unambiguously this enumeration's answer.
+            return True
+        # A non-None value that is not this enumeration's: either a
+        # leftover from an EARLIER one, or one bound outside any
+        # enumeration at all (a hand assignment before the first
+        # render(), between two `render()` calls, in a bare
+        # construction -- `_bound_by` is None then, never having been
+        # set inside a phase). Whether a leftover counts as "bound" now
+        # depends on whether the assembly that put it there is due to
+        # attempt again before this pass concludes: if some assembly's
+        # OWN attempt is currently running (`_current_phase()`) and the
+        # slot's last binder is that SAME assembly or one of ITS OWN
+        # descendants, tree order guarantees that assembly (or one
+        # below it) has not run its phase yet THIS enumeration but will
+        # -- the walker always finishes an assembly's whole subtree
+        # before the pass closes -- so the value is not yet this
+        # enumeration's and this end defers; the descendant's fresh
+        # rebind, later in the SAME pass, is what `run_deferred` then
+        # reads. Otherwise -- nothing running right now, as when the
+        # pass's own fixpoint reads a leftover once every phase in the
+        # enumeration has already run; the slot's binder unset entirely;
+        # or the binder's assembly outside whatever is currently
+        # attempting, such as an ANCESTOR's relation a partially
+        # re-rendered subtree can no longer reach because that ancestor
+        # sits outside the subtree THIS pass walks
+        # (`_lifecycle_render`'s own re-attempt of a node whose owning
+        # enumeration already closed) -- nothing here is about to
+        # reclaim it, so it is this pass's final answer for it, exactly
+        # as one bound outside any enumeration always reads (design.md
+        # section 6): trust it.
+        phase = _current_phase()
+        binder_assembly = self.slot._bound_by
+        if (phase is not None and binder_assembly is not None
+                and _is_descendant_or_self(binder_assembly, phase.assembly)):
+            return False
+        return True
 
     def value(self):
         if self.is_driver:

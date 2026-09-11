@@ -2142,6 +2142,34 @@ class FixRoot(AssemblyNode):
     z_axis.column.turn.drives(strut.swing, ratio=-0.25)
 
 
+class RFAxis(AssemblyNode):
+    """FixAxis, but reading a DRIVER instead of writing a constant, so a
+    re-pose actually changes the coordinate the root's relation sources
+    from -- FixAxis's `self.steps = 100.0` never varies across
+    `set_state` calls and so cannot expose a value carried over from the
+    wrong enumeration."""
+
+    z = Driver(default=0.0, unit='deg')
+    steps = RotationalPort(unit='deg')
+    column = FixLeaf()
+
+    steps.drives(column.turn, ratio=0.5)
+
+    def simulate(self):
+        self.steps = self.z
+
+
+class RFRoot(AssemblyNode):
+    """FixRoot's exact shape, over RFAxis: the root's relation sources
+    from `z_axis.column.turn`, a coordinate only RFAxis's OWN relation
+    solves."""
+
+    z_axis = RFAxis()
+    strut = FixStrut()
+
+    z_axis.column.turn.drives(strut.swing, ratio=-0.25)
+
+
 class TreeFixpointTest(BaseNodeTest):
 
     def test_a_chain_stated_one_level_down_solves(self):
@@ -2165,6 +2193,30 @@ class TreeFixpointTest(BaseNodeTest):
 
         self.assertAlmostEqual(root.z_axis.column.turn.value, 50.0)
         self.assertAlmostEqual(root.strut.swing.value, -12.5)
+
+    def test_a_deferred_relation_reads_the_source_s_current_value(self):
+        """Regression for the openflexure sighting: on the FIRST
+        enumeration the shape above is right, but on every LATER
+        `set_state` the deferred relation binds the driven end from the
+        value the source held at the end of the PREVIOUS enumeration,
+        not the one its own descendant's relation just solved THIS
+        enumeration -- because the ancestor's own attempt runs (and, if
+        the source's stale value has not been cleared yet, resolves)
+        before the descendant that owns the source has cleared and
+        rebound it for the current pass. Every one of these calls must
+        see the source's CURRENT value, not last time's."""
+        root = RFRoot()
+        for z in (10.0, 40.0, 0.0, 25.0):
+            root.set_state(**{'z_axis.z': z})
+
+            expected_column = 0.5 * z
+            expected_swing = -0.25 * expected_column
+            self.assertAlmostEqual(
+                root.z_axis.column.turn.value, expected_column,
+                msg=f'z={z}: column.turn stale')
+            self.assertAlmostEqual(
+                root.strut.swing.value, expected_swing,
+                msg=f'z={z}: swing reads the source one enumeration stale')
 
     def test_the_refusal_names_the_class_and_the_path(self):
         """task 1.3. Nothing binds either end anywhere: refused, naming
