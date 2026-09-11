@@ -1799,3 +1799,34 @@ rather than folded into the closure:
   once its parent's has already closed — ADR-099's own accepted
   "idempotent re-attempt" case) and which a hand-bound coordinate set
   before the first `render()` ever opened one also produces.
+
+# 3DPrintedClocks (2026-09-11, stage B on ADR-099)
+
+- **A descendant's hand-written `simulate()` that needs a coordinate an
+  ANCESTOR's deferred relation binds gets it too late.** Wall clock 01's
+  two-arbor chain, moved back inside `Train` as ADR-099 now allows
+  (`centre.drives(third, law=going_train)`, `third.drives(escape, ...)`),
+  declares fine and then refuses on the FIRST enumeration:
+  `movement.string.drop was read by StringAssembly's own simulate()
+  (motion.py:327) before the relation power.turn drives string.drop bound
+  it`. Once the chain is stated one level down, everything `Movement`
+  states from `power.turn` — the weight's string drop, the cannon-pinion
+  setting — defers to the tree-wide fixpoint, which runs only after every
+  node's own phase, but `StringAssembly.simulate()` computes its geometry
+  from `drop` DURING its phase. Identical before and after
+  `deferred-read-is-current` (a different defect: this one is first-pass).
+  The chain stays hoisted in `Movement`; the sentence wanted is exactly
+  those two lines. Not a bug in the fixpoint — it delivers exactly when
+  ADR-099 says — but the ADR's "a chain may be stated one level down"
+  is only true when nothing below the chain reads its results by hand.
+  Candidate directions, each needing its own sighting before a choice:
+  a descendant's hand-written read could itself defer (the phase re-run
+  once its inputs bind), or the rule could refuse at CLASS DEFINITION
+  when a class both reads a coordinate in `simulate()` and has an
+  ancestor relation feeding it, naming the read. Filed; triage open.
+- **Four seconds-hand clocks (19, 28, 39, 41) declare no relation onto
+  `seconds_hand.arbor`** where the other six write
+  `train.escape.turn.drives(seconds_hand.arbor)`; the premature read that
+  used to feed it (now deleted) left it stale before and `None` now. A
+  project matter for its own maintainer, one line per clock; recorded
+  here because ADR-099's read refusal is what made it visible.

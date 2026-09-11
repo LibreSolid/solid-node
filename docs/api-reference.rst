@@ -303,6 +303,8 @@ needing no import, and free on every declaration that carries
 
 .. autoexception:: solid_node.motion.couplings.NotInvertible
 
+.. autoexception:: solid_node.motion.couplings.PrematureRead
+
 .. autofunction:: solid_node.motion.couplings.declared_relations
 
 Simulation
