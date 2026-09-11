@@ -2,40 +2,17 @@
 # Copyright (C) 2023-2026 Luis Henrique Cassis Fagundes
 # SPDX-License-Identifier: Apache-2.0
 
-"""The expression language the framework emits: a reader, not a new one.
+"""Compile native motion graphs and legacy scalar text into shared outputs.
 
-Every symbolic value in the framework is a solid2 `OpenSCADConstant`, and
-`OpenSCADConstant` is string-eager (design.md, Context): the text IS the
-value, built once per use rather than once per distinct subexpression. This
-module does not change that -- it reads the text the producer already built,
-so a document can publish each distinct subexpression once (ADR-080).
+Framework arithmetic stores operand references, not strings. Publication
+interns only reachable nodes, counts repeated uses and emits the existing
+schema-4 binding language. The SCAD boundary emits closed scalar let bindings.
+The iterative parser imports legacy scalar text (including those closures);
+unknown legacy syntax keeps its verbatim fallback with a bounded warning.
 
-The grammar (design.md D2) is exactly what two producers emit:
-
-- `OpenSCADConstant.__operator_base__` / `__roperator_base__`:
-  ``f'({self} {op} {other})'`` for `+ - * / % ^ == != < > <= >=`.
-- `OpenSCADConstant.__unary_operator_base__`: ``f'({op}{self})'``, `op`
-  always `-`.
-- `OpenSCADConstant.__abs__`: ``f'abs({self})'``.
-- `solid_node.math._symbolic_call`: ``f'{name}({rendered})'``, `rendered`
-  being its arguments joined by `', '`.
-- `$t`, a bare driver id, a dotted one, and a plain number in every form
-  `str()` of a Python number produces, exponent notation included.
-
-solid2 fully parenthesises every operation it builds, so precedence is never
-load-bearing in text the framework produced -- but a hand-written
-`scad_inline` string is free to omit the parentheses, so this parser
-implements real precedence climbing rather than leaning on them.
-
-Nothing here is a new expression language: every name and operator it can
-read is one the two producers above already emit. `solid_node/core/expressions.py`
-is a framework-internal reader, never a public interface (tasks.md 5.4).
-
-An expression this parser cannot read is not a framework failure -- see
-`bind_expressions`: it is published verbatim and unshared, with a warning,
-and the caller decides nothing changes about the build.
+This is an internal compiler, not a new public motion or viewer language.
+Numerical order, degree math and the original schema-4 contract are preserved.
 """
-
 import logging
 import re
 
@@ -45,9 +22,7 @@ logger = logging.getLogger('core.expressions')
 #: Kinds a node take. 'num' and 'name' are leaves; the rest are compound.
 _LEAF_KINDS = ('num', 'name')
 
-_NUMBER_RE = re.compile(r'(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?')
 _NAME_RE = re.compile(r'\$t|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*')
-_COMPARISON_OPS = ('==', '!=', '<=', '>=', '<', '>')
 
 #: How much of an unreadable expression a warning names -- a published
 #: expression may be megabytes, and the offending text is diagnostic, not
@@ -98,7 +73,7 @@ class Node:
 
     def __repr__(self):
         if self.kind in _LEAF_KINDS:
-            return f'<Node {self.kind} {self.text!r}>'
+            return f'<Node {self.kind} {self.text[:80]!r}>'
         return f'<Node {self.kind} {self.op!r} x{len(self.children)}>'
 
 
@@ -145,278 +120,53 @@ class Interner:
         self.counts[node] = self.counts.get(node, 0) + 1
 
 
-def _matching_paren(text, open_pos):
-    depth = 0
-    i = open_pos
-    n = len(text)
-    while i < n:
-        char = text[i]
-        if char == '(':
-            depth += 1
-        elif char == ')':
-            depth -= 1
-            if depth == 0:
-                return i
-        i += 1
-    raise ExpressionError(
-        f'unbalanced parenthesis in {_truncate(text)!r}')
-
-
-class _Parser:
-    """One recursive-descent, precedence-climbing pass over `text`.
-
-    No separate tokenizing pass: each grammar rule reads directly off
-    `text[self.i:]`, which is what lets `_parenthesised` capture a group's
-    exact source substring for the memo (design.md D2, "Speed comes from a
-    substring memo") before deciding whether to parse it at all.
-    """
-
-    def __init__(self, text, interner, memo=None):
-        self.text = text
-        self.interner = interner
-        self.memo = memo
-        self.i = 0
-        self.n = len(text)
-
-    def parse(self):
-        node = self._expr()
-        self._skip_ws()
-        if self.i != self.n:
-            raise self._error('unexpected text after a complete expression')
-        return node
-
-    # -------- errors and lexical helpers --------
-
-    def _error(self, message):
-        return ExpressionError(
-            f'{message} (offset {self.i} of {_truncate(self.text)!r})')
-
-    def _skip_ws(self):
-        while self.i < self.n and self.text[self.i] in ' \t\n\r':
-            self.i += 1
-
-    def _peek(self):
-        return self.text[self.i] if self.i < self.n else ''
-
-    def _starts_with(self, token):
-        return self.text.startswith(token, self.i)
-
-    # -------- grammar, loosest to tightest --------
-
-    def _expr(self):
-        return self._comparison()
-
-    def _comparison(self):
-        self._skip_ws()
-        left = self._additive()
-        self._skip_ws()
-        for op in _COMPARISON_OPS:
-            if self._starts_with(op):
-                self.i += len(op)
-                self._skip_ws()
-                right = self._additive()
-                return self.interner.compound('binop', op, (left, right))
-        return left
-
-    def _additive(self):
-        self._skip_ws()
-        left = self._multiplicative()
-        while True:
-            self._skip_ws()
-            char = self._peek()
-            if char not in ('+', '-'):
-                break
-            self.i += 1
-            self._skip_ws()
-            right = self._multiplicative()
-            left = self.interner.compound('binop', char, (left, right))
-        return left
-
-    def _multiplicative(self):
-        self._skip_ws()
-        left = self._unary()
-        while True:
-            self._skip_ws()
-            char = self._peek()
-            if char not in ('*', '/', '%'):
-                break
-            self.i += 1
-            self._skip_ws()
-            right = self._unary()
-            left = self.interner.compound('binop', char, (left, right))
-        return left
-
-    def _unary(self):
-        self._skip_ws()
-        if self._peek() == '-':
-            minus_pos = self.i
-            self.i += 1
-            # A bare negative-number literal is one token in the text --
-            # Python's str() of a negative number, never the unary-operator
-            # wrap, which is always parenthesised (design.md D2). Only
-            # merge when the digits are RIGHT there, no whitespace between:
-            # "(5 - -3)"'s second '-' merges, its first (surrounded by
-            # spaces, the binary operator) never reaches this rule at all.
-            match = (_NUMBER_RE.match(self.text, self.i)
-                     if self.i < self.n
-                     and (self.text[self.i].isdigit() or self.text[self.i] == '.')
-                     else None)
-            if match is not None:
-                literal = self.text[minus_pos:match.end()]
-                self.i = match.end()
-                return self.interner.leaf('num', literal)
-            operand = self._unary()
-            return self.interner.compound('unary', '-', (operand,))
-        if self._peek() == '+':
-            # Never emitted by either producer; harmless to accept as a
-            # no-op the way OpenSCAD's own grammar would.
-            self.i += 1
-            return self._unary()
-        return self._power()
-
-    def _power(self):
-        base = self._atom()
-        self._skip_ws()
-        if self._peek() == '^':
-            self.i += 1
-            self._skip_ws()
-            exponent = self._unary()
-            return self.interner.compound('binop', '^', (base, exponent))
-        return base
-
-    def _atom(self):
-        self._skip_ws()
-        if self.i >= self.n:
-            raise self._error('expected an expression')
-        char = self.text[self.i]
-        if char == '(':
-            return self._parenthesised()
-        match = _NUMBER_RE.match(self.text, self.i)
-        if match is not None:
-            literal = match.group()
-            self.i = match.end()
-            return self.interner.leaf('num', literal)
-        match = _NAME_RE.match(self.text, self.i)
-        if match is not None:
-            name = match.group()
-            self.i = match.end()
-            self._skip_ws()
-            if self._peek() == '(':
-                return self._call(name)
-            return self.interner.leaf('name', name)
-        raise self._error(f'unexpected character {char!r}')
-
-    def _call(self, name):
-        # self.i is at the '(' following `name`.
-        self.i += 1
-        args = []
-        self._skip_ws()
-        if self._peek() != ')':
-            args.append(self._expr())
-            self._skip_ws()
-            while self._peek() == ',':
-                self.i += 1
-                self._skip_ws()
-                args.append(self._expr())
-                self._skip_ws()
-        if self._peek() != ')':
-            raise self._error(f"expected ')' to close the call to {name!r}")
-        self.i += 1
-        return self.interner.compound('call', name, tuple(args))
-
-    def _parenthesised(self):
-        open_pos = self.i
-        close = _matching_paren(self.text, open_pos)
-        inner = self.text[open_pos + 1:close]
-        if self.memo is not None:
-            cached = self.memo.get(inner)
-            if cached is not None:
-                self.interner.touch(cached)
-                self.i = close + 1
-                return cached
-        # Parsed in place, on THIS parser, rather than handing `inner` to a
-        # fresh `_Parser(...).parse()`: a chain of nested groups -- the
-        # shape solid2 itself builds, each level its own parenthesised
-        # group -- then costs one grammar descent's worth of stack frames
-        # per level instead of one plus a wrapper `parse()` call, raising
-        # (not removing) how deep a document can reach before
-        # `bind_expressions` falls back to its `RecursionError` handling.
-        self.i = open_pos + 1
-        node = self._expr()
-        self._skip_ws()
-        if self.i != close:
-            raise self._error(
-                "unexpected text before the closing parenthesis")
-        if self.memo is not None:
-            self.memo[inner] = node
-        self.i = close + 1
-        return node
-
-
 def parse(text, interner=None, memo=None):
-    """Parse `text` into an interned `Node`.
+    """Parse a scalar or a local SCAD closure without Python recursion.
 
-    `interner` defaults to a fresh one; pass a shared `Interner` to build
-    document-wide sharing across several calls. `memo`, when a dict, is the
-    substring shortcut for parenthesised groups (design.md D2) and should be
-    shared across every `parse()` call over one document so a repeated
-    group is skipped rather than re-parsed; pass `None` (the default) to
-    disable it -- the answer is identical either way (tasks.md 1.3), only
-    slower.
-
-    Raises `ExpressionError` on anything outside the grammar; never
-    guesses.
+    The optional memo argument is retained for legacy callers. Sharing comes
+    from the supplied interner, not substring copies of the input text.
     """
-    if interner is None:
-        interner = Interner()
-    return _Parser(text, interner, memo).parse()
-
-
-# `render`, `_matches`, `_name_leaves` and `_has_named_descendant` below
-# each recurse ONE stack frame per level of a node's own tree -- unlike the
-# parser, which spends several frames (`_expr` down through `_atom`) per
-# level of SOURCE TEXT nesting. A node these functions are ever handed
-# came from a `parse()` call that already completed inside Python's
-# recursion limit at that higher per-level cost, so its tree cannot be
-# deeper than that call's own recursion allowed, and a strictly cheaper
-# per-level traversal of the same tree cannot exceed the limit either.
-# `bind_expressions`'s `RecursionError` handling is what keeps a node THAT
-# deep from ever reaching these functions in the first place.
-
-
-def _publish(node, names):
-    name = names.get(node)
-    if name is not None:
-        return name
-    return render(node, names)
+    from .expression_parser import Parser
+    return Parser(text, interner if interner is not None else Interner(),
+                  ExpressionError).parse()
 
 
 def render(node, names=None):
-    """The canonical text for `node`.
+    """Render once into tokens, substituting shared children before descent.
 
-    A leaf renders its own literal text, verbatim. A compound node
-    reconstructs the producer's own format -- `(A op B)`, `(-A)`,
-    `name(A, B)` -- from its children, substituting `names[child]` for any
-    child that is itself a bound reference (`names`, when given, maps a
-    `Node` to the name it was minted under). With no `names` this is a full
-    expansion: `parse(render(node)) is node` when re-parsed into the same
-    interner (tasks.md 1.4), because the text is exactly what the producer
-    would have written before anything was shared.
+    Unlike recursively concatenating strings, this takes output-linear memory
+    for deep unshared expressions too. The root itself is always rendered.
     """
     names = names or {}
-    if node.kind in _LEAF_KINDS:
-        return node.text
-    if node.kind == 'unary':
-        return f'(-{_publish(node.children[0], names)})'
-    if node.kind == 'binop':
-        left = _publish(node.children[0], names)
-        right = _publish(node.children[1], names)
-        return f'({left} {node.op} {right})'
-    if node.kind == 'call':
-        args = ', '.join(_publish(child, names) for child in node.children)
-        return f'{node.op}({args})'
-    raise AssertionError(f'unknown node kind {node.kind!r}')  # pragma: no cover
-
+    output = []
+    stack = [node]
+    first = True
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            output.append(item)
+            continue
+        if not first and item in names:
+            output.append(names[item])
+            continue
+        first = False
+        if item.kind in ('num', 'name', 'raw'):
+            output.append(item.text)
+        elif item.kind == 'unary':
+            stack.extend([')', item.children[0], '(-'])
+        elif item.kind == 'binop':
+            left, right = item.children
+            stack.extend([')', right, f' {item.op} ', left, '('])
+        elif item.kind == 'call':
+            stack.append(')')
+            for index in range(len(item.children) - 1, -1, -1):
+                stack.append(item.children[index])
+                if index:
+                    stack.append(', ')
+            stack.append(item.op + '(')
+        else:
+            raise AssertionError(f'unknown node kind {item.kind!r}')
+    return ''.join(output)
 
 def _truncate(text, limit=_WARNING_TRUNCATION):
     if len(text) <= limit:
@@ -463,12 +213,10 @@ def _bindings_list(shared_nodes, names):
 
 
 def _name_leaves(node):
-    if node.kind == 'name':
-        yield node.text
-        return
-    for child in node.children:
-        yield from _name_leaves(child)
-
+    from solid_node.expression_graph import postorder
+    for item in postorder([node]):
+        if item.kind == 'name':
+            yield item.text
 
 def _validate_bindings(bindings, driver_ids, prefix):
     """Refuse a table that would be wrong (design.md D2): an entry naming
@@ -507,7 +255,7 @@ def _validate_bindings(bindings, driver_ids, prefix):
             # expression it could not read), so this can only mean the
             # renderer and the parser disagree -- a framework defect.
             raise BindingTableError(
-                f"binding {name!r}'s expression {expression!r} is not in "
+                f"binding {name!r}'s expression {_truncate(expression)!r} is not in "
                 f'the language this table is written in: {error}') from error
         for leaf in _name_leaves(node):
             if leaf == '$t' or leaf in declared or leaf in earlier:
@@ -524,26 +272,25 @@ def _validate_bindings(bindings, driver_ids, prefix):
 
 
 def _matches(original, candidate, names):
-    """Whether `candidate` -- parsed from a REWRITTEN string, where a name
-    may stand for a shared subtree -- represents the same value as
-    `original`, from the full un-rewritten tree.
-
-    Stops as soon as a name resolves, so the cost is proportional to what
-    was actually published (short once bound), never to how large the
-    original subtree was.
-    """
-    minted = names.get(original)
-    if minted is not None and candidate.kind == 'name' and candidate.text == minted:
-        return True
-    if original.kind != candidate.kind or original.op != candidate.op:
-        return False
-    if original.kind in _LEAF_KINDS:
-        return original.text == candidate.text
-    if len(original.children) != len(candidate.children):
-        return False
-    return all(_matches(oc, cc, names)
-               for oc, cc in zip(original.children, candidate.children))
-
+    """Compare graph structure without expansion or recursive equality."""
+    stack = [(original, candidate)]
+    seen = set()
+    while stack:
+        a, b = stack.pop()
+        if (a, b) in seen:
+            continue
+        seen.add((a, b))
+        if a in names and b.kind == 'name' and b.text == names[a]:
+            continue
+        if a.kind != b.kind or a.op != b.op:
+            return False
+        if a.kind in _LEAF_KINDS:
+            if a.text != b.text:
+                return False
+        elif len(a.children) != len(b.children):
+            return False
+        stack.extend(zip(a.children, b.children))
+    return True
 
 def _verify_reconstruction(rewritten, parsed, bindings, names):
     """Refuse a rewrite that does not reproduce what the producer built
@@ -571,111 +318,117 @@ def _verify_reconstruction(rewritten, parsed, bindings, names):
                 'producer built once its bindings are resolved')
 
 
-def _has_named_descendant(node, names, cache):
-    cached = cache.get(node)
-    if cached is not None:
-        return cached
-    found = False
-    for child in node.children:
-        if child in names or _has_named_descendant(child, names, cache):
-            found = True
-            break
-    cache[node] = found
-    return found
+def _canonical(roots):
+    """Intern reachable identities, then count occurrences (saturated at two)."""
+    from solid_node.expression_graph import postorder
+    interner = Interner()
+    copies = {}
+    for node in postorder(roots):
+        if node.kind in ('num', 'name', 'raw'):
+            copies[node] = interner.leaf(node.kind, node.text)
+        else:
+            copies[node] = interner.compound(
+                node.kind, node.op, tuple(copies[c] for c in node.children))
+    result = [copies[node] for node in roots]
+    counts = {}
+    for node in result:
+        counts[node] = min(2, counts.get(node, 0) + 1)
+    for node in reversed(interner.order):
+        count = counts.get(node, 0)
+        for child in node.children:
+            counts[child] = min(2, counts.get(child, 0) + count)
+    interner.counts = counts
+    return result, interner
+
+
+def scad_expression(root):
+    """A closed SCAD scalar. No expanded intermediate, no global variables."""
+    roots, interner = _canonical([root])
+    root = roots[0]
+    occupied = {n.text for n in interner.order if n.kind == 'name'}
+    # Opaque legacy text can contain free identifiers outside our scalar
+    # grammar; avoid capturing any of them as well.
+    for node in interner.order:
+        if node.kind == 'raw':
+            occupied.update(_NAME_RE.findall(node.text))
+    prefix = '_s'
+    while any(re.fullmatch(re.escape(prefix) + r'\d+', n) for n in occupied):
+        prefix = '_' + prefix
+    shared = [n for n in interner.order
+              if n.kind not in ('num', 'name', 'raw') and interner.counts[n] > 1]
+    names = _mint_names(shared, prefix)
+    if not shared:
+        return render(root)
+    bindings = _bindings_list(shared, names)
+    body = names.get(root) or render(root, names)
+    definitions = ', '.join(f"{b['name']} = {b['expression']}" for b in bindings)
+    return f'let({definitions}) {body}'
 
 
 def bind_expressions(expressions, driver_ids):
-    """The document-level entry point (design.md D3-D5).
+    """Compile native roots and legacy scalar strings into schema-4 bindings.
 
-    `expressions`: every operation's and flexible leaf's expression string
-    in the document, in a fixed walk order. `driver_ids`: every qualified
-    driver id declared in the same document (so a minted name can never
-    collide with one -- D4).
-
-    Returns `(rewritten, bindings, warnings)`:
-
-    - `rewritten`: one string per input, in the same order. An expression
-      touching nothing shared is returned byte-identical to the input; an
-      unreadable expression is returned unchanged too. Only an expression
-      containing a shared subexpression is rewritten.
-    - `bindings`: the ordered table (`[]` when nothing in the document is
-      shared -- the caller then omits the `bindings` key entirely).
-    - `warnings`: one message per expression the parser could not read,
-      already truncated for logging; that expression is in `rewritten`
-      verbatim and contributes nothing to `bindings`.
-
-    Never raises for text either producer emits. Raises `BindingTableError`
-    only when the table this would publish is wrong -- a framework defect
-    (see `_validate_bindings`, `_verify_reconstruction`) -- in which case
-    nothing is returned and the document must not be written.
+    Native motion never passes through text. Unreadable legacy expressions
+    retain their historical verbatim fallback and bounded warning.
     """
-    interner = Interner()
-    memo = {}
+    from solid_node.expression_graph import ExpressionNode, postorder
+    driver_ids = tuple(driver_ids)
     parsed = []
+    originals = []
     warnings = []
-    for expression in expressions:
-        if not isinstance(expression, str):
-            # Defensive, not reachable from any current producer: every
-            # operation stringifies (`operations.py`'s `serialized`), and
-            # `unserialize()` -- the one path that does not -- has no
-            # caller (tasks.md 3.4). Not text at all, so not "unreadable"
-            # either: returned untouched, and silently, since there is
-            # nothing to warn about.
+    legacy_interner = Interner()
+    expressions = list(expressions)
+    native_roots = [getattr(expr, '_expression_node', expr) for expr in expressions]
+    raw = {}
+    for node in postorder([n for n in native_roots if isinstance(n, (ExpressionNode, Node))]):
+        raw[node] = node.kind == 'raw' or any(raw[c] for c in node.children)
+    for expression, native in zip(expressions, native_roots):
+        if isinstance(native, (ExpressionNode, Node)):
+            if raw[native]:
+                original = scad_expression(native)
+                node = None
+            else:
+                original, node = None, native
+        elif isinstance(expression, str):
+            original = expression
+            try:
+                node = parse(expression, legacy_interner)
+            except ExpressionError:
+                node = None
+        else:
+            originals.append(expression)
             parsed.append(None)
             continue
-        try:
-            node = parse(expression, interner, memo)
-        except ExpressionError as error:
-            parsed.append(None)
-            message = (
-                f'an expression could not be read by the bindings pass and '
-                f'will be published verbatim and unshared: {error} '
-                f'(text: {_truncate(expression)!r})')
-            warnings.append(message)
-            logger.warning(message)
-            continue
-        except RecursionError:
-            # Exhausted the parser's stack depth -- treated exactly like
-            # unreadable text (design.md D2's "verbatim and unshared", not
-            # a build failure): a deeply left-nested chain in the shape
-            # solid2 itself builds (each level its own parenthesised
-            # group) costs the parser several stack frames per level, so a
-            # legal document can still exceed Python's default recursion
-            # limit long before it exceeds any grammar the parser reads.
-            parsed.append(None)
-            message = (
-                f'an expression is too deeply nested for the bindings pass '
-                f'and will be published verbatim and unshared '
-                f'(text: {_truncate(expression)!r})')
-            warnings.append(message)
-            logger.warning(message)
-            continue
-        parsed.append(node)
-
-    shared_nodes = [node for node in interner.order
-                    if _is_bindable(node) and interner.counts.get(node, 0) > 1]
-
-    if not shared_nodes:
-        return list(expressions), [], warnings
-
-    prefix = _mint_prefix(driver_ids)
-    names = _mint_names(shared_nodes, prefix)
-    bindings = _bindings_list(shared_nodes, names)
-    _validate_bindings(bindings, driver_ids, prefix)
-
-    cache = {}
-    rewritten = []
-    for expression, node in zip(expressions, parsed):
         if node is None:
-            rewritten.append(expression)
-            continue
-        minted = names.get(node)
-        if minted is not None:
-            rewritten.append(minted)
-        elif _has_named_descendant(node, names, cache):
+            message = ('an expression could not be read by the bindings pass '
+                       'and will be published verbatim and unshared '
+                       f'(text: {_truncate(original)!r})')
+            warnings.append(message)
+            logger.warning(message)
+        parsed.append(node)
+        originals.append(original)
+
+    valid, interner = _canonical([node for node in parsed if node is not None])
+    valid = iter(valid)
+    parsed = [next(valid) if node is not None else None for node in parsed]
+    shared = [node for node in interner.order
+              if _is_bindable(node) and interner.counts.get(node, 0) > 1]
+    names = _mint_names(shared, _mint_prefix(driver_ids))
+    bindings = _bindings_list(shared, names)
+    # Compute descendant flags once, including for deep unshared chains.
+    has_names = {}
+    for node in interner.order:
+        has_names[node] = any(c in names or has_names[c] for c in node.children)
+    rewritten = []
+    for original, node in zip(originals, parsed):
+        if node is None:
+            rewritten.append(original)
+        elif node in names:
+            rewritten.append(names[node])
+        elif has_names[node] or original is None or re.search(r'\blet\s*\(', original):
             rewritten.append(render(node, names))
         else:
-            rewritten.append(expression)
-
+            rewritten.append(original)
+    _validate_bindings(bindings, driver_ids, _mint_prefix(driver_ids))
     _verify_reconstruction(rewritten, parsed, bindings, names)
     return rewritten, bindings, warnings

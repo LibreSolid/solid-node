@@ -42,6 +42,7 @@ and license your own designs however you choose.
    :caption: Guides
 
    node-tree
+   expression-graphs
    viewer
    embedding
 

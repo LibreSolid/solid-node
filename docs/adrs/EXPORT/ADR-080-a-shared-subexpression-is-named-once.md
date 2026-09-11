@@ -1,6 +1,9 @@
 # ADR-080: A shared subexpression is named once — the document's bindings table
 
-**Status:** Accepted
+**Status:** Accepted — construction and SCAD decisions superseded in part by
+[ADR-101](../MATH/ADR-101-motion-sharing-begins-at-construction.md), 2026-09-11.
+The schema-4 bindings contract remains accepted. The historical text and
+measurements below describe the original decision, not the current producer.
 
 **Date:** 2026-09-07
 

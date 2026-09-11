@@ -295,9 +295,8 @@ class UnknownNameDoesNotRefuseTheBuildTest(TestCase):
             expr._validate_bindings(bindings, driver_ids=[], prefix='_b')
 
 
-class DeepChainFallsBackToVerbatimTest(TestCase):
-    """Adversarial finding 2: exhausting the parser's stack depth is
-    handled exactly like unreadable text, never a crash out of the build."""
+class DeepChainSharingTest(TestCase):
+    """Deep valid expressions now share without a recursion fallback."""
 
     def _left_nested_chain(self, depth):
         """`((((($t + 0) + 1) + 2) + 3) ...)`, the shape solid2 itself
@@ -308,19 +307,14 @@ class DeepChainFallsBackToVerbatimTest(TestCase):
             text = f'({text} + {i})'
         return text
 
-    def test_a_very_deep_chain_is_published_verbatim_with_a_warning(self):
+    def test_a_very_deep_chain_is_shared_without_a_warning(self):
         deep = self._left_nested_chain(3000)
 
         rewritten, bindings, warnings = bind_expressions([deep, deep], [])
 
-        # Unreadable-by-depth, not shared: nothing binds it, both
-        # occurrences pass through byte-identical to the input.
-        self.assertEqual(rewritten, [deep, deep])
-        self.assertEqual(bindings, [])
-        self.assertEqual(len(warnings), 2)
-        self.assertIn('deeply nested', warnings[0])
-        self.assertLess(len(warnings[0]), 1000,
-                        'the warning must truncate the offending text')
+        self.assertEqual(rewritten, [bindings[-1]['name']] * 2)
+        self.assertEqual(len(bindings), 3000)
+        self.assertEqual(warnings, [])
 
     def test_a_shallow_shared_expression_beside_it_still_binds(self):
         deep = self._left_nested_chain(3000)
@@ -331,7 +325,7 @@ class DeepChainFallsBackToVerbatimTest(TestCase):
             [deep, shallow_a, shallow_b], [])
 
         self.assertEqual(rewritten[0], deep)
-        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings, [])
         self.assertEqual(bindings, [{'name': '_b0', 'expression': 'floor($t)'}])
         self.assertEqual(rewritten[1], '(_b0 + 1.0)')
         self.assertEqual(rewritten[2], '(_b0 + 2.0)')

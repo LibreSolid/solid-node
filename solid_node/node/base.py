@@ -964,7 +964,7 @@ class AbstractBaseNode(metaclass=NodeMeta):
 
     def as_number(self, n):
         if type(n) not in (int, float, Decimal):
-            raise TypeError(f'{n} is not a number')
+            raise TypeError(f'{n!r} is not a number')
         return n
 
     @property

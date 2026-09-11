@@ -12,6 +12,7 @@ The operation is also able to revert itself.
 
 import math
 import trimesh
+from solid_node.scad_expression import GraphValue, scalar, restore_scalar
 from solid2 import (
     rotate as scad_rotate,
     translate as scad_translate,
@@ -23,7 +24,7 @@ def _as_number(node, value):
     as_number is used, so solid2 animated expressions can be resolved;
     otherwise falls back to a plain float() conversion (used when an
     operation was rebuilt through unserialize(), which has no node)."""
-    if node is None:
+    if node is None or isinstance(value, GraphValue):
         return float(value)
     return node.as_number(value)
 
@@ -40,6 +41,9 @@ class Rotation:
     def serialized(self):
         """Returns a serialized rotation as ["r", angle, axis]"""
         return ['r', str(self.angle), self.axis]
+
+    def _graph_serialized(self):
+        return ['r', scalar(self.angle, graph=True), self.axis]
 
     @property
     def reversed(self):
@@ -85,6 +89,9 @@ class Translation:
         translation = [ str(x) for x in self.translation ]
         return ['t', translation]
 
+    def _graph_serialized(self):
+        return ['t', [scalar(x, graph=True) for x in self.translation]]
+
     @property
     def reversed(self):
         """Returns an operation that reverts the translation"""
@@ -118,5 +125,8 @@ _operations = {
 
 def unserialize(serialized):
     """Unserializes a serialized operation"""
-    Operation = _operations[serialized.pop(0)]
-    return Operation(*serialized)
+    tag = serialized[0]
+    if tag == 'r':
+        return Rotation(restore_scalar(serialized[1]), list(serialized[2]))
+    Operation = _operations[tag]
+    return Operation([restore_scalar(x) for x in serialized[1]])

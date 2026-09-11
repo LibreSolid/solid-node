@@ -434,8 +434,9 @@ a list-held child's `<attr>-<index>` name (a legal node name, an
 illegal expression identifier), raises. `solid_node/node/qualified.py`
 owns the id, the linked walk, and `DriverToken` — an `OpenSCADConstant`
 subclass whose string *is* the qualified id, so ordinary solid2
-arithmetic and `solid_node.math`'s degree trig build the wire
-expression with no new operators. It also carries `DriverDeclaration`,
+arithmetic and `solid_node.math`'s degree trig retain native shared graphs
+behind a compatibility facade until publication (ADR-101).
+It also carries `DriverDeclaration`,
 which is both the marker the node layer needs to recognize a
 declaration and the data descriptor that hands its bound value back
 (ADR-056 amendment) — the same responsibility over the same `_states` dict, and
@@ -1431,16 +1432,16 @@ old consumer refuses only what it genuinely cannot render. Consumers accept
 1, 2 and 3.
 
 **Schema version 4 publishes each subexpression more than one operation or
-`params` entry uses, once, as a named `bindings` table** (ADR-080). Every
-symbolic value the framework builds is a solid2 `OpenSCADConstant`, and
-`OpenSCADConstant` is string-eager — a value used twice is written twice,
-and a value reused at each of several nested levels is written exponentially
-often, which is what let one clock's kinematics publish a 31.6 MB document
-that was 99.9% seven million copies of 263 distinct subexpressions. The cure
-does not touch how a project writes kinematics or how `solid_node.math` and
-solid2's operator overloads build text: `solid_node/core/expressions.py`
-parses the strings the walk already collected from `operations` and flexible
-`params`, interns them structurally across the whole document, and rewrites
+`params` entry uses, once, as a named `bindings` table** (ADR-080). Sharing
+begins during construction (ADR-101): `solid_node/expression_graph.py` owns
+immutable native scalar nodes independent of any modelling backend;
+`solid_node/scad_expression.py` supplies the SolidPython compatibility facade.
+Arithmetic retains references, not expanded strings. Values own their graphs,
+and compiler tables are publication-local, with no global strong graph arena.
+`solid_node/core/expressions.py` collects native `operations` and flexible
+`params` together with legacy scalar text. Iterative postorder interning and
+root/edge occurrence analysis preserve deep chains and repeated operands;
+discarded temporaries do not count as uses. The compiler rewrites
 every occurrence of a subexpression that repeats — except a bare number or a
 bare driver id, shorter written out than referenced — into a reference to a
 named entry. `bindings` is a top-level array beside `drivers` and
@@ -1471,18 +1472,22 @@ byte-identical to the one published before this existed. Unlike the
 additive keys above, this bump is not additive — a consumer ignoring
 `bindings` would resolve a reference to nothing and render a wrong pose —
 so it is a genuine refusal for a consumer that cannot read version 4, by
-design, in the phase that already refuses an unknown version. **The `.scad`
-path never sees a binding**: `operation.scad(...)` and `port.value` read
-`self.angle` / `self.translation` / the port's value directly, never
-`operation.serialized` or `flexible_document()`'s table-rewritten strings,
-so generated SCAD and `Solid2Node.as_number`'s `echo(...)` round-trip are
-unaffected. `solid snapshot --renderer web` keyframes and bakes constants
+design, in the phase that already refuses an unknown version. **SCAD output
+uses self-contained local scalar closures**, never the document's table.
+`str`, `.value` and standalone operation serialization emit compact `let`
+bindings when needed; bare and unshared expressions keep their spelling.
+Local names avoid free inputs. The iterative closure importer recovers
+supported legacy wrappers and standalone round-trips, lowering them to the
+existing viewer language, not forwarding `let` to JSON. Numeric operation
+placement refuses unresolved inputs; normal poses still rerun project laws
+with numbers, and legacy Solid2 numeric evaluation remains available.
+Flexible time detection follows graph inputs and diagnostics are bounded
+before rendering. `solid snapshot --renderer web` keyframes and bakes constants
 before serializing, so its staged document shares nothing, carries no
-table, and stays at version 2 or 3 with any viewer. Consumers accept 1, 2,
-3 and 4 once the paired viewer change (`solid-node-viewer`) widens its
-accepted set to admit it; until then a version-4 document is refused by the
-phase described just below, which is the correct failure for a machine no
-installed viewer can yet resolve `bindings` for.
+table, and stays at version 2 or 3. The independent viewer's current content
+accepts versions 1, 2, 3 and 4; expression graphs require no viewer change.
+OpenSCAD remains a supported backend, and the SCAD-centred assembly lifecycle
+is not replaced by this cycle.
 
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,
@@ -1523,7 +1528,7 @@ extension.
 A relation lowers into that same arithmetic: `Affine(ratio, offset)`
 computes `ratio * driver + offset` and `(driven - offset) / ratio` with
 ordinary operators, so a `DriverToken` or `$t` rides through either face
-as the wire expression solid2 builds and a plain number stays a number
+as a deferred graph value and a plain number stays a number
 (ADR-089). The backward face uses more of solid2's operator surface than
 the forward one — a number on the left, `/`, unary negation — and that
 dependency is pinned by a test evaluating the PUBLISHED string through

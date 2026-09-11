@@ -42,16 +42,15 @@ reason: `solid_node/node/` never imports `solid_node/simulation/`.
   MEANS (native units, dtype rounding, ramps) stays in the simulation
   layer, which owns the `Driver` that subclasses this. `Port` next
   door is the same shape for the same reason.
-- `DriverToken` is the symbolic read of one driver. It subclasses
-  solid2's `OpenSCADConstant`, so ordinary project arithmetic and
-  `solid_node.math`'s degree-trig symbolic mode produce a well-formed
-  wire expression with no operator overloads and no expression tree to
-  maintain (spike/expressions/FINDINGS.md, recommended representation).
+- `DriverToken` is the symbolic read of one driver. Its compatibility
+  facade subclasses solid2's `OpenSCADConstant`, but ordinary arithmetic
+  and degree math retain a native graph. Only publication produces text.
 """
 
 import re
 
-from solid2.core.object_base import OpenSCADConstant
+from solid_node.scad_expression import GraphValue
+from solid_node.expression_graph import ExpressionNode
 
 from .phase import note_read
 
@@ -201,21 +200,18 @@ def instance_path(node, root):
     return tuple(reversed(parts))
 
 
-class DriverToken(OpenSCADConstant):
+class DriverToken(GraphValue):
     """A symbolic read of one driver: a constant whose string IS its
     qualified id.
 
-    Subclassing `OpenSCADConstant` is the whole trick. solid2's
-    arithmetic is string-eager and flattens to the base class, which
-    costs nothing here because the id is final at the moment the token
-    is made; and `solid_node.math` dispatches on
-    `isinstance(x, OpenSCADConstant)`, so degree trig wraps the id in
-    OpenSCAD call strings exactly as it does for `$t`.
+    The graph facade retains SolidPython type compatibility while preserving
+    operand references through arithmetic and degree math. The qualified id
+    is final when the token is created; compound text is an output only.
     """
 
     def __init__(self, qualified_id):
         self.driver_id = qualified_id
-        super().__init__(qualified_id)
+        super().__init__(ExpressionNode('name', text=qualified_id))
 
 
 # Per-class cache of the declaration scan. Class attributes do not

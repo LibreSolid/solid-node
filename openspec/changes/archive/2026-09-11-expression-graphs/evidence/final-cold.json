@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/home/asa/devel/libresolid-studio/.venv/bin/solid",
+    "export",
+    "/home/asa/devel/libresolid-studio/projects/Calculators/Curta-Type-I-3x/simulation/curta.py:Curta",
+    "-o",
+    "/home/asa/devel/libresolid-studio/projects/Calculators/Curta-Type-I-3x/_build_evidence/expression-graphs-final-cold"
+  ],
+  "returncode": 0,
+  "framework": "/home/asa/devel/libresolid-studio/solid-node/WTs/expression-graphs",
+  "framework_source_sha256": "e991bb781b705b72a778a49254f3e6e4e040c9501c05722b83b97f967454b2e0",
+  "framework_unchanged": true,
+  "elapsed_seconds": 73.80965601800017,
+  "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/expression-curta-final-cold.service",
+  "memory_max_bytes": 8000000000,
+  "memory_peak_bytes": 1179168768,
+  "memory_peak_MiB": 1124.54296875,
+  "memory_peak_GiB": 1.0981864929199219,
+  "cap_headroom_bytes": 6820831232,
+  "swap_peak_bytes": 0,
+  "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+}

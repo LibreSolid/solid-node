@@ -32,6 +32,7 @@ from solid_node.mechanisms import (circle_intersection, crank_pin,
                                    triangle_angle)
 from solid_node.node import AssemblyNode
 from solid_node.parameters import Angle, DimensionError
+from tests.test_math import _expanded
 
 
 # --- the evaluator, lifted from tests/test_math.py ------------------------
@@ -41,7 +42,7 @@ def _eval_openscad_expr(expr, t):
     solid_node.math generates, substituting a numeric $t. Lifted
     verbatim from tests/test_math.py -- it is NOT part of the
     framework."""
-    py_expr = expr.replace('$t', repr(t))
+    py_expr = _expanded(expr).replace('$t', repr(t))
     py_expr = re.sub(r'\bsin\(', 'DEGSIN(', py_expr)
     py_expr = re.sub(r'\bcos\(', 'DEGCOS(', py_expr)
     py_expr = re.sub(r'\btan\(', 'DEGTAN(', py_expr)
@@ -341,14 +342,14 @@ class SymbolicFaceTest(TestCase):
             with self.subTest(law=name):
                 for part in _parts(law(symbol)):
                     self.assertIsInstance(part, OpenSCADConstant)
-                    called = set(re.findall(r'([A-Za-z_]\w*)\s*\(', str(part)))
+                    called = set(re.findall(r'([A-Za-z_]\w*)\s*\(', _expanded(part)))
                     self.assertTrue(
                         called <= self.EMITTED,
                         '{} emits {}'.format(name, called - self.EMITTED))
 
     def test_the_piston_expression_is_cos_sin_and_sqrt(self):
         symbol = _drive(get_animation_time())
-        expression = str(piston_height(symbol, 15.0, 60.0))
+        expression = _expanded(piston_height(symbol, 15.0, 60.0))
         self.assertEqual(
             set(re.findall(r'([A-Za-z_]\w*)\s*\(', expression)),
             {'cos', 'sin', 'sqrt'})

@@ -105,6 +105,7 @@ that way.
 ### MATH — expression evaluation parity
 - [ADR-022](MATH/ADR-022-cross-runtime-degree-trig-parity-for-t-expressions.md) — Cross-runtime degree-trig parity for `$t` and driver expressions — **Accepted**, revised 2026-09-06 (defect fixed and parity enforced 2026-08-26; vocabulary widened beyond trigonometry, and the corpus must cover every emitted name)
 - [ADR-076](MATH/ADR-076-mechanism-laws-as-compositions-over-expression-math.md) — Mechanism laws as compositions over expression math — **Accepted**, depends on 022
+- [ADR-101](MATH/ADR-101-motion-sharing-begins-at-construction.md) — Motion sharing begins at construction — **Accepted**, supersedes 080's eager construction and flat SCAD decisions in part, depends on 022/076
 
 ### TEST-FRAMEWORK — CAD testing
 - [ADR-009](TEST-FRAMEWORK/ADR-009-trimesh-based-mesh-assertions-for-cad-testing.md) — Trimesh mesh assertions — **Accepted**, extended by 025
@@ -140,7 +141,7 @@ that way.
 - [ADR-042](EXPORT/ADR-042-host-controlled-viewer-assembly-navigation.md) — Host-controlled viewer assembly navigation — **Accepted** — *Relocated* to solid-node-viewer (ADR-068)
 - [ADR-043](EXPORT/ADR-043-content-derived-printed-piece-identity.md) — Content-derived printed-piece identity — **Accepted**, amended by 085
 - [ADR-051](EXPORT/ADR-051-producer-owned-animation-time-in-node-documents.md) — Producer-owned animation time in node-tree documents — **Accepted**
-- [ADR-080](EXPORT/ADR-080-a-shared-subexpression-is-named-once.md) — A shared subexpression is named once: the document's `bindings` table — **Accepted**, extends 034, depends on 022/051
+- [ADR-080](EXPORT/ADR-080-a-shared-subexpression-is-named-once.md) — A shared subexpression is named once: the document's `bindings` table — **Accepted**, eager construction and flat SCAD decisions superseded in part by 101; extends 034, depends on 022/051
 - [ADR-085](EXPORT/ADR-085-persistent-piece-facts-behind-a-verified-artifact-snapshot.md) — Persistent piece facts behind a verified artifact snapshot — **Accepted**, amends 043/028
 
 ADR-019 (the solid-builder agent system) predates the shop and lives

@@ -63,8 +63,7 @@ import json
 import os
 
 from solid2 import import_stl, union
-from solid2.core.object_base import OpenSCADConstant
-from solid2.extensions.greedy_scad_interface import get_animation_time
+from solid_node.scad_expression import depends_on_time, scalar
 
 from solid_node.node.base import (_atomic_write_bytes, _canonical_serialization,
                                   binding_hash)
@@ -160,16 +159,16 @@ class FlexibleNode(LeafNode):
                     f"connect(<source>, <node>.{name}).")
             try:
                 values[name] = float(self.as_number(value))
-            except TypeError:
+            except (TypeError, ValueError):
                 raise TypeError(
                     f"{self.name} cannot be evaluated: its port '{name}' is "
-                    f"bound to the expression '{value}', not to a number. A "
+                    f"bound to the expression '{value!r}', not to a number. A "
                     f"flexible part evaluates one instant at a time, so this "
                     f"path needs a numeric binding; bind the drivers the "
                     f"expression names with set_state() first.") from None
         return values
 
-    def bound_expressions(self):
+    def bound_expressions(self, *, graph=False):
         """The bound expression of every declared port, as a string.
 
         The symbolic counterpart of `bound_values()`, and the document's
@@ -190,10 +189,10 @@ class FlexibleNode(LeafNode):
                     f"unbound, and a flexible part publishes one expression "
                     f"per port. Connect it where the parent assembly renders "
                     f"this node, with connect(<source>, <node>.{name}).")
-            expressions[name] = str(value)
+            expressions[name] = scalar(value, graph=graph)
         return expressions
 
-    def flexible_document(self):
+    def flexible_document(self, *, graph=False):
         """This leaf as the document's `flexible` object.
 
         The whole of what travels: which technology evaluates the shape,
@@ -205,7 +204,7 @@ class FlexibleNode(LeafNode):
         return {
             'tech': self.tech,
             'spec': self._shape_spec(self.current_shape()),
-            'params': self.bound_expressions(),
+            'params': self.bound_expressions(graph=graph),
         }
 
     def validate(self, rendered):
@@ -277,11 +276,9 @@ class FlexibleNode(LeafNode):
         token means something skipped that, and it goes on failing
         loudly through `bound_values()`.
         """
-        token = str(get_animation_time())
         return sorted(
             name for name in declared_ports(type(self))
-            if isinstance(getattr(self, name).value, OpenSCADConstant)
-            and token in str(getattr(self, name).value))
+            if depends_on_time(getattr(self, name).value))
 
     def as_scad(self, rendered):
         """Evaluate this instant and import it, so the assembled SCAD

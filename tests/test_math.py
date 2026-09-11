@@ -31,6 +31,16 @@ ANGLES = [-180, -90, -60, -45, -30, 0, 30, 45, 60, 90, 120, 180, 270, 360]
 UNIT_VALUES = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
 
 
+def _expanded(value):
+    """Expand only these small fixtures for their independent old evaluator.
+
+    Production publishes bindings; these assertions retain their original
+    expected formulas and numerical oracle rather than adopting a new oracle.
+    """
+    from solid_node.core.expressions import parse, render
+    return render(parse(str(value)))
+
+
 class NumericModeTest(TestCase):
     """All-numeric args compute with Python's math, in degrees."""
 
@@ -121,7 +131,7 @@ def _eval_openscad_expr(expr, t):
     solid_node.math generates, substituting a numeric $t. Used only to
     cross-check that the symbolic and numeric code paths agree -- it
     is NOT part of the framework."""
-    py_expr = expr.replace('$t', repr(t))
+    py_expr = _expanded(expr).replace('$t', repr(t))
     py_expr = re.sub(r'\bsin\(', 'DEGSIN(', py_expr)
     py_expr = re.sub(r'\bcos\(', 'DEGCOS(', py_expr)
     py_expr = re.sub(r'\btan\(', 'DEGTAN(', py_expr)
@@ -252,7 +262,7 @@ class CompositionSymbolicStringTest(TestCase):
 
     def test_bump_carries_no_trigonometry(self):
         t = get_animation_time()
-        rendered = str(snmath.bump(t))
+        rendered = _expanded(snmath.bump(t))
         self.assertIn('min(max($t, 0.0), 1.0)', rendered)
         self.assertNotIn('sin(', rendered)
         self.assertNotIn('sqrt(', rendered)
@@ -267,7 +277,11 @@ class CompositionSymbolicStringTest(TestCase):
             snmath.piecewise(t, [(0.0, 0.0), (1.0, 1.0)]),
         ]
         for expression in expressions:
-            called = set(re.findall(r'([A-Za-z_]\w*)\(', str(expression)))
+            from solid_node.core.expressions import bind_expressions
+            roots, bindings, warnings = bind_expressions([str(expression)], [])
+            self.assertFalse(warnings)
+            text = ' '.join(roots + [b['expression'] for b in bindings])
+            called = set(re.findall(r'([A-Za-z_]\w*)\(', text))
             self.assertLessEqual(called, set(snmath.SYMBOLIC_BUILTINS),
                                  str(expression))
 
@@ -509,7 +523,7 @@ class TurnAboutTheOriginTest(TestCase):
         t = get_animation_time()
         x, y = snmath.turn((10.0, 4.0), 360.0 * t)
         self.assertNotIn('0.0)', str(x))
-        self.assertEqual(str(x),
+        self.assertEqual(_expanded(x),
                          '((10.0 * cos((360.0 * $t))) - '
                          '(4.0 * sin((360.0 * $t))))')
 

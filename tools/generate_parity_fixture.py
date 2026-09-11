@@ -176,7 +176,7 @@ def scalars(node):
 
 
 def document(node):
-    return serialize_node(node, lambda rigid: rigid.name)
+    return serialize_node(node, lambda rigid: rigid.name, graph_values=True)
 
 
 def numeric_scalars(snapshot):
@@ -438,6 +438,21 @@ def build():
     sharing, sharing_table, bindings = sharing_cases()
     cases.extend(sharing)
     table = dict(table, **sharing_table)
+    # Compile all native roots together. The sharing sub-corpus already has a
+    # local table; import that closure for those slots before minting the final
+    # fixture-wide table. Expected numeric values remain the original renders.
+    from solid_node.core.expressions import bind_expressions
+    definitions = ', '.join(f"{b['name']} = {b['expression']}" for b in bindings)
+    expressions = [
+        f"let({definitions}) {case['expression']}"
+        if case['key'].startswith('sharing') else case['expression']
+        for case in cases
+    ]
+    rewritten, bindings, warnings = bind_expressions(expressions, table.keys())
+    if warnings:
+        raise SystemExit('the fixture contains an unreadable expression')
+    for case, expression in zip(cases, rewritten):
+        case['expression'] = expression
     missing = uncovered_builtins(cases, bindings)
     if missing:
         raise SystemExit(
@@ -451,11 +466,8 @@ def build():
                    'tests/expression_project/sharing.py'),
         'drivers': table,
         # Beside `cases`, as `viewer.json`/`manifest.json` carry `bindings`
-        # beside `root` (design.md D10): only the sharing corpus's document
-        # was passed through `bind_document`, so this table is scoped to
-        # its `sharing<N>|...` cases -- the spike machine's and the
-        # vocabulary corpus's cases are untouched, their pinned expressions
-        # exactly as they were before this cycle.
+        # beside `root`: the compiler now shares every symbolic corpus.
+        # Numeric expected values and keys still come from the same renders.
         'bindings': bindings,
         'cases': cases,
         'conversions': conversions(),

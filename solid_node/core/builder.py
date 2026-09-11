@@ -619,6 +619,7 @@ class Builder(FileSystemEventHandler):
                 lambda rigid_node: os.path.relpath(
                     rigid_node.stl_file, self.build_dir),
                 inventory.register,
+                graph_values=True,
             )
             drivers = drivers_table(declarations)
             events = instructions_table(instructions)

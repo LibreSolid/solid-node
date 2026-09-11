@@ -12,18 +12,12 @@ and under the declarative parameter algebra as well:
   math -- in DEGREES, matching the OpenSCAD language (sin(90) == 1.0,
   asin(0.5) == 30.0, atan2 returns degrees).
 
-- symbolic, in the viewer/build path (a fresh node.assemble(), no
-  set_keyframe): self.time is solid2's $t, an OpenSCADConstant
-  (ScadValue) that only knows how to build an expression string, not
-  evaluate one. Python's stdlib math.asin(...) et al. raise
-  `TypeError: must be real number, not OpenSCADConstant` the moment a
-  non-linear expression touches a symbolic time. These functions
-  detect that case (any argument is an OpenSCADConstant) and instead
-  return a NEW OpenSCADConstant whose expression is the equivalent
-  OpenSCAD builtin call over the rendered sub-expressions, e.g.
-  `asin((0.25 * sin((720.0 * $t))))` -- OpenSCAD's own trig builtins
-  are degree-in/degree-out too, so the symbolic expression and the
-  numeric computation are the same function, just deferred.
+- symbolic, in the viewer/build path: time and drivers carry native
+  shared graphs behind an OpenSCADConstant-compatible facade. These
+  functions recognize both native values and legacy SolidPython constants,
+  returning call nodes over operand references, never expanded text.
+  Publication emits the existing degree-in/degree-out scalar vocabulary,
+  so the symbolic and numeric computations are the same function deferred.
 
 - declarative, in a node class body: an argument is a declared
   parameter token or a formula over them, and the result is a formula
@@ -32,7 +26,7 @@ and under the declarative parameter algebra as well:
 
 Only used for genuinely non-linear kinematics; a linear expression in
 self.time (e.g. `720.0 * self.time`) already survives symbolically
-through solid2's own operator overloads and needs none of this.
+through the graph facade's operator overloads and needs none of this.
 
 Two layers, and the distinction between them matters:
 
@@ -75,6 +69,7 @@ itself are bound privately below, before anything shadows them.
 import math as _math
 
 from solid2.core.object_base import OpenSCADConstant
+from solid_node.scad_expression import GraphValue, call as expression_call
 
 from solid_node.parameters import Expression, function_formula
 
@@ -124,8 +119,10 @@ def _is_formula(value):
 
 def _describe(value):
     """How an operand reads in an error."""
+    if isinstance(value, GraphValue):
+        return repr(value)
     if _is_symbolic(value):
-        return str(value)
+        return str(value)[:200]
     name = getattr(value, '_name', None)
     if name:
         return f'{type(value).__name__} {name!r}'
@@ -161,23 +158,13 @@ def _face(name, *args):
     return 'numeric'
 
 
-def _render(value):
-    """Renders a value (numeric or symbolic) as an OpenSCAD
-    sub-expression string. OpenSCADConstant.__repr__ returns its
-    `.value` expression string verbatim (and str() falls back to
-    __repr__ since OpenSCADConstant defines no __str__); plain numbers
-    render the same way solid2's own py2openscad renders them."""
-    return str(value)
-
-
 def _symbolic_call(name, *args):
     if name not in SYMBOLIC_BUILTINS:
         raise ValueError(
             f"{name!r} is not in SYMBOLIC_BUILTINS, so it cannot be emitted: "
             f"every name this module puts on the wire is listed there, and "
             f"the parity corpus reads that list to know what it must cover.")
-    rendered = ', '.join(_render(arg) for arg in args)
-    return OpenSCADConstant(f'{name}({rendered})')
+    return expression_call(name, *args)
 
 
 def _formula(name, numeric, *args):

@@ -48,19 +48,17 @@ a document holding no flexible node is byte-identical to the version 2 it
 has always been, and claiming otherwise would make an old consumer refuse
 documents it renders perfectly.
 
-Version 4 adds the ``bindings`` table (ADR-080): every symbolic value the
-framework builds is a solid2 ``OpenSCADConstant``, string-eager, so a value
-used twice is written out twice and a value reused at each of several
-nested levels is written exponentially often.  ``bind_document`` (below)
-reads the expression strings ``operations`` and flexible ``params`` already
-carry, interns them structurally across the whole document
+Version 4 adds the ``bindings`` table (ADR-080). Native motion values now
+retain graphs during construction, so reuse never expands their ancestry.
+``bind_document`` (below) compiles the native roots and legacy expression
+strings that ``operations`` and flexible ``params`` carry across the document
 (``solid_node.core.expressions``), and rewrites every occurrence of a
 subexpression that repeats -- except a bare number or a bare driver id,
 shorter written out than referenced -- into a reference to a named entry
 in an ordered ``bindings`` table, so a consumer resolves it in one forward
 pass before any operation or ``params`` expression.  Detected at
-serialization, by parsing text the producer already built: nothing about
-how a project writes kinematics, or about solid2's own arithmetic, changes.
+serialization, without first flattening the native graphs: nothing about
+how a project writes kinematics or the viewer's scalar grammar changes.
 The version is a property of the CONTENT once more: a document with
 nothing to share carries no ``bindings`` key and is byte-identical to what
 this module has always published, while a non-empty table is the one
@@ -122,8 +120,8 @@ def symbolic_document(node):
 
     Yields ``(declarations, instructions)``: ``{qualified_id:
     declaration}`` for every driver in the tree, with each one bound to a
-    token whose string is its own id, so ordinary solid2 arithmetic has
-    already produced the wire expression by the time the walk renders; and
+    token whose string is its own id, with ordinary arithmetic preserving
+    graph references until publication; and
     ``{qualified_name: (path, instruction)}`` for every instruction the
     same descent found.  The mode binds ALL the drivers -- never a subset,
     so no render can find a hole -- and afterwards restores exactly the
@@ -331,14 +329,12 @@ def bind_document(root, driver_ids):
     _collect_slots(root, slots)
     expressions = [slot.get() for slot in slots]
     rewritten, bindings, _warnings = bind_expressions(expressions, driver_ids)
-    if not bindings:
-        return []
     for slot, text in zip(slots, rewritten):
         slot.set(text)
     return bindings
 
 
-def serialize_node(node, model_path, piece_id=None):
+def serialize_node(node, model_path, piece_id=None, *, graph_values=False):
     """Serialize one node using ``model_path`` for rigid artifacts.
 
     The established parent-linking rule must run before recursion because a
@@ -358,7 +354,9 @@ def serialize_node(node, model_path, piece_id=None):
         'type': node._type,
         'color': node.color,
         'mtime': node.mtime,
-        'operations': [operation.serialized for operation in node.operations],
+        'operations': [operation._graph_serialized()
+                       if graph_values and hasattr(operation, '_graph_serialized')
+                       else operation.serialized for operation in node.operations],
     }
     if node.rigid:
         model = model_path(node)
@@ -371,7 +369,7 @@ def serialize_node(node, model_path, piece_id=None):
         # No model reference and no piece: its geometry is the spec, and
         # a part that deforms is no printed solid.  The recursion stops
         # here for the same reason it stops at a rigid node -- a leaf.
-        data['flexible'] = node.flexible_document()
+        data['flexible'] = node.flexible_document(graph=graph_values)
         return data
 
     children = node.render()
@@ -380,6 +378,7 @@ def serialize_node(node, model_path, piece_id=None):
 
     node._link_children(children)
     data['children'] = [
-        serialize_node(child, model_path, piece_id) for child in children
+        serialize_node(child, model_path, piece_id, graph_values=graph_values)
+        for child in children
     ]
     return data

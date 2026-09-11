@@ -43,7 +43,9 @@ class CorpusCoverageTest(TestCase):
     def setUp(self):
         tree = Vocabulary()
         with symbolic_document(tree) as (self.declarations, _):
-            self.document = serialize_node(tree, lambda rigid: rigid.name)
+            self.document = serialize_node(tree, lambda rigid: rigid.name,
+                                           graph_values=True)
+        self.bindings = bind_document(self.document, self.declarations.keys())
 
         sharing = SharedValueTree()
         with symbolic_document(sharing) as (sharing_declarations, _):
@@ -53,7 +55,7 @@ class CorpusCoverageTest(TestCase):
         self.sharing_document = sharing_root
 
     def test_every_emitted_builtin_is_exercised(self):
-        called = _called_names(self.document, self.sharing_document,
+        called = _called_names(self.document, self.bindings, self.sharing_document,
                                self.sharing_bindings)
         missing = sorted(set(snmath.SYMBOLIC_BUILTINS) - called)
         self.assertEqual(
@@ -63,7 +65,7 @@ class CorpusCoverageTest(TestCase):
             f'the wire, so the parity fixture would not pin it')
 
     def test_the_corpus_emits_nothing_it_cannot_name(self):
-        called = _called_names(self.document, self.sharing_document,
+        called = _called_names(self.document, self.bindings, self.sharing_document,
                                self.sharing_bindings)
         self.assertEqual(sorted(called - set(snmath.SYMBOLIC_BUILTINS)), [])
 
@@ -71,7 +73,7 @@ class CorpusCoverageTest(TestCase):
         """Every call must reach a symbolic argument, or it folds to a
         number and puts no name on the wire at all."""
         self.assertIn('drive', self.declarations)
-        rendered = str(self.document)
+        rendered = str((self.document, self.bindings))
         self.assertIn('$t', rendered)
         self.assertIn('drive', rendered)
 

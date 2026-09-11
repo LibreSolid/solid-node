@@ -25,6 +25,9 @@ class Solid2Node(LeafNode):
     def as_number(self, n):
         """Receives a solid2 function result and calculates its number.
         uses an openscad process internally to do the calculation."""
+        from solid_node.scad_expression import GraphValue
+        if isinstance(n, GraphValue):
+            return float(n)
         if type(n).__module__.startswith('solid2'):
             # This is very clumsy, but it works. Trimesh cannot load
             # translated / rotated mesh, and transforming meshes after loading

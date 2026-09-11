@@ -2590,10 +2590,11 @@ class SymbolicFaceTest(BaseNodeTest):
         text = {entry['name']: entry['expression'] for entry in bindings}
 
         published = rotations(document, 'power')[0]
-        for name, expression in text.items():
-            published = published.replace(name, f'({expression})')
-        for name, expression in text.items():
-            published = published.replace(name, f'({expression})')
+        # Resolve the ordered table at arbitrary depth, without textual
+        # replacement confusing names such as _b1 and _b10.
+        if text:
+            definitions = ', '.join(f'{name}={expr}' for name, expr in text.items())
+            published = f'let({definitions}) {published}'
 
         for instant in (0.0, 12.0, -30.0):
             with self.subTest(instant=instant):

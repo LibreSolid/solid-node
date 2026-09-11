@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/home/asa/devel/libresolid-studio/.venv/bin/solid",
+    "export",
+    "/home/asa/devel/libresolid-studio/projects/Calculators/Curta-Type-I-3x/simulation/curta.py:Curta",
+    "-o",
+    "/home/asa/devel/libresolid-studio/projects/Calculators/Curta-Type-I-3x/_build_evidence/expression-graphs-warm"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 26.311204833000374,
+  "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/expression-curta-warm.service",
+  "memory_max_bytes": 8000000000,
+  "memory_peak_bytes": 829194240,
+  "memory_peak_MiB": 790.78125,
+  "memory_peak_GiB": 0.772247314453125,
+  "cap_headroom_bytes": 7170805760,
+  "swap_peak_bytes": 0,
+  "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+}

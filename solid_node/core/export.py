@@ -113,6 +113,7 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
                             rigid_node.stl_file, _model_path(rigid_node),
                         ),
                         inventory.register,
+                        graph_values=True,
                     )
                     drivers = drivers_table(declarations)
                     events = instructions_table(instructions)

@@ -142,7 +142,7 @@ class BoundPort:
 
     def __repr__(self):
         return (f'<{self.domain} port {self.name} of '
-                f'{getattr(self.node, "name", self.node)}: {self.value}>')
+                f'{getattr(self.node, "name", self.node)}: {self.value!r}>')
 
 
 class Coordinate:

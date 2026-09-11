@@ -24,6 +24,7 @@ from solid_node.core.camera import parse_camera
 from solid_node.core.pieces import PieceInventory
 from solid_node.core.serializer import (
     DOCUMENT_FORMAT, animation_block, document_version, serialize_node,
+    bind_document,
 )
 from solid_node.viewers import bundle as viewer_bundle
 
@@ -82,16 +83,20 @@ class BrowserRenderer:
                     self.artifact_path(rigid_node.stl_file, build_dir),
                 ),
                 inventory.register,
+                graph_values=True,
             )
+            bindings = bind_document(root, [])
             document = {
                 "format": DOCUMENT_FORMAT,
-                "version": document_version(root),
+                "version": document_version(root, bindings),
                 "drivers": {},
                 "instructions": {},
                 "animation": animation_block(node),
                 "root": root,
                 "pieces": inventory.pieces(),
             }
+            if bindings:
+                document['bindings'] = bindings
 
             staging = tempfile.mkdtemp(
                 prefix=f"{os.path.basename(build_dir)}.web-snapshot.",
