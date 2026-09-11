@@ -1,5 +1,22 @@
 
 
+# 3DPrintedClocks
+
+- **Generated-artifact freshness is not dependable for source-bound CAD
+  leaves.** While changing Wall Clock 22's source-derived hanging-weight
+  datum, `solid test wall_clock_22 --faceted` continued to compare an older
+  generated assembly pose. Removing only that model's ignored
+  `_build/wall_clock_22` cache was needed to force regeneration; the next
+  run also tried to reuse a deleted `clock-Pillars...stl` artifact and raised
+  `FileNotFoundError`. The artifact identity appears not to include every
+  source adapter dependency, and the test artifact index can retain paths
+  that the producer no longer restores. A project should never need cache
+  deletion for a source edit to reach a spatial assertion. Candidate
+  framework work: make dependency fingerprints complete and make the test
+  artifact index self-healing when an artifact is absent. Evidence:
+  `projects/3DPrintedClocks`, Wall Clock 22, 2026-09-10. Deferred for a
+  framework agent; no framework workaround is part of the clock model.
+
 # snappy-reprap
 
 - The shared .venv broke at 00:00 UTC while my first build ran: something else pip-installed ocp_vscode, cadquery-ocp-novtk and downgraded build123d, and import cadquery now fails there. I did not touch it. All builds and tests ran in a
@@ -1830,3 +1847,29 @@ rather than folded into the closure:
   used to feed it (now deleted) left it stale before and `None` now. A
   project matter for its own maintainer, one line per clock; recorded
   here because ADR-099's read refusal is what made it visible.
+
+# orcahand_hardware (2026-09-10, ORCA v1 STEP import)
+
+- **`solid import-step` can generate Python that does not parse.** Importing
+  `orca_v1/ORCA_Assembly/ORCA_v1.step` generated 53 assembly adapters; an
+  identity-only assembly received a `render()` body containing comments but
+  no statement, so importing `simulation/v1/assembly.py` raised
+  `IndentationError`. Inserting an inert `pass` into every generated
+  `render()` made the transcription compile without changing any placement.
+  The generator should emit `pass` whenever a generated method has no
+  executable placement. Filed here; not triaged.
+- **`solid import-step` can scaffold a document that `StepNode` cannot
+  select.** The same document contains 15 distinct products named `SHELL`.
+  The importer generated adapters whose only selector is `part = 'SHELL'`;
+  the first build then failed because `StepNode` correctly reported all 15
+  name matches as ambiguous. The public adapter and generated source expose
+  no product label, occurrence path, or other stable disambiguator, so the
+  command cannot build the complete assembly it just scaffolded. Candidate
+  fix: give `StepNode` a stable document-product selector and have
+  `solid import-step` emit it whenever names are not unique. The project
+  workaround imports the v1 printed STLs and applies the occurrence
+  transforms recovered from the generated STEP transcription; a seven-part
+  palm/tower/articulated-index probe built and rendered, and all v1 finger
+  STLs are watertight single bodies. Evidence:
+  `projects/Robotic-Hands/orcahand_hardware`, change
+  `simulate-orca-v1`. Filed here; not triaged.
