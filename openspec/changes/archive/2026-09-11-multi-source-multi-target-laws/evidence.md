@@ -293,3 +293,44 @@ by this session.
 Every leaf count matches its unmodified twin exactly (378/378, 35/35,
 113/113, 53/53), confirming the overlay changed no structure, only how
 the same pose is stated.
+
+## 8. Re-measurement of the four snapshot-blocked projects (2026-09-11)
+
+The four projects that `git archive` could not capture in §6.2
+(BCN3D-Moveo, openarm, openvmp, Internal-Cycloidal-Actuator) carry
+vendored meshes or STEP sources that are untracked or gitignored, so a
+tar snapshot of their tree is missing files their models need. Measured
+instead read-only, in place, from each project's own working tree (all
+four confirmed clean by `git status --short` before and after every
+capture — no repository write of any kind was made).
+
+Framework commits compared:
+
+- **before** = `9914a2e` (the commit immediately preceding this cycle),
+  materialized with `git -C solid-node archive 9914a2e | tar -x` into a
+  scratch directory outside any repository, run with
+  `PYTHONPATH=.:<scratch>/base` from each project root.
+- **after** = `c83207f` (this cycle's tip, `main`), run with
+  `PYTHONPATH=.` against the workspace venv's editable install, which
+  resolves to the `solid-node` primary checkout at that same commit.
+
+For each project's declared model, `capture_poses.py capture` was run
+once against each framework commit, then `compare`d against each other,
+and the **after** capture was also compared against this campaign's own
+pre-cycle reference capture (`.../scratchpad/before2/<project>-<model>-before.json`,
+taken 2026-09-10 before cycle 5 began).
+
+| Project | Model | Poses | before(9914a2e) vs after(c83207f) | after(c83207f) vs pre-campaign reference |
+|---|---|---|---|---|
+| BCN3D-Moveo | `simulation.moveo:Moveo` | 17 | max deviation 0.000e+00 | max deviation 0.000e+00 |
+| openarm | `simulation.openarm:OpenArm` | 21 | max deviation 0.000e+00 | max deviation 0.000e+00 |
+| openvmp | `simulation.don1.robot:Don1` | 53 | max deviation 0.000e+00 | max deviation 0.000e+00 |
+| Internal-Cycloidal-Actuator | `simulation.actuator.machine:Actuator` | 7 | max deviation 0.000e+00 | max deviation 0.000e+00 |
+
+No nonzero entry, no missing pose, no missing node, and no changed leaf
+count appeared in any of the eight comparisons. This closes the
+structural blind spot left open in §6.2: all four projects' pose
+equivalence under this cycle is now measured, not merely presumed from
+the identical pre-existing capture failure on both sides — and the
+result is the same as every other project in this campaign: zero
+deviation.
