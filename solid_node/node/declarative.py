@@ -434,6 +434,11 @@ class ChildDeclaration:
 
         return relate(self, other, ratio, offset, law)
 
+    def __and__(self, other):
+        from solid_node.motion.couplings import group_with
+
+        return group_with(self, other)
+
     def repeat(self, count):
         """Count-many identical instances of this declaration."""
         return RepeatDeclaration(self, count)
@@ -544,6 +549,11 @@ class RepeatDeclaration:
         from solid_node.motion.couplings import relate
 
         return relate(self, other, ratio, offset, law)
+
+    def __and__(self, other):
+        from solid_node.motion.couplings import group_with
+
+        return group_with(self, other)
 
     def _adopt(self, owner, name):
         # The held declaration never reached the class namespace under

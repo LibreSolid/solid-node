@@ -761,6 +761,85 @@ broadcast is never read backwards, whatever its law offers: the n
 copies would have to agree on one source value, and the framework does
 not compare values to decide that.
 
+Several coordinates at one end
+-------------------------------
+
+A mechanism often reads several coordinates and moves several. A delta
+printer's rod has four freedoms from three drivers; a Pascaline's pawl
+deflects from two drums at once::
+
+    def simulate(self):
+        count, next_count = self.count.value, self.next_count.value or 0
+        theta = drum_angle(count)
+        self.sautoir.pawl.swing = PAWL_DEFLECTION * (
+            climbing(theta) + ratchet(next_count) * (1 - pushing(theta)))
+
+One relation replaces the hand binding, with a group of sources joined
+by ``&``::
+
+    (count & next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
+
+    def pawl_deflection(sources, driven):
+        position = sources[0]
+        def law(count, next_count):
+            theta = drum_angle(count)
+            return PAWL_DEFLECTION * (climbing(theta)
+                                      + ratchet(next_count) * (1 - pushing(theta)))
+        return law
+
+``&`` joins coordinates into a group, free on every declaration that
+carries ``drives``, chaining flat — ``x & y & z`` is one group of three,
+never a nested pair. It is the source-side spelling because the
+ratified sentence for a source group, ``(count, next_count).drives(...)``,
+is not Python: a tuple display has no ``drives`` and, being an immutable
+built-in type, cannot be given one. The DRIVEN side accepts either
+spelling — a tuple, exactly as written above for a single end, or
+``&`` — because a tuple written as an argument reaches the framework
+intact::
+
+    (x & y & z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)
+    (x & y & z).drives(towers.height, law=delta_carriage_law)   # several sources, one driven end
+
+A group names at least two coordinates, none of them twice, none of
+them a term of a derived coordinate, and none of them named on both
+sides of one relation naming several ends. A driven group that fans out
+over a ``.repeat()`` — every member a broadcast of the SAME repeated
+segment — resolves to one record per copy holding that copy's several
+driven ends, the law called once per copy exactly as a single-coordinate
+broadcast is.
+
+**The law's two arguments are shaped by the sentence, not spread by the
+end.** A side naming one coordinate hands that coordinate's realized
+OWNER, exactly as a one-to-one relation always has; a side naming
+several hands the TUPLE of their owners, in the order written — so a
+six-source law still takes two arguments, never eight. ``forward`` is
+called with one positional argument per SOURCE, in written order — the
+mechanism's own function of its own inputs — and returns the driven
+value itself for one driven end, or a SEQUENCE of exactly as many
+values, in written order, for several. A return with no length, that is
+text, or of the wrong length is refused by name at the moment it is
+applied, naming the relation, the law, the driven ends as written and
+what came back — because a value slot takes whatever is put into it,
+and a wrong-shaped return would be a pose nobody stated.
+
+**A relation naming several coordinates at either end is read FORWARD
+ONLY**, whatever its law offers, for the reason a broadcast is: n
+sources cannot be recovered from m driven values without comparing or
+solving values, which the framework does not do. ``ratio=``/``offset=``
+and the bare default law are refused with a group on either side: an
+affine law relates one value to one value, so a relation naming several
+ends always carries a ``law=``.
+
+**Guidance:** if the combination is LINEAR, write a derived coordinate
+and keep both directions; if it is not, write a ``law=`` over several
+sources and lose the reverse. A square root, a trigonometric function, or
+any other non-linear combination of several coordinates is the second
+kind — a delta printer's carriage height and a flexure stage's leg lean
+both are. Two symbolic rules already true of a one-source law stay true
+here: ``forward`` may not BRANCH on its arguments' values (a symbolic
+value is not comparable), and a non-linear function of a symbolic value
+must come from ``solid_node.math`` so it emits an OpenSCAD call.
+
 Derived coordinates
 -------------------
 

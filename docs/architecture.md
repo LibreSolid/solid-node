@@ -629,21 +629,43 @@ nothing is deprecated.
 
 **A relation** (spec `couplings`) says that one coordinate's motion IS
 another's: `a.drives(b, ratio=…, offset=…, law=…)`, written as a
-STATEMENT in a class body and recorded on the class (ADR-089). Its ends
-are coordinates of five kinds — a port or joint of the declaring class, a
+STATEMENT in a class body and recorded on the class (ADR-089). An END is
+coordinates of five kinds — a port or joint of the declaring class, a
 child declaration standing for its class's one joint, a path reference
 through declared children (`shoulder.art2.art3.wrist`), a `Driver`
-(a source only), and a derived coordinate. `drives` states the
-MECHANICAL direction; which way the framework SOLVES it is decided per
-run from whichever end is bound. The law is project code handed in:
-`law=` is a callable of the two realized coordinate OWNERS, called once
-per instance at realization and returning anything with `forward` and
-optionally `inverse` — the framework looks up no hook on any class and
-never learns what a gear is. A **derived coordinate**, a linear formula
-over coordinates (`art3.elbow - shoulder`, `wrist + 2 * tool`), is
-itself a coordinate: it owns a `Port` as a joint does, reads on an
-instance as a bound slot, is reported by `declared_ports()`, and solves
-in both directions through its one unknown.
+(a source only), and a derived coordinate — **and an end may be SEVERAL
+of them at once** (ADR-100): a source group is written with `&`,
+`(count & next_count).drives(pawl.swing, law=…)`; a driven group is
+written as a tuple or with `&`, `x.drives((rod.spin, rod.lean), law=…)`.
+`&` is free on every declaration that carries `drives`, chains flat
+(`x & y & z` is one group of three), and is refused on anything that is
+not a coordinate or on an already-stated relation (the missing-parens
+case, `count & next_count.drives(...)`). A group names at least two
+coordinates, none of them named twice, none of them named on both sides
+of one relation naming several ends, and holds no other group. `drives`
+states the MECHANICAL direction; which way the framework SOLVES it is
+decided per run from whichever end is bound — except a relation naming
+several ends, which is FORWARD ONLY, whatever its law offers, because
+recovering n sources from m driven values would mean comparing or
+solving values. The law is project code handed in: `law=` is a callable
+of two arguments, called once per instance at realization, each argument
+the realized OWNER of the coordinate its side names, or the TUPLE of
+owners when that side names several. It returns anything with `forward`
+and optionally `inverse` — the framework looks up no hook on any class
+and never learns what a gear is. `forward` is called with one positional
+argument per source and returns the driven value itself for one driven
+end, or a SEQUENCE of exactly as many values, in written order, for
+several — checked by name at every application, because a value slot
+takes whatever is put into it and a wrong-shaped return would be a pose
+nobody stated. A **derived coordinate**, a linear formula over
+coordinates (`art3.elbow - shoulder`, `wrist + 2 * tool`), is itself a
+coordinate: it owns a `Port` as a joint does, reads on an instance as a
+bound slot, is reported by `declared_ports()`, and solves in both
+directions through its one unknown — a group is never a term of one, and
+a group is not itself a coordinate: the guidance a project follows is
+that a LINEAR combination is a derived coordinate and keeps both
+directions, and anything else is a `law=` over several sources and loses
+the reverse.
 
 **A relation whose driven end passes through a `.repeat()`ed child is a
 BROADCAST** (ADR-096): it resolves to one relation per realized copy, at
@@ -661,7 +683,14 @@ read backwards, whatever its law offers — the n copies would have to
 agree on one source value, which the framework does not decide by
 comparing values. `get_coordinate(node, name)`, exported beside
 `set_coordinate`, is the matching reader for any name `declared_ports`
-reports, plain or dotted.
+reports, plain or dotted. A driven GROUP fans out the same way, one
+record per copy holding that copy's several driven ends, provided every
+member passes through the SAME repeated segment (a group mixing a
+broadcast with a plain end, or two different repeats, is refused at
+class definition); the record's `copy` is the node the repeated segment
+itself realized, which can differ from a member's own owner when the
+path continues past the repeat (`legs.femur.lift`'s copy is the leg, not
+the femur).
 
 **The simulate phase runs in a fixed order** (ADR-099 over ADR-089):
 first the framework CLEARS the value and binder record of every
@@ -1681,7 +1710,7 @@ The short list that changes must not silently break:
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
 | Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088 |
-| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096 |
+| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096, 100 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079 |

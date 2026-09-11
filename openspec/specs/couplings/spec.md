@@ -154,10 +154,21 @@ resolved ONCE against the declaring instance and every copy SHALL get the
 SAME affine law: a ratio names a value of the declaring class and has no
 way to see a copy, and `law=` is what per-copy variation is stated with.
 
+`ratio=`, `offset=` and the DEFAULT law SHALL be refused at class
+definition when either end of the relation names SEVERAL coordinates,
+naming the relation and saying that an affine law relates one value to
+one value: a relation naming several ends carries a `law=` that returns
+several values.
+
 `law=` SHALL take a CALLABLE of two arguments, which the framework SHALL
 call exactly ONCE for each relation it resolves to, at realization, with
-the realized nodes that OWN the two coordinates — driver first, driven
-second. The owner of a coordinate SHALL be: the
+the OWNERS of its two ends — driver first, driven second. An end naming
+ONE coordinate SHALL be handed as the realized node that owns it; an end
+naming SEVERAL SHALL be handed as the TUPLE of their owners, in the
+order the coordinates were written. The shape of each argument therefore
+follows the shape of the sentence, and the number of arguments never
+depends on how many ends happen to share one node. The owner of a
+coordinate SHALL be: the
 realized child for a node end; the realized descendant that declares the
 named port or joint for a path end, or the named node itself when the
 path ends on a node; the realized COPY for a broadcast end; and the
@@ -168,16 +179,27 @@ object, an index, a resolved parameter.
 
 For an ordinary relation the callable SHALL be called once for each
 realized instance of the declaring class; for a BROADCAST it SHALL be
-called once per realized COPY, the copy being the node that owns the
-driven coordinate, so a per-copy law reads the copy's own `index` and
-needs no further argument. The callable's signature SHALL be unchanged
-by a broadcast, and the framework SHALL inspect nothing about it to
-decide what to pass.
+called once per realized COPY — the node the repeated segment realized
+— and handed the owners of that copy's driven coordinates, so a per-copy
+law reads the copy's own `index` and needs no further argument. The
+callable's signature SHALL be unchanged by a broadcast, and the
+framework SHALL inspect nothing about it to decide what to pass.
 
 The callable SHALL return a LAW: an object with a callable `forward`
 taking the driver's value and returning the driven's, and OPTIONALLY a
 callable `inverse` taking the driven's value and returning the
-driver's. An `Affine` SHALL satisfy that protocol with both. A plain
+driver's. Where the SOURCE end names several coordinates, `forward`
+SHALL be called with ONE POSITIONAL ARGUMENT PER SOURCE, in the order
+written. Where the DRIVEN end names several, `forward` SHALL return a
+SEQUENCE of exactly as many values, in the order written; where it names
+one, it SHALL return that value itself, as it does today. A return that
+has no length, or is text, or has a length other than the number of
+driven ends, SHALL be refused by name at the moment it is applied —
+naming the relation, the law, the driven ends as written and what came
+back — rather than bound, because a value slot accepts whatever is
+put into it and a sequence bound into one slot is a pose nobody stated.
+`inverse` SHALL never be called for a relation naming several
+coordinates at either end. An `Affine` SHALL satisfy that protocol with both. A plain
 function or lambda returned SHALL be taken as forward-only. The
 framework SHALL inspect nothing else about a law: it holds no registry
 of mechanism shapes, consults no attribute of a node class to find a
@@ -221,6 +243,32 @@ definition.
   and `earth` is bound to `3`
 - **THEN** every copy's `travel` holds `6`, and the ratio was resolved
   once against the declaring instance
+
+#### Scenario: A law of several sources drives several coordinates
+
+- **WHEN** a class states
+  `(x & y & z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)`
+  and binds the three sources
+- **THEN** `delta_rod` was called once at realization with the tuple of
+  the three sources' owners and the tuple of the four driven ends'
+  owners, its returned `forward` was called with the three values in the
+  order written, and the four coordinates hold the four values it
+  returned in the order written
+
+#### Scenario: A law that returns the wrong number of values is refused
+
+- **WHEN** the same relation's law returns three values for its four
+  driven ends, or a single number
+- **THEN** applying it raises naming the relation, the law, the four
+  driven ends as written and what came back, and no coordinate was bound
+
+#### Scenario: A ratio with several ends is refused
+
+- **WHEN** a class body states `(a & b).drives(c, ratio=2)`, or
+  `(a & b).drives(c)` with no law at all
+- **THEN** class definition raises naming the relation and saying that
+  an affine law relates one value to one value, so a relation naming
+  several ends carries a `law=`
 
 #### Scenario: A law runs once, not once per instant
 
@@ -391,6 +439,14 @@ the result SHALL NOT depend on the order the author wrote the relations
 in: a train written from the power arbor forwards SHALL solve
 backwards from the one arbor `simulate()` bound, with no reordering.
 
+A relation whose ends name SEVERAL coordinates SHALL be applied when
+EVERY source end is bound and no driven end is, through the law's
+`forward` over all its sources, binding all its driven ends together; it
+SHALL NOT be applied while any source is unbound, and it SHALL NEVER be
+applied backwards. All its driven ends SHALL be CLAIMED before any of
+them is bound, so a driven end something else already bound is refused
+without leaving part of one law applied.
+
 A relation SHALL bind through the same path an author's binding takes,
 so the driven end's declared scale applies as it always does, a joint's
 declared range refuses an out-of-range numeric value as it always does,
@@ -428,6 +484,23 @@ formula SHALL publish an expression in the serialized document, which
 the viewer evaluates with the expression math it already has, and
 SHALL be a plain number under `set_state`, `set_keyframe` and the test
 runner.
+
+#### Scenario: A relation of several ends waits for its last source
+
+- **WHEN** a class states
+  `(x & y & z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)`
+  and its `simulate()` binds `x` and `y` while a relation elsewhere in
+  the tree binds `z`
+- **THEN** nothing was bound while `z` was unbound, and the four driven
+  ends were bound together once it was
+
+#### Scenario: One doubly bound target leaves the others untouched
+
+- **WHEN** the same class's `simulate()` binds `rod.swing` by hand and
+  all three sources are bound
+- **THEN** solving raises the doubly-bound refusal naming `rod.swing`,
+  the relation and the author's binding, and `rod.spin`, `rod.lean` and
+  `rod.rise` were not bound by the relation
 
 #### Scenario: A train solves backwards from the escapement
 
@@ -569,7 +642,11 @@ reach the coordinate:
 - an UNREACHED COORDINATE: a coordinate a relation names that no
   binding and no relation reached when propagation stopped changing
   anything, its message saying what it was waiting for, and for a
-  derived formula with two unknowns naming the formula and both;
+  derived formula with two unknowns naming the formula and both. For a
+  relation naming SEVERAL SOURCES the message SHALL name exactly the
+  sources that are unbound, and not the relation's ends at large,
+  because a relation whose other sources are bound is waiting for those
+  and nothing else;
 - a DOUBLY BOUND coordinate: a relation would bind a coordinate that
   something else already bound during this enumeration of the tree —
   the author's `simulate()`, a wiring, or another relation — or a
@@ -580,12 +657,14 @@ reach the coordinate:
   expressions, and the message SHALL name both binders;
 - a NOT INVERTIBLE relation: the driven end is the bound one and the
   relation's law offers no inverse, or is an affine law whose ratio is
-  numerically zero, or the relation is one copy of a BROADCAST — which
-  SHALL never be read backwards whatever its law offers, because the
-  copies hold one value each and one source cannot be derived from them
-  without comparing values, which the framework does not do. The message
-  SHALL say which of those reasons applies, and for a broadcast SHALL
-  name the copy.
+  numerically zero, or the relation is one copy of a BROADCAST, or the
+  relation NAMES SEVERAL COORDINATES at either end — neither of the
+  last two SHALL ever be read backwards whatever its law offers, because
+  in both the values on one side cannot be recovered from the other
+  without comparing or solving values, which the framework does not do.
+  The message SHALL say which of those reasons applies, for a broadcast
+  SHALL name the copy, and for a relation of several ends SHALL name the
+  bound driven end and the sources still unbound.
 
 Each error SHALL be of its own kind, exported from the couplings
 module, so a project or a test can catch exactly one.
@@ -639,6 +718,21 @@ deferred until the descendants had solved.
   forward only, and it says so even though the identity law it carries
   would invert
 
+#### Scenario: A relation of several sources names the unbound ones
+
+- **WHEN** a relation of three sources has two of them bound and nothing
+  reaches the third, and its driven ends are unbound
+- **THEN** the enumeration raises the unreached-coordinate error naming
+  the relation and the ONE unbound source, not all three
+
+#### Scenario: A relation of several ends is never read backwards
+
+- **WHEN** a relation of two sources and two driven ends has one driven
+  end bound by the author and a source unbound
+- **THEN** the enumeration raises the not-invertible error naming the
+  relation, the bound driven end and the unbound source, and saying that
+  a relation naming several ends is read forward only
+
 #### Scenario: A forward-only law used forwards is fine
 
 - **WHEN** the same relation has its DRIVER end bound instead
@@ -647,8 +741,9 @@ deferred until the descendants had solved.
 
 ### Requirement: Each end of a relation resolves to a coordinate, or to one per copy of a repeated child
 
-The system SHALL resolve both ends of a relation to a coordinate — the
-driven end to ONE COORDINATE PER REALIZED COPY when it passes through a
+The system SHALL resolve each end of a relation to a coordinate, or to
+SEVERAL where the end names several — the driven end to one coordinate
+PER REALIZED COPY, per named coordinate, when it passes through a
 repeated child, which makes the relation a BROADCAST. The
 kinds of end SHALL be:
 
@@ -665,7 +760,41 @@ kinds of end SHALL be:
   and permitted as the DRIVEN end only;
 - a `Driver` declaration, resolving to the driver's value, which SHALL
   be a SOURCE only;
-- a DERIVED COORDINATE of the class.
+- a DERIVED COORDINATE of the class;
+- SEVERAL of the above, written as one end.
+
+An end MAY name SEVERAL coordinates. On the DRIVEN side they SHALL be
+written as a tuple — `a.drives((b, c, d), law=...)`. On either side
+they MAY be written with `&` — `(x & y & z).drives(...)` — which the
+system SHALL provide on every declaration that carries `drives`, and
+which SHALL group left-associatively, so three coordinates are one group
+of three and not a nested pair. The SOURCE side SHALL accept only that
+spelling, because a tuple written there is a tuple display and the
+system cannot give it a verb. `&` applied to anything that is not a
+coordinate SHALL be refused by name, and `&` applied to a RELATION SHALL
+say that the parentheses are missing, because `a & b.drives(c)` states a
+one-source relation before the grouping is read.
+
+Every member of a group SHALL be an end of one of the kinds above and
+SHALL be checked as one, in its own role: a repeated child named as a
+SOURCE, a `Driver` named as a DRIVEN end, a node whose class declares
+several joints, and a path stopping on a joint that owns several
+coordinates SHALL each be refused inside a group exactly as outside it.
+Ends are coordinates, named ONE BY ONE. A group SHALL name at least TWO
+coordinates — an empty group and a group of one SHALL be refused,
+saying that one end is written without the group — and a group SHALL
+NOT hold another group. A coordinate SHALL be named ONCE in a group, and
+a coordinate named on BOTH sides of a relation whose ends name several
+coordinates SHALL be refused, saying that a coordinate is a source or a
+driven end of one relation and not both. A group SHALL NOT be a term of
+a derived coordinate.
+
+Where a DRIVEN group names a BROADCAST, every member of that group SHALL
+be a broadcast over the SAME repeated segment of the same path, so the
+relation resolves to one record per copy holding that copy's several
+driven ends. A driven group mixing a broadcast with an end that is not
+one, or naming two different repeated segments, SHALL be refused at
+class definition naming both paths.
 
 A PATH REFERENCE SHALL be read segment by segment, and a COORDINATE at
 its end SHALL occupy as many TRAILING SEGMENTS as the name the port
@@ -722,9 +851,58 @@ be refused AT CLASS DEFINITION — an attribute no class along a path
 declares, a node end with the wrong number of joints, a driver as a
 driven end, a path through a list-held child, a broadcast named as the
 source end, a path through two repeated children, `ratio=` or
-`offset=` given together with `law=` — and whatever depends on the
+`offset=` given together with `law=`, and every refusal a GROUP carries:
+a group of fewer than two coordinates, a group inside a group, a
+coordinate named twice in one group or on both sides of one relation, a
+driven group mixing a broadcast with an end that is not one or naming
+two different repeated segments, a group with `ratio=`/`offset=` or with
+no `law=`, `&` over something that is not a coordinate, and `&` over a
+relation — and whatever depends on the
 instance SHALL be refused AT REALIZATION, naming the relation, the path
 as written, the node the walk stopped at and what that node declares.
+
+#### Scenario: Several driven ends are one relation
+
+- **WHEN** a class states
+  `(stage.slide_x & stage.slide_y).drives((leg.lean, leg.tilt), law=leg_lean)`
+- **THEN** the relation has two source ends and two driven ends in the
+  order written, and one record holds all four
+
+#### Scenario: Several driven ends over a repeat are one record per copy
+
+- **WHEN** a class declaring `rods = Rod().repeat(6)` states
+  `(x & y & z).drives((rods.spin, rods.lean, rods.swing, rods.rise), law=delta_rod)`
+- **THEN** six records are solved, one per copy, each holding that
+  copy's four driven ends; the law was called six times, once per copy;
+  and reading the named relation off the instance yields six records in
+  copy order
+
+#### Scenario: A repeated source inside a group is refused
+
+- **WHEN** a class states `(beads.travel & earth).drives(x, law=...)`
+- **THEN** class definition raises with the repeated-source refusal,
+  naming the path as written, the repeated declaration and its class
+
+#### Scenario: A driven group over two different repeats is refused
+
+- **WHEN** a class states
+  `x.drives((left.beads.travel, right.beads.travel), law=...)`, or
+  `x.drives((beads.travel, lid.turn), law=...)`
+- **THEN** class definition raises naming both driven paths and saying
+  that the driven ends of one relation fan out over one repeat together
+
+#### Scenario: A group of one, and a group of a group, are refused
+
+- **WHEN** a class states `x.drives((a,), law=...)`, `x.drives((), law=...)`
+  or `x.drives(((a, b), c), law=...)`
+- **THEN** class definition raises naming the relation, saying that a
+  group names two coordinates or more and that ends are named one by one
+
+#### Scenario: The parentheses are missing
+
+- **WHEN** a class body writes `count & next_count.drives(pawl.swing, law=...)`
+- **THEN** class definition raises naming the relation the inner call
+  stated and saying that the parentheses are missing
 
 #### Scenario: A node end is its one joint
 
@@ -825,54 +1003,24 @@ as written, the node the walk stopped at and what that node declares.
 
 ### Requirement: Relations defer to a whole-tree fixpoint
 
-The system SHALL treat one ENUMERATION of a tree as one solve. An
-enumeration begins when a `render()` is called with no enumeration in
-progress; the assembly that call names OWNS the enumeration and SHALL
-drive the simulate phase of every assembly in the subtree it renders,
-parents before children and in declaration order among siblings, before
-that `render()` returns. Each assembly's phase SHALL be exactly what it
-is for one node today — sweep, rest, clear, the author's `simulate()`,
-then the attempt at its own relations, wirings and derived coordinates —
-and each SHALL run ONCE per enumeration.
+The deferral set widens to cover a relation naming several coordinates
+at either end: the system SHALL defer a relation record whose sources
+are not ALL bound, whatever its driven ends hold, in the position of its
+declaration and in tree order — the enumeration's own propagation may go
+on to bind a missing source from anywhere else in the tree, and only the
+end of the whole pass refuses it. This restates, rather than replaces,
+the existing bullet "a relation record with neither end bound" for the
+n = m = 1 case, where "not all bound" and "neither end bound" agree
+because there is only one source to be unbound.
 
-An item its own instance's attempt could not resolve SHALL be DEFERRED
-to the enumeration rather than refused. The system SHALL defer:
+#### Scenario: A relation of several sources defers until the last one binds
 
-- a relation record with neither end bound;
-- a relation record whose driven end is bound and whose law offers no
-  inverse, and one copy of a broadcast whose driven end is bound;
-- a derived coordinate that holds a value while more than one of its
-  terms is unbound;
-- a wiring whose source coordinate is unbound.
-
-The system SHALL NOT defer a DOUBLY BOUND coordinate or a value a
-joint's declared range refuses: neither is a question of timing.
-
-Once every assembly's phase has run, the enumeration SHALL PROPAGATE
-over every deferred item of the whole tree — applying each relation with
-exactly one bound end from that end, each wiring whose source is now
-bound, and each derived coordinate with at most one unknown —
-repeatedly, until nothing changes; and only THEN refuse. Each deferred
-item SHALL be applied under the phase of the assembly that STATED it, so
-the motion it causes carries that assembly's animator tag, is swept
-before that assembly's next run, and is cleared by that assembly's own
-next phase, exactly as it would have been had the item resolved in its
-own phase.
-
-The order of that propagation SHALL be TREE ORDER — the order the
-assemblies' phases ran — and within one assembly the declaration order
-of its items, a broadcast's copies in copy order at the position of
-their declaration. The result SHALL NOT depend on which assembly
-deferred first.
-
-Because the enumeration reads a body's geometry only after every phase
-has run, a coordinate a deferred relation binds SHALL be bound before
-anything in the enumeration reads the body it moves.
-
-An assembly rendered ALONE — a component under test, or a subtree a
-walker enters directly — SHALL own its own enumeration over its own
-subtree, and a relation of that subtree that needs a coordinate outside
-it SHALL be refused at the end of it, exactly as it is refused today.
+- **WHEN** a relation of three sources has two of them bound when its own
+  instance's phase ends, and a descendant's relation binds the third
+  later in the same enumeration
+- **THEN** the record is DEFERRED rather than refused, and the
+  enumeration's own propagation applies it once the third source binds,
+  under the phase of the assembly that stated it
 
 #### Scenario: A chain stated one level down solves
 
@@ -983,4 +1131,83 @@ makes the SENTENCE statable, not the value early.
   child's own relations bind
 - **THEN** the enumeration refuses naming both classes and the order,
   rather than reordering the tree to make the read work
+
+### Requirement: A relation may name several coordinates at each end
+
+A mechanism may read several coordinates and move several. The system
+SHALL let ONE relation name several coordinates as its source, several
+as its driven end, or both, and SHALL hand the whole of it to the
+project's own law, which reads all the sources and returns all the
+driven values in one call.
+
+The system SHALL apply such a relation in ONE DIRECTION only: it SHALL
+be applied when every source end is bound, binding every driven end
+together, and SHALL NEVER be read backwards, whatever inverse its law
+offers — for the reason a broadcast is never read backwards, that
+recovering the sources from the driven values would mean comparing or
+solving values, which the framework does not do. Asked to, the system
+SHALL refuse by name.
+
+A relation naming several coordinates at either end SHALL resolve to ONE
+RECORD holding all its ends, in the order written — and, where its
+driven end is a broadcast, to one such record PER REALIZED COPY, each
+holding that copy's driven ends. The driven ends of one record SHALL be
+bound by ONE application of one law, and SHALL NOT be bound, refused or
+deferred one without the others; the system SHALL claim every one of
+them before it binds any.
+
+Such a relation SHALL take part in the solve exactly as any other does:
+attempted at the end of its own instance's simulate phase, DEFERRED
+while any source is unbound, applied as soon as the whole tree's
+propagation binds the last of them, and refused only when nothing
+changes any more. Its motion SHALL be the motion of the assembly that
+stated it, tagged, swept and cleared with the rest of that assembly's
+motion.
+
+Values SHALL pass through it unresolved, exactly as through any other
+relation: a law over several symbolic sources publishes several
+expressions, one per driven end, and the operations they lower to are
+those the same bindings written by hand would produce.
+
+#### Scenario: A pawl deflects from two drums
+
+- **WHEN** a position states
+  `(count & next_count).drives(sautoir.pawl.swing, law=pawl_deflection)`
+  and both ports are bound
+- **THEN** the law was handed the tuple of the two sources' owners and
+  the pawl's node, its `forward` was called with the two values in the
+  order written, and the pawl's swing holds the one value it returned
+
+#### Scenario: Three sources and four driven ends on every copy
+
+- **WHEN** a delta printer declaring `rods = Rod().repeat(6)` states
+  `(x & y & z).drives((rods.spin, rods.lean, rods.swing, rods.rise), law=delta_rod)`
+  and binds its three drivers
+- **THEN** each of the six rods holds its own four values, each copy's
+  law was called once at realization with that copy, and each rod's body
+  is placed by the four bindings exactly as if they had been written by
+  hand
+
+#### Scenario: Several sources and one driven end
+
+- **WHEN** the same printer states
+  `(x & y & z).drives(towers.height, law=delta_carriage)` over three
+  repeated towers
+- **THEN** each tower's height holds the value its own law returned, and
+  the law returned that value rather than a sequence
+
+#### Scenario: A relation of several ends is not applied while a source is unbound
+
+- **WHEN** a relation of three sources has only two of them bound when
+  its own instance's relations are attempted, and nothing else in the
+  tree binds the third
+- **THEN** nothing was bound by it, and the enumeration refuses naming
+  the relation and the unbound source
+
+#### Scenario: The driven ends of one law are bound together
+
+- **WHEN** a relation of four driven ends is applied and one of those
+  coordinates was already bound by the author's `simulate()`
+- **THEN** the doubly-bound refusal names that coordinate and its two
+  binders, and none of the other three was bound
 

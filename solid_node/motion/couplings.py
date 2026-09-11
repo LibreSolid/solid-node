@@ -281,6 +281,9 @@ class CoordinateRef:
     def terms(self):
         return {self: 1}, 0
 
+    def __and__(self, other):
+        return group_with(self, other)
+
     def __add__(self, other):
         return _combine(self, other, 1)
 
@@ -638,8 +641,287 @@ class BroadcastRef(PathRef):
                 f"resolved against the children the instance actually "
                 f"realized.") from None
 
+    def copy_nodes(self, instance):
+        """The nodes the REPEATED SEGMENT ITSELF realized, in copy order
+        -- what a `RelationRecord`'s `copy` names, whether or not this
+        path continues past the repeat to reach its coordinate
+        (`legs.femur.lift`'s copy is the LEG, not the femur: design.md
+        section 5, the correction to ADR-096's `copy = driven.node`)."""
+        return self._walk_copy_nodes(instance)
+
+    def _walk_copy_nodes(self, instance):
+        segments = list(self.segments)
+        coordinate = _coordinate_of(self.terminal)
+        if segments and coordinate is not None:
+            del segments[-(str(coordinate.name).count('.') + 1):]
+        nodes = [instance]
+        copy_nodes = None
+        for attribute in [self.root._name] + segments:
+            expanded = []
+            for node in nodes:
+                found = self._raw_step(node, attribute)
+                if isinstance(found, (list, tuple)):
+                    expanded.extend(found)
+                else:
+                    expanded.append(found)
+            if copy_nodes is None and len(expanded) != len(nodes):
+                # The one repeated segment this path passes through
+                # (design.md: at most one): the nodes right after THIS
+                # expansion are the copies, whatever further segments
+                # the path still has to walk from here.
+                copy_nodes = list(expanded)
+            nodes = expanded
+        return nodes if copy_nodes is None else copy_nodes
+
     def __repr__(self):
         return f'<broadcast {self.written}>'
+
+
+##############################################
+# Groups: several coordinates named as one end
+
+class Coordinates:
+    """Several coordinates named as one end of a relation, built by `&`
+    in a class body, in the order written (design.md section 2, "The two
+    objects").
+
+    Holds the RAW operands, not yet converted to `CoordinateRef`s: the
+    ROLE (driver or driven) is not known until `drives` is called, and
+    the same member is checked differently as a source and as a driven
+    end -- `coordinate_ref` does that conversion, late, once `drives`
+    supplies the role. Never imported by a project and not exported.
+    """
+
+    def __init__(self, *operands):
+        self.operands = tuple(operands)
+
+    def __and__(self, other):
+        return group_with(self, other)
+
+    def drives(self, other, ratio=None, offset=None, law=None):
+        return relate(self, other, ratio, offset, law)
+
+    def _refuse_as_formula_term(self, *_args, **_kwargs):
+        raise TypeError(
+            f'{self!r} cannot be a term of a derived coordinate: a formula '
+            f'has one value per term, and a group names several. Write the '
+            f'relation with law=.')
+
+    __add__ = __radd__ = __sub__ = __rsub__ = __mul__ = __rmul__ = \
+        __truediv__ = _refuse_as_formula_term
+
+    def __repr__(self):
+        return f"<group {' & '.join(repr(o) for o in self.operands)}>"
+
+
+def _is_group_member(value):
+    """Whatever `&` may join into a group: any raw declaration kind
+    `coordinate_ref` would otherwise accept -- the per-kind and
+    per-role refusals (a repeated source, a driver as a driven end, a
+    node of the wrong joint count) are left to `coordinate_ref` and
+    `check(role)`, once the role is known. Only a value with no coordinate
+    reading at all -- a number, text, an unrelated object -- is refused
+    here, immediately, naming the `&`."""
+    from solid_node.node.declarative import ChildDeclaration, RepeatDeclaration
+    from solid_node.node.qualified import DriverDeclaration
+
+    if isinstance(value, (CoordinateRef, Coordinates, ChildDeclaration,
+                         RepeatDeclaration, DriverDeclaration)):
+        return True
+    return _coordinate_of(value) is not None or _coordinates_of(value) is not None
+
+
+def group_with(left, right):
+    """`left & right`: the operator behind every declaration that
+    carries `drives` (design.md section 2). Builds or extends a
+    `Coordinates`, flat and left-associative -- `x & y & z` is one group
+    of three, never a nested pair -- or raises the missing-parentheses
+    refusal when the right operand is already a stated relation, because
+    `.drives` binds tighter than `&`."""
+    if isinstance(right, Relation):
+        raise TypeError(
+            f'{right.described()}: the parentheses are missing. `&` binds '
+            f'looser than `.drives`, so `a & b.drives(c)` states the '
+            f'ONE-source relation b.drives(c) first, and then asks for '
+            f'`{left!r} & <that relation>`. Write `(a & b).drives(c, ...)`.')
+    if not _is_group_member(right):
+        raise TypeError(
+            f'{right!r} is not a coordinate, so it cannot join a group with '
+            f'&: a group is a group of coordinates.')
+    left_operands = left.operands if isinstance(left, Coordinates) else (left,)
+    right_operands = (right.operands if isinstance(right, Coordinates)
+                      else (right,))
+    return Coordinates(*left_operands, *right_operands)
+
+
+def _group_operands(value):
+    return value.operands if isinstance(value, Coordinates) else value
+
+
+def _end_group(value, role):
+    """`coordinate_ref`'s conversion of a `Coordinates` or a literal
+    tuple into an `EndGroup`: the structural checks that do not depend
+    on role (size, nesting, duplication), then a per-member conversion
+    with the role now known."""
+    operands = _group_operands(value)
+    if (len(operands) < 2
+            or any(isinstance(item, (tuple, Coordinates)) for item in operands)):
+        raise TypeError(
+            'a group names two coordinates or more, and ends are named one '
+            'by one: a group cannot be empty, hold a single coordinate, or '
+            'hold another group. Name a single coordinate without &, or '
+            'flatten the group into one & chain.')
+    refs = []
+    seen = {}
+    for operand in operands:
+        ref = coordinate_ref(operand, role)
+        key = ref.key()
+        if key in seen:
+            raise TypeError(
+                f'{ref.described()} is named twice in one group: a '
+                f'coordinate is named once in a group.')
+        seen[key] = ref
+        refs.append(ref)
+    return EndGroup(refs)
+
+
+class EndGroup(CoordinateRef):
+    """Several coordinates named as ONE end of a relation -- what
+    `coordinate_ref` builds from a `Coordinates` (the `&` group) or a
+    literal tuple (the driven side's `(a, b, c)`), late, because the
+    role is not known until `drives` is called (design.md section 2,
+    "The two objects")."""
+
+    def __init__(self, refs):
+        self.refs = tuple(refs)
+
+    def key(self):
+        return ('group', tuple(ref.key() for ref in self.refs))
+
+    def described(self):
+        return f"({', '.join(ref.described() for ref in self.refs)})"
+
+    def declaration(self):
+        raise TypeError(
+            f'{self.described()} names several coordinates: it has no one '
+            f'declaration. Read each member of the group instead.')
+
+    def check(self, role):
+        for ref in self.refs:
+            ref.check(role)
+        if role == 'driven':
+            _check_driven_fanout(self.refs)
+
+    def check_declared_on(self, owner, relation):
+        for ref in self.refs:
+            ref.check_declared_on(owner, relation)
+
+    def resolve(self, instance):
+        return tuple(ref.resolve(instance) for ref in self.refs)
+
+    def resolve_all(self, instance):
+        """Per-copy tuples of this group's `ResolvedEnd`s -- valid only
+        once every member is confirmed a broadcast over the SAME repeat
+        (`check('driven')`, at class definition)."""
+        per_member = [ref.resolve_all(instance) for ref in self.refs]
+        return list(zip(*per_member))
+
+    def copy_nodes(self, instance):
+        return self.refs[0].copy_nodes(instance)
+
+    def __repr__(self):
+        return f'<group {self.described()}>'
+
+
+def _check_driven_fanout(refs):
+    """Every driven end that is a broadcast SHALL fan out over the SAME
+    repeated segment as every other; a driven group mixing a broadcast
+    with a plain end, or two different repeats, is refused at class
+    definition naming both paths (design.md section 5)."""
+    broadcasts = [ref for ref in refs if isinstance(ref, BroadcastRef)]
+    if not broadcasts:
+        return
+    if len(broadcasts) != len(refs):
+        plain = next(ref for ref in refs if not isinstance(ref, BroadcastRef))
+        raise TypeError(
+            f"the driven ends of a relation fan out over ONE repeat "
+            f"together: '{broadcasts[0].written}' passes through the "
+            f"repeated declaration '{broadcasts[0].repeat._name}', and "
+            f"'{plain.described()}' does not. Mix no broadcast with an end "
+            f"that is not one; state the relation inside the repeated "
+            f"class, or drop the plain end from the group.")
+    first = broadcasts[0]
+    first_site = (id(first.root), id(first.repeat))
+    # Identity of the REPEAT OBJECT alone is not enough: two children of
+    # one reused class (`left = Side()`, `right = Side()`) share the one
+    # `RepeatDeclaration` their shared class declares, yet realize two
+    # unrelated sets of copies -- the ROOT each path starts from is what
+    # tells them apart.
+    for other in broadcasts[1:]:
+        if (id(other.root), id(other.repeat)) != first_site:
+            raise TypeError(
+                f"the driven ends of a relation fan out over ONE repeat "
+                f"together: '{first.written}' passes through "
+                f"'{first.repeat._name}' and '{other.written}' through "
+                f"'{other.repeat._name}' -- two different repeated "
+                f"segments. State the relation inside the more deeply "
+                f"repeated class, or split it into two relations.")
+
+
+def _end_refs(ref):
+    """The individual `CoordinateRef`s of one end, in written order --
+    the group's members, or the ref itself when it names one
+    coordinate."""
+    return ref.refs if isinstance(ref, EndGroup) else (ref,)
+
+
+def _is_broadcast(ref):
+    """Whether this end -- bare or grouped -- fans out over a repeat.
+    A driven group's members are already confirmed to share ONE repeat
+    by `_check_driven_fanout`, so testing the first is enough."""
+    return isinstance(ref, BroadcastRef) or (
+        isinstance(ref, EndGroup)
+        and any(isinstance(member, BroadcastRef) for member in ref.refs))
+
+
+def _resolve_ends(ref, instance):
+    """This end's tuple of `ResolvedEnd`, for an ORDINARY (non-broadcast)
+    relation -- one member for a bare end, several in written order for
+    a group."""
+    return tuple(member.resolve(instance) for member in _end_refs(ref))
+
+
+def _resolve_ends_per_copy(ref, instance):
+    """This end's per-copy `(copy_node, driven_ends)` pairs, in copy
+    order, for a BROADCAST end -- bare or grouped."""
+    members = _end_refs(ref)
+    per_member = [member.resolve_all(instance) for member in members]
+    copy_nodes = members[0].copy_nodes(instance)
+    return list(zip(copy_nodes, zip(*per_member)))
+
+
+def _law_argument(ends):
+    """What a `law=` callable is handed for one end: the realized owner
+    of the one coordinate it names, or the TUPLE of owners in written
+    order when it names several (couplings spec, "The law of a relation
+    is an affine pair, or project code passed in")."""
+    if len(ends) == 1:
+        return ends[0].node
+    return tuple(end.node for end in ends)
+
+
+def _refuse_shared_coordinate(driver_ref, driven_ref):
+    """A coordinate named on BOTH sides of a relation naming several
+    ends is refused (proposal.md decision (c)): checked only when either
+    end is several, because a one-to-one `a.drives(a)` is untouched by
+    this cycle."""
+    driver_keys = {ref.key(): ref for ref in _end_refs(driver_ref)}
+    for ref in _end_refs(driven_ref):
+        if ref.key() in driver_keys:
+            raise TypeError(
+                f'{ref.described()} is named as both a source and a driven '
+                f'end of one relation: a coordinate is a source or a driven '
+                f'end of one relation, not both.')
 
 
 def _the_one_joint(declaration, written):
@@ -1026,7 +1308,7 @@ class Relation:
     def record_of(self, instance):
         matches = [record for record in instance.__dict__.get('_relations', ())
                   if record.relation is self]
-        if isinstance(self.driven, BroadcastRef):
+        if _is_broadcast(self.driven):
             # A broadcast's shape, not its count: a tuple even when the
             # repeat realized zero copies (design.md open question 2).
             return tuple(matches)
@@ -1050,12 +1332,18 @@ class Relation:
         """This instance's record of the relation -- ONE for an
         ordinary relation, one PER REALIZED COPY for a broadcast (see
         `couplings` spec, "Each end of a relation resolves to a
-        coordinate, or to one per copy of a repeated child")."""
+        coordinate, or to one per copy of a repeated child").
+
+        An end naming several coordinates resolves to a TUPLE of
+        `ResolvedEnd`s rather than one: the law's argument for that end
+        is then the tuple of their owners (`_law_argument`), and the
+        record's `driver_ends`/`driven_ends` carry all of them
+        (design.md sections 3 and 5)."""
         from solid_node.parameters import evaluate
 
-        driver = self.driver.resolve(instance)
-        if isinstance(self.driven, BroadcastRef):
-            driven_ends = self.driven.resolve_all(instance)
+        driver_ends = _resolve_ends(self.driver, instance)
+        if _is_broadcast(self.driven):
+            per_copy = _resolve_ends_per_copy(self.driven, instance)
             if self.callable_law is None:
                 values = instance.__dict__.get('_parameters', {})
                 law = Affine(
@@ -1065,44 +1353,53 @@ class Relation:
                 # The SAME law object for every copy: a ratio names a
                 # value of the DECLARING class and has no way to see a
                 # copy (design.md decision 5).
-                return [RelationRecord(self, driver, driven, law,
-                                       copy=driven.node)
-                        for driven in driven_ends]
+                return [RelationRecord(self, driver_ends, driven_ends, law,
+                                       copy=copy_node)
+                        for copy_node, driven_ends in per_copy]
+            driver_owner = _law_argument(driver_ends)
             records = []
-            for driven in driven_ends:
-                # Called once per COPY, at realization, with the copy
-                # itself: the owner of the driven coordinate under a
+            for copy_node, driven_ends in per_copy:
+                # Called once per COPY, at realization, with the copy's
+                # own owners: the owner of a driven coordinate under a
                 # broadcast is the copy (couplings spec, "The law of a
                 # relation is an affine pair, or project code passed
                 # in").
-                returned = self.callable_law(driver.node, driven.node)
+                returned = self.callable_law(driver_owner,
+                                             _law_argument(driven_ends))
                 law = as_law(returned, self.described())
-                records.append(RelationRecord(self, driver, driven, law,
-                                              copy=driven.node))
+                records.append(RelationRecord(self, driver_ends, driven_ends,
+                                              law, copy=copy_node))
             return records
-        driven = self.driven.resolve(instance)
+        driven_ends = _resolve_ends(self.driven, instance)
         if self.callable_law is not None:
-            returned = self.callable_law(driver.node, driven.node)
+            returned = self.callable_law(_law_argument(driver_ends),
+                                         _law_argument(driven_ends))
             law = as_law(returned, self.described())
         else:
             values = instance.__dict__.get('_parameters', {})
             law = Affine(
                 1 if self.ratio is None else evaluate(self.ratio, values),
                 0 if self.offset is None else evaluate(self.offset, values))
-        return [RelationRecord(self, driver, driven, law)]
+        return [RelationRecord(self, driver_ends, driven_ends, law)]
 
 
 class RelationRecord:
     """One instance's resolved relation: what it relates, the law it got
     at realization, and which way the last run solved it.
 
-    `copy` is the realized COPY this record applies to, for a broadcast
-    -- None for an ordinary relation's one record."""
+    `driver_ends` and `driven_ends` are TUPLES of `ResolvedEnd`, of
+    length n and m -- one each for an ordinary one-to-one relation,
+    several when either end names a group. `driver_end`/`driven_end`
+    stay as properties for that n = m = 1 case, which every existing
+    reader still uses.
 
-    def __init__(self, relation, driver_end, driven_end, law, copy=None):
+    `copy` is the node the REPEATED SEGMENT itself realized, for a
+    broadcast -- None for an ordinary relation's one record."""
+
+    def __init__(self, relation, driver_ends, driven_ends, law, copy=None):
         self.relation = relation
-        self.driver_end = driver_end
-        self.driven_end = driven_end
+        self.driver_ends = tuple(driver_ends)
+        self.driven_ends = tuple(driven_ends)
         self.law = law
         self.direction = None
         self.copy = copy
@@ -1110,6 +1407,14 @@ class RelationRecord:
     @property
     def name(self):
         return self.relation.name
+
+    @property
+    def driver_end(self):
+        return self.driver_ends[0]
+
+    @property
+    def driven_end(self):
+        return self.driven_ends[0]
 
     @property
     def driver(self):
@@ -1281,6 +1586,15 @@ def relate(driver, driven, ratio=None, offset=None, law=None):
     driven_ref = coordinate_ref(driven, 'driven')
     driver_ref.check('driver')
     driven_ref.check('driven')
+    several = len(_end_refs(driver_ref)) > 1 or len(_end_refs(driven_ref)) > 1
+    if several:
+        if law is None:
+            raise TypeError(
+                f'{driver_ref.described()} drives {driven_ref.described()}: '
+                f'a relation naming several ends carries a law=. An affine '
+                f'law relates one value to one value, and ratio=/offset= '
+                f'are its shorthand, so neither states several ends.')
+        _refuse_shared_coordinate(driver_ref, driven_ref)
     relation = Relation(driver_ref, driven_ref, ratio, offset, law)
     record_relation(relation)
     return relation
@@ -1295,6 +1609,8 @@ def coordinate_ref(value, role='end'):
 
     if isinstance(value, CoordinateRef):
         return value
+    if isinstance(value, (Coordinates, tuple)):
+        return _end_group(value, role)
     if _coordinate_of(value) is not None:
         return OwnRef(value)
     if _coordinates_of(value) is not None:
@@ -1454,7 +1770,9 @@ def _solved_formulas(assembly, records):
     class declares, and every anonymous one a relation names as an end."""
     found = list(declared_derived(type(assembly)).values())
     for record in records:
-        for ref in (record.relation.driver, record.relation.driven):
+        members = _end_refs(record.relation.driver) + _end_refs(
+            record.relation.driven)
+        for ref in members:
             if (isinstance(ref, DerivedCoordinate)
                     and not any(ref is seen for seen in found)):
                 found.append(ref)
@@ -1680,41 +1998,95 @@ def _claim(end, binder, claimed):
 
 
 def _step_relation(record, claimed, bound):
-    driver_bound = record.driver_end.bound()
-    driven_bound = record.driven_end.bound()
-    if driver_bound and driven_bound:
-        if record.direction is not None:
-            return False
-        _refuse_double(
-            record.driven_end.slot if record.driven_end.slot is not None
-            else record.driver_end.slot,
-            record, record.driven_end.described())
-    if driver_bound:
-        _claim(record.driven_end, record, claimed)
-        value = record.law.forward(record.driver_end.value())
-        bound.append(record.driven_end.bind(value, record))
-        record.direction = 'forward'
-        return True
-    if driven_bound:
-        if isinstance(record.relation.driven, BroadcastRef):
-            # A broadcast is read forward only, whatever its law offers:
-            # the n copies would have to agree on one source value, and
-            # the framework does not compare values to decide that
-            # (couplings spec, "Three refusals"). Deferred here exactly
-            # as a non-invertible law is -- the author's own binding may
-            # still reach the driver end -- and `_refuse` raises if it
-            # never does.
-            return False
-        if not invertible(record.law):
-            # Deferred: another relation may still bind the driver end,
-            # and a law that is never needed backwards is never refused.
-            return False
-        _claim(record.driver_end, record, claimed)
-        value = record.law.inverse(record.driven_end.value())
-        bound.append(record.driver_end.bind(value, record))
-        record.direction = 'backward'
-        return True
-    return False
+    driver_ends = record.driver_ends
+    driven_ends = record.driven_ends
+    several = len(driver_ends) > 1 or len(driven_ends) > 1
+
+    if not several:
+        # The n = m = 1 case, unchanged: either direction, whichever end
+        # is bound.
+        driver_end = driver_ends[0]
+        driven_end = driven_ends[0]
+        driver_bound = driver_end.bound()
+        driven_bound = driven_end.bound()
+        if driver_bound and driven_bound:
+            if record.direction is not None:
+                return False
+            _refuse_double(
+                driven_end.slot if driven_end.slot is not None
+                else driver_end.slot,
+                record, driven_end.described())
+        if driver_bound:
+            _claim(driven_end, record, claimed)
+            value = record.law.forward(driver_end.value())
+            bound.append(driven_end.bind(value, record))
+            record.direction = 'forward'
+            return True
+        if driven_bound:
+            if isinstance(record.relation.driven, BroadcastRef):
+                # A broadcast is read forward only, whatever its law
+                # offers: the n copies would have to agree on one source
+                # value, and the framework does not compare values to
+                # decide that (couplings spec, "Three refusals").
+                # Deferred here exactly as a non-invertible law is --
+                # the author's own binding may still reach the driver
+                # end -- and `_refuse` raises if it never does.
+                return False
+            if not invertible(record.law):
+                # Deferred: another relation may still bind the driver
+                # end, and a law that is never needed backwards is never
+                # refused.
+                return False
+            _claim(driver_end, record, claimed)
+            value = record.law.inverse(driven_end.value())
+            bound.append(driver_end.bind(value, record))
+            record.direction = 'backward'
+            return True
+        return False
+
+    # A relation naming SEVERAL coordinates at either end: forward only,
+    # applied when every source is bound, all its driven ends claimed
+    # and bound together (couplings spec, "A relation may name several
+    # coordinates at each end").
+    if record.direction is not None:
+        return False
+    if not all(end.bound() for end in driver_ends):
+        return False
+    for end in driven_ends:
+        _claim(end, record, claimed)
+    values = record.law.forward(*[end.value() for end in driver_ends])
+    if len(driven_ends) == 1:
+        values = (values,)
+    else:
+        values = _checked_return(record, values, driven_ends)
+    for end, value in zip(driven_ends, values):
+        bound.append(end.bind(value, record))
+    record.direction = 'forward'
+    return True
+
+
+def _checked_return(record, returned, driven_ends):
+    """`returned` as the SEQUENCE of exactly `len(driven_ends)` values a
+    multi-target law's `forward` owes -- refused by name, naming the
+    relation, the law, the driven ends as written and what came back,
+    rather than bound: a value slot accepts whatever is put into it, and
+    a wrong-shaped return would be a pose nobody stated (design.md
+    section 3)."""
+    length = None
+    if not isinstance(returned, str):
+        try:
+            length = len(returned)
+        except TypeError:
+            length = None
+    if length != len(driven_ends):
+        names = ', '.join(end.described() for end in driven_ends)
+        raise CouplingError(
+            f'{record.described()}: the law {record.law!r} returned '
+            f'{returned!r} for {len(driven_ends)} driven ends ({names}), '
+            f'which is not a sequence of exactly {len(driven_ends)} values. '
+            f'A value slot accepts whatever is put into it, and a '
+            f'wrong-shaped return would be a pose nobody stated.')
+    return returned
 
 
 def _step_derived(assembly, formula, claimed, bound):
@@ -1770,6 +2142,38 @@ def _refuse(assembly, records, derived, wirings):
     for record in records:
         if record.direction is not None:
             continue
+        driver_ends = record.driver_ends
+        driven_ends = record.driven_ends
+        if len(driver_ends) > 1 or len(driven_ends) > 1:
+            unbound_sources = [end for end in driver_ends if not end.bound()]
+            bound_driven = [end for end in driven_ends if end.bound()]
+            if bound_driven:
+                bound_names = ', '.join(end.described() for end in bound_driven)
+                source_names = ', '.join(end.described()
+                                         for end in unbound_sources)
+                raise NotInvertible(
+                    f'{record.described()}: {bound_names} '
+                    f'{"is" if len(bound_driven) == 1 else "are"} bound, so '
+                    f'the relation would have to be read backwards -- but a '
+                    f'relation naming several ends is read forward only, '
+                    f'whatever its law offers: recovering the sources from '
+                    f'the driven values would mean comparing or solving '
+                    f'values, which the framework does not do. '
+                    f'{source_names} '
+                    f'{"is" if len(unbound_sources) == 1 else "are"} still '
+                    f'unbound; bind '
+                    f'{"it" if len(unbound_sources) == 1 else "them"} '
+                    f'instead.')
+            source_names = ', '.join(end.described() for end in unbound_sources)
+            raise UnreachedCoordinate(
+                f'{record.described()}: waiting for {source_names}. '
+                f'{"It is" if len(unbound_sources) == 1 else "They are"} '
+                f'unbound when nothing changes any more, and no driven end '
+                f'is bound either, so the relation has no side to be read '
+                f'from. Bind '
+                f'{"it" if len(unbound_sources) == 1 else "them"} in '
+                f'simulate(), or state a relation that reaches '
+                f'{"it" if len(unbound_sources) == 1 else "them"}.')
         driver_bound = record.driver_end.bound()
         driven_bound = record.driven_end.bound()
         if driven_bound and not driver_bound:

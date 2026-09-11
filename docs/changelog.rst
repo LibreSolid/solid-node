@@ -8,6 +8,27 @@ Changelog
 Unreleased
 ----------
 
+**A relation may name several coordinates at each end.** A mechanism that
+reads several coordinates and moves several — a delta printer's rod, a
+Pascaline's pawl deflecting from two drums, a flexure stage's leg leaning
+two ways from two coordinates — states it in one sentence instead of a
+hand-written loop. A source group is written with ``&`` (free on every
+declaration that carries ``drives``, chaining flat); a driven group is
+written as a tuple or with ``&``::
+
+    (count & next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
+    (x & y & z).drives((rod.spin, rod.lean, rod.swing, rod.rise), law=delta_rod)
+
+The law's two arguments are shaped by the sentence — the realized OWNER
+of a side naming one coordinate, or the TUPLE of owners for a side naming
+several — never spread one per end. ``forward`` takes one positional
+argument per source and returns the driven value itself for one driven
+end, or a sequence of exactly as many values for several, checked by
+name at every application. Such a relation is read FORWARD ONLY, for the
+reason a broadcast is: recovering several sources from several driven
+values would mean comparing or solving values, which the framework does
+not do. See "Several coordinates at one end".
+
 **Relations resolve over the whole tree in one pass.** What one
 instance's own simulate phase cannot reach is deferred to the
 enumeration rather than refused, and resolved once every assembly's

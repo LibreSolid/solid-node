@@ -976,20 +976,29 @@ before the project is refactored around its absence.
   project is the fourth sighting of the declaration-site joint: two `Link`
   subclasses exist only to carry a joint, and `CameraArm` needs callables
   because its anchor's sign is the PARENT's handedness times its own.
-- **A relation reads one coordinate; the Pascaline's pawl reads two.**
+- **FIXED (cycle `multi-source-multi-target-laws`, ADR-100). A relation
+  reads one coordinate; the Pascaline's pawl reads two.**
   The pawl's swing is `PAWL_DEFLECTION * (climbing(count) + ratchet(next_count) * (1 - pushing(count)))`,
   bilinear in this digit's drum and the next one's. Wanted:
 
       (count, next_count).drives(sautoir.pawl.swing, law=pawl_deflection)
 
-  a relation with several sources, its law handed all of them. Today the
-  pawl is a declared joint bound from that expression in one line of
-  `Digit.simulate()`; the project proceeds. The same machine adds the
-  sharpest own-placed-origin sighting yet — `Pawl.swing`'s anchor must
-  re-evaluate the `profiles.hinge(...)` formula `Sautoir.render()`
-  already computed — and a fan-out over LIST-HELD children where each
-  copy gets a structurally different expression (the root's eight-way
-  carry binding), which no single per-copy law would state either.
+  a relation with several sources, its law handed all of them. **Stated
+  as `(count & next_count).drives(sautoir.pawl.swing, law=pawl_deflection)`**
+  — `&` rather than the tuple the finding wrote, because a tuple display
+  cannot be given a `.drives` (measured, `probe_today.py`); proved on a
+  read-only overlay at maximum deviation 0 over 27 poses
+  (`multi-source-multi-target-laws/evidence.md`, task 7.2). `next_count`'s
+  "built on its own" default moves from a local variable in
+  `Digit.simulate()` to the port itself, because a multi-source relation
+  has no partial application. Not yet applied in the project's own
+  repository — that is its own next stage B, in its own cycle. The same
+  machine adds the sharpest own-placed-origin sighting yet — `Pawl.swing`'s
+  anchor must re-evaluate the `profiles.hinge(...)` formula
+  `Sautoir.render()` already computed — and a fan-out over LIST-HELD
+  children where each copy gets a structurally different expression (the
+  root's eight-way carry binding), which no single per-copy law would
+  state either: BOTH stay open, untouched by this fix.
 - **FIXED (cycle `joint-composition-order`, ADR-093). Composition order,
   fourth sighting, and the minimal unblocker.** The
   Internal Cycloidal Actuator's two disks each want `orbit` (about the
@@ -1036,8 +1045,18 @@ before the project is refactored around its absence.
   one thing missing; the delta law itself (three drivers to each rod) is
   the multi-source relation already recorded. Deferred at stage A.
   The four joints on one rod now compose in declaration order (ADR-093);
-  the multi-source relation the delta law needs is a SEPARATE finding and
-  is still open, so kossel waits on that one.
+  the multi-source relation the delta law needs is a SEPARATE finding.
+
+  **FIXED (cycle `multi-source-multi-target-laws`, ADR-100).** The delta
+  law is now exactly two sentences —
+  `(x & y & z).drives((rods.spin, rods.lean, rods.swing, rods.rise), law=delta_rod)`
+  and `(x & y & z).drives(towers.height, law=delta_carriage_law)` — proved
+  on a read-only overlay against the project's own stage-A pose capture
+  at maximum deviation 0 over 11 poses, 378 leaves
+  (`multi-source-multi-target-laws/evidence.md`, task 7.1: "the sentence
+  the cycle exists for"). Not yet applied in the project's own
+  repository; kossel's stage B is its own cycle there, both composition
+  order and this now unblocked.
 - **A bare number cannot be added to a dimensioned token.** The
   Pascaline's slide span, `CHANNEL_Y[1] - CHANNEL_Y[0] - SLIDE_WIDTH - 2 * clearance`
   with `clearance` a declared `Length`, is refused at class definition
@@ -1086,6 +1105,21 @@ before the project is refactored around its absence.
   one level into `Axis`. The four flexure legs (two rotations each, on
   repeated bodies, from a multi-source law) stay hand-written as
   followers; the principal chains are statable and the project proceeds.
+
+  **FIXED (cycle `multi-source-multi-target-laws`, ADR-100).** The four
+  flexure legs' two rotations now come from one two-source,
+  two-driven-end law per repeat —
+  `(stage.slide_x & stage.slide_y).drives((driven_legs.radial, driven_legs.tangential), law=leg_lean)`,
+  and its `idle_legs` twin — proved on a read-only overlay at maximum
+  deviation 0 over 11 poses, 113 leaves
+  (`multi-source-multi-target-laws/evidence.md`, task 7.3). This is
+  itself a live sighting the cycle closes: the project's own migration
+  today (commit 99b0fcd5, `simulation/microscope/body/body.py`) had
+  already reached this exact shape by reading `stage.slide_y.value`
+  directly off the driving node inside a ONE-source law's closure,
+  because the framework had no other way to state it yet — the overlay
+  restates it with the framework's own two-source relation instead, at
+  the same tolerance. Not yet applied in the project's own repository.
 - **FIXED for the composition half (cycle `joint-composition-order`,
   ADR-093). Composition order, sixth sighting, and a joint under a
   conditional placement: the InMoov hand.** Eight phalanx bodies (middle phalanges,
@@ -1341,12 +1375,27 @@ suites green with no test edited. Two findings, neither blocking.
   pinion did escape (`wrist.drives(drive.pinion.spin, offset=...)`)
   because `WristDrive` is built in the pinion's frame. `Hand.simulate()`'s
   ten `connect()` calls were carried on the `.repeat()` fan-out finding;
-  **moved to the tuple-source cycle instead** now that fan-out is FIXED
+  moved to the tuple-source cycle instead now that fan-out is FIXED
   (cycle `repeat-fan-out`, ADR-096), because a broadcast has one SOURCE
   and `Hand` drives each of its four repeated fingers from a DIFFERENT
-  driver. That is a per-copy source, not a per-copy law, and closes with
-  a future cycle's tuple source (`(driver_a, driver_b, ...).drives(...)`),
-  the law picking by `finger.index`.
+  driver. That is a per-copy source, not a per-copy law.
+
+  **FIXED as a SELECTOR (cycle `multi-source-multi-target-laws`, ADR-100),
+  not as the cleaner sentence.** The ten `connect()` calls become
+  `(thumb & index & middle & ring & little).drives(fingers.drive, law=by_finger)`,
+  its twin over `drives = Drive().repeat(5)`, and one one-to-one relation
+  for `thumb_finger.drive` (which no repeat reaches) — proved on a
+  read-only overlay at maximum deviation 0 over 15 poses, 53 leaves
+  (`multi-source-multi-target-laws/evidence.md`, task 7.4). The law is a
+  SELECTOR, not a mechanism: all five motor values are handed to every
+  copy so each may pick its own one by index, because the cleaner
+  sentence — a per-copy SOURCE, `index.drives(fingers[1].drive)`, naming
+  the copy by its own position — is INDEXING A REPEAT IN A CLASS BODY,
+  which `repeat-fan-out` named as a non-goal and this cycle does not add
+  either. **Residual want, recorded here rather than closed:** indexing a
+  repeat in a class body, so InMoov's sighting can close as the sentence
+  it actually wants instead of a selector. Not yet applied in the
+  project's own repository.
 
 # hexapod_spiderbot_model stage B (2026-09-10, first project on Free)
 

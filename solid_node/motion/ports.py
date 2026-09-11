@@ -161,6 +161,11 @@ class Coordinate:
 
         return relate(self, other, ratio, offset, law)
 
+    def __and__(self, other):
+        from solid_node.motion.couplings import group_with
+
+        return group_with(self, other)
+
     def _ref(self):
         from solid_node.motion.couplings import coordinate_ref
 

@@ -841,6 +841,953 @@ class FanOutTest(BaseNodeTest):
 
 
 ##############################################
+# 1.3c Several coordinates at one end (cycle: multi-source-multi-target-laws)
+
+class GroupRod(Solid2Node):
+    """Four joints in fixed order -- three revolutes then a prismatic --
+    the delta printer's rod, whose four freedoms come from one law of
+    three sources."""
+
+    spin = Revolute(axis=(0, 0, 1), unit='deg')
+    lean = Revolute(axis=(1, 0, 0), unit='deg')
+    swing = Revolute(axis=(0, 1, 0), unit='deg')
+    rise = Prismatic(axis=(0, 0, 1), unit='mm')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class GroupLeg(Solid2Node):
+    """Two joints -- OpenFlexure's leg, whose lean and tilt come from one
+    law of two sources."""
+
+    lean = Revolute(axis=(1, 0, 0), unit='deg')
+    tilt = Revolute(axis=(0, 1, 0), unit='deg')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class GroupMachine(AssemblyNode):
+    """Three drivers, a broadcast of six rods and one plain rod: the
+    fixture most tests below state their own relation on."""
+
+    x = Driver(default=0.0, unit='mm')
+    y = Driver(default=0.0, unit='mm')
+    z = Driver(default=0.0, unit='mm')
+    rods = GroupRod().repeat(6)
+    rod = GroupRod()
+
+
+def rod_pose(rod):
+    return (rod.spin.value, rod.lean.value, rod.swing.value, rod.rise.value)
+
+
+class GroupStatementTest(BaseNodeTest):
+    """1.2, 1.3, 1.4: `&` and the tuple as class-body statements."""
+
+    def test_a_group_of_sources_drives_one_coordinate(self):
+        calls = []
+
+        def law(sources, driven):
+            calls.append((sources, driven))
+            return ForwardOnly(lambda x, y: x + y)
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            child = GroupRod()
+
+            fan = (a & b).drives(child.spin, law=law)
+
+            def simulate(self):
+                self.a = 2.0
+                self.b = 3.0
+
+        root = Root()
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], ((root, root), root.child))
+        record = Root.fan.__get__(root)
+        self.assertEqual(len(record.driver_ends), 2)
+        self.assertEqual(len(record.driven_ends), 1)
+
+        root.render()
+        self.assertEqual(root.child.spin.value, 5.0)
+
+    def test_a_tuple_of_driven_ends_and_an_ampersand_state_one_relation(self):
+        def law_tuple(driver, driven):
+            return ForwardOnly(lambda v: (v, 2 * v))
+
+        def law_amp(driver, driven):
+            return ForwardOnly(lambda v: (v, 2 * v))
+
+        class TupleRoot(AssemblyNode):
+            a = SignalPort()
+            child = GroupLeg()
+
+            fan = a.drives((child.lean, child.tilt), law=law_tuple)
+
+            def simulate(self):
+                self.a = 3.0
+
+        class AmpRoot(AssemblyNode):
+            a = SignalPort()
+            child = GroupLeg()
+
+            fan = a.drives(child.lean & child.tilt, law=law_amp)
+
+            def simulate(self):
+                self.a = 3.0
+
+        for RootClass in (TupleRoot, AmpRoot):
+            with self.subTest(RootClass=RootClass.__name__):
+                relations = declared_relations(RootClass)
+                self.assertEqual(len(relations), 1)
+                root = RootClass()
+                record = RootClass.fan.__get__(root)
+                self.assertEqual(len(record.driver_ends), 1)
+                self.assertEqual(len(record.driven_ends), 2)
+                root.render()
+                self.assertEqual(root.child.lean.value, 3.0)
+                self.assertEqual(root.child.tilt.value, 6.0)
+
+    def test_ampersand_chains_flat_not_nested(self):
+        seen = []
+
+        def law(sources, driven):
+            seen.append(sources)
+            return ForwardOnly(lambda *values: sum(values))
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            fan = (a & b & c).drives(child.spin, law=law)
+
+            def simulate(self):
+                self.a = 1.0
+                self.b = 2.0
+                self.c = 3.0
+
+        root = Root()
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0], (root, root, root))
+        record = Root.fan.__get__(root)
+        self.assertEqual(len(record.driver_ends), 3)
+
+        root.render()
+        self.assertEqual(root.child.spin.value, 6.0)
+
+
+class GroupRefusalTest(BaseNodeTest):
+    """1.5, 1.6: every group refusal, and the existing per-member
+    refusals reached inside a group."""
+
+    def _class_body(self, body):
+        with self.assertRaises(TypeError) as raised:
+            body()
+        return str(raised.exception)
+
+    def test_a_repeated_source_inside_a_group_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                earth = SignalPort()
+                rods = GroupRod().repeat(3)
+
+                (rods.spin & earth).drives(earth, law=lambda *a: (
+                    ForwardOnly(lambda *v: v[0])))
+        message = self._class_body(body)
+        self.assertIn('rods', message)
+        self.assertIn('GroupRod', message)
+
+    def test_a_driven_group_mixing_a_broadcast_with_a_plain_end(self):
+        def body():
+            class Bad(AssemblyNode):
+                x = SignalPort()
+                rods = GroupRod().repeat(3)
+                lid = SignalPort()
+
+                x.drives((rods.spin, lid), law=lambda *a: (
+                    ForwardOnly(lambda v: (v, v))))
+        message = self._class_body(body)
+        self.assertIn('repeat', message)
+        self.assertIn('rods', message)
+
+    def test_a_driven_group_over_two_different_repeats_is_refused(self):
+        def body():
+            class Side(AssemblyNode):
+                beads = GroupLeg().repeat(2)
+
+            class Bad(AssemblyNode):
+                x = SignalPort()
+                left = Side()
+                right = Side()
+
+                x.drives((left.beads.lean, right.beads.lean), law=lambda *a: (
+                    ForwardOnly(lambda v: (v, v))))
+        message = self._class_body(body)
+        self.assertIn('repeat', message)
+        self.assertIn('beads', message)
+
+    def test_ratio_or_offset_with_a_group_is_refused(self):
+        def ratio_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                child = GroupRod()
+
+                (a & b).drives(child.spin, ratio=2)
+
+        def offset_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                child = GroupRod()
+
+                (a & b).drives(child.spin, offset=2)
+
+        for form in (ratio_form, offset_form):
+            with self.subTest(form=form.__name__):
+                message = self._class_body(form)
+                self.assertIn('one value to one value', message)
+
+    def test_a_group_with_no_law_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                child = GroupRod()
+
+                (a & b).drives(child.spin)
+        message = self._class_body(body)
+        self.assertIn('law=', message)
+        self.assertIn('one value to one value', message)
+
+    def test_an_empty_group_and_a_group_of_one_are_refused(self):
+        def empty_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                child = GroupRod()
+
+                a.drives((), law=lambda *x: ForwardOnly(lambda v: v))
+
+        def one_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                child = GroupRod()
+
+                a.drives((child.spin,), law=lambda *x: ForwardOnly(lambda v: v))
+
+        for form in (empty_form, one_form):
+            with self.subTest(form=form.__name__):
+                message = self._class_body(form)
+                self.assertIn('two coordinates or more', message)
+                self.assertIn('one by one', message)
+
+    def test_a_nested_group_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                c = SignalPort()
+                child = GroupRod()
+
+                a.drives(((child.spin, child.lean), c),
+                        law=lambda *x: ForwardOnly(lambda *v: v))
+        message = self._class_body(body)
+        self.assertIn('two coordinates or more', message)
+        self.assertIn('one by one', message)
+
+    def test_a_repeated_coordinate_in_one_group_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                child = GroupRod()
+
+                (a & a).drives(child.spin, law=lambda *x: (
+                    ForwardOnly(lambda *v: v[0])))
+        message = self._class_body(body)
+        self.assertIn('once', message)
+
+    def test_a_coordinate_on_both_sides_of_a_group_relation_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                child = GroupRod()
+
+                (a & b).drives((b, child.spin), law=lambda *x: (
+                    ForwardOnly(lambda *v: v)))
+        message = self._class_body(body)
+        self.assertIn('source', message)
+        self.assertIn('driven', message)
+        self.assertIn('not both', message)
+
+    def test_a_group_as_a_term_of_a_formula_is_refused(self):
+        def body():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                c = SignalPort()
+
+                bad = (a & b) - c
+        message = self._class_body(body)
+        self.assertIn('one value per term', message)
+
+    def test_ampersand_over_a_non_coordinate_is_refused(self):
+        def number_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+
+                bad = a & 3
+
+        def text_form():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+
+                bad = a & 'not a coordinate'
+
+        for form in (number_form, text_form):
+            with self.subTest(form=form.__name__):
+                message = self._class_body(form)
+                self.assertIn('coordinate', message)
+
+    def test_the_missing_parentheses_are_named(self):
+        def body():
+            class Bad(AssemblyNode):
+                count = SignalPort()
+                next_count = SignalPort()
+                pawl = GroupRod()
+
+                count & next_count.drives(pawl.spin, law=lambda *x: (
+                    ForwardOnly(lambda v: v)))
+        message = self._class_body(body)
+        self.assertIn('parentheses', message)
+        self.assertIn('next_count', message)
+
+    def test_existing_per_member_refusals_are_reached_inside_a_group(self):
+        def driver_as_driven():
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                power = Driver(default=0.0, unit='deg')
+                child = GroupRod()
+
+                (a & b).drives((child.spin, power), law=lambda *x: (
+                    ForwardOnly(lambda *v: v)))
+
+        def two_joint_node():
+            class TwoJoints(Solid2Node):
+                one = Revolute(axis=(0, 0, 1), unit='deg')
+                two = Revolute(axis=(0, 1, 0), unit='deg')
+
+                def render(self):
+                    return cube(1, center=True)
+
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                weird = TwoJoints()
+
+                (a & b).drives(weird, law=lambda *x: (
+                    ForwardOnly(lambda *v: v[0])))
+
+        def multi_coordinate_joint():
+            class Floater(Solid2Node):
+                pose = Free(angle_unit='deg', length_unit='mm')
+
+                def render(self):
+                    return cube(1, center=True)
+
+            class Bad(AssemblyNode):
+                a = SignalPort()
+                b = SignalPort()
+                floater = Floater()
+
+                (a & b).drives(floater.pose, law=lambda *x: (
+                    ForwardOnly(lambda *v: v[0])))
+
+        message = self._class_body(driver_as_driven)
+        self.assertIn('driver', message)
+        self.assertIn('bound snapshot', message)
+
+        message = self._class_body(two_joint_node)
+        self.assertIn('TwoJoints', message)
+        self.assertIn('one', message)
+
+        message = self._class_body(multi_coordinate_joint)
+        for expected in ('pose', 'roll', 'pitch', 'yaw'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+
+##############################################
+# 2. Red first: the law protocol
+
+class LawShapeTest(BaseNodeTest):
+
+    def test_the_law_is_handed_two_tuples_once_at_realization(self):
+        calls = []
+        simulated = []
+
+        def law(*args):
+            calls.append(args)
+            return ForwardOnly(lambda *values: values)
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            rods = GroupRod().repeat(1)
+
+            fan = (a & b & c).drives(
+                (rods.spin, rods.lean, rods.swing, rods.rise), law=law)
+
+            def simulate(self):
+                simulated.append('simulate ran')
+                self.a = 1.0
+                self.b = 2.0
+                self.c = 3.0
+
+        root = Root()
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(simulated)  # the call happened BEFORE simulate()
+        sources, driven = calls[0]
+        self.assertEqual(sources, (root, root, root))
+        self.assertEqual(len(driven), 4)
+        self.assertTrue(all(node is root.rods[0] for node in driven))
+
+    def test_a_one_to_one_law_still_receives_two_nodes(self):
+        calls = []
+
+        def law(driver, driven):
+            calls.append((driver, driven))
+            return ForwardOnly(lambda v: v)
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            child = GroupRod()
+
+            a.drives(child.spin, law=law)
+
+        root = Root()
+        self.assertEqual(calls, [(root, root.child)])
+        self.assertNotIsInstance(calls[0][0], tuple)
+        self.assertNotIsInstance(calls[0][1], tuple)
+
+    def test_mixed_arities_hand_a_tuple_and_a_node_each_way(self):
+        seen = {}
+
+        def law_n_to_1(sources, driven):
+            seen['n_to_1'] = (sources, driven)
+            return ForwardOnly(lambda *v: sum(v))
+
+        def law_1_to_m(driver, driven):
+            seen['1_to_m'] = (driver, driven)
+            return ForwardOnly(lambda v: (v, v))
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            rod1 = GroupRod()
+            rod2 = GroupLeg()
+
+            (a & b & c).drives(rod1.spin, law=law_n_to_1)
+            a.drives((rod2.lean, rod2.tilt), law=law_1_to_m)
+
+        root = Root()
+        n_to_1_sources, n_to_1_driven = seen['n_to_1']
+        self.assertEqual(n_to_1_sources, (root, root, root))
+        self.assertNotIsInstance(n_to_1_driven, tuple)
+
+        one_driver, m_driven = seen['1_to_m']
+        self.assertNotIsInstance(one_driver, tuple)
+        self.assertEqual(len(m_driven), 2)
+
+    def test_forward_spreads_sources_and_returns_in_written_order(self):
+        def law(sources, driven):
+            return ForwardOnly(lambda x, y, z: (x + y, y + z, z + x, x * y * z))
+
+        class Root(AssemblyNode):
+            x = SignalPort()
+            y = SignalPort()
+            z = SignalPort()
+            rod = GroupRod()
+
+            (x & y & z).drives(
+                (rod.spin, rod.lean, rod.swing, rod.rise), law=law)
+
+            def simulate(self):
+                self.x = 2.0
+                self.y = 3.0
+                self.z = 5.0
+
+        for kind in (tuple, list):
+            with self.subTest(kind=kind.__name__):
+                root = Root()
+                root.render()
+                self.assertEqual(root.rod.spin.value, 5.0)
+                self.assertEqual(root.rod.lean.value, 8.0)
+                self.assertEqual(root.rod.swing.value, 7.0)
+                self.assertEqual(root.rod.rise.value, 30.0)
+
+    def test_a_wrong_return_shape_is_refused_by_name(self):
+        def make_root(law):
+            class Root(AssemblyNode):
+                x = SignalPort()
+                y = SignalPort()
+                z = SignalPort()
+                rod = GroupRod()
+
+                (x & y & z).drives(
+                    (rod.spin, rod.lean, rod.swing, rod.rise), law=law)
+
+                def simulate(self):
+                    self.x = 1.0
+                    self.y = 2.0
+                    self.z = 3.0
+            return Root
+
+        too_few = make_root(lambda *a: ForwardOnly(lambda *v: (1.0, 2.0, 3.0)))
+        too_many = make_root(
+            lambda *a: ForwardOnly(lambda *v: (1.0, 2.0, 3.0, 4.0, 5.0)))
+        bare_number = make_root(lambda *a: ForwardOnly(lambda *v: 4.0))
+        as_text = make_root(lambda *a: ForwardOnly(lambda *v: 'abcd'))
+
+        class Unsized:
+            pass
+
+        no_length = make_root(lambda *a: ForwardOnly(lambda *v: Unsized()))
+
+        for RootClass in (too_few, too_many, bare_number, as_text, no_length):
+            with self.subTest(RootClass=RootClass.__name__):
+                root = RootClass()
+                with self.assertRaises(CouplingError) as raised:
+                    root.render()
+                message = str(raised.exception)
+                self.assertIn('4', message)
+                for coordinate in ('spin', 'lean', 'swing', 'rise'):
+                    with self.subTest(coordinate=coordinate):
+                        self.assertIn(coordinate, message)
+                self.assertIsNone(root.rod.spin.value)
+                self.assertIsNone(root.rod.lean.value)
+                self.assertIsNone(root.rod.swing.value)
+                self.assertIsNone(root.rod.rise.value)
+
+    def test_a_single_driven_end_returns_a_bare_value_symbolic_too(self):
+        class Root(AssemblyNode):
+            x = SignalPort()
+            y = SignalPort()
+            child = GroupRod()
+
+            (x & y).drives(child.spin, law=lambda *a: (
+                ForwardOnly(lambda p, q: p + q)))
+
+            def simulate(self):
+                self.x = self.time
+                self.y = 1.0
+
+        root = Root()
+        document, _ids = symbolic_parts(root)
+        angle = rotations(document, 'child')
+        self.assertTrue(angle)
+
+    def test_no_new_error_kind(self):
+        """A wrong return shape is a `CouplingError`, and the THREE named
+        refusals ("Three refusals keep a wrong drive network from
+        becoming a pose") stay three; `PrematureRead` is a pre-existing
+        fourth `CouplingError`, from a different requirement
+        (whole-tree-fixpoint), untouched by this cycle."""
+        from solid_node.motion import couplings as couplings_module
+
+        error_names = {
+            name for name in couplings_module.__all__
+            if isinstance(getattr(couplings_module, name), type)
+            and issubclass(getattr(couplings_module, name), CouplingError)
+            and getattr(couplings_module, name) is not CouplingError
+        }
+        self.assertEqual(error_names,
+                         {'DoublyBound', 'NotInvertible', 'UnreachedCoordinate',
+                          'PrematureRead'})
+
+
+##############################################
+# 3. Red first: the solver
+
+class GroupSolverTest(BaseNodeTest):
+
+    def test_forward_once_when_the_last_source_is_bound(self):
+        calls = []
+
+        def law(sources, driven):
+            return ForwardOnly(lambda x, y, z: (calls.append('bound'), x + y + z)[1])
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            (a & b & c).drives(child.spin, law=law)
+            b.drives(c)
+
+            def simulate(self):
+                self.a = 1.0
+                self.b = 2.0
+
+        root = Root()
+        root.render()
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(root.child.spin.value, 5.0)
+
+    def test_a_relation_of_several_ends_defers_to_the_whole_tree_fixpoint(self):
+        """task 3.2: the third source is bound by a DESCENDANT's own
+        relation, which only resolves in the descendant's OWN phase --
+        after the root's own attempt already ran and found it unbound.
+        The root's group relation must therefore be carried into the
+        enumeration's fixpoint and solved there."""
+        class Descendant(AssemblyNode):
+            supply = SignalPort()
+            c = SignalPort()
+
+            supply.drives(c)
+
+            def simulate(self):
+                self.supply = 3.0
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            child = GroupRod()
+            descendant = Descendant()
+
+            (a & b & descendant.c).drives(child.spin, law=lambda *x: (
+                ForwardOnly(lambda p, q, r: p + q + r)))
+
+            def simulate(self):
+                self.a = 1.0
+                self.b = 2.0
+
+        root = Root()
+        root.render()
+
+        self.assertEqual(root.child.spin.value, 6.0)
+        self.assertTrue(motions(root.child))
+
+        root.render()
+        self.assertEqual(root.child.spin.value, 6.0)
+
+    def test_a_group_relation_is_never_inverted(self):
+        class InvertibleLaw:
+            invertible = True
+
+            def forward(self, x, y):
+                return x + y
+
+            def inverse(self, value):
+                return (value / 2, value / 2)
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            child = GroupRod()
+
+            (a & b).drives(child.spin, law=lambda *x: InvertibleLaw())
+
+            def simulate(self):
+                self.child.spin = 9.0
+
+        root = Root()
+        with self.assertRaises(NotInvertible) as raised:
+            root.render()
+
+        message = str(raised.exception)
+        self.assertIn('spin', message)
+        self.assertIn('forward only', message)
+
+    def test_the_unreached_message_names_the_unbound_source(self):
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            (a & b & c).drives(child.spin, law=lambda *x: (
+                ForwardOnly(lambda p, q, r: p + q + r)))
+
+            def simulate(self):
+                self.a = 1.0
+                self.b = 2.0
+
+        root = Root()
+        with self.assertRaises(UnreachedCoordinate) as raised:
+            root.render()
+
+        message = str(raised.exception)
+        # The relation is named as written -- (a, b, c) drives child.spin --
+        # but the "waiting for" clause, which is what the requirement means
+        # by "naming exactly the unbound sources", names ONLY the one
+        # still-unbound node-qualified coordinate: c, not a or b.
+        self.assertIn('waiting for', message)
+        waiting_for = message.split('waiting for', 1)[1]
+        self.assertIn('.c', waiting_for)
+        self.assertNotIn('Root (Root).a', waiting_for)
+        self.assertNotIn('Root (Root).b', waiting_for)
+
+    def test_claim_before_bind_leaves_the_other_three_untouched(self):
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            (a & b & c).drives(
+                (child.spin, child.lean, child.swing, child.rise),
+                law=lambda *x: ForwardOnly(lambda p, q, r: (p, q, r, p + q + r)))
+
+            def simulate(self):
+                self.a = 1.0
+                self.b = 2.0
+                self.c = 3.0
+                self.child.lean = 99.0
+
+        root = Root()
+        with self.assertRaises(DoublyBound) as raised:
+            root.render()
+
+        message = str(raised.exception)
+        self.assertIn('lean', message)
+        self.assertIsNone(root.child.spin.value)
+        self.assertIsNone(root.child.swing.value)
+        self.assertIsNone(root.child.rise.value)
+
+    def test_the_second_run_re_solves(self):
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            (a & b & c).drives(
+                (child.spin, child.lean, child.swing, child.rise),
+                law=lambda *x: ForwardOnly(lambda p, q, r: (p, q, r, p + q + r)))
+
+            def simulate(self):
+                self.a = self._value
+                self.b = self._value * 2
+                self.c = self._value * 3
+
+        for value in (1.0, 2.0, 3.0):
+            root = Root()
+            root._value = value
+            root.render()
+            self.assertEqual(rod_pose(root.child)[:3],
+                             (value, value * 2, value * 3))
+
+    def test_symbolic_values_pass_through_a_group(self):
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            child = GroupRod()
+
+            (a & b & c).drives(
+                (child.spin, child.lean, child.swing, child.rise),
+                law=lambda *x: ForwardOnly(lambda p, q, r: (p, q, r, p + q + r)))
+
+            def simulate(self):
+                self.a = self.time
+                self.b = 2.0
+                self.c = 3.0
+
+        root = Root()
+        document, ids = symbolic_parts(root)
+        angles = rotations(document, 'child')
+        self.assertTrue(any('$t' in str(a) or 'time' in str(a).lower()
+                            for a in angles) or ids)
+
+        root.set_state(time=4.0)
+        self.assertEqual(root.child.spin.value, 4.0)
+
+    def test_order_is_unchanged_by_the_new_record_shape(self):
+        order = []
+
+        def watching(name):
+            def law(*args):
+                order.append(name)
+                return ForwardOnly(lambda *v: v[0] if len(v) == 1 else v)
+            return law
+
+        class Root(AssemblyNode):
+            a = SignalPort()
+            b = SignalPort()
+            c = SignalPort()
+            d = SignalPort()
+            child = GroupRod()
+
+            a.drives(b, law=watching('A'))
+            (b & c).drives(child.spin, law=watching('B'))
+            c.drives(d, law=watching('C'))
+
+        Root()
+        self.assertEqual(order, ['A', 'B', 'C'])
+
+
+##############################################
+# 4. Red first: several ends over a repeat
+
+class GroupFanOutTest(BaseNodeTest):
+
+    def test_six_copies_four_ends_six_law_calls(self):
+        calls = []
+
+        def delta_rod(sources, rods):
+            # `rods` is the tuple of the FOUR driven ends' owners --
+            # every one of them the SAME copy, so any of the four names
+            # its index.
+            index = rods[0].index
+            calls.append(index)
+            return ForwardOnly(
+                lambda x, y, z: (x + index, y + index, z + index, index * 1.0))
+
+        class Delta(GroupMachine):
+            (GroupMachine.x & GroupMachine.y & GroupMachine.z).drives(
+                (GroupMachine.rods.spin, GroupMachine.rods.lean,
+                 GroupMachine.rods.swing, GroupMachine.rods.rise),
+                law=delta_rod)
+
+        delta = Delta()
+        self.assertEqual(calls, list(range(6)))
+
+        delta.set_state(x=1.0, y=2.0, z=3.0)
+        for index, rod in enumerate(delta.rods):
+            with self.subTest(index=index):
+                self.assertEqual(rod_pose(rod),
+                                 (1.0 + index, 2.0 + index, 3.0 + index,
+                                  float(index)))
+
+        delta.render()
+        # The bodies are placed, not only the slots: two different copies
+        # carry different operations once placed.
+        self.assertNotEqual(delta.rods[0].operations, delta.rods[1].operations)
+
+    def test_the_named_relation_reads_as_six_records_in_copy_order(self):
+        class Delta(AssemblyNode):
+            x = Driver(default=0.0, unit='mm')
+            y = Driver(default=0.0, unit='mm')
+            z = Driver(default=0.0, unit='mm')
+            rods = GroupRod().repeat(6)
+
+            fan = (x & y & z).drives(
+                (rods.spin, rods.lean, rods.swing, rods.rise),
+                law=lambda sources, driven: ForwardOnly(
+                    lambda x, y, z: (x, y, z, driven[0].index * 1.0)))
+
+        delta = Delta()
+        delta.set_state(x=1.0, y=2.0, z=3.0)
+
+        records = Delta.fan.__get__(delta)
+        self.assertEqual(len(records), 6)
+        for index, record in enumerate(records):
+            with self.subTest(index=index):
+                self.assertEqual(record.direction, 'forward')
+                self.assertIn('rods', record.described())
+
+    def test_a_doubly_bound_copy_is_refused_naming_that_copy_alone(self):
+        class Delta(AssemblyNode):
+            x = Driver(default=0.0, unit='mm')
+            y = Driver(default=0.0, unit='mm')
+            z = Driver(default=0.0, unit='mm')
+            rods = GroupRod().repeat(3)
+
+            (x & y & z).drives(
+                (rods.spin, rods.lean, rods.swing, rods.rise),
+                law=lambda sources, driven: ForwardOnly(
+                    lambda x, y, z: (x, y, z, 0.0)))
+
+            def simulate(self):
+                self.rods[1].lean = 99.0
+
+        delta = Delta()
+        with self.assertRaises(DoublyBound) as raised:
+            delta.set_state(x=1.0, y=2.0, z=3.0)
+
+        message = str(raised.exception)
+        self.assertIn('rods-1', message)
+
+    def test_several_sources_one_driven_end_over_a_repeat(self):
+        class Towers(AssemblyNode):
+            x = Driver(default=0.0, unit='mm')
+            y = Driver(default=0.0, unit='mm')
+            z = Driver(default=0.0, unit='mm')
+            towers = GroupLeg().repeat(3)
+
+            (x & y & z).drives(
+                towers.lean,
+                law=lambda sources, tower: ForwardOnly(
+                    lambda x, y, z: x + y + z + tower.index))
+
+        stand = Towers()
+        stand.set_state(x=1.0, y=2.0, z=3.0)
+
+        for index, tower in enumerate(stand.towers):
+            with self.subTest(index=index):
+                self.assertEqual(tower.lean.value, 6.0 + index)
+
+    def test_a_zero_count_repeat_with_several_driven_ends_is_zero_records(self):
+        class Delta(AssemblyNode):
+            x = Driver(default=0.0, unit='mm')
+            y = Driver(default=0.0, unit='mm')
+            z = Driver(default=0.0, unit='mm')
+            count = Count(0, min=0)
+            rods = GroupRod().repeat(count)
+
+            fan = (x & y & z).drives(
+                (rods.spin, rods.lean, rods.swing, rods.rise),
+                law=lambda sources, driven: ForwardOnly(
+                    lambda x, y, z: (x, y, z, 0.0)))
+
+        delta = Delta()
+        delta.set_state(x=1.0, y=2.0, z=3.0)
+
+        self.assertEqual(Delta.fan.__get__(delta), ())
+        self.assertEqual(delta.rods, [])
+
+    def test_copy_is_the_node_the_repeat_realized_not_a_further_descendant(self):
+        class Femur(Solid2Node):
+            lift = Prismatic(axis=(0, 0, 1), unit='mm')
+
+            def render(self):
+                return cube(1, center=True)
+
+        class SplitLeg(AssemblyNode):
+            femur = Femur()
+            tibia = Femur()
+
+        class Hexapod(AssemblyNode):
+            drive = Driver(default=0.0, unit='mm')
+            other = Driver(default=0.0, unit='mm')
+            legs = SplitLeg().repeat(4)
+
+            fan = (drive & other).drives(
+                (legs.femur.lift, legs.tibia.lift),
+                law=lambda sources, driven: ForwardOnly(lambda a, b: (a, b)))
+
+        hexapod = Hexapod()
+        records = Hexapod.fan.__get__(hexapod)
+        self.assertEqual(len(records), 4)
+        for index, (record, leg) in enumerate(zip(records, hexapod.legs)):
+            with self.subTest(index=index):
+                self.assertIs(record.copy, leg)
+                self.assertIsNot(record.copy, leg.femur)
+
+
+##############################################
 # 1.4 Affine
 
 class AffineTest(TestCase):

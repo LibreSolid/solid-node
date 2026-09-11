@@ -850,3 +850,73 @@ deferred until the descendants had solved.
 - **WHEN** the same relation has its DRIVER end bound instead
 - **THEN** the driven end is bound through the law's forward face and
   nothing is refused
+
+### Requirement: Relations defer to a whole-tree fixpoint
+
+The deferral set widens to cover a relation naming several coordinates
+at either end: the system SHALL defer a relation record whose sources
+are not ALL bound, whatever its driven ends hold, in the position of its
+declaration and in tree order — the enumeration's own propagation may go
+on to bind a missing source from anywhere else in the tree, and only the
+end of the whole pass refuses it. This restates, rather than replaces,
+the existing bullet "a relation record with neither end bound" for the
+n = m = 1 case, where "not all bound" and "neither end bound" agree
+because there is only one source to be unbound.
+
+#### Scenario: A relation of several sources defers until the last one binds
+
+- **WHEN** a relation of three sources has two of them bound when its own
+  instance's phase ends, and a descendant's relation binds the third
+  later in the same enumeration
+- **THEN** the record is DEFERRED rather than refused, and the
+  enumeration's own propagation applies it once the third source binds,
+  under the phase of the assembly that stated it
+
+#### Scenario: A chain stated one level down solves
+
+- **WHEN** a movement states `power.drives(train.centre)` while the
+  train's own class states `centre.drives(third)` and
+  `third.drives(escape)`, and the movement's `simulate()` binds
+  `train.escape.turn`
+- **THEN** the train's three relations and the movement's one all solve
+  from that one binding, every arbor is placed, and nothing is refused
+
+#### Scenario: An ancestor sources from a coordinate a descendant solves
+
+- **WHEN** a root states
+  `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=…)`
+  and `Axis`'s own relation is what binds `column.travel` from the step
+  count its `simulate()` binds
+- **THEN** the root's relation is deferred, solved once the axis has
+  solved, and the strut is placed at every pose
+
+#### Scenario: A deferred relation moves a body the walk has not read yet
+
+- **WHEN** the root of a tree with two subtrees states a relation whose
+  driven end is in the FIRST subtree and whose source a relation of the
+  SECOND subtree solves, and the tree is assembled
+- **THEN** the body in the first subtree carries the deferred relation's
+  motion in the geometry the walk composed for it
+
+#### Scenario: A wiring whose source a descendant solves binds
+
+- **WHEN** an assembly wires its own coordinate down into a child and
+  that coordinate is bound by a relation of a DESCENDANT
+- **THEN** the wiring is deferred and applied in the enumeration's
+  fixpoint, and the child holds the value rather than the wiring
+  refusing an unbound source
+
+#### Scenario: A contradiction is refused where it is stated
+
+- **WHEN** an assembly's `simulate()` binds a child's joint that a
+  relation of the same class also drives
+- **THEN** the doubly-bound refusal is raised in that assembly's own
+  phase, naming that class, and not deferred to the end of the
+  enumeration
+
+#### Scenario: Each phase runs once per enumeration
+
+- **WHEN** a three-level tree is assembled
+- **THEN** each assembly's `simulate()` ran exactly once, the
+  enumeration's fixpoint ran once after all of them, and the walker's
+  descent re-ran no phase

@@ -280,6 +280,39 @@ returns takes the source values spread and returns one value per target.
 Validation project: kossel stage B (needs cycles 1 and 5, and 2 for
 the rods' anchors); the Pascaline's pawl; OpenFlexure's four legs.
 
+**Refined by the change `multi-source-multi-target-laws` (ADR-100,
+2026-09-11) — this note is the provisional record, that change is the
+authority from here on.**
+
+- **Spelling.** `(count, next_count).drives(...)` measured impossible
+  (`tuple` has no `.drives` and cannot be given one): the source side is
+  spelled `(count & next_count).drives(...)`, not a bare tuple. The
+  driven side keeps the tuple verbatim, and also accepts `&`.
+- **The law's shape** is exactly as ratified above — a node for one
+  coordinate, a tuple of owners for several, `forward` spreading sources
+  and returning one value per target — with the return checked by name
+  at every application (a law returning the wrong count of values bound
+  the tuple into one slot, unrefused, before this change).
+- **OpenFlexure's source, corrected.** This section's own sentence for
+  OpenFlexure was never written; the sighting in `warts.md` ("two lighter
+  sightings", (b)) names `z_motor.drives((legs.tilt, legs.lean), law=flexure)`.
+  The measured project cannot source it from `z_motor` — a leg's lean is
+  `k.leg_lean(dx, dy, angle)` over the STAGE's two coordinates
+  (`stage.slide_x`, `stage.slide_y`), and `z_motor` is the focus axis. The
+  sentence is
+  `(stage.slide_x & stage.slide_y).drives((legs.lean, legs.tilt), law=leg_lean)`,
+  stated in `MainBody` where both stage coordinates are reachable; the
+  shape (two rotations per leg from a multi-source law over repeated
+  bodies) is exactly as ratified, only the source is corrected.
+- **kossel's fourth sighting.** Three sightings were ratified above (the
+  pawl, the rod's four joints, the four legs); kossel has a FOURTH:
+  `(x & y & z).drives(towers.height, law=delta_carriage_law)` — several
+  sources, ONE driven end, over `.repeat(3)`. It costs nothing extra
+  beyond the chosen design and is the plainest test of n > 1, m = 1.
+
+All four sentences proved on read-only overlays at maximum deviation 0;
+see `openspec/changes/multi-source-multi-target-laws/evidence.md`.
+
 ## 4. Folded, not cycles
 
 - **Bare number + dimensioned token.** Keep the refusal — a bare number

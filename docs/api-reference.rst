@@ -284,7 +284,10 @@ The relation between two coordinates, importable from
 ``solid_node.motion.couplings``. ``drives`` itself needs no import — it
 is on every declaration that can name a coordinate — and this module
 holds the law it carries, the errors it refuses with, and the
-enumerator. See :doc:`Driving a machine <driving>`.
+enumerator. An end may be several coordinates, joined with ``&`` (also
+needing no import, and free on every declaration that carries
+``drives``) or, on the driven side, written as a tuple. See
+:doc:`Driving a machine <driving>`.
 
 .. autoclass:: solid_node.motion.couplings.Affine
 

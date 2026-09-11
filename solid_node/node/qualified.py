@@ -142,6 +142,11 @@ class DriverDeclaration:
 
         return relate(self, other, ratio, offset, law)
 
+    def __and__(self, other):
+        from solid_node.motion.couplings import group_with
+
+        return group_with(self, other)
+
 
 # A segment of a qualified id must be a name in every runtime that
 # evaluates the expression it lands in -- jokenizer in the widget,
