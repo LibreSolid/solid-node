@@ -562,9 +562,9 @@ The system SHALL split an assembly's lifecycle into a rest build and a
 per-instant motion. `render()` SHALL build the machine at rest — structure,
 `omit()`, and the placement of every part that does not move — and SHALL
 read no driver, no animation time and no port. `AssemblyNode.simulate()`, a
-no-op in the base, SHALL be run by the framework after `render()` on every
-call that enumerates the assembly's children, under whatever binding is
-current: symbolic `$t` when nothing is bound, plain numbers under
+no-op in the base, SHALL be run by the framework after `render()` ONCE
+PER ENUMERATION of the tree the assembly hangs in, under whatever
+binding is current: symbolic `$t` when nothing is bound, plain numbers under
 `set_state`, `set_keyframe`, the test runner, the snapshot tool and the
 simulator. Drivers, time and ports SHALL be read and bound in `simulate()`,
 and a joint's coordinate is a port for this purpose.
@@ -583,19 +583,32 @@ one of a node below it.
 
 The simulate phase of one assembly SHALL run in a fixed order: FIRST
 the framework clears the value and the binder record of every
-coordinate this assembly bound through a wiring or a relation in its
-previous run, so the run that follows sees only values bound in the
-current walk; THEN the author's `simulate()` runs; THEN the wirings and
-the relations the class declared are solved together, each wiring
-binding once its source is bound and each relation applied from
-whichever of its ends is. All of it happens while the phase is still
-that assembly's, so every motion it causes carries that assembly's tag
-and is swept before its next run. A value the author's own code bound
-in an earlier run and not in this one SHALL NOT be cleared: it is the
-author's, as it is today. Because each class solves its own relations
-in its own instance's phase, a relation stated on an ancestor and
-reaching a descendant's coordinate by path SHALL be solved before that
-descendant's own relations are.
+coordinate this assembly bound during its PREVIOUS simulate phase —
+whatever bound it there, the author's own `simulate()` included — in the
+same moment as the sweep that drops the operations it applied, so a
+coordinate never goes on holding a value whose motion has been swept and
+the run that follows sees only values bound in the current enumeration;
+THEN the author's `simulate()` runs; THEN the wirings and the relations
+the class declared are attempted together, each wiring binding once its
+source is bound and each relation applied from whichever of its ends is.
+All of it happens while the phase is still that assembly's, so every
+motion it causes carries that assembly's tag and is swept before its
+next run. A binding made outside any simulate phase — in `__init__`, in
+a test, through a `render()` no walker drove — SHALL NOT be cleared,
+exactly as an operation applied outside a phase is never swept.
+
+The simulate phases of ONE ENUMERATION SHALL run as one pass, owned by
+the assembly whose `render()` began it: it drives every assembly's phase
+in its subtree, parents before children and in declaration order among
+siblings, before that `render()` returns, and each assembly's phase runs
+ONCE. Because each class attempts its own relations in its own
+instance's phase, a relation stated on an ancestor and reaching a
+descendant's coordinate by path SHALL be solved before that descendant's
+`simulate()` runs and before that descendant's own relations are
+attempted. What an assembly's own attempt cannot reach SHALL be deferred
+to that pass's own fixpoint, which runs once every phase has run, and
+refused only then — the couplings capability states the deferral, the
+propagation order and the refusals.
 
 An assembly whose first `render()` read nothing SHALL run that `render()`
 once per instance: later calls SHALL return the same children and SHALL NOT
@@ -668,6 +681,22 @@ unswept. `omit()` called during `simulate()` SHALL raise `StructureError`.
 
 - **WHEN** `simulate()` calls `omit()` on a declared child
 - **THEN** `StructureError` is raised naming the node
+
+#### Scenario: A phase is not re-run by the walk that follows it
+
+- **WHEN** a three-level tree is assembled
+- **THEN** each assembly's `simulate()` ran once, before any of the
+  tree's geometry was read, and the walker's descent into each child
+  re-ran no phase
+
+#### Scenario: What a hand binding leaves behind is cleared
+
+- **WHEN** an assembly's `simulate()` binds a child's joint only when
+  the coordinate is unbound, and the tree is enumerated three times
+- **THEN** every run rebinds it and the child holds one joint motion for
+  the current instant, instead of standing at rest from the second run
+  on while the coordinate still reads the first run's number
+
 ### Requirement: Reading a driver in render is deprecated, not refused
 
 The system SHALL keep every current model working. An assembly whose
@@ -698,18 +727,22 @@ survive, composed before rest placement.
 The system SHALL let an `AssemblyNode` bind a snapshot of named numeric
 driver values with `set_state(**states)`. Binding SHALL merge the given
 entries into the assembly's current snapshot (an entry is replaced when
-re-given, preserved otherwise), re-render the assembly, and recurse into
-rendered children exactly as `set_keyframe` does — including tolerating
-a `render()` result that is not a list or tuple by recursing into no
-children. Snapshot values SHALL be plain numbers.
+re-given, preserved otherwise), deliver every entry to the node it is
+addressed to across the whole subtree BEFORE any of it is enumerated,
+and then enumerate the subtree ONCE — so that every node's snapshot is
+current for the whole of that enumeration, and no node simulates against
+the snapshot of a previous binding. The delivery walk SHALL use the
+children each node holds at rest and SHALL link them as it descends, so
+qualification is computed against the same names every linked pass
+derives, and SHALL tolerate a `render()` result that is not a list or
+tuple by descending into no children. Snapshot values SHALL be plain
+numbers.
 
 Entries SHALL be addressable by qualified id: an entry named with a
 dotted instance path (`x_axis.motor`) SHALL be delivered only to the
 addressed instance's subtree, with the consumed leading segment
 stripped as propagation descends, so sibling instances of one class
-hold independent values for a same-named driver. The propagation walk
-SHALL link children before recursing, so qualification is computed
-against the same names every linked pass derives. The `time` entry
+hold independent values for a same-named driver. The `time` entry
 SHALL remain global: it propagates flat and unmodified to every
 descendant. A bare (unqualified) entry for a project driver SHALL
 remain valid while exactly one declared driver in the subtree bears
@@ -755,8 +788,8 @@ none is bound, preserving the ADR-008 animation path.
 
 `clear_state(*names)` SHALL remove the named entries from the snapshot
 — all entries when called with no names, accepting qualified names the
-same way `set_state` does — re-render, and recurse the same way,
-restoring symbolic `$t` behavior for `time`. Because re-renders sweep
+same way `set_state` does — deliver and enumerate the same way, and
+restore symbolic `$t` behavior for `time`. Because re-renders sweep
 only the operations the assembly drove, repeated
 `set_state`/`clear_state` cycles SHALL NOT accumulate operations, and
 static placement applied outside any assembly render SHALL survive,
@@ -885,6 +918,14 @@ On nodes that do not animate (leaves, fusions), `set_state` and
 
 - **WHEN** `set_state(motor=10)` propagation reaches a leaf node
 - **THEN** the call is a no-op on that leaf
+
+#### Scenario: A descendant simulates against the snapshot just bound
+
+- **WHEN** `set_state(step=90)` is called on a machine whose child axis
+  declares `step` and reads it in its own `simulate()`, after an earlier
+  `set_state(step=10)`
+- **THEN** the child reads `90` throughout that enumeration, including
+  while its parent's phase runs, rather than `10`
 
 ### Requirement: Instance-qualified driver identity
 

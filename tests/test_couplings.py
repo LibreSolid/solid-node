@@ -46,6 +46,8 @@ from .coupling_project.parts import Belt, Link, Pulley, Rod, Wheel
 from .coupling_project.train import (Arbor, Arm, BackwardsTrain, PITCH_ARC,
                                      Train, Upper, Wrist, mesh)
 
+from solid_node.motion.couplings import PrematureRead
+
 
 # What the fixture train solves for, by hand, so a disagreement between
 # the framework and the arithmetic the clock writes is visible here.
@@ -1227,7 +1229,17 @@ class FreshnessTest(BaseNodeTest):
         self.assertNotAlmostEqual(train.power.turn.value,
                                   train_angles(24.0)[0])
 
-    def test_an_author_binding_from_an_earlier_run_is_not_cleared(self):
+    def test_an_occasional_author_binding_is_cleared_with_its_motion(self):
+        """Renamed from `..._is_not_cleared`: `whole-tree-fixpoint`
+        overturns exactly the guarantee that name stated. An author
+        binding made during a simulate phase is now cleared with the
+        motion it caused, at the START of that assembly's NEXT phase --
+        the author's own binding included -- so a coordinate a
+        conditional guard bound once and never rebinds is UNREACHED on
+        the run that follows, precisely as an unconditional one would
+        be. `StaleAuthorBoundJointTest` in test_joints.py is the positive
+        case (an unconditional rest-default guard that DOES rebind every
+        run, and therefore never hits this)."""
         class Occasional(AssemblyNode):
             angle = Driver(default=0.0, unit='deg')
             hand = Pulley()
@@ -1243,10 +1255,11 @@ class FreshnessTest(BaseNodeTest):
         machine.set_state(angle=6.0)
         self.assertEqual(machine.driven.turn.value, 12.0)
 
-        # The author binds nothing this run; the value the author bound
-        # last run is the author's, and stays.
-        machine.set_state(angle=0.0)
-        self.assertEqual(machine.hand.turn.value, 6.0)
+        # The author binds nothing THIS run; what it bound last run is
+        # cleared with the motion it caused, so neither end is reached.
+        with self.assertRaises(UnreachedCoordinate) as raised:
+            machine.set_state(angle=0.0)
+        self.assertIn('hand', str(raised.exception))
 
 
 ##############################################
@@ -2068,3 +2081,509 @@ class SiteCoordinatePathTest(BaseNodeTest):
         for expected in ('spin', 'turn'):
             with self.subTest(expected=expected):
                 self.assertIn(expected, message)
+
+
+##############################################
+# whole-tree-fixpoint, task 1: the tree fixpoint
+
+class FixLeaf(Solid2Node):
+    turn = Revolute(axis=(0, 0, 1), unit='deg')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class FixTrain(AssemblyNode):
+    """Wall clock 01's shape: the chain stated ONE LEVEL DOWN from the
+    movement that binds the escapement."""
+
+    centre = FixLeaf()
+    third = FixLeaf()
+    escape = FixLeaf()
+
+    centre.turn.drives(third.turn, ratio=-6.0)
+    third.turn.drives(escape.turn, ratio=-5.0)
+
+
+class FixMovement(AssemblyNode):
+    power = FixLeaf()
+    train = FixTrain()
+
+    power.turn.drives(train.centre.turn, ratio=-7.5)
+
+    def simulate(self):
+        self.train.escape.turn = 30.0
+
+
+class FixAxis(AssemblyNode):
+    """openflexure's shape: the ancestor sources from a coordinate THIS
+    class's own relation solves."""
+
+    steps = RotationalPort(unit='deg')
+    column = FixLeaf()
+
+    steps.drives(column.turn, ratio=0.5)
+
+    def simulate(self):
+        self.steps = 100.0
+
+
+class FixStrut(Solid2Node):
+    swing = Revolute(axis=(1, 0, 0), unit='deg')
+
+    def render(self):
+        return cube(1, center=True)
+
+
+class FixRoot(AssemblyNode):
+    z_axis = FixAxis()
+    strut = FixStrut()
+
+    z_axis.column.turn.drives(strut.swing, ratio=-0.25)
+
+
+class TreeFixpointTest(BaseNodeTest):
+
+    def test_a_chain_stated_one_level_down_solves(self):
+        """task 1.1. RED today with UnreachedCoordinate naming the
+        movement's relation (`power.turn drives train.centre.turn`)."""
+        movement = FixMovement()
+        movement.render()
+
+        # By hand: escape=30 -> third = 30/-5 = -6 -> centre = -6/-6 = 1
+        # -> power = 1/-7.5.
+        self.assertAlmostEqual(movement.train.escape.turn.value, 30.0)
+        self.assertAlmostEqual(movement.train.third.turn.value, -6.0)
+        self.assertAlmostEqual(movement.train.centre.turn.value, 1.0)
+        self.assertAlmostEqual(movement.power.turn.value, 1.0 / -7.5)
+
+    def test_an_ancestor_sources_from_a_descendant_solved_coordinate(self):
+        """task 1.2. RED today with UnreachedCoordinate naming the
+        root's relation."""
+        root = FixRoot()
+        root.render()
+
+        self.assertAlmostEqual(root.z_axis.column.turn.value, 50.0)
+        self.assertAlmostEqual(root.strut.swing.value, -12.5)
+
+    def test_the_refusal_names_the_class_and_the_path(self):
+        """task 1.3. Nothing binds either end anywhere: refused, naming
+        the STATING class and the ends by PATH -- `z_axis.column.turn`,
+        not the class-name fallback of today."""
+        class NoBind(FixAxis):
+            def simulate(self):
+                pass
+
+        class Root(AssemblyNode):
+            z_axis = NoBind()
+            strut = FixStrut()
+
+            z_axis.column.turn.drives(strut.swing, ratio=-0.25)
+
+        root = Root()
+        with self.assertRaises(UnreachedCoordinate) as raised:
+            root.render()
+
+        message = str(raised.exception)
+        self.assertNotIn('column (FixLeaf)', message)
+        self.assertNotIn('strut (FixStrut)', message)
+        self.assertIn('z_axis.column.turn', message)
+        self.assertIn('strut.swing', message)
+
+    def test_a_deferred_relation_moves_a_body_the_walk_has_not_read_yet(self):
+        """task 1.4. The two-subtree shape of probe_interleave.py: the
+        body in the FIRST subtree must carry the deferred relation's
+        motion once assembled."""
+        class IBody(AssemblyNode):
+            lower_strut = FixStrut()
+
+        class IAxis(AssemblyNode):
+            column = FixStrut()
+
+            def simulate(self):
+                self.column.swing = 12.0
+
+        class Microscope(AssemblyNode):
+            body = IBody()
+            z_axis = IAxis()
+
+            z_axis.column.swing.drives(body.lower_strut.swing, ratio=-1.0)
+
+        scope = Microscope()
+        scope.set_state(time=0.0)
+
+        self.assertAlmostEqual(scope.body.lower_strut.swing.value, -12.0)
+        rotations = [operation.serialized[1] for operation
+                     in scope.body.lower_strut.operations
+                     if operation.serialized[0] == 'r']
+        self.assertIn('-12.0', rotations)
+
+    def test_a_wiring_whose_source_a_descendant_solves_binds(self):
+        """task 1.5. A wiring whose source only a descendant's relation
+        reaches: deferred and applied in the fixpoint."""
+        class Down(AssemblyNode):
+            steps = RotationalPort(unit='deg')
+            column = FixLeaf()
+
+            steps.drives(column.turn, ratio=1.0)
+
+            def simulate(self):
+                self.steps = 40.0
+
+        class Top(AssemblyNode):
+            turn = RotationalPort(unit='mm')
+            down = Down()
+            wheel = Wheel(turn=turn)
+
+            down.column.turn.drives(turn)
+
+        top = Top()
+        top.render()
+
+        self.assertEqual(top.wheel.turn.value, 40.0)
+
+    def test_a_broadcast_copy_defers_and_refuses_one_by_one(self):
+        """task 1.6. Four copies whose driver a descendant's relation
+        solves: all four bind. A fifth tree where one copy's driven end
+        is independently bound refuses NotInvertible naming that copy."""
+        class Down(AssemblyNode):
+            steps = RotationalPort(unit='deg')
+            column = FixLeaf()
+
+            steps.drives(column.turn, ratio=1.0)
+
+            def simulate(self):
+                self.steps = 8.0
+
+        class Column(AssemblyNode):
+            down = Down()
+            beads = Bead().repeat(4)
+
+            down.column.turn.drives(beads.travel)
+
+        column = Column()
+        column.render()
+        self.assertEqual(bead_travels(column.beads), [8.0] * 4)
+
+        class Blocked(AssemblyNode):
+            # `driver` is never sourced by anyone -- the broadcast's own
+            # driver end stays unreached for the whole enumeration, so
+            # this record can only ever be resolved BACKWARDS, which a
+            # broadcast never is. A single copy isolates the refusal
+            # from the OTHER copies' ordinary "neither end bound" defer.
+            driver = RotationalPort(unit='deg')
+            beads = Bead().repeat(1)
+
+            driver.drives(beads.travel)
+
+            def simulate(self):
+                self.beads[0].travel = 3.0
+
+        with self.assertRaises(NotInvertible) as raised:
+            Blocked().render()
+        self.assertIn('beads-0', str(raised.exception))
+
+    def test_a_contradiction_is_refused_where_it_is_stated(self):
+        """task 1.7. GREEN today and after: a DoublyBound coordinate is
+        never deferred -- it raises in the assembly's OWN phase, before
+        any descendant's phase runs."""
+        ran = []
+
+        class Descendant(AssemblyNode):
+            turn = RotationalPort(unit='deg')
+
+            def simulate(self):
+                ran.append('Descendant')
+
+        class Both(AssemblyNode):
+            angle = Driver(default=0.0, unit='deg')
+            a = Pulley()
+            b = Pulley()
+            descendant = Descendant()
+
+            a.drives(b)
+
+            def simulate(self):
+                self.a.turn = self.angle
+                self.b.turn = self.angle
+
+        machine = Both()
+        with self.assertRaises(DoublyBound):
+            machine.set_state(angle=3.0)
+
+        self.assertEqual(ran, [])
+
+    def test_each_phase_runs_once_per_enumeration(self):
+        """task 1.8. A three-level tree, ONE enumeration (a bare
+        `render()` call, which owns exactly one pass): each simulate()
+        call counted once, the pass's own recursive drive re-running no
+        phase.
+
+        `assemble()` is deliberately NOT exercised here. It calls
+        `render()` (one enumeration, this assertion) and THEN recurses
+        into `as_scad`/`child.assemble()` on its own, calling `render()`
+        on every descendant a second time, AFTER the owning enumeration
+        has already closed. Design.md step 11 states that second walk as
+        free (a mark surviving the close); this implementation keeps the
+        mark scoped to an enumeration that is still open instead, because
+        several call sites bind a coordinate directly and re-render with
+        no enumeration in between and would read a STALE pose from a
+        mark compared against a merely-remembered last one (see
+        `SiteOrbitRepeatDerivedPhaseTest`, `qualified.drive_tree`, and
+        evidence.md's task-1.8 note). The visible cost -- `assemble()`
+        re-attempts every phase once more -- is measured in task 8 and
+        reported to the pilot rather than accepted silently.
+        """
+        counts = {'root': 0, 'child': 0, 'grand': 0}
+
+        class Grand(AssemblyNode):
+            leaf = FixLeaf()
+
+            def simulate(self):
+                counts['grand'] += 1
+
+        class Child(AssemblyNode):
+            grand = Grand()
+
+            def simulate(self):
+                counts['child'] += 1
+
+        class Root(AssemblyNode):
+            child = Child()
+
+            def simulate(self):
+                counts['root'] += 1
+
+        root = Root()
+        root.render()
+
+        self.assertEqual(counts, {'root': 1, 'child': 1, 'grand': 1})
+
+
+##############################################
+# whole-tree-fixpoint, task 2: the read refusal
+
+class ReadRefusalTest(BaseNodeTest):
+
+    def test_a_class_reading_its_own_derived_coordinate_is_refused(self):
+        """task 2.1, from probe_own_read.py's Art4."""
+        class Art4(AssemblyNode):
+            wrist = RotationalPort(unit='deg')
+            tool = RotationalPort(unit='deg')
+            left = wrist + 2 * tool
+            pulley = Pulley()
+
+            def simulate(self):
+                self.wrist = 10.0
+                self.tool = 4.0
+                self.pulley.rotate(self.left.value, [0, 0, 1])
+
+        with self.assertRaises(PrematureRead) as raised:
+            Art4().render()
+
+        message = str(raised.exception)
+        self.assertIn('left', message)
+        self.assertIn('Art4', message)
+
+    def test_a_class_reading_a_coordinate_its_own_relation_binds(self):
+        """task 2.2, from probe_own_read.py's Actuator."""
+        class Actuator(AssemblyNode):
+            steps = RotationalPort(unit='deg')
+            rotor = FixLeaf()
+
+            steps.drives(rotor.turn, ratio=0.5)
+
+            def simulate(self):
+                self.steps = 100.0
+                _ = self.rotor.turn.value
+
+        with self.assertRaises(PrematureRead) as raised:
+            Actuator().render()
+
+        self.assertIn('turn', str(raised.exception))
+
+    def test_a_rest_default_guard_is_not_refused(self):
+        """task 2.4. Prusa's shape: read the SOURCE end of one of its
+        own relations, find it unbound, bind a default -- the relation
+        then solves forward from it. Must stay green."""
+        class Guarded(AssemblyNode):
+            carriage = FixLeaf()
+            downstream = FixLeaf()
+
+            carriage.turn.drives(downstream.turn, ratio=2.0)
+
+            def simulate(self):
+                if self.carriage.turn.value is None:
+                    self.carriage.turn = 5.0
+
+        guarded = Guarded()
+        guarded.render()
+
+        self.assertEqual(guarded.downstream.turn.value, 10.0)
+
+    def test_an_ancestor_reading_a_descendant_solved_coordinate_is_refused(self):
+        """task 2.3."""
+        class Child(AssemblyNode):
+            steps = RotationalPort(unit='deg')
+            column = FixLeaf()
+
+            steps.drives(column.turn, ratio=1.0)
+
+            def simulate(self):
+                self.steps = 9.0
+
+        class Parent(AssemblyNode):
+            child = Child()
+
+            def simulate(self):
+                _ = self.child.column.turn.value
+
+        with self.assertRaises(PrematureRead) as raised:
+            Parent().render()
+
+        message = str(raised.exception)
+        # The coordinate's own path names the descendant's instance
+        # (`child.column.turn`); the reading class is named directly.
+        self.assertIn('child.column.turn', message)
+        self.assertIn('Parent', message)
+
+    def test_a_read_of_a_coordinate_nothing_ever_binds_is_not_this_refusal(self):
+        """task 2.5. Stays the unreached refusal by its own name."""
+        class Adrift(AssemblyNode):
+            a = Pulley()
+            b = Pulley()
+
+            a.drives(b)
+
+            def simulate(self):
+                _ = self.b.turn.value
+
+        with self.assertRaises(UnreachedCoordinate):
+            Adrift().render()
+
+    def test_the_message_carries_the_reads_source_location(self):
+        """task 2.6."""
+        class Art4(AssemblyNode):
+            wrist = RotationalPort(unit='deg')
+            tool = RotationalPort(unit='deg')
+            left = wrist + 2 * tool
+            pulley = Pulley()
+
+            def simulate(self):
+                self.wrist = 10.0
+                self.tool = 4.0
+                read = self.left.value  # SOURCE_LOCATION_LINE
+
+        with self.assertRaises(PrematureRead) as raised:
+            Art4().render()
+
+        message = str(raised.exception)
+        self.assertIn('test_couplings.py', message)
+
+
+##############################################
+# whole-tree-fixpoint, task 4: a subclass replaces a named relation
+
+class ReplaceBase(AssemblyNode):
+    input_angle = RotationalPort(unit='deg')
+    rotor = Pulley()
+
+    drive = input_angle.drives(rotor.turn, ratio=8.0)
+
+    def simulate(self):
+        self.input_angle = 5.0
+
+
+class SubclassReplacesRelationTest(BaseNodeTest):
+
+    def test_the_replacement(self):
+        """task 4.1: the subclass enumerates ONE `drive`, an instance
+        binds from the SUBCLASS's own source, nothing is refused."""
+        class Preview(ReplaceBase):
+            free_run = RotationalPort(unit='deg')
+            drive = free_run.drives(ReplaceBase.rotor.turn, ratio=1.0)
+
+            def simulate(self):
+                self.free_run = 90.0
+
+        self.assertEqual(len(declared_relations(Preview)), 1)
+
+        preview = Preview()
+        preview.render()
+
+        self.assertEqual(preview.rotor.turn.value, 90.0)
+
+    def test_the_base_is_unaffected(self):
+        """task 4.2."""
+        class Preview(ReplaceBase):
+            free_run = RotationalPort(unit='deg')
+            drive = free_run.drives(ReplaceBase.rotor.turn, ratio=1.0)
+
+            def simulate(self):
+                self.free_run = 90.0
+
+        Preview()  # constructing the subclass must not disturb the base
+        self.assertEqual(len(declared_relations(ReplaceBase)), 1)
+
+        base = ReplaceBase()
+        base.render()
+        self.assertEqual(base.rotor.turn.value, 40.0)
+
+    def test_the_position_is_the_bases(self):
+        """task 4.3: base declares a, drive, b; subclass replaces drive;
+        the enumeration order is a, drive, b."""
+        class Ordered(AssemblyNode):
+            a_port = RotationalPort(unit='deg')
+            b_port = RotationalPort(unit='deg')
+            input_angle = RotationalPort(unit='deg')
+            sink = Pulley()
+            other = Pulley()
+
+            a = a_port.drives(sink.turn, ratio=1.0)
+            drive = input_angle.drives(other.turn, ratio=1.0)
+            b = b_port.drives(sink.turn, ratio=2.0)
+
+        class OrderedSub(Ordered):
+            free_run = RotationalPort(unit='deg')
+            drive = free_run.drives(Ordered.other.turn, ratio=3.0)
+
+        names = [relation.name for relation in declared_relations(OrderedSub)]
+        self.assertEqual(names, ['a', 'drive', 'b'])
+        self.assertIs(declared_relations(OrderedSub)[1],
+                      OrderedSub.__dict__['drive'])
+
+    def test_a_bare_statement_stays_additive(self):
+        """task 4.4: a bare relation and a differently-named one are
+        never replaced."""
+        class Based(AssemblyNode):
+            a_port = RotationalPort(unit='deg')
+            sink = Pulley()
+
+            named = a_port.drives(sink.turn)
+
+        class Extended(Based):
+            b_port = RotationalPort(unit='deg')
+            other = Pulley()
+
+            b_port.drives(other.turn)
+            fresh = b_port.drives(other.turn)
+
+        self.assertEqual(len(declared_relations(Extended)), 3)
+
+    def test_reading_the_name(self):
+        """task 4.5."""
+        class Preview(ReplaceBase):
+            free_run = RotationalPort(unit='deg')
+            drive = free_run.drives(ReplaceBase.rotor.turn, ratio=1.0)
+
+            def simulate(self):
+                self.free_run = 90.0
+
+        self.assertIs(Preview.drive, Preview.__dict__['drive'])
+
+        preview = Preview()
+        preview.render()
+        self.assertIs(preview.drive.relation, Preview.__dict__['drive'])
+
+        with self.assertRaises(AttributeError):
+            ReplaceBase.drive.__get__(preview)

@@ -7,7 +7,8 @@ from solid2 import get_animation_time
 from . import phase as _phase
 from .internal import InternalNode
 from .qualified import declared_drivers_of, driver_id
-from solid_node.motion.couplings import clear_solved, solve_relations
+from solid_node.motion.couplings import (clear_solved, refuse_reads,
+                                         run_deferred, solve_relations)
 from solid_node.motion.ports import declared_time
 
 
@@ -65,15 +66,86 @@ def _rest(assembly, render):
     return rendered
 
 
+def _linked(children):
+    """`children` as a tuple to walk, or `()` for a non-list/tuple render
+    result -- `serialize_node` tolerates exactly that shape (it keeps the
+    partial node's representation for lifecycle validation to handle),
+    so every walk here tolerates it too instead of raising TypeError
+    while iterating a single node."""
+    return children if type(children) in (list, tuple) else ()
+
+
+def _run_phase(assembly, render, enumeration):
+    """One assembly's own phase, in its stated order: sweep, rest, LINK
+    (so a message about a child, or a path through one, resolves by path
+    rather than falling back to the child's class name), clear what this
+    assembly bound last run, the author's simulate(), then this
+    instance's own relations and wirings attempted together -- what that
+    attempt cannot reach is deferred to `enumeration` rather than
+    refused. All of it happens while the phase is still this assembly's,
+    so every motion it causes carries its tag and is swept before its
+    next run.
+
+    Returns the children (linked already), and marks the assembly as
+    having run in THIS enumeration -- unless its render is a LEGACY one:
+    a render that reads a driver has to re-run in full on every call by
+    definition, so it carries no mark and pays for it, exactly as it
+    always has.
+    """
+    _sweep(assembly)
+    children = _rest(assembly, render)
+    assembly._link_children(_linked(children))
+    phase = _phase.push(assembly, _phase.SIMULATE)
+    try:
+        clear_solved(assembly)
+        assembly.simulate()
+        solve_relations(assembly, enumeration)
+    finally:
+        _phase.pop()
+    # Everything THIS phase bound -- the author's own simulate() included
+    # (`ports.bind` -> `phase.note_bound`), whether or not this assembly
+    # states any relation of its own -- is what the assembly's NEXT
+    # phase clears (`couplings.clear_solved`), so a rest-default joint's
+    # value is dropped with its swept motion instead of surviving it.
+    assembly.__dict__['_solver_bound'] = phase.bound
+    if not assembly.__dict__.get('_legacy_render'):
+        assembly.__dict__['_ran_in_enumeration'] = enumeration
+    return children
+
+
+def _drivable(node):
+    """Whether `node` is an assembly whose render() carries the
+    lifecycle -- the one thing that distinguishes it from a leaf for the
+    enumeration's own drive, which has nothing to do at a leaf: a leaf
+    has no simulate phase and the WALKER (assemble(), the serializer)
+    reads its geometry on its own pass, afterwards."""
+    return getattr(type(node).render, '_idempotent', False)
+
+
+def _finish_enumeration(enumeration):
+    """The pass's own fixpoint, once every assembly's phase in its
+    subtree has run: propagate over what was deferred, refuse what is
+    still unreached, then refuse a recorded read whose coordinate was
+    bound after all -- exactly the couplings capability's own order."""
+    run_deferred(enumeration)
+    refuse_reads(enumeration)
+
+
 def _lifecycle_render(render):
     """Wraps an AssemblyNode subclass render() into the lifecycle every
-    tree walker sees as one call: sweep the operations this assembly
-    applied last time, produce the children at rest (`_rest`), then run
-    the author's simulate() under the current binding with this
-    assembly in the simulate phase, so the operations it applies are
-    motion -- innermost, tagged, swept next time. The walkers call
-    render() and get a tree whose pose is current for the binding,
-    which is what they always got."""
+    tree walker sees as one call.
+
+    The first `render()` reached with no ENUMERATION already open OWNS
+    it: it opens the pass, drives its own phase and then every assembly
+    in the subtree it renders -- parents before children, declaration
+    order among siblings, over the children each one's own `_rest`
+    returned -- before running the pass's fixpoint and returning. A
+    `render()` reached while an enumeration is already open either IS
+    that drive (a child the owning call is descending into) or has
+    already run in this one (the mark set by `_run_phase`, consumed here
+    without re-running the phase) -- which is what makes a node's phase
+    run exactly once per enumeration however many times the walkers that
+    follow call render() on it (`whole-tree-fixpoint`)."""
 
     @functools.wraps(render)
     def wrapped(self):
@@ -82,53 +154,72 @@ def _lifecycle_render(render):
             # Re-entrant call (a subclass render delegating to super):
             # the outer call owns the phase.
             return render(self)
-        _sweep(self)
-        children = _rest(self, render)
-        _phase.push(self, _phase.SIMULATE)
+
+        enumeration = _phase.current_enumeration()
+        if (enumeration is not None
+                and self.__dict__.get('_ran_in_enumeration') is enumeration):
+            # A child the OWNING call's own drive is descending into,
+            # already run this enumeration: return its rest children
+            # without re-running its phase (design.md step 11).
+            #
+            # This is scoped to an enumeration that is STILL open, on
+            # purpose, not to "the last one opened, open or since
+            # closed": several call sites bind a coordinate directly and
+            # call render() again with no enumeration in between --
+            # `SiteOrbitRepeatDerivedPhaseTest` sets a joint by hand
+            # twice; `qualified.drive_tree` (the serializer's symbolic
+            # pass, the loader's default binding) writes a node's
+            # snapshot directly, not through set_state -- and a mark
+            # compared against a MERELY-remembered last enumeration would
+            # skip re-simulating against the fresh value, reading a
+            # stale pose instead of a wrong error. A design that kept the
+            # optimization across such a call would need a single choke
+            # point where every write to a node's bound coordinates and
+            # snapshot is known, which `bind`'s callers do not currently
+            # give it; see evidence.md, task 8's cost report and the
+            # implementation report for this deviation from design.md
+            # step 11's stated optimization, made in favour of never
+            # returning a pose that does not match what was just bound.
+            return self.__dict__['_rest']
+
+        owns = enumeration is None
+        if owns:
+            enumeration = _phase.open_enumeration()
         try:
-            # The phase in its stated order: FIRST drop what this
-            # assembly bound through a wiring or a relation last run, so
-            # the solve that follows sees only what the current walk
-            # bound; THEN the author's simulate(); THEN the wirings and
-            # the relations, solved together, while the phase is still
-            # this assembly's so their motion carries its tag.
-            clear_solved(self)
-            self.simulate()
-            solve_relations(self)
+            children = _run_phase(self, render, enumeration)
+            for child in _linked(children):
+                if _drivable(child):
+                    child.render()
+            if owns:
+                _finish_enumeration(enumeration)
         finally:
-            _phase.pop()
+            if owns:
+                _phase.close_enumeration()
         return children
 
     wrapped._idempotent = True
     return wrapped
 
 
-def _rendered_children(assembly):
-    """The children to propagate a keyframe change into: the result of
-    a fresh render, which is where they are created and bound, LINKED
-    to their parent before anything recurses into them.
+def _rest_children(assembly):
+    """The children a REST-ONLY walk descends into: `_rest`'s own
+    idempotent render, LINKED, with no phase and no enumeration touched.
 
-    Linking here is what makes qualification correct in this pass. A
-    child's name is derived by its parent from the attribute holding it
-    (base.py `_link_child`), so before linking both instances of one
-    class still answer to the class name and a driver on either would
-    qualify to the same bare id -- a silent collision, which is the
-    defect instance qualification exists to remove. The scad and
-    serializer passes have always linked before recursing; this one now
-    does too, and linking is idempotent, so re-deriving the same
-    attribute mapping changes nothing.
-
-    A non-list/tuple render result carries no children to recurse into.
-    serialize_node tolerates exactly that shape -- it keeps the partial
-    node's representation for lifecycle validation to handle -- so the
-    keyframe methods tolerate it too instead of raising TypeError while
-    iterating a single node.
+    This is what `set_state`/`clear_state` walk to DELIVER a snapshot
+    over the tree before enumerating: `probe_state_order.py` measured
+    that a walk which renders (and therefore simulates) as it delivers
+    leaves a descendant's own phase running one binding behind the one
+    just requested, because `set_state` used to bind a node's entries
+    only immediately before rendering that node. Reaching the ORIGINAL
+    render underneath the lifecycle wrapper (`functools.wraps` sets
+    `__wrapped__`) means this walk never opens a phase or an
+    enumeration -- structure only, exactly as `_rest` always was.
     """
-    rendered = assembly.render()
-    if type(rendered) not in (list, tuple):
-        return ()
-    assembly._link_children(rendered)
-    return rendered
+    original = getattr(type(assembly).render, '__wrapped__',
+                       type(assembly).render)
+    children = _linked(_rest(assembly, original))
+    assembly._link_children(children)
+    return children
 
 
 def _entries_for(entries, child_name):
@@ -282,6 +373,13 @@ class AssemblyNode(InternalNode):
                 'the instance you mean by its qualified id, e.g. '
                 f'set_state(**{{{sorted(next(iter(ambiguous.values())))[0]!r}'
                 ': ...}).')
+        # The snapshot is delivered over the whole tree AT REST, above --
+        # `_receive_state` never renders. Only now, once every node's
+        # entries are in place, does ONE enumeration run from this node,
+        # so a descendant's own phase simulates against the binding just
+        # requested rather than the previous one (`probe_state_order.py`,
+        # `whole-tree-fixpoint`).
+        self.render()
 
     def _undo(self, saved):
         """Restore the snapshot every node held before a binding this
@@ -309,10 +407,12 @@ class AssemblyNode(InternalNode):
 
         Binds the entries addressed to this node (the undotted ones,
         after every ancestor stripped its own segment), records what
-        this node declares under its qualified id, renders -- which is
-        both where the expressions are rebuilt and where an unbound
-        driver fails loudly -- and passes each child only what is
-        addressed to it.
+        this node declares under its qualified id, and passes each child
+        only what is addressed to it -- over the tree AT REST
+        (`_rest_children`), never simulating: an unbound driver is
+        caught by the READ it fails loudly at, once the single
+        enumeration `set_state` runs afterward reaches it, not by this
+        delivery walk.
         """
         if saved is not None:
             saved.append((self, dict(self._states)))
@@ -325,7 +425,7 @@ class AssemblyNode(InternalNode):
             # here rather than emitting an id that parses as a
             # subtraction.
             declared.setdefault(name, []).append(driver_id(path, name))
-        for child in _rendered_children(self):
+        for child in _rest_children(self):
             child._receive_state(_entries_for(entries, child.name),
                                  path + (child.name,), declared, saved)
 
@@ -346,6 +446,9 @@ class AssemblyNode(InternalNode):
         assembly render is left alone.
         """
         self._receive_clear(tuple(names) if names else None)
+        # As in set_state: deliver over the tree at rest first (above),
+        # then enumerate once.
+        self.render()
 
     def _receive_clear(self, names):
         """One node's share of a `clear_state` propagation. `None` is
@@ -357,7 +460,7 @@ class AssemblyNode(InternalNode):
             for name in names:
                 if '.' not in name:
                     self._states.pop(name, None)
-        for child in _rendered_children(self):
+        for child in _rest_children(self):
             child._receive_clear(_names_for(names, child.name))
 
     def _validate_state(self, name, value):

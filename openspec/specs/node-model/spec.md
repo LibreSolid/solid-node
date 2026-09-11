@@ -56,8 +56,14 @@ do not override: render → simulate (assemblies only) → validate → `as_scad
 `generate_scad` → optional optimized STL import → apply queued operations.
 `assemble()` SHALL be idempotent — the result is memoized and `render()` is
 called at most once per instance. On an assembly the framework SHALL run
-`simulate()` after `render()` on every call that enumerates its children,
-under the current binding; users override `render()` and `simulate()`, never
+`simulate()` after `render()` ONCE PER ENUMERATION of the tree, under the
+current binding: the `render()` that begins an enumeration drives the
+simulate phase of every assembly in the subtree it renders, parents
+before children, before it returns, and a later `render()` reached by the
+walk's own descent within that same enumeration SHALL return the
+children at rest without running that assembly's phase again. Every
+assembly's motion is therefore in place before the walk reads any of the
+tree's geometry. Users override `render()` and `simulate()`, never
 `assemble()`.
 
 #### Scenario: Assemble is memoized
@@ -87,6 +93,13 @@ under the current binding; users override `render()` and `simulate()`, never
   assembled
 - **THEN** `render()` has run before `simulate()`, and the queued
   operations applied include those `simulate()` produced
+
+#### Scenario: Every phase precedes the first geometry read
+
+- **WHEN** a root with two subtrees is assembled
+- **THEN** both subtrees' `simulate()` methods ran before the first
+  subtree's geometry was composed, so a coordinate bound while the
+  second subtree simulated still moves a body in the first
 
 ### Requirement: Rigid vs non-rigid distinction
 
@@ -491,3 +504,4 @@ naming the fusion, before SCAD, BREP, or STL publication.
 - **THEN** validation raises naming the fusion and explaining that a fusion
   requires at least one rigid child
 - **AND** no SCAD, BREP, or STL artifact for that fusion is published
+

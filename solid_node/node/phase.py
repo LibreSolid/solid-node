@@ -17,8 +17,19 @@ This module holds only the stack and the reporter, and imports nothing
 from the node layer, so the descriptors that report reads (a driver
 declaration, a port slot, the ``time`` property) can import it without
 a cycle.
+
+It also holds the ENUMERATION: the whole-tree pass one outermost
+``render()`` opens (`whole-tree-fixpoint`). An enumeration is a single
+solve of a tree -- every assembly's phase runs once, parents before
+children, and what one assembly's own attempt could not resolve is
+deferred here rather than refused. `Enumeration.deferred` and
+`Enumeration.reads` are plain lists a caller in `solid_node.motion` fills
+and drains; this module never imports that layer and knows nothing about
+what a "deferred item" or a "binder" is -- it just keeps the containers
+and the stack, exactly as it keeps the phase stack next to it.
 """
 
+import sys
 import warnings
 
 
@@ -29,7 +40,7 @@ SIMULATE = 'simulate'
 class Phase:
     """One assembly running one lifecycle method."""
 
-    __slots__ = ('assembly', 'kind', 'applied', 'read')
+    __slots__ = ('assembly', 'kind', 'applied', 'read', 'bound')
 
     def __init__(self, assembly, kind):
         self.assembly = assembly
@@ -39,6 +50,11 @@ class Phase:
         self.applied = []
         # The first driver, time or port read, as (what, name), or None.
         self.read = None
+        # Every coordinate slot BOUND while this phase is running --
+        # the author's own simulate() and this assembly's own relation
+        # attempt alike -- so the assembly's NEXT phase can clear
+        # exactly what this one bound (whole-tree-fixpoint).
+        self.bound = []
 
 
 _stack = []
@@ -57,6 +73,81 @@ def push(assembly, kind):
 
 def pop():
     _stack.pop()
+
+
+def note_bound(slot):
+    """Report that `slot` was just bound, while a SIMULATE phase is
+    running -- the author's own binding and a relation's/wiring's/derived
+    coordinate's alike, since both happen while that assembly's phase is
+    current. Recorded on the phase so its own NEXT run's `clear_solved`
+    knows what to drop; a binding made in a RENDER phase or with no phase
+    at all is not recorded, exactly as an operation applied there is
+    never swept."""
+    phase = current()
+    if phase is not None and phase.kind == SIMULATE:
+        phase.bound.append(slot)
+
+
+##############################################
+# The enumeration: one tree pass, one solve
+
+class Enumeration:
+    """One ENUMERATION of a tree: opened by the `render()` call that
+    finds none in progress, closed when that call returns.
+
+    `deferred` and `reads` are generic containers; what they hold is
+    `solid_node.motion.couplings`'s business (a `_Deferred` bundle of a
+    relation/wiring/derived-coordinate leftover, and an unbound-read
+    record) -- this module only keeps the list alive for the length of
+    the pass.
+    """
+
+    __slots__ = ('deferred', 'reads')
+
+    def __init__(self):
+        self.deferred = []
+        self.reads = []
+
+
+_enumerations = []
+
+
+def current_enumeration():
+    """The open enumeration, or None outside any tree pass."""
+    return _enumerations[-1] if _enumerations else None
+
+
+def open_enumeration():
+    enumeration = Enumeration()
+    _enumerations.append(enumeration)
+    return enumeration
+
+
+def close_enumeration():
+    _enumerations.pop()
+
+
+def note_unbound_read(slot):
+    """Report a read of a coordinate slot holding NO value, made while a
+    SIMULATE phase is running and an enumeration is open -- the read the
+    `couplings` "a read of a coordinate a relation binds is refused"
+    rule is judged against, at the end of the enumeration, by what the
+    slot's binder turns out to be.
+
+    Costs two attribute reads off the calling frame's code object and a
+    tuple; the frame itself is never kept. A read outside any simulate
+    phase, or with no enumeration open (a bare construction, a test
+    reading a coordinate after the walk is long over), is not recorded --
+    there is no pass left to judge it at the end of.
+    """
+    phase = current()
+    enumeration = current_enumeration()
+    if phase is None or phase.kind != SIMULATE or enumeration is None:
+        return
+    frame = sys._getframe(2)
+    enumeration.reads.append(
+        (slot, phase.assembly, type(phase.assembly),
+         frame.f_code.co_filename, frame.f_lineno))
 
 
 def note_read(what, name):

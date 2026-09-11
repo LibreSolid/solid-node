@@ -249,11 +249,16 @@ def drive_tree(root, resolve, visit=None):
 
     The ORDER is the load-bearing part, and mirrors
     `InternalNode.as_scad` and `core/serializer.serialize_node`: bind
-    this node's drivers, render it -- which is where its expressions are
-    built, and where an unbound driver would fail loudly -- then link
-    each child BEFORE recursing into it, so a child's own render()
-    already knows its derived name and parent. That is what makes eager
-    qualification correct rather than lucky.
+    EVERY node's drivers over the tree, linking each child before
+    recursing into it so a child's own read already knows its derived
+    name and parent -- then render the tree, ONCE, which is where
+    expressions are built and an unbound driver would fail loudly. That
+    is what makes eager qualification correct rather than lucky, and
+    (`whole-tree-fixpoint`) it is also what a NESTED driver needs: a
+    render() now drives every descendant's simulate phase in one pass,
+    so a node two levels down would otherwise have its phase run, and
+    fail on its own still-unbound driver, before this walk ever
+    reached it to bind one.
 
     Binding writes the node's snapshot directly rather than going
     through `set_state`. That is deliberate: `_validate_state` judges
@@ -263,13 +268,19 @@ def drive_tree(root, resolve, visit=None):
     every declared driver of the tree or raises.
 
     `visit(node, path)`, when given, is called for every assembly in the
-    walk after its drivers are bound and before it renders, so a caller
-    that also needs something else declared per node (instructions) pays
-    for one walk rather than two.
+    walk after its drivers are bound and before anything in the tree
+    renders, so a caller that also needs something else declared per
+    node (instructions) pays for one walk rather than two.
     """
+    # Deferred: `assembly` is `qualified`'s own caller (AssemblyNode's
+    # module already imports THIS one, for `declared_drivers_of` and
+    # `driver_id`), so the import has to wait until this function is
+    # actually called, once both modules exist.
+    from .assembly import _rest_children
+
     found = {}
 
-    def walk(node, path):
+    def deliver(node, path):
         states = getattr(node, '_states', None)
         if states is None:
             # A leaf holds no snapshot and no children of its own: the
@@ -281,12 +292,13 @@ def drive_tree(root, resolve, visit=None):
             states[name] = resolve(node, path, name, declaration)
         if visit is not None:
             visit(node, path)
-        rendered = node.render()
-        if type(rendered) not in (list, tuple):
-            return
-        node._link_children(rendered)
-        for child in rendered:
-            walk(child, path + (child.name,))
+        # Rest-only: discovers structure and links exactly as a render()
+        # would, without opening a phase or an enumeration, so every
+        # node's OWN drivers are bound before ANY of them simulates.
+        for child in _rest_children(node):
+            deliver(child, path + (child.name,))
 
-    walk(root, ())
+    deliver(root, ())
+    if getattr(root, '_states', None) is not None:
+        root.render()
     return found

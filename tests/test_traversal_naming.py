@@ -9,9 +9,17 @@ from unittest import TestCase
 from solid2 import cube
 
 from solid_node.core.serializer import serialize_node
-from solid_node.node.assembly import AssemblyNode, _rendered_children
+from solid_node.node.assembly import AssemblyNode, _rest_children
 from solid_node.node.base import AbstractBaseNode
 from solid_node.node.qualified import drive_tree
+
+# `whole-tree-fixpoint` split the state-propagation walk in two: the
+# rest-only descent that DELIVERS a `set_state` snapshot (`_rest_children`,
+# renamed from `_rendered_children`, which used to call `render()` and
+# therefore simulate as it delivered) and the single enumeration that
+# follows. The naming/batching behaviour these tests hold linear belongs
+# to the descent, under either name.
+_rendered_children = _rest_children
 
 
 class ProbeLeaf(AbstractBaseNode):
@@ -88,7 +96,7 @@ class _WideFixture:
         root = ProbeAssembly(children)
         return root, children
 
-    def assertLinearSnapshot(self, root, children, run):
+    def assertLinearSnapshot(self, root, children, run, name_index_calls=1):
         class CountingAlias(list):
 
             def __init__(self, values):
@@ -101,9 +109,10 @@ class _WideFixture:
 
         root.instrumented_alias = CountingAlias(children)
         run(root)
-        self.assertEqual(root.name_index_calls, 1)
+        self.assertEqual(root.name_index_calls, name_index_calls)
         self.assertEqual(root.single_name_scans, 0)
-        self.assertEqual(root.instrumented_alias.iterations, 1)
+        # One iteration per `_link_children` call: as many as index builds.
+        self.assertEqual(root.instrumented_alias.iterations, name_index_calls)
         self.assertEqual(
             [child.name for child in children],
             [f'parts-{index}' for index in range(len(children))])
@@ -115,28 +124,44 @@ class WideTraversalNamingTest(_WideFixture, TestCase):
     """Wide publication and simulation walks scan ownership once."""
 
     def test_serializer_is_linear_at_all_ratified_widths(self):
+        # `render()` links root's own children now (`whole-tree-fixpoint`);
+        # `serialize_node` still links again on the same batch, needed
+        # for a render that creates a fresh child -- two index builds
+        # per call, not one, still linear in the child count.
         for count in (128, 512, 2048):
             with self.subTest(count=count):
                 root, children = self.wide(count)
                 self.assertLinearSnapshot(
                     root, children,
                     lambda node: serialize_node(
-                        node, lambda child: child.name))
+                        node, lambda child: child.name),
+                    name_index_calls=2)
 
     def test_driver_simulation_walk_is_linear_at_all_ratified_widths(self):
+        # `whole-tree-fixpoint`: `drive_tree` now delivers every node's
+        # snapshot over a REST-ONLY walk (so a descendant's driver is
+        # bound before render() can cascade into its phase), then
+        # renders the tree once for the real enumeration -- two linking
+        # passes over root's own children instead of one, each still
+        # O(children), so the walk stays LINEAR, at twice the constant.
         for count in (128, 512, 2048):
             with self.subTest(count=count):
                 root, children = self.wide(count, ProbeAssembly)
                 self.assertLinearSnapshot(
                     root, children,
                     lambda node: drive_tree(
-                        node, lambda *arguments: 0))
+                        node, lambda *arguments: 0),
+                    name_index_calls=2)
 
     def test_stl_linking_and_state_propagation_use_the_same_batch(self):
+        # `render()` links its own children now (`whole-tree-fixpoint`);
+        # `as_scad` still links again on the same batch it is handed, so
+        # this specific walk costs two index builds, not one.
         root, children = self.wide(128)
         self.assertLinearSnapshot(
             root, children,
-            lambda node: node.as_scad(node.render()))
+            lambda node: node.as_scad(node.render()),
+            name_index_calls=2)
 
         root, children = self.wide(128)
         self.assertLinearSnapshot(
@@ -148,7 +173,9 @@ class WideTraversalNamingTest(_WideFixture, TestCase):
         for _ in range(20):
             drive_tree(root, lambda *arguments: 0)
 
-        self.assertEqual(root.name_index_calls, 20)
+        # Two index builds per tick (deliver's rest-only walk, then the
+        # enumeration's own render()), see test_driver_simulation_walk...
+        self.assertEqual(root.name_index_calls, 40)
         self.assertEqual(root.single_name_scans, 0)
         self.assertEqual(
             [child.name for child in children],
@@ -285,6 +312,17 @@ class MidTraversalMutationTest(TestCase):
         self.assertEqual((sibling.name, mutator.name), ('parts-0', 'parts-1'))
 
     def test_serializer_recursion_uses_entry_snapshot_until_next_traversal(self):
+        # `mutator` and `sibling` are `ProbeAssembly` (AssemblyNode) here,
+        # unlike `_pair()`'s plain `ProbeLeaf`s above: `whole-tree-fixpoint`
+        # makes `parent.render()` itself drive `mutator`'s own phase as
+        # part of the SAME call (every phase now precedes the first
+        # geometry read), so `mutator`'s action -- and the mutation it
+        # causes -- has ALREADY happened by the time `render()` returns
+        # to the serializer, before its own (still necessary, for a
+        # render that creates a fresh child) re-link ever runs. There is
+        # no longer an "entry snapshot" separate from that: the FIRST
+        # traversal already sees the reversed order this walk was
+        # written to expect only on a later, separate one.
         parent = ProbeAssembly()
         sibling = ProbeAssembly()
         mutator = ProbeAssembly()
@@ -297,7 +335,7 @@ class MidTraversalMutationTest(TestCase):
 
         first = serialize_node(parent, lambda child: child.name)
         self.assertEqual([child['name'] for child in first['children']],
-                         ['parts-0', 'parts-1'])
+                         ['parts-1', 'parts-0'])
         self.assertIs(sibling._parent, parent)
 
         second = serialize_node(parent, lambda child: child.name)
@@ -318,9 +356,17 @@ class MidTraversalMutationTest(TestCase):
         mutator.action = mutate
         parent.parts = [mutator, sibling]
 
+        # As above: `mutator`'s action fires during `drive_tree`'s own
+        # rest-only delivery pass (which discovers structure through
+        # the same render() every copy runs once), before the trailing
+        # `root.render()` re-links against the now-mutated `parts` --
+        # so the NAMES it leaves behind reflect the mutation, same as
+        # the serializer above. `visited`, recorded during delivery,
+        # still reflects the entry order: the read that matters for a
+        # qualified id happens once, at delivery, not at this re-link.
         drive_tree(parent, lambda *arguments: 0,
                    visit=lambda node, path: visited.append((node, path)))
-        self.assertEqual((mutator.name, sibling.name), ('parts-0', 'parts-1'))
+        self.assertEqual((mutator.name, sibling.name), ('parts-1', 'parts-0'))
         self.assertIs(sibling._parent, parent)
         self.assertEqual(visited,
                          [(parent, ()),

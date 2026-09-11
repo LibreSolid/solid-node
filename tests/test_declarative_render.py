@@ -52,7 +52,15 @@ class RenderReturnsNothingTest(BaseNodeTest):
         self.assertEqual([child.name for child in rendered],
                          ['first', 'second', 'third'])
         self.assertIs(rendered[1], group.second)
-        self.assertIs(group.second._parent, None)
+        # `whole-tree-fixpoint`: a bare render() call now LINKS its own
+        # children as part of its own phase (before clear/simulate), so
+        # a message about one resolves by path instead of falling back
+        # to its class name -- this used to be a walker's job, done only
+        # by whoever recursed (the serializer, state propagation), and a
+        # bare render() left `_parent` unset. Names were already correct
+        # either way (`_attr_name_for`), which is what this test is
+        # about; linking now comes for free with the render() itself.
+        self.assertIs(group.second._parent, group)
         document = serialize_node(group, lambda rigid: rigid.name)
         self.assertEqual([child['name'] for child in document['children']],
                          ['first', 'second', 'third'])
@@ -167,10 +175,14 @@ class RenderReturnsNothingTest(BaseNodeTest):
 
         rendered = legacy.render()
 
-        # The author's list, as returned: no substitution, and the name
-        # is still derived at link time as it always was.
+        # The author's list, as returned: no substitution. The name is
+        # still derived at LINK time, as it always was -- and
+        # `whole-tree-fixpoint` makes render() itself the link time, so
+        # a bare call now names `box` by the attribute holding it rather
+        # than leaving that to whichever walker happened to recurse
+        # next; see `RenderReturnsNothingTest.test_a_grouping_node_needs_no_methods`.
         self.assertEqual(rendered, [legacy.box])
-        self.assertEqual(legacy.box.name, 'Box')
+        self.assertEqual(legacy.box.name, 'box')
 
 
 class OmissionTest(BaseNodeTest):

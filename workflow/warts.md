@@ -691,7 +691,8 @@ were bit-identical before and after in both projects.
   the same mode: an anchor has to be carried through the inverse of the
   rest placement, which is a different answer, and Thor's thirteen parts
   need it at realization time. This finding is unchanged.
-- **A relation chain must be stated in one class body.** Relations are
+- **FIXED (cycle `whole-tree-fixpoint`, ADR-099). A relation chain must
+  be stated in one class body.** Relations are
   solved per instance at the end of its own simulate phase, and a child's
   relations solve after its parent's. Clock 01 binds `escape.turn` in
   `Movement.simulate()`; stating `centre.drives(third)` inside `Train`
@@ -701,14 +702,32 @@ were bit-identical before and after in both projects.
   visible, but it forces every chain into the class that binds its known
   end. Candidate fix: let a parent's fixpoint defer an unreached relation
   until its descendants have solved, then re-run once.
-- **A node's own derived coordinate is unbound inside its own
-  `simulate()`.** `clear_solved()` runs before the author's `simulate()`
+  **What shipped:** exactly the candidate fix — an unresolved relation
+  defers to the enumeration's own whole-tree fixpoint, resolved once
+  every assembly's phase has run, and refused only then. Proven on this
+  exact shape
+  (`tests/test_couplings.py::TreeFixpointTest::test_a_chain_stated_one_level_down_solves`).
+  Wall clock 01's own two-arbor chain (task 9.4 of the change) is NOT
+  proven here: 3DPrintedClocks' working tree was under the pilot's own
+  session throughout this implementation, and the overlay is left for a
+  follow-up that can read it.
+- **FIXED (cycle `whole-tree-fixpoint`, ADR-099). A node's own derived
+  coordinate is unbound inside its own `simulate()`.** `clear_solved()`
+  runs before the author's `simulate()`
   and the fixpoint after it, so `Art4.left = art56.wrist + 2 * tool` reads
   as an unbound slot in `Art4.simulate()` and a hand-written rotate from it
   silently turns nothing (Thor's two motor pulleys, caught by the pose
   comparison). Coordinates bound by an ancestor's relation are fine.
   Candidate fix: refuse the read by name rather than yield an empty slot,
   or state the two-phase order in the read's error.
+  **What shipped:** the read is recorded while it is unbound and judged
+  at the end of the enumeration by what actually bound the coordinate
+  afterward — a relation, a derived formula or a wiring: refused, naming
+  both classes and the two-phase order. Bound afterward by the reading
+  class's OWN `simulate()` instead: not refused, which is the ordinary
+  rest-default guard and stays exactly as unremarkable as it was.
+  Proven on Thor's own shape
+  (`tests/test_couplings.py::ReadRefusalTest::test_a_class_reading_its_own_derived_coordinate_is_refused`).
 - Thor's exact suite has two failures that pre-exist this work on this
   framework tree (`seats.assert_inventory`: 260 of 272 overlapping pairs
   not in the seats inventory, in `test_assembly_integrity` and the
@@ -812,7 +831,8 @@ before the project is refactored around its absence.
   — take its source from a path — is exactly what a broadcast relation
   states. OpenCycloid becomes refactorable at stage B in its own
   repository's own cycle; nothing in the framework waits on it.
-- **Two smaller sightings from OpenTorque (planetary reducer, not
+- **FIXED (cycle `whole-tree-fixpoint`, ADR-099). Two smaller sightings
+  from OpenTorque (planetary reducer, not
   deferred).** (a) The one-class-body rule again: the root cannot say
   `reducer.planet_1.orbit.drives(output_stack.planet_carrier_b.turn)`
   because the reducer's own relations have not run when the root solves,
@@ -824,6 +844,18 @@ before the project is refactored around its absence.
   `simulate()` line instead of stating `input_angle.drives(motor_rotor.spin)`.
   Wanted: a subclass may replace a NAMED relation of its base, the way a
   redeclared port wins.
+  **What shipped:** (a) is the same whole-tree fixpoint as the two
+  entries above. (b) is exactly
+  the wanted mechanism: a subclass assigning a relation to a name a base
+  already used REPLACES it, at the base's position in the enumeration
+  (the rule a redeclared joint already obeys, ADR-093); a bare statement,
+  or a name no base used, stays additive. Proven directly, on OpenTorque's
+  own two-relation shape, as a unit test
+  (`tests/test_couplings.py::SubclassReplacesRelationTest`). An overlay
+  proving BOTH (a) and (b) on OpenTorque's own project code (task 9.6 of
+  the change) is NOT proven here, deferred for time; the project's own
+  base-against-head pose comparison, unmodified, is 0.000e+00
+  (`evidence.md` §9).
 - **FIXED for the composition half (cycle `joint-composition-order`,
   ADR-093). A floating body's attitude is the same composition gap, from
   the other side.** The hexapod's chassis has four freedoms against the
@@ -1094,8 +1126,9 @@ before the project is refactored around its absence.
   `swing`; at stage B the two transpose. The own-placed-origin finding
   the four timing gears carry is untouched and still open, and the V8's
   deferral stands on that.
-- **An ancestor's relation cannot SOURCE from a coordinate a descendant's
-  relations solve.** The mirror of reaching by path: OpenFlexure's root
+- **FIXED (cycle `whole-tree-fixpoint`, ADR-099). An ancestor's relation
+  cannot SOURCE from a coordinate a descendant's relations solve.** The
+  mirror of reaching by path: OpenFlexure's root
   stated `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=...)`,
   but the column's travel is bound by `Axis`'s own relations, which run
   after the root's, so the root's solve found it unreached at every
@@ -1105,7 +1138,15 @@ before the project is refactored around its absence.
   fixpoint); the candidate fix already listed — defer an unreached
   relation until the descendants have solved, then re-run once — would
   make the sentence as written work.
-- **An author-bound joint keeps its value but loses its motion between
+  **What shipped:** the same whole-tree fixpoint as above. Proven on
+  this exact shape
+  (`tests/test_couplings.py::TreeFixpointTest::test_an_ancestor_sources_from_a_descendant_solved_coordinate`).
+  An overlay restoring openflexure's own root sentence as written (task
+  9.5 of the change) is NOT proven here, deferred for time; the
+  project's own base-against-head pose comparison, unmodified, is
+  0.000e+00 (`evidence.md` §9).
+- **FIXED (cycle `whole-tree-fixpoint`, ADR-099). An author-bound joint
+  keeps its value but loses its motion between
   runs.** A standalone root that binds its own joint in `simulate()` as a
   rest default with `if value is None: bind` stands correctly once, then
   at rest forever: the joint's operations are swept at the start of the
@@ -1117,6 +1158,30 @@ before the project is refactored around its absence.
   masked by a zero default. Candidate fixes: clear an author-bound
   joint's value with its swept motion, or refuse the read of a stale
   value by name.
+  **What shipped:** clear, chosen over refuse (design.md §6 of the
+  change): the value and binder of every coordinate an assembly bound
+  during its PREVIOUS phase are dropped at the start of its next one,
+  the author's own binding included. Measured live against Prusa i3's
+  and hangprinter's OWN current, already-defensive code (an unconditional
+  rebind pattern that works around this exact gap): both now measure
+  0.000000 mm on a second render, on the base commit BEFORE this cycle's
+  code changed anything (`openspec/changes/whole-tree-fixpoint/evidence.md`
+  §0.6) — the fix keeps that true rather than needing to make it true.
+  A synthetic reproduction of the naive (bind-inside-guard) shape those
+  projects no longer write is proven directly
+  (`tests/test_joints.py::StaleAuthorBoundJointTest`). A second, more
+  severe defect surfaced only once the fix was measured against the
+  FULL tree rather than a project in isolation: two assemblies
+  alternating which one binds ONE coordinate across runs (Prusa's root
+  relation `x.drives(xaxis.carriage.travel)` racing `XAxis`'s own
+  rest-default guard) let the later one's stale record of its own past
+  binding erase the value the earlier one had ALREADY correctly produced
+  THIS run; fixed by scoping the clear to `_enum_marker`, the
+  enumeration a slot was last bound in, not merely to which assembly
+  bound it last time. Proven on Prusa i3's and abacus's own trees, base
+  against head, from an unmodified `git archive HEAD` snapshot of each:
+  0.000e+00 over every pose
+  (`openspec/changes/whole-tree-fixpoint/evidence.md` §9).
 
 # 3DPrintedClocks wall clock 02 (2026-09-09, exact sweep cost)
 

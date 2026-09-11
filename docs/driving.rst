@@ -259,6 +259,21 @@ in the first place has nothing left to carry. When the line does run
 through the node's own origin the two centring translations disappear
 and one rotation is left.
 
+**A joint's coordinate is cleared with the motion it caused.** The value
+and the operations are two halves of one binding, and the framework
+drops them together: at the start of an assembly's phase, before its
+own `simulate()` runs, every coordinate that assembly bound during its
+PREVIOUS phase is cleared — the author's own binding included, not only
+a relation's. A rest-default guard, written as ``if joint.value is
+None: joint.value = default``, therefore finds the coordinate unbound on
+every run and rebinds and re-places the body every time, rather than
+standing correctly on the first enumeration and then at rest, from the
+second one on, while the coordinate still reports the first run's
+number. A binding made outside any phase — in ``__init__``, in a test,
+through a bare ``render()`` no walker drove — is never recorded and
+never cleared, exactly as an operation applied outside a phase is never
+swept.
+
 The operations are ordinary rotations and translations, so a symbolic
 binding publishes a symbolic angle and the viewer evaluates it exactly
 as it evaluates any other expression. A binding outside a declared
@@ -604,10 +619,74 @@ from whichever end is bound at that instant: forward through the law
 when the driver end is bound, backward through its inverse when the
 driven one is. The train above is written power-first and solved
 escape-first, because that is the end ``simulate()`` bound, and nothing
-had to be reordered to make it so. Every relation of a class is solved
-at the end of that instance's simulate phase, so a relation stated on an
-ancestor and reaching a coordinate by path binds it before the
-descendant's own relations run.
+had to be reordered to make it so. Every relation of a class is
+ATTEMPTED at the end of that instance's simulate phase, so a relation
+stated on an ancestor and reaching a coordinate by path binds it before
+the descendant's own relations run.
+
+What one instance's own attempt cannot reach is not refused on the
+spot: it is held until every assembly in the tree has had its own
+phase, and only then resolved or refused. This is what lets the going
+train above be split exactly where the machine is — the chain stated
+inside ``Train``, the movement only binding the escapement two levels
+away::
+
+    class Train(AssemblyNode):
+        centre = TrainArbor(index=1)
+        third  = TrainArbor(index=2)
+        escape = TrainArbor(index=3)
+
+        centre.drives(third, law=going_train)
+        third.drives(escape, law=going_train)
+
+    class Movement(AssemblyNode):
+        power = TrainArbor(index=0)
+        train = Train()
+
+        power.drives(train.centre, law=going_train)
+
+        def simulate(self):
+            self.train.escape.turn = escape_angle(self.time)
+
+``Movement``'s own relation cannot resolve during ``Movement``'s own
+phase — ``train.centre`` is not bound until ``Train``'s own relations
+have solved, and those have not run yet. It is deferred, resolved once
+``Train``'s phase completes, and never refused: reading a coordinate a
+relation, a derived formula or a wiring is going to bind is refused, not
+finding it unbound at the point something reaches it late. The same rule
+also means a class no longer reads its own derived coordinate, or a
+joint its own relation drives, as a silent empty slot inside its own
+``simulate()``: that read is now refused by name, naming the coordinate,
+the binder and the two-phase order — *unless* the same class's
+``simulate()`` binds it there itself, which is the ordinary rest-default
+guard (``if self.coordinate.value is None: self.coordinate = default``)
+and stays exactly as unremarkable as it always was.
+
+A ``DoublyBound`` coordinate is the one thing never deferred: it is a
+contradiction, not a question of timing, and is refused in the instance
+whose attempt found it, immediately.
+
+A subclass may now REPLACE a base's named relation, keeping its
+position in the solve::
+
+    class Actuator(AssemblyNode):
+        drive = input_angle.drives(rotor.spin, ratio=8.0)
+
+    class Preview(Actuator):
+        drive = free_run.drives(Actuator.rotor.spin, ratio=1.0)
+
+``Preview`` enumerates one ``drive``, the replacing one, at the position
+the base's held; ``Actuator`` is untouched, and an instance of it still
+solves its own. A relation with no name, or a name no base used, stays
+additive, as it always was.
+
+Finally, a coordinate is cleared with the motion it caused: at the start
+of an assembly's phase, the framework drops the value and binder of
+every coordinate that assembly bound during its PREVIOUS phase — the
+author's own ``simulate()`` included. A rest-default guard therefore
+rebinds and re-places its body on every run rather than standing, from
+the second run on, at a stale number with no operation left to show for
+it.
 
 The law
 -------

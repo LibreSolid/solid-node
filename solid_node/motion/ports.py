@@ -60,7 +60,8 @@ import math
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-from solid_node.node.phase import note_read
+from solid_node.node.phase import (current_enumeration, note_bound, note_read,
+                                   note_unbound_read)
 
 
 class BoundPort:
@@ -88,6 +89,11 @@ class BoundPort:
     # enumeration, and this is what a double binding is refused by.
     binder = None
 
+    # The enumeration (solid_node.node.phase.Enumeration) whose bind
+    # this value and binder belong to, or None before anything ever
+    # bound this slot. See `clear_solved`.
+    _enum_marker = None
+
     def __init__(self, declaration, node):
         self.declaration = declaration
         self.node = node
@@ -96,6 +102,8 @@ class BoundPort:
     @property
     def value(self):
         note_read('read port', self.declaration.name)
+        if self._value is None:
+            note_unbound_read(self)
         return self._value
 
     @value.setter
@@ -311,6 +319,16 @@ def bind(sink, source):
         value = value * sink.scale
     sink.value = value
     sink.binder = _binder
+    # Which enumeration bound it, so a LATER assembly's `clear_solved`
+    # -- reading its OWN stale record of having bound this same slot on
+    # a PREVIOUS enumeration -- can tell that record apart from a FRESH
+    # claim another assembly already made earlier in THIS one, and
+    # leave that alone: two assemblies that alternate binding one
+    # coordinate across runs (an ancestor's relation this run, this
+    # node's own rest-default guard last run) must never have the
+    # later one's belated clear erase the earlier one's fresh value.
+    sink._enum_marker = current_enumeration()
+    note_bound(sink)
     return sink
 
 

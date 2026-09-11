@@ -663,23 +663,56 @@ comparing values. `get_coordinate(node, name)`, exported beside
 `set_coordinate`, is the matching reader for any name `declared_ports`
 reports, plain or dotted.
 
-**The simulate phase runs in a fixed order** (ADR-089 over ADR-066):
+**The simulate phase runs in a fixed order** (ADR-099 over ADR-089):
 first the framework CLEARS the value and binder record of every
-coordinate this assembly bound through a wiring or a relation in its
-previous run — without which a value slot would still hold the last
-instant's value and the solve would find nothing to do; then the
-author's `simulate()`; then the class's wirings and relations, solved
+coordinate this assembly bound during its PREVIOUS phase — the author's
+own `simulate()` included — without which a value slot would still hold
+the last instant's value, or a rest-default joint would keep a stale
+number once its swept motion had already gone; then the author's
+`simulate()`; then the class's wirings and relations, ATTEMPTED
 TOGETHER to a fixpoint, each relation applied from whichever end is
-bound and each wiring binding as soon as its source is, so a wiring whose
-source a relation solves no longer finds it unbound. All of it happens
-while the phase is still that assembly's, so a relation's motion is
-tagged and swept exactly as a hand-written rotation is. Each instance
-solves its own relations in its own phase, so an ancestor's relation
-reaching a coordinate by path binds it before the descendant's own
-relations run. Three refusals keep a wrong drive network from becoming a
-pose — `UnreachedCoordinate`, `DoublyBound`, `NotInvertible` — and two
-relations that would agree are refused as well, because the framework
-cannot compare two symbolic expressions to decide whether they do.
+bound and each wiring binding as soon as its source is. What one
+instance's own attempt cannot reach is DEFERRED rather than refused. A
+slot some OTHER assembly has already (re)bound in the CURRENT
+enumeration is left uncleared — a coordinate's own `_enum_marker` says
+which enumeration last bound it, so a stale record from this assembly's
+own PREVIOUS phase never wipes out a value another assembly's phase,
+earlier in the same cascade, just produced. All of it happens while the
+phase is still that assembly's, so a relation's motion is tagged and
+swept exactly as a hand-written rotation is.
+
+**One ENUMERATION is one tree pass** (ADR-099): the outermost `render()`
+call that finds none already open OWNS it, and drives every assembly's
+phase in the subtree it renders — parents before children, declaration
+order among siblings, linking each node's children before attempting
+its own relations so a refusal names them by path — before that call
+returns. Because each instance attempts its own relations in its own
+phase and phases run parent-first, an ancestor's relation reaching a
+coordinate by path still binds it before the descendant's own relations
+run — the 30-site guarantee the catalogue depends on, unchanged. Once
+every phase in the subtree has run, the pass propagates over everything
+DEFERRED to a fixpoint, in tree order, and only then refuses
+`UnreachedCoordinate` or `NotInvertible` for what is left; a
+`DoublyBound` coordinate is never deferred, because it is a
+contradiction and not a question of timing, and refuses where it is
+found. A READ of a coordinate a relation, a derived formula or a wiring
+binds is recorded while it is unbound and judged the same way, at the
+end of the pass: bound afterward by that binder — refused, naming both
+classes; bound afterward by the reading class's OWN author code instead
+— not refused, which is the rest-default guard the catalogue's own
+sites write. A subclass assigning a relation to a name a base already
+used REPLACES it, at the base's position in the enumeration (the rule a
+redeclared joint already obeys, ADR-093); a bare statement, or a name no
+base used, stays additive. A node's phase, once run, is marked against
+the enumeration so a walker that revisits it while that SAME enumeration
+is still open does not run it again; the mark is not honoured against a
+merely-remembered PAST enumeration, because `set_state`/`clear_state`
+and `qualified.drive_tree` may bind a fresh snapshot and call `render()`
+again with none currently open. `set_state`/`clear_state` and
+`drive_tree` therefore deliver their whole snapshot over the tree AT
+REST first — a rest-only descent, no phase touched — and enumerate
+exactly ONCE afterward, so a descendant simulates against the binding
+just requested rather than the previous one.
 
 World pose is one composed 4×4 matrix — own operations then ancestors,
 premultiplied (ADR-028) — recomputed on *every* access because

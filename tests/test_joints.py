@@ -815,6 +815,114 @@ class MotionDisciplineTest(BaseNodeTest):
                           if operation.serialized[0] == 'r'],
                          ['25', '10'])
 
+
+##############################################
+# whole-tree-fixpoint, task 3: a stale author-bound joint is cleared
+# with its motion.
+
+class RestDefaultCarriage(Solid2Node):
+    travel = Prismatic(axis=(1, 0, 0), unit='mm')
+
+    def render(self):
+        return cube([2, 2, 2])
+
+
+class RestDefaultPrinter(AssemblyNode):
+    """probe_stale.py, as a fixture: the rest-default guard the
+    catalogue writes -- bind ONLY when nothing has bound the coordinate
+    yet."""
+
+    carriage = RestDefaultCarriage()
+
+    def simulate(self):
+        if self.carriage.travel.value is None:
+            self.carriage.travel = 37.5
+
+
+class NonZeroGuardedWinch(AssemblyNode):
+    """hangprinter's shape, its default made non-zero so the masked
+    defect is visible: binding happens INSIDE the guard."""
+
+    rotor = Revolute(axis=(0, 0, 1), unit='deg')
+
+    def simulate(self):
+        if self.rotor.value is None:
+            self.rotor = 20.0
+
+
+class StaleAuthorBoundJointTest(BaseNodeTest):
+
+    def test_a_rest_default_joint_stands_where_it_says_it_stands(self):
+        """task 3.1, probe_stale.py as a test: three enumerations, each
+        leaving value == 37.5 AND one translation of 37.5. RED today:
+        runs two and three leave the value and no operation."""
+        printer = RestDefaultPrinter()
+
+        for label in ('first', 'second', 'third'):
+            with self.subTest(run=label):
+                printer.set_state(time=0.0)
+                self.assertEqual(printer.carriage.travel.value, 37.5)
+                translations = [operation for operation
+                               in printer.carriage.operations
+                               if operation.serialized[0] == 't']
+                self.assertEqual(len(translations), 1)
+
+    def test_a_non_zero_default_reveals_the_hangprinters_shape(self):
+        """task 3.2: hangprinter's winches carry the same guard, masked
+        by a zero default; a non-zero default makes it visible."""
+        winch = NonZeroGuardedWinch()
+
+        for label in ('first', 'second', 'third'):
+            with self.subTest(run=label):
+                winch.set_state(time=0.0)
+                rotations = [operation for operation in winch.operations
+                            if operation.serialized[0] == 'r']
+                self.assertEqual(len(rotations), 1,
+                                 f'run {label}: {winch.operations}')
+
+    def test_a_binding_made_outside_any_phase_is_not_cleared(self):
+        """task 3.3. GREEN today; must stay green."""
+        carriage = RestDefaultCarriage()
+        carriage.travel = 12.5
+
+        self.assertIsNone(_phase.current())
+        self.assertEqual(carriage.travel.value, 12.5)
+        self.assertEqual(len(motions(carriage)), 1)
+
+    def test_a_coordinate_reads_its_bound_value_between_enumerations(self):
+        """task 3.4. GREEN today; must stay green -- the guarantee that
+        keeps the pose-capture tool (and every test) honest."""
+        printer = RestDefaultPrinter()
+        printer.set_state(time=0.0)
+
+        self.assertEqual(printer.carriage.travel.value, 37.5)
+        # No enumeration is running right now; the value must still read.
+        self.assertIsNone(_phase.current())
+        self.assertEqual(printer.carriage.travel.value, 37.5)
+
+    def test_two_assemblies_animating_one_node_clear_only_their_own(self):
+        """task 3.5. GREEN today; must stay green."""
+        shared = RestDefaultCarriage()
+
+        class First(AssemblyNode):
+            def render(self):
+                return [shared]
+
+            def simulate(self):
+                if shared.travel.value is None:
+                    shared.travel = 5.0
+
+        first = First()
+        first.set_state(time=0.0)
+        self.assertEqual(shared.travel.value, 5.0)
+
+        shared.rotate(9, [0, 0, 1])
+        first.set_state(time=0.5)
+        # First's own clear does not touch the untagged hand rotation.
+        self.assertTrue(any(operation.serialized[0] == 'r'
+                            for operation in shared.operations))
+
+
 ##############################################
 # 1.6b Composition order: several joints on one body
 
@@ -3958,7 +4066,22 @@ class SiteOrbitRepeatDerivedPhaseTest(BaseNodeTest):
                 return cube(1, center=True)
 
         class Carrier(AssemblyNode):
-            carrier_turn = Revolute(axis=(0, 0, 1), unit='deg')
+            # A plain coordinate, not a joint: `carrier_turn` drives each
+            # pin's own orbit and has no independent geometric effect of
+            # its own. `whole-tree-fixpoint` LINKS a node's children as
+            # part of its own phase (so a message about one resolves by
+            # path), and a bare `.render()` call had never linked a
+            # child to its parent before -- so `_compose_world_matrix`
+            # on an unlinked pin silently stopped at the pin itself,
+            # never composing a PARENT's own operations. Declaring this
+            # coordinate as a `Revolute` (a JOINT, which rotates
+            # `Carrier` itself) relied on exactly that gap: linked, the
+            # carrier's own rotation was ALSO composed into the pins'
+            # world matrices, on top of the orbit each pin already
+            # states on its own account, doubling the angle this test
+            # measures. The relation and the orbit mechanics this test
+            # is about are unchanged either way.
+            carrier_turn = RotationalPort(unit='deg')
             pins = Pin(orbit=Orbit(axis=(0, 0, 1), unit='deg')).repeat(6)
 
             carrier_turn.drives(pins.orbit)

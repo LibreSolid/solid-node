@@ -45,9 +45,25 @@ comprehension, where the executing frame reports a copy of the
 declaring namespace rather than the namespace itself.
 
 A class's relations SHALL be enumerable off the class without
-constructing an instance, base-first through the inheritance chain: a
-subclass ADDS to the relations of its bases rather than overriding
-them, because a relation is a statement and not a name.
+constructing an instance, base-first through the inheritance chain. A
+relation written as a BARE STATEMENT has no name, and a subclass ADDS
+such a relation to the relations of its bases rather than overriding
+them, because a statement is not a name. A relation ASSIGNED to a name
+is reachable by that name, and a subclass assigning a relation to a name
+one of its bases already used SHALL REPLACE the base's: the subclass
+SHALL enumerate the replacing relation and NOT the replaced one, and the
+replacing relation SHALL keep the POSITION the base's held in the
+enumeration, so the order of the solving pass does not shift under
+inheritance — the rule a redeclared joint already obeys. The base SHALL
+be unaffected: it SHALL still enumerate its own relation, and an
+instance of the base SHALL still resolve, solve and record it. Reading
+the name off the SUBCLASS SHALL yield the replacing declaration, and off
+one of its instances that instance's record of the replacing relation;
+the replaced relation SHALL never be resolved or recorded for an
+instance of the subclass. A subclass names an inherited declaration
+through the class that declares it — `Base.rotor.spin` — because the
+base's declarations are not names of the subclass's own body, and the
+framework SHALL add no other vocabulary for it.
 
 `drives` called with no node class body executing SHALL be refused by
 name, saying that a relation is class metadata. A class that carries
@@ -101,6 +117,23 @@ independently of every other instance of that class.
   of one parent, and the two are bound differently
 - **THEN** each instance's relation resolves and solves against its own
   coordinates, and neither reads the other's values
+
+#### Scenario: A subclass replaces a relation of its base by name
+
+- **WHEN** a base declares `drive = input_angle.drives(rotor.spin,
+  ratio=8.0)` and a subclass declares
+  `drive = free_run.drives(Base.rotor.spin, ratio=1.0)`
+- **THEN** the subclass enumerates ONE relation named `drive`, the
+  replacing one, at the position the base's held; an instance of the
+  subclass binds `rotor.spin` from `free_run` and nothing is refused as
+  doubly bound; and the base still enumerates and solves its own
+
+#### Scenario: A bare statement stays additive
+
+- **WHEN** a base states two bare relations and a subclass states a
+  third bare one and assigns a fourth to a name no base used
+- **THEN** the subclass enumerates all four, the base's first, and
+  nothing was replaced
 
 ### Requirement: The law of a relation is an affine pair, or project code passed in
 
@@ -280,11 +313,16 @@ symbolic term produces a symbolic result.
 
 ### Requirement: Relations are solved from the bound side, at the end of the owning simulate phase
 
-The system SHALL solve the relations of a class for one instance at the
-end of that instance's simulate phase: after the author's `simulate()`
-has returned and before the phase is popped — so that any motion a
-relation causes is that assembly's motion, tagged with it and swept
-before its next run, exactly as a hand-written rotation there is.
+The system SHALL ATTEMPT the relations of a class for one instance at
+the end of that instance's simulate phase: after the author's
+`simulate()` has returned and before the phase is popped — so that any
+motion a relation causes is that assembly's motion, tagged with it and
+swept before its next run, exactly as a hand-written rotation there is.
+What that attempt cannot reach SHALL be DEFERRED to the enumeration's
+own fixpoint rather than refused, under the requirement "Relations defer
+to a whole-tree fixpoint". A relation the attempt CAN reach SHALL be
+solved there and SHALL NOT be deferred, so nothing that solves in one
+instance's phase moves out of it.
 
 Every WIRING the class declared SHALL take part in the same solve, as a
 forward-only relation carrying the identity law from the parent's
@@ -303,14 +341,24 @@ Because a value slot keeps what was bound into it, the system SHALL
 make freshness explicit. At the START of an assembly's simulate phase,
 before the author's `simulate()` runs, the framework SHALL clear the
 value and the binder record of every coordinate THIS assembly bound
-through a wiring or a relation in its previous run — which it recorded
-when it bound them — so that the only values present when the solve
-runs are those bound during the current walk of the tree: by this
-author's `simulate()`, by an ancestor's wiring or relation already
-applied in this walk, or by a driver read. A value an author's own code
-bound in an earlier run and did not bind in this one SHALL NOT be
-cleared: an author's binding is the author's responsibility, exactly as
-it is today.
+DURING ITS PREVIOUS SIMULATE PHASE — which it recorded when it bound
+them — whatever bound it there: a relation, a wiring, a derived formula,
+or the author's own `simulate()`. The value and the MOTION of one
+binding SHALL be dropped in the same moment and by the same rule, so a
+coordinate can never go on holding a value whose operations the sweep
+has already removed. The only values present when the solve runs are
+therefore those bound during the current enumeration of the tree: by
+this author's `simulate()`, by an ancestor's wiring or relation already
+applied in this enumeration, or by a driver read.
+
+A binding made OUTSIDE any simulate phase — in `__init__`, in a test, or
+through a `render()` no walker drove — SHALL NOT be recorded and SHALL
+NOT be cleared, exactly as an operation applied outside a phase is never
+swept. Two assemblies that bind coordinates of one node SHALL clear only
+their own. Between one enumeration and the next a coordinate SHALL go on
+reading what the last enumeration bound, so a test, a serializer or a
+pose capture that reads a coordinate after a walk reads the pose that
+walk produced.
 
 Solving SHALL proceed as: INVENTORY, which of the coordinates the
 class's relations and wirings name currently hold a value, and what
@@ -346,13 +394,14 @@ records, in copy order, where a named ordinary relation yields one
 record; every message about one of those records SHALL name the copy it
 applies to as well as the relation as written.
 
-Because each class solves its own relations in its own instance's
-phase, a relation declared on an ancestor and reaching a descendant's
-coordinate by path SHALL be solved BEFORE that descendant's own
-relations are, so an ancestor's value is a descendant's boundary
-condition. A relation whose two ends lie in different subtrees SHALL be
-solved by the class that states it, both ends resolving from that
-instance.
+Because each class attempts its own relations in its own instance's
+phase, and every instance's phase runs before its children's, a relation
+declared on an ancestor and reaching a descendant's coordinate by path
+SHALL be solved BEFORE that descendant's `simulate()` runs and before
+that descendant's own relations are attempted, so an ancestor's value is
+a descendant's boundary condition. A relation whose two ends lie in
+different subtrees SHALL be solved by the class that states it, both
+ends resolving from that instance.
 
 Values SHALL pass through a relation unresolved: a symbolic driver read
 or animation-time expression driven through an `Affine` or a derived
@@ -452,12 +501,36 @@ runner.
 - **THEN** each realized assembly solves its own relation against its
   own bound values, and each places its own bodies
 
+#### Scenario: A relation an ancestor's value reaches is not deferred
+
+- **WHEN** a root states a relation binding a coordinate three levels
+  down and that level's own class reads the coordinate in its
+  `simulate()`
+- **THEN** the root's relation was solved in the root's own phase, the
+  descendant's `simulate()` read the bound value, and nothing was
+  deferred to the enumeration's fixpoint
+
+#### Scenario: A phase clears the value it bound by hand
+
+- **WHEN** an assembly's `simulate()` binds a child's joint under an
+  `if <coordinate> is None:` guard and the tree is enumerated three
+  times
+- **THEN** each run finds the coordinate unbound, binds it and places
+  the body, so the body stands at the bound value on every run instead
+  of standing at rest holding a stale number
+
 ### Requirement: Three refusals keep a wrong drive network from becoming a pose
 
-The system SHALL refuse, by name and at the moment the relations of an
-instance are solved, each of the following, and SHALL name in every
-message the node paths of the ends, the relation as written — its name
-when it has one — and the coordinates involved:
+The system SHALL refuse, by name, each of the following, and SHALL name
+in every message the node paths of the ends, the relation as written —
+its name when it has one — and the coordinates involved. A DOUBLY BOUND
+coordinate SHALL be refused at the moment the relations of the instance
+that would bind it are attempted: it is a contradiction and not a
+question of timing, so its message stays next to the class that caused
+it. The other two SHALL be refused at the END of the enumeration's
+fixpoint, once every assembly's phase has run and nothing changes any
+more, because until then a statement elsewhere in the tree may still
+reach the coordinate:
 
 - an UNREACHED COORDINATE: a coordinate a relation names that no
   binding and no relation reached when propagation stopped changing
@@ -482,6 +555,11 @@ when it has one — and the coordinates involved:
 
 Each error SHALL be of its own kind, exported from the couplings
 module, so a project or a test can catch exactly one.
+
+Every message SHALL name the class that STATED the relation, whether the
+relation was solved in its own instance's phase or in the enumeration's
+fixpoint, and a message about a deferred relation SHALL say that it was
+deferred until the descendants had solved.
 
 #### Scenario: A coordinate nothing reaches is refused
 
@@ -710,3 +788,165 @@ as written, the node the walk stopped at and what that node declares.
   `tilt.drives(chassis.pose.twist)`
 - **THEN** class definition raises naming the joint and listing the
   coordinates it owns, with the advice to name one of them
+
+### Requirement: Relations defer to a whole-tree fixpoint
+
+The system SHALL treat one ENUMERATION of a tree as one solve. An
+enumeration begins when a `render()` is called with no enumeration in
+progress; the assembly that call names OWNS the enumeration and SHALL
+drive the simulate phase of every assembly in the subtree it renders,
+parents before children and in declaration order among siblings, before
+that `render()` returns. Each assembly's phase SHALL be exactly what it
+is for one node today — sweep, rest, clear, the author's `simulate()`,
+then the attempt at its own relations, wirings and derived coordinates —
+and each SHALL run ONCE per enumeration.
+
+An item its own instance's attempt could not resolve SHALL be DEFERRED
+to the enumeration rather than refused. The system SHALL defer:
+
+- a relation record with neither end bound;
+- a relation record whose driven end is bound and whose law offers no
+  inverse, and one copy of a broadcast whose driven end is bound;
+- a derived coordinate that holds a value while more than one of its
+  terms is unbound;
+- a wiring whose source coordinate is unbound.
+
+The system SHALL NOT defer a DOUBLY BOUND coordinate or a value a
+joint's declared range refuses: neither is a question of timing.
+
+Once every assembly's phase has run, the enumeration SHALL PROPAGATE
+over every deferred item of the whole tree — applying each relation with
+exactly one bound end from that end, each wiring whose source is now
+bound, and each derived coordinate with at most one unknown —
+repeatedly, until nothing changes; and only THEN refuse. Each deferred
+item SHALL be applied under the phase of the assembly that STATED it, so
+the motion it causes carries that assembly's animator tag, is swept
+before that assembly's next run, and is cleared by that assembly's own
+next phase, exactly as it would have been had the item resolved in its
+own phase.
+
+The order of that propagation SHALL be TREE ORDER — the order the
+assemblies' phases ran — and within one assembly the declaration order
+of its items, a broadcast's copies in copy order at the position of
+their declaration. The result SHALL NOT depend on which assembly
+deferred first.
+
+Because the enumeration reads a body's geometry only after every phase
+has run, a coordinate a deferred relation binds SHALL be bound before
+anything in the enumeration reads the body it moves.
+
+An assembly rendered ALONE — a component under test, or a subtree a
+walker enters directly — SHALL own its own enumeration over its own
+subtree, and a relation of that subtree that needs a coordinate outside
+it SHALL be refused at the end of it, exactly as it is refused today.
+
+#### Scenario: A chain stated one level down solves
+
+- **WHEN** a movement states `power.drives(train.centre)` while the
+  train's own class states `centre.drives(third)` and
+  `third.drives(escape)`, and the movement's `simulate()` binds
+  `train.escape.turn`
+- **THEN** the train's three relations and the movement's one all solve
+  from that one binding, every arbor is placed, and nothing is refused
+
+#### Scenario: An ancestor sources from a coordinate a descendant solves
+
+- **WHEN** a root states
+  `z_axis.actuator.column.travel.drives(body.lower_strut.swing, law=…)`
+  and `Axis`'s own relation is what binds `column.travel` from the step
+  count its `simulate()` binds
+- **THEN** the root's relation is deferred, solved once the axis has
+  solved, and the strut is placed at every pose
+
+#### Scenario: A deferred relation moves a body the walk has not read yet
+
+- **WHEN** the root of a tree with two subtrees states a relation whose
+  driven end is in the FIRST subtree and whose source a relation of the
+  SECOND subtree solves, and the tree is assembled
+- **THEN** the body in the first subtree carries the deferred relation's
+  motion in the geometry the walk composed for it
+
+#### Scenario: A wiring whose source a descendant solves binds
+
+- **WHEN** an assembly wires its own coordinate down into a child and
+  that coordinate is bound by a relation of a DESCENDANT
+- **THEN** the wiring is deferred and applied in the enumeration's
+  fixpoint, and the child holds the value rather than the wiring
+  refusing an unbound source
+
+#### Scenario: A contradiction is refused where it is stated
+
+- **WHEN** an assembly's `simulate()` binds a child's joint that a
+  relation of the same class also drives
+- **THEN** the doubly-bound refusal is raised in that assembly's own
+  phase, naming that class, and not deferred to the end of the
+  enumeration
+
+#### Scenario: Each phase runs once per enumeration
+
+- **WHEN** a three-level tree is assembled
+- **THEN** each assembly's `simulate()` ran exactly once, the
+  enumeration's fixpoint ran once after all of them, and the walker's
+  descent re-ran no phase
+
+### Requirement: A read of a coordinate a relation binds is refused, never an empty slot
+
+A coordinate a relation, a derived formula or a wiring binds is UNBOUND
+while the `simulate()` of the class that states it runs, because
+`simulate()` runs first and the relations are solved after it returns.
+The system SHALL NOT let such a read pass silently as an empty slot.
+
+The system SHALL RECORD every read of a coordinate slot holding no
+value made while a simulate phase is running, with the coordinate's
+declared name, the node that owns it, the class whose `simulate()` was
+running, and the source location of the read. At the end of the
+enumeration, a recorded read whose coordinate was AFTERWARDS bound by a
+relation, a derived coordinate or a wiring SHALL be refused by name,
+naming the coordinate, the class that read it, what bound it, and the
+order: the author's `simulate()` runs first, the relations of that class
+are solved after it returns, and a descendant's after that.
+
+A recorded read whose coordinate the AUTHOR then bound SHALL NOT be
+refused: reading a coordinate to discover that nothing has bound it and
+binding it is a rest default, not a mistake. A recorded read of a
+coordinate nothing ever bound SHALL NOT be refused by this rule either;
+it is the unreached coordinate the solver already refuses by its own
+name.
+
+A coordinate a class's OWN relation binds and a DERIVED coordinate the
+class declares SHALL be the same case, and so SHALL a coordinate a
+DESCENDANT's relations solve, read from an ancestor's `simulate()`. The
+whole-tree fixpoint SHALL NOT make any of them readable earlier: it
+makes the SENTENCE statable, not the value early.
+
+#### Scenario: A class reads its own derived coordinate
+
+- **WHEN** a class declares `left = wrist + 2 * tool`, binds `wrist` and
+  `tool` in its `simulate()`, and rotates a pulley by `self.left.value`
+  in the same method
+- **THEN** the enumeration refuses naming `left`, the class, the derived
+  coordinate that bound it and the two-phase order, instead of turning
+  the pulley by nothing
+
+#### Scenario: A class reads a coordinate its own relation binds
+
+- **WHEN** a class states `steps.drives(rotor.spin, ratio=0.5)`, binds
+  `steps` in its `simulate()` and reads `self.rotor.spin.value` there
+- **THEN** the enumeration refuses naming the coordinate, the relation
+  that bound it and the same order
+
+#### Scenario: A rest-default guard is not refused
+
+- **WHEN** an assembly's `simulate()` reads a coordinate that is the
+  SOURCE end of one of its own relations, finds it unbound and binds it
+  to a default
+- **THEN** nothing is refused, the relation solves forward from the
+  default, and the body stands at it
+
+#### Scenario: An ancestor reads a coordinate a descendant solves
+
+- **WHEN** a parent's `simulate()` reads a coordinate that only a
+  child's own relations bind
+- **THEN** the enumeration refuses naming both classes and the order,
+  rather than reordering the tree to make the read work
+

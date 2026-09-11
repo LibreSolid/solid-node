@@ -8,6 +8,25 @@ Changelog
 Unreleased
 ----------
 
+**Relations resolve over the whole tree in one pass.** What one
+instance's own simulate phase cannot reach is deferred to the
+enumeration rather than refused, and resolved once every assembly's
+phase has run — a relation may now be stated inside the class that
+owns it, reaching an ancestor's coordinate or waiting on a descendant's,
+rather than being hoisted, duplicated or re-sourced from a driver to
+work around today's per-instance-only solve. A read of a coordinate a
+relation, a derived formula or a wiring is going to bind is refused by
+name instead of silently reading an empty slot, unless the reading
+class's own ``simulate()`` binds it there itself (the ordinary
+rest-default guard). A subclass may replace a base's NAMED relation,
+keeping its position in the solve. A coordinate is cleared with the
+motion it caused at the start of the OWNING assembly's next phase — the
+author's own binding included — so a rest-default guard rebinds and
+re-places its body on every run instead of standing, from the second
+run on, at a stale number with no operation left to show for it. See
+"Relations: one coordinate drives another" and "Joints: where a part
+may move".
+
 **A joint may be declared where a child is placed.** The other half of
 "a joint is stated in the frame of whoever declares it" (below): a joint
 passed as a KEYWORD where a parent declares a child is the parent's own

@@ -53,12 +53,14 @@ from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
                                      SignalPort, TranslationalPort, bind,
                                      binding_as, declared_ports,
                                      set_coordinate, wiring_binding)
+from solid_node.node.phase import current as _current_phase
+from solid_node.node.phase import current_enumeration as _current_enumeration
 
 
 __all__ = ['Affine', 'CouplingError', 'DerivedCoordinate', 'DoublyBound',
-           'NotInvertible', 'Relation', 'UnreachedCoordinate',
+           'NotInvertible', 'PrematureRead', 'Relation', 'UnreachedCoordinate',
            'clear_solved', 'declared_derived', 'declared_relations',
-           'solve_relations']
+           'refuse_reads', 'run_deferred', 'solve_relations']
 
 
 class CouplingError(ValueError):
@@ -75,6 +77,15 @@ class DoublyBound(CouplingError):
 
 class NotInvertible(CouplingError):
     """A law was needed backwards and offers no inverse."""
+
+
+class PrematureRead(CouplingError):
+    """A coordinate a relation, a derived formula or a wiring binds was
+    read while unbound, during the simulate phase of the class that
+    reads it -- because that phase runs BEFORE the binder, whichever
+    class states it, is solved (`whole-tree-fixpoint`)."""
+
+
 
 
 def _is_number(value):
@@ -1269,16 +1280,32 @@ def declared_relations(node_class):
     """Every relation declared on `node_class`, base-first through the
     inheritance chain.
 
-    A relation is a STATEMENT, not a name: a subclass ADDS to the
-    relations of its bases rather than overriding them, so the chain is
-    concatenated and de-duplicated by object identity.
+    A relation written as a BARE STATEMENT has no name, and a subclass
+    ADDS such a relation to its bases' rather than overriding them --
+    a statement is not a name. A relation ASSIGNED to a name, when a
+    subclass assigns a relation to a name one of its bases already used,
+    REPLACES the base's: the base's own relation is dropped from the
+    subclass's enumeration and the replacing one keeps the position the
+    base's held (the rule a redeclared joint already obeys,
+    `declared_joints`/ADR-093), so the pass order does not shift under
+    inheritance. Walked base-first (`reversed(node_class.__mro__)`), so a
+    base's relations arrive before a subclass's, and a subclass's own
+    replace the matching names as they are found.
     """
     cached = _relations_cache.get(node_class)
     if cached is None:
         found = []
+        positions = {}
         for klass in reversed(getattr(node_class, '__mro__', ())):
             for relation in vars(klass).get('_declared_relations', ()):
-                if not any(relation is seen for seen in found):
+                if any(relation is seen for seen in found):
+                    continue
+                name = relation.name
+                if name is not None and name in positions:
+                    found[positions[name]] = relation
+                else:
+                    if name is not None:
+                        positions[name] = len(found)
                     found.append(relation)
         cached = _relations_cache[node_class] = tuple(found)
     return cached
@@ -1381,29 +1408,86 @@ def _solved_formulas(assembly, records):
 
 
 def clear_solved(assembly):
-    """Drop what THIS assembly bound through a wiring or a relation in
-    its previous run, at the start of its simulate phase.
+    """Drop what THIS assembly bound during its PREVIOUS simulate phase,
+    at the start of this one -- whoever bound it: a relation, a wiring, a
+    derived coordinate, or the author's own `simulate()`.
 
     A value slot keeps what was put into it, and nothing else clears it:
     without this the second run would find every coordinate still
     holding the first run's value, the fixpoint would find no relation
     with exactly one bound end, and the train would stay frozen at the
-    first instant. What the AUTHOR bound is never cleared -- an author's
-    binding is the author's responsibility, exactly as it is today.
+    first instant. The author's binding is cleared with the rest now
+    (`whole-tree-fixpoint`): the value and the swept motion are two
+    halves of one binding, and dropping only one of them is what left a
+    rest-default joint standing at a stale number with no operation left
+    to show for it.
+
+    A slot this assembly bound LAST enumeration and some OTHER assembly
+    has ALREADY bound again in the current one -- an ancestor's relation
+    claiming a coordinate this same node's own rest-default guard
+    otherwise fills, on a run where the ancestor reaches it first -- is
+    left alone: it is not stale, it is fresh, and clearing it here would
+    erase a value the current pass already produced correctly, before
+    this assembly's own phase (later in the same cascade) even runs.
+    `_enum_marker` (set by every `bind`) is what tells the two apart.
     """
+    current_enumeration = _current_enumeration()
     for slot in assembly.__dict__.pop('_solver_bound', ()):
+        if slot._enum_marker is current_enumeration:
+            continue
         slot._value = None
         slot.binder = None
 
 
-def solve_relations(assembly):
-    """Solve this instance's relations and wirings, at the end of its
-    simulate phase.
+class _Deferred:
+    """One assembly's LEFTOVER relations, derived coordinates and
+    wirings after its own attempt -- what its own instance's phase could
+    not resolve, carried into the enumeration's fixpoint.
 
-    Inventory, then propagate to a fixpoint -- every relation with
-    exactly one bound end applied from that end, every wiring whose
-    source is bound, every derived coordinate with at most one unknown
-    -- then refuse by name.
+    `claimed` and `bound` are the SAME objects the per-instance attempt
+    used, so a coordinate the enumeration's fixpoint goes on to claim is
+    still checked against every claim this assembly's own attempt already
+    made, and a slot the fixpoint binds still lands in the list this
+    assembly's OWN next `clear_solved` reads.
+    """
+
+    __slots__ = ('assembly', 'records', 'derived', 'wirings', 'claimed',
+                'bound')
+
+    def __init__(self, assembly, records, derived, wirings, claimed, bound):
+        self.assembly = assembly
+        self.records = records
+        self.derived = derived
+        self.wirings = wirings
+        self.claimed = claimed
+        self.bound = bound
+
+
+def _formula_unresolved(assembly, formula):
+    """Whether a derived coordinate is the shape `_refuse` complains
+    about: BOUND while more than one of its terms is not. A formula
+    nothing has bound is inert, not a candidate to defer -- exactly as
+    `_refuse` never raises for one today."""
+    slot = formula.slot_of(assembly)
+    if slot._value is None:
+        return False
+    unbound = [end for end, _coefficient
+              in formula.resolved_terms(assembly) if not end.bound()]
+    return len(unbound) > 1
+
+
+def solve_relations(assembly, enumeration):
+    """ATTEMPT this instance's relations and wirings, at the end of its
+    simulate phase: exactly the inventory-then-propagate fixpoint this
+    always was, over this instance's own records alone.
+
+    What the attempt cannot reach is DEFERRED to `enumeration` rather
+    than refused -- a `_Deferred` bundle of whatever is left, carrying
+    the SAME `claimed`/`bound` this attempt used, so the enumeration's
+    own fixpoint (`run_deferred`) can go on claiming and binding into
+    them. A DOUBLY BOUND coordinate is never deferred: `_step_relation`,
+    `_step_derived` and `_step_wiring` still raise it here, immediately,
+    exactly as they always have.
     """
     records = assembly.__dict__.get('_relations', ())
     derived = _solved_formulas(assembly, records)
@@ -1412,10 +1496,14 @@ def solve_relations(assembly):
         return
     for record in records:
         record.direction = None
-    # Recorded on the instance BEFORE the fixpoint runs and appended to
-    # in place, so a run that refuses halfway still leaves behind exactly
-    # what it managed to bind, for the next run's clear to drop.
-    bound = assembly.__dict__['_solver_bound'] = []
+    # The phase's OWN bound list: the author's simulate() has already
+    # been recording into it (`ports.bind` -> `phase.note_bound`), and
+    # `assembly.py` records this SAME list as `_solver_bound` once this
+    # phase finishes, whether or not this attempt finds anything to
+    # solve -- so starting from it here means clear_solved's next run
+    # drops the author's rest-default binding together with whatever
+    # this attempt and the enumeration's own fixpoint go on to add.
+    bound = _current_phase().bound
     claimed = {id(wiring.target): wiring for wiring in wirings}
 
     changed = True
@@ -1429,7 +1517,72 @@ def solve_relations(assembly):
         for wiring in wirings:
             changed = _step_wiring(wiring, bound) or changed
 
-    _refuse(assembly, records, derived, wirings)
+    leftover_records = [record for record in records
+                        if record.direction is None]
+    leftover_derived = [formula for formula in derived
+                        if _formula_unresolved(assembly, formula)]
+    leftover_wirings = [wiring for wiring in wirings if not wiring.applied]
+    if leftover_records or leftover_derived or leftover_wirings:
+        enumeration.deferred.append(_Deferred(
+            assembly, leftover_records, leftover_derived, leftover_wirings,
+            claimed, bound))
+
+
+def run_deferred(enumeration):
+    """The enumeration's own fixpoint: propagate over every assembly's
+    leftover relations, derived coordinates and wirings, in TREE
+    ORDER -- the order `enumeration.deferred` was appended in, which is
+    the order the assemblies' phases ran, parents before children -- and
+    within one assembly the declaration order its own attempt already
+    preserved. Repeats until nothing changes any more, then refuses
+    whatever is left, by the SAME `_refuse` a single instance's own
+    attempt always called.
+
+    Every step function is the one the per-instance attempt uses,
+    unchanged: `_step_relation`/`_step_derived`/`_step_wiring` are
+    idempotent once a record has solved (their own "already bound"
+    checks return False), so scanning the WHOLE leftover list again on
+    every round is simply the fixpoint, not wasted work repeated.
+    """
+    changed = True
+    while changed:
+        changed = False
+        for unit in enumeration.deferred:
+            for record in unit.records:
+                changed = _step_relation(record, unit.claimed,
+                                         unit.bound) or changed
+            for formula in unit.derived:
+                changed = _step_derived(unit.assembly, formula,
+                                        unit.claimed, unit.bound) or changed
+            for wiring in unit.wirings:
+                changed = _step_wiring(wiring, unit.bound) or changed
+    for unit in enumeration.deferred:
+        _refuse(unit.assembly, unit.records, unit.derived, unit.wirings)
+
+
+def refuse_reads(enumeration):
+    """The read-refusal rule, judged at the end of the enumeration: a
+    recorded read of a coordinate slot that was, by now, bound by a
+    relation, a derived coordinate or a wiring is refused by name. A read
+    the AUTHOR went on to bind (the rest-default guard) or that stayed
+    unbound (the unreached coordinate, refused by its own name elsewhere)
+    is not this rule's business.
+    """
+    for slot, reading_node, reader, filename, lineno in enumeration.reads:
+        if slot._value is None:
+            continue
+        binder = getattr(slot, 'binder', None)
+        if binder is None:
+            continue
+        coordinate_path = f'{where(slot.node)}.{slot.name}'
+        raise PrematureRead(
+            f"{coordinate_path} was read by {reader.__name__}'s own "
+            f'simulate() ({where(reading_node)}, {filename}:{lineno}) '
+            f'before {_describe_binder(binder)} bound it: simulate() runs '
+            f'first, the relations of the class that states the binder are '
+            f"solved after it returns, and a descendant's after that. The "
+            f'whole-tree fixpoint makes the SENTENCE statable, not the '
+            f'value early.')
 
 
 def _binder_of(slot):
@@ -1443,6 +1596,8 @@ def _describe_binder(binder):
         return f'the relation {binder.described()}'
     if isinstance(binder, Wiring):
         return binder.described()
+    if isinstance(binder, DerivedCoordinate):
+        return f'the derived coordinate {binder.described()} ({binder.written})'
     return repr(binder)
 
 
