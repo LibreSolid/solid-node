@@ -1,0 +1,31 @@
+{
+  "runtime": "3.12.3",
+  "tracemalloc_enabled": true,
+  "seconds_for_100000_ticks": 67.06460334300209,
+  "samples": [
+    {
+      "ticks": 2000,
+      "retained_traced_bytes": 15728,
+      "peak_traced_bytes": 44536,
+      "snapshot_bytes": 3790,
+      "trace_length": 64,
+      "event_count_slots": 10
+    },
+    {
+      "ticks": 20000,
+      "retained_traced_bytes": 17652,
+      "peak_traced_bytes": 54356,
+      "snapshot_bytes": 3878,
+      "trace_length": 64,
+      "event_count_slots": 10
+    },
+    {
+      "ticks": 100000,
+      "retained_traced_bytes": 18560,
+      "peak_traced_bytes": 56536,
+      "snapshot_bytes": 3960,
+      "trace_length": 64,
+      "event_count_slots": 10
+    }
+  ]
+}

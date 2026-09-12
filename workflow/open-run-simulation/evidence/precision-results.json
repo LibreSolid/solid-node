@@ -1,0 +1,74 @@
+{
+  "samples": [
+    {
+      "initial_whole_turns": "0",
+      "unwrapped_float_wheels": [
+        360.0,
+        360.0,
+        36.0
+      ],
+      "unwrapped_float_error": null,
+      "max_unwrapped_wheel_error": 0.0,
+      "phase_local_wheels": [
+        360.0,
+        360.0,
+        36.0
+      ],
+      "phase_local_winding_after": "0",
+      "phase_local_degrees_after": 179.99999999999997
+    },
+    {
+      "initial_whole_turns": "1000000",
+      "unwrapped_float_wheels": [
+        360.0000000053635,
+        360.0000000053635,
+        36.0
+      ],
+      "unwrapped_float_error": null,
+      "max_unwrapped_wheel_error": 5.363517630030401e-09,
+      "phase_local_wheels": [
+        360.0,
+        360.0,
+        36.0
+      ],
+      "phase_local_winding_after": "1000000",
+      "phase_local_degrees_after": 179.99999999999997
+    },
+    {
+      "initial_whole_turns": "1000000000",
+      "unwrapped_float_wheels": [
+        360.0000478798142,
+        360.0000478798142,
+        36.0
+      ],
+      "unwrapped_float_error": null,
+      "max_unwrapped_wheel_error": 4.78798141898551e-05,
+      "phase_local_wheels": [
+        360.0,
+        360.0,
+        36.0
+      ],
+      "phase_local_winding_after": "1000000000",
+      "phase_local_degrees_after": 179.99999999999997
+    },
+    {
+      "initial_whole_turns": "1000000000000",
+      "unwrapped_float_wheels": [
+        359.9934072548142,
+        359.9934072548142,
+        36.0
+      ],
+      "unwrapped_float_error": null,
+      "max_unwrapped_wheel_error": 0.006592745185798776,
+      "phase_local_wheels": [
+        360.0,
+        360.0,
+        36.0
+      ],
+      "phase_local_winding_after": "1000000000000",
+      "phase_local_degrees_after": 179.99999999999997
+    }
+  ],
+  "scope": "large-origin representation stress; NOT a trillion-turn runtime test",
+  "conclusion": "Use bounded local phases and separate integer winding for periodic coordinates; the baseline spike kernel stores plain floats."
+}

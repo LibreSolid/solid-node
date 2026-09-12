@@ -1,0 +1,1207 @@
+{
+  "programs": {
+    "clutch": {
+      "version": "open-run-spike/1",
+      "q": {
+        "shaft": 0.0,
+        "wheel": 0.0,
+        "sleeve": 1.0
+      },
+      "m": {
+        "mesh": true
+      },
+      "inputs": [
+        "shaft",
+        "wheel",
+        "sleeve"
+      ],
+      "relations": [
+        {
+          "id": "teeth",
+          "a": "shaft",
+          "b": "wheel",
+          "ratio": -2,
+          "when": [
+            "m",
+            "mesh"
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "open",
+          "coord": "sleeve",
+          "phase": 0.5,
+          "period": 0,
+          "direction": -1,
+          "when": true,
+          "writes": {
+            "mesh": false
+          }
+        },
+        {
+          "id": "close",
+          "coord": "sleeve",
+          "phase": 0.5,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "mesh": true
+          },
+          "require": [
+            "phase-aligned",
+            [
+              "+",
+              [
+                "q",
+                "wheel"
+              ],
+              [
+                "*",
+                2,
+                [
+                  "q",
+                  "shaft"
+                ]
+              ]
+            ],
+            20
+          ]
+        }
+      ],
+      "stops": [
+        {
+          "id": "sleeve-travel",
+          "coord": "sleeve",
+          "lo": 0,
+          "hi": 1
+        }
+      ],
+      "id": "fc05c574f8e28647894ae1d59c01df54f84081211faf4d8aea04577b940abb22"
+    },
+    "ratchet": {
+      "version": "open-run-spike/1",
+      "q": {
+        "disc": 0.0,
+        "lift": 0.0
+      },
+      "m": {
+        "detent": 0.0,
+        "down": true
+      },
+      "inputs": [
+        "disc",
+        "lift"
+      ],
+      "relations": [],
+      "events": [
+        {
+          "id": "tooth-seat",
+          "coord": "disc",
+          "phase": 0,
+          "period": 10,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "detent": [
+              "q",
+              "disc"
+            ]
+          }
+        },
+        {
+          "id": "lift-pawl",
+          "coord": "lift",
+          "phase": 0.5,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "down": false
+          }
+        },
+        {
+          "id": "lower-pawl",
+          "coord": "lift",
+          "phase": 0.5,
+          "period": 0,
+          "direction": -1,
+          "when": true,
+          "writes": {
+            "down": true,
+            "detent": [
+              "*",
+              10,
+              [
+                "floor",
+                [
+                  "*",
+                  0.1,
+                  [
+                    "q",
+                    "disc"
+                  ]
+                ]
+              ]
+            ]
+          }
+        }
+      ],
+      "stops": [
+        {
+          "id": "pawl-flank",
+          "coord": "disc",
+          "lo": [
+            "m",
+            "detent"
+          ],
+          "when": [
+            "m",
+            "down"
+          ]
+        },
+        {
+          "id": "lift-travel",
+          "coord": "lift",
+          "lo": 0,
+          "hi": 1
+        }
+      ],
+      "id": "0412776355561885b77fa349f12220db060411509273837073c5779473e165b9"
+    },
+    "concurrent": {
+      "version": "open-run-spike/1",
+      "q": {
+        "motor": 0.0,
+        "cam": 0.0,
+        "steering": 0.0,
+        "rack": 0.0,
+        "x_motor": 0.0,
+        "x": 0.0,
+        "y_motor": 0.0,
+        "y": 0.0
+      },
+      "m": {},
+      "inputs": [
+        "motor",
+        "steering",
+        "x_motor",
+        "y_motor"
+      ],
+      "relations": [
+        {
+          "id": "timing",
+          "a": "motor",
+          "b": "cam",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "steering-rack",
+          "a": "steering",
+          "b": "rack",
+          "ratio": 0.1,
+          "when": true
+        },
+        {
+          "id": "x-screw",
+          "a": "x_motor",
+          "b": "x",
+          "ratio": 0.005555555555555556,
+          "when": true
+        },
+        {
+          "id": "y-screw",
+          "a": "y_motor",
+          "b": "y",
+          "ratio": 0.005555555555555556,
+          "when": true
+        }
+      ],
+      "events": [],
+      "stops": [],
+      "id": "157e1e60c807394884f79c96c50358e7625e904802a8799f7353c410286dcf01"
+    },
+    "curta": {
+      "version": "open-run-spike/1",
+      "q": {
+        "crank": 0.0,
+        "selector": 1.0,
+        "wheel0": 324.0,
+        "shaft0": 648.0,
+        "wheel1": 324.0,
+        "shaft1": 648.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "inputs": [
+        "crank",
+        "selector"
+      ],
+      "relations": [
+        {
+          "id": "drum-input-tooth",
+          "a": "crank",
+          "b": "shaft0",
+          "ratio": 6.4,
+          "when": [
+            "and",
+            [
+              "m",
+              "input_contact"
+            ],
+            [
+              "m",
+              "selected"
+            ]
+          ]
+        },
+        {
+          "id": "bevel0",
+          "a": "shaft0",
+          "b": "wheel0",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "bevel1",
+          "a": "shaft1",
+          "b": "wheel1",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "bevel2",
+          "a": "shaft2",
+          "b": "wheel2",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "carry-tooth1",
+          "a": "crank",
+          "b": "shaft1",
+          "ratio": 6.4,
+          "when": [
+            "and",
+            [
+              "m",
+              "latched1"
+            ],
+            [
+              "m",
+              "carry_contact1"
+            ]
+          ]
+        },
+        {
+          "id": "carry-tooth2",
+          "a": "crank",
+          "b": "shaft2",
+          "ratio": 6.4,
+          "when": [
+            "and",
+            [
+              "m",
+              "latched2"
+            ],
+            [
+              "m",
+              "carry_contact2"
+            ]
+          ]
+        }
+      ],
+      "events": [
+        {
+          "id": "select-one-row",
+          "coord": "selector",
+          "phase": 0.5,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "selected": true
+          }
+        },
+        {
+          "id": "select-zero-row",
+          "coord": "selector",
+          "phase": 0.5,
+          "period": 0,
+          "direction": -1,
+          "when": true,
+          "writes": {
+            "selected": false
+          }
+        },
+        {
+          "id": "input-tooth-enter",
+          "coord": "crank",
+          "phase": 113.5,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "input_contact": true
+          }
+        },
+        {
+          "id": "input-tooth-leave",
+          "coord": "crank",
+          "phase": 124.75,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "input_contact": false
+          }
+        },
+        {
+          "id": "pin-trips-lever1",
+          "coord": "wheel0",
+          "phase": 335.3934072548142,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "latched1": true
+          }
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "coord": "crank",
+          "phase": 146.375,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "carry_contact1": true
+          }
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "coord": "crank",
+          "phase": 157.625,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "carry_contact1": false
+          }
+        },
+        {
+          "id": "cam-resets-lever1",
+          "coord": "crank",
+          "phase": 355.0163373340728,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "latched1": false
+          }
+        },
+        {
+          "id": "pin-trips-lever2",
+          "coord": "wheel1",
+          "phase": 335.3934072548142,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "latched2": true
+          }
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "coord": "crank",
+          "phase": 166.375,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "carry_contact2": true
+          }
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "coord": "crank",
+          "phase": 177.625,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "carry_contact2": false
+          }
+        },
+        {
+          "id": "cam-resets-lever2",
+          "coord": "crank",
+          "phase": 375.0163373340728,
+          "period": 360,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "latched2": false
+          }
+        }
+      ],
+      "stops": [
+        {
+          "id": "selector-travel",
+          "coord": "selector",
+          "lo": 0,
+          "hi": 1
+        }
+      ],
+      "metadata": {
+        "units": "angles deg; selector normalized",
+        "wheel_trip_degrees": 335.3934072548142,
+        "first_cam_reset_degrees": 355.0163373340728,
+        "scope": "three-wheel reduced Curta measured-contact rig; forward crank only"
+      },
+      "id": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895"
+    },
+    "settle": {
+      "version": "open-run-spike/1",
+      "q": {
+        "motor": 0.0,
+        "cam": 0.0,
+        "steering": 0.0,
+        "rack": 0.0,
+        "x_motor": 0.0,
+        "x": 0.0,
+        "y_motor": 0.0,
+        "y": 0.0
+      },
+      "m": {
+        "a": false,
+        "b": false
+      },
+      "inputs": [
+        "motor",
+        "steering",
+        "x_motor",
+        "y_motor"
+      ],
+      "relations": [
+        {
+          "id": "timing",
+          "a": "motor",
+          "b": "cam",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "steering-rack",
+          "a": "steering",
+          "b": "rack",
+          "ratio": 0.1,
+          "when": true
+        },
+        {
+          "id": "x-screw",
+          "a": "x_motor",
+          "b": "x",
+          "ratio": 0.005555555555555556,
+          "when": true
+        },
+        {
+          "id": "y-screw",
+          "a": "y_motor",
+          "b": "y",
+          "ratio": 0.005555555555555556,
+          "when": true
+        }
+      ],
+      "events": [
+        {
+          "id": "a",
+          "coord": "motor",
+          "phase": 10,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "a": true
+          }
+        },
+        {
+          "id": "b",
+          "coord": "motor",
+          "phase": 10,
+          "period": 0,
+          "direction": 1,
+          "when": [
+            "m",
+            "a"
+          ],
+          "writes": {
+            "b": true
+          }
+        }
+      ],
+      "stops": [],
+      "id": "69f4219d98bb354241ea222746049bc3cc83183a4830d6ac6a1835680acc6f06"
+    },
+    "conflict": {
+      "version": "open-run-spike/1",
+      "q": {
+        "motor": 0.0,
+        "cam": 0.0,
+        "steering": 0.0,
+        "rack": 0.0,
+        "x_motor": 0.0,
+        "x": 0.0,
+        "y_motor": 0.0,
+        "y": 0.0
+      },
+      "m": {
+        "a": false,
+        "b": false
+      },
+      "inputs": [
+        "motor",
+        "steering",
+        "x_motor",
+        "y_motor"
+      ],
+      "relations": [
+        {
+          "id": "timing",
+          "a": "motor",
+          "b": "cam",
+          "ratio": 0.5,
+          "when": true
+        },
+        {
+          "id": "steering-rack",
+          "a": "steering",
+          "b": "rack",
+          "ratio": 0.1,
+          "when": true
+        },
+        {
+          "id": "x-screw",
+          "a": "x_motor",
+          "b": "x",
+          "ratio": 0.005555555555555556,
+          "when": true
+        },
+        {
+          "id": "y-screw",
+          "a": "y_motor",
+          "b": "y",
+          "ratio": 0.005555555555555556,
+          "when": true
+        }
+      ],
+      "events": [
+        {
+          "id": "a",
+          "coord": "motor",
+          "phase": 10,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "a": true
+          }
+        },
+        {
+          "id": "b",
+          "coord": "motor",
+          "phase": 10,
+          "period": 0,
+          "direction": 1,
+          "when": true,
+          "writes": {
+            "a": false
+          }
+        }
+      ],
+      "stops": [],
+      "id": "9389982629da9de6f95b9273b921d0376816c4548dc15a01f8e038919493cd75"
+    }
+  },
+  "cases": [
+    {
+      "name": "couple-open-close-reverse",
+      "program": "clutch",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "shaft",
+          10
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "shaft",
+          0
+        ],
+        [
+          "rate",
+          "sleeve",
+          -1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "sleeve",
+          0
+        ],
+        [
+          "rate",
+          "shaft",
+          10
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "shaft",
+          0
+        ],
+        [
+          "mark"
+        ],
+        [
+          "rate",
+          "sleeve",
+          1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "sleeve",
+          0
+        ],
+        [
+          "rate",
+          "wheel",
+          -10
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "wheel",
+          0
+        ],
+        [
+          "advance",
+          10
+        ]
+      ]
+    },
+    {
+      "name": "refuse-misaligned-engagement",
+      "program": "clutch",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "sleeve",
+          -1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "sleeve",
+          0
+        ],
+        [
+          "rate",
+          "shaft",
+          1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "shaft",
+          0
+        ],
+        [
+          "rate",
+          "sleeve",
+          1
+        ],
+        [
+          "expect-error",
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "ratchet-reverse-lift-reseat",
+      "program": "ratchet",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "disc",
+          25
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "disc",
+          -15
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "mark"
+        ],
+        [
+          "rate",
+          "disc",
+          0
+        ],
+        [
+          "rate",
+          "lift",
+          1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "lift",
+          0
+        ],
+        [
+          "rate",
+          "disc",
+          -15
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "disc",
+          0
+        ],
+        [
+          "rate",
+          "lift",
+          -1
+        ],
+        [
+          "advance",
+          1
+        ],
+        [
+          "rate",
+          "lift",
+          0
+        ],
+        [
+          "rate",
+          "disc",
+          -10
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-dt-1",
+      "program": "curta",
+      "dt": 1.0,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          1080
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-dt-7",
+      "program": "curta",
+      "dt": 0.14285714285714285,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          1080
+        ],
+        [
+          "advance",
+          7
+        ]
+      ]
+    },
+    {
+      "name": "curta-dt-240",
+      "program": "curta",
+      "dt": 0.004166666666666667,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          1080
+        ],
+        [
+          "advance",
+          240
+        ]
+      ]
+    },
+    {
+      "name": "curta-dt-997",
+      "program": "curta",
+      "dt": 0.0010030090270812437,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          1080
+        ],
+        [
+          "advance",
+          997
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-113.499999",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          113.499999
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-113.5",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          113.5
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-113.500001",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          113.500001
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-124.75",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          124.75
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-157.625",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          157.625
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-177.625",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          177.625
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-360",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          360
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-boundary-380",
+      "program": "curta",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          380
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "curta-checkpoint-replay",
+      "program": "curta",
+      "dt": 0.004166666666666667,
+      "commands": [
+        [
+          "rate",
+          "crank",
+          360
+        ],
+        [
+          "advance",
+          81
+        ],
+        [
+          "save",
+          "mid-contact"
+        ],
+        [
+          "advance",
+          399
+        ],
+        [
+          "mark"
+        ],
+        [
+          "restore",
+          "mid-contact"
+        ],
+        [
+          "advance",
+          399
+        ]
+      ]
+    },
+    {
+      "name": "concurrent-pause-replay",
+      "program": "concurrent",
+      "dt": 0.01,
+      "commands": [
+        [
+          "rate",
+          "motor",
+          720
+        ],
+        [
+          "rate",
+          "steering",
+          10
+        ],
+        [
+          "move",
+          "print",
+          {
+            "x_motor": 1800,
+            "y_motor": 900
+          },
+          100
+        ],
+        [
+          "advance",
+          40
+        ],
+        [
+          "pause",
+          "print"
+        ],
+        [
+          "save",
+          "paused"
+        ],
+        [
+          "advance",
+          50
+        ],
+        [
+          "mark"
+        ],
+        [
+          "pause",
+          "print",
+          false
+        ],
+        [
+          "advance",
+          60
+        ],
+        [
+          "mark"
+        ],
+        [
+          "restore",
+          "paused"
+        ],
+        [
+          "advance",
+          50
+        ],
+        [
+          "pause",
+          "print",
+          false
+        ],
+        [
+          "advance",
+          60
+        ]
+      ]
+    },
+    {
+      "name": "incompatible-drives",
+      "program": "clutch",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "shaft",
+          10
+        ],
+        [
+          "rate",
+          "wheel",
+          10
+        ],
+        [
+          "expect-error",
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "same-instant",
+      "program": "settle",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "motor",
+          20
+        ],
+        [
+          "advance",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "event-write-conflict",
+      "program": "conflict",
+      "dt": 1,
+      "commands": [
+        [
+          "rate",
+          "motor",
+          20
+        ],
+        [
+          "expect-error",
+          "advance",
+          1
+        ]
+      ]
+    }
+  ]
+}

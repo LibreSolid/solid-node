@@ -1,0 +1,22 @@
+test_broken_mechanisms_are_detected (test_mechanics.Mechanics.test_broken_mechanisms_are_detected) ... ok
+test_completed_commands_do_not_accumulate (test_mechanics.Mechanics.test_completed_commands_do_not_accumulate) ... ok
+test_consistent_loop_supported_inconsistent_loop_refused (test_mechanics.Mechanics.test_consistent_loop_supported_inconsistent_loop_refused) ... ok
+test_coupling_hold_reengage_and_reverse_solve (test_mechanics.Mechanics.test_coupling_hold_reengage_and_reverse_solve) ... ok
+test_curta_reset_after_wrap_and_no_arithmetic_repose (test_mechanics.Mechanics.test_curta_reset_after_wrap_and_no_arithmetic_repose) ... ok
+test_curta_two_successive_physical_carries_in_one_tick (test_mechanics.Mechanics.test_curta_two_successive_physical_carries_in_one_tick) ... ok
+test_event_write_conflict_rolls_back (test_mechanics.Mechanics.test_event_write_conflict_rolls_back) ... ok
+test_incompatible_drives_rollback_entire_tick (test_mechanics.Mechanics.test_incompatible_drives_rollback_entire_tick) ... ok
+test_misaligned_reengagement_is_refused_without_teleporting (test_mechanics.Mechanics.test_misaligned_reengagement_is_refused_without_teleporting) ... ok
+test_motor_steering_and_printer_group_pause_checkpoint_resume (test_mechanics.Mechanics.test_motor_steering_and_printer_group_pause_checkpoint_resume) ... ok
+test_ownership_version_and_checkpoint_boundary (test_mechanics.Mechanics.test_ownership_version_and_checkpoint_boundary) ... ok
+test_ratchet_has_backlash_blocks_reverse_and_can_lift (test_mechanics.Mechanics.test_ratchet_has_backlash_blocks_reverse_and_can_lift) ... ok
+test_rates_integrate_history (test_mechanics.Mechanics.test_rates_integrate_history) ... ok
+test_selector_disengages_input_without_changing_wheel (test_mechanics.Mechanics.test_selector_disengages_input_without_changing_wheel) ... ok
+test_simultaneous_events_settle_without_declaration_order (test_mechanics.Mechanics.test_simultaneous_events_settle_without_declaration_order) ... ok
+test_small_steps_match_many_contacts_inside_one_step (test_mechanics.Mechanics.test_small_steps_match_many_contacts_inside_one_step) ... ok
+test_swept_stop_not_only_endpoint_and_independent_drive_continues (test_mechanics.Mechanics.test_swept_stop_not_only_endpoint_and_independent_drive_continues) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.142s
+
+OK

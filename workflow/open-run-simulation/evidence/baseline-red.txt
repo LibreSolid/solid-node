@@ -1,0 +1,34 @@
+Observed before corresponding spike implementation/fix. Exit code: 1
+
+test_contact_between_frame_endpoints_is_not_lost (__main__.DesiredRunningBehaviour.test_contact_between_frame_endpoints_is_not_lost) ... FAIL
+test_current_rate_does_not_rewrite_prior_motion (__main__.DesiredRunningBehaviour.test_current_rate_does_not_rewrite_prior_motion) ... FAIL
+test_reengagement_does_not_repose_previous_travel (__main__.DesiredRunningBehaviour.test_reengagement_does_not_repose_previous_travel) ... FAIL
+
+======================================================================
+FAIL: test_contact_between_frame_endpoints_is_not_lost (__main__.DesiredRunningBehaviour.test_contact_between_frame_endpoints_is_not_lost)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/baseline_red.py", line 26, in test_contact_between_frame_endpoints_is_not_lost
+    self.assertAlmostEqual(driven, 72)
+AssertionError: 0 != 72 within 7 places (72 difference)
+
+======================================================================
+FAIL: test_current_rate_does_not_rewrite_prior_motion (__main__.DesiredRunningBehaviour.test_current_rate_does_not_rewrite_prior_motion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/baseline_red.py", line 32, in test_current_rate_does_not_rewrite_prior_motion
+    self.assertEqual(position, 30)
+AssertionError: 40 != 30
+
+======================================================================
+FAIL: test_reengagement_does_not_repose_previous_travel (__main__.DesiredRunningBehaviour.test_reengagement_does_not_repose_previous_travel)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/baseline_red.py", line 18, in test_reengagement_does_not_repose_previous_travel
+    self.assertEqual(driven, -20)
+AssertionError: -40 != -20
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=3)

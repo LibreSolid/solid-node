@@ -1,0 +1,35 @@
+{
+  "runtime": "v24.11.1",
+  "samples": [
+    {
+      "coordinates": 8,
+      "relations": 7,
+      "program_bytes": 483,
+      "snapshot_bytes": 217,
+      "measured_steps": 250,
+      "step_ms_median": 0.03887499999999733,
+      "step_ms_p95": 0.10693299999999795,
+      "note": "linear permanently engaged star; no contact events, geometry or rendering"
+    },
+    {
+      "coordinates": 500,
+      "relations": 499,
+      "program_bytes": 28493,
+      "snapshot_bytes": 5783,
+      "measured_steps": 250,
+      "step_ms_median": 1.1603079999999864,
+      "step_ms_p95": 1.9105650000000196,
+      "note": "linear permanently engaged star; no contact events, geometry or rendering"
+    },
+    {
+      "coordinates": 5000,
+      "relations": 4999,
+      "program_bytes": 299244,
+      "snapshot_bytes": 61534,
+      "measured_steps": 250,
+      "step_ms_median": 10.986768999999867,
+      "step_ms_p95": 15.015413999999964,
+      "note": "linear permanently engaged star; no contact events, geometry or rendering"
+    }
+  ]
+}

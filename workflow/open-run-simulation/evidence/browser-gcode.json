@@ -1,0 +1,17 @@
+{
+  "dialect": "G90/G91/G1 X/Y F only",
+  "source": "G90\nG1 X10 Y0 F600\nG91\nG1 X0 Y5 F300",
+  "paused": {
+    "x": 4.000000000000002,
+    "remaining_ticks": 60
+  },
+  "final": {
+    "x": 9.99999999999998,
+    "y": 4.99999999999999,
+    "cam": 900.0000000000038,
+    "rack": 2.4999999999999907
+  },
+  "program_and_mechanical_replay_identical": true,
+  "unsupported_command_refused": true,
+  "failure_rolls_back_program_and_mechanics": true
+}

@@ -1,0 +1,1693 @@
+{
+  "couple-open-close-reverse": [
+    {
+      "program": "fc05c574f8e28647894ae1d59c01df54f84081211faf4d8aea04577b940abb22",
+      "dt": 1,
+      "tick": 3,
+      "q": {
+        "shaft": 20.0,
+        "wheel": -20.0,
+        "sleeve": 0.0
+      },
+      "m": {
+        "mesh": false
+      },
+      "rates": {},
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "open": 1
+      },
+      "trace": [
+        {
+          "id": "open",
+          "at": 0.5
+        }
+      ]
+    },
+    {
+      "program": "fc05c574f8e28647894ae1d59c01df54f84081211faf4d8aea04577b940abb22",
+      "dt": 1,
+      "tick": 15,
+      "q": {
+        "shaft": 25.0,
+        "wheel": -30.0,
+        "sleeve": 1.0
+      },
+      "m": {
+        "mesh": true
+      },
+      "rates": {},
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "open": 1,
+        "close": 1
+      },
+      "trace": [
+        {
+          "id": "open",
+          "at": 0.5
+        },
+        {
+          "id": "close",
+          "at": 0.5
+        }
+      ]
+    }
+  ],
+  "refuse-misaligned-engagement": [
+    {
+      "error": "inadmissible engagement: close"
+    },
+    {
+      "program": "fc05c574f8e28647894ae1d59c01df54f84081211faf4d8aea04577b940abb22",
+      "dt": 1,
+      "tick": 2,
+      "q": {
+        "shaft": 1.0,
+        "wheel": 0.0,
+        "sleeve": 0.0
+      },
+      "m": {
+        "mesh": false
+      },
+      "rates": {
+        "sleeve": 1
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "open": 1
+      },
+      "trace": [
+        {
+          "id": "open",
+          "at": 0.5
+        }
+      ]
+    }
+  ],
+  "ratchet-reverse-lift-reseat": [
+    {
+      "program": "0412776355561885b77fa349f12220db060411509273837073c5779473e165b9",
+      "dt": 1,
+      "tick": 2,
+      "q": {
+        "disc": 20.0,
+        "lift": 0.0
+      },
+      "m": {
+        "detent": 20.0,
+        "down": true
+      },
+      "rates": {
+        "disc": -15
+      },
+      "moves": {},
+      "blocked": [
+        "disc"
+      ],
+      "counts": {
+        "tooth-seat": 2
+      },
+      "trace": [
+        {
+          "id": "tooth-seat",
+          "at": 10.0
+        },
+        {
+          "id": "tooth-seat",
+          "at": 20.0
+        }
+      ]
+    },
+    {
+      "program": "0412776355561885b77fa349f12220db060411509273837073c5779473e165b9",
+      "dt": 1,
+      "tick": 6,
+      "q": {
+        "disc": 0.0,
+        "lift": 0.0
+      },
+      "m": {
+        "detent": 0,
+        "down": true
+      },
+      "rates": {
+        "disc": -10
+      },
+      "moves": {},
+      "blocked": [
+        "disc"
+      ],
+      "counts": {
+        "tooth-seat": 2,
+        "lift-pawl": 1,
+        "lower-pawl": 1
+      },
+      "trace": [
+        {
+          "id": "tooth-seat",
+          "at": 10.0
+        },
+        {
+          "id": "tooth-seat",
+          "at": 20.0
+        },
+        {
+          "id": "lift-pawl",
+          "at": 0.5
+        },
+        {
+          "id": "lower-pawl",
+          "at": 0.5
+        }
+      ]
+    }
+  ],
+  "curta-dt-1": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1.0,
+      "tick": 1,
+      "q": {
+        "crank": 1080.0000000000005,
+        "selector": 1.0,
+        "wheel0": 432.0,
+        "shaft0": 864.0,
+        "wheel1": 360.0,
+        "shaft1": 720.0,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 1080
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 3,
+        "input-tooth-enter": 3,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 3,
+        "carry-tooth-enter1": 3,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 3,
+        "carry-tooth-enter2": 3,
+        "carry-tooth-leave2": 3,
+        "cam-resets-lever1": 3
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 735.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 833.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 844.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 866.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 877.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 886.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 897.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 1075.016337334073
+        }
+      ]
+    }
+  ],
+  "curta-dt-7": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 0.14285714285714285,
+      "tick": 7,
+      "q": {
+        "crank": 1080.0,
+        "selector": 1.0,
+        "wheel0": 432.0,
+        "shaft0": 864.0,
+        "wheel1": 360.00000000000006,
+        "shaft1": 720.0000000000001,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 1080
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 3,
+        "input-tooth-enter": 3,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 3,
+        "carry-tooth-enter1": 3,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 3,
+        "carry-tooth-enter2": 3,
+        "carry-tooth-leave2": 3,
+        "cam-resets-lever1": 3
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 735.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 833.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 844.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 866.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 877.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 886.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 897.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 1075.016337334073
+        }
+      ]
+    }
+  ],
+  "curta-dt-240": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 0.004166666666666667,
+      "tick": 240,
+      "q": {
+        "crank": 1080.0,
+        "selector": 1.0,
+        "wheel0": 431.99999999999983,
+        "shaft0": 863.9999999999997,
+        "wheel1": 359.99999999999994,
+        "shaft1": 719.9999999999999,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 1080
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 3,
+        "input-tooth-enter": 3,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 3,
+        "carry-tooth-enter1": 3,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 3,
+        "carry-tooth-enter2": 3,
+        "carry-tooth-leave2": 3,
+        "cam-resets-lever1": 3
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 735.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 833.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 844.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 866.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 877.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 886.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 897.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 1075.016337334073
+        }
+      ]
+    }
+  ],
+  "curta-dt-997": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 0.0010030090270812437,
+      "tick": 997,
+      "q": {
+        "crank": 1080.0000000000132,
+        "selector": 1.0,
+        "wheel0": 431.99999999999847,
+        "shaft0": 863.9999999999969,
+        "wheel1": 359.9999999999995,
+        "shaft1": 719.999999999999,
+        "wheel2": 35.9999999999996,
+        "shaft2": 71.9999999999992
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 1080
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 3,
+        "input-tooth-enter": 3,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 3,
+        "carry-tooth-enter1": 3,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 3,
+        "carry-tooth-enter2": 3,
+        "carry-tooth-leave2": 3,
+        "cam-resets-lever1": 3
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 735.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 833.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 844.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 866.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 877.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 886.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 897.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 1075.016337334073
+        }
+      ]
+    }
+  ],
+  "curta-boundary-113.499999": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 113.499999,
+        "selector": 1.0,
+        "wheel0": 324.0,
+        "shaft0": 648.0,
+        "wheel1": 324.0,
+        "shaft1": 648.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 113.499999
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        }
+      ]
+    }
+  ],
+  "curta-boundary-113.5": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 113.49999999999999,
+        "selector": 1.0,
+        "wheel0": 324.0,
+        "shaft0": 648.0,
+        "wheel1": 324.0,
+        "shaft1": 648.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": true,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 113.5
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072775
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.49999999999999
+        }
+      ]
+    }
+  ],
+  "curta-boundary-113.500001": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 113.500001,
+        "selector": 1.0,
+        "wheel0": 324.0000032,
+        "shaft0": 648.0000064,
+        "wheel1": 324.0,
+        "shaft1": 648.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": true,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 113.500001
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        }
+      ]
+    }
+  ],
+  "curta-boundary-124.75": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 124.74999999999999,
+        "selector": 1.0,
+        "wheel0": 360.0,
+        "shaft0": 720.0,
+        "wheel1": 324.0,
+        "shaft1": 648.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": true,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 124.75
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.74999999999999
+        }
+      ]
+    }
+  ],
+  "curta-boundary-157.625": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 157.625,
+        "selector": 1.0,
+        "wheel0": 360.0,
+        "shaft0": 720.0,
+        "wheel1": 360.0,
+        "shaft1": 720.0,
+        "wheel2": 0.0,
+        "shaft2": 0.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": true,
+        "carry_contact1": false,
+        "latched2": true,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 157.625
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 1,
+        "carry-tooth-enter1": 1,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072771
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        }
+      ]
+    }
+  ],
+  "curta-boundary-177.625": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 177.62499999999997,
+        "selector": 1.0,
+        "wheel0": 360.0,
+        "shaft0": 720.0,
+        "wheel1": 360.0,
+        "shaft1": 720.0,
+        "wheel2": 35.99999999999994,
+        "shaft2": 71.99999999999989
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": true,
+        "carry_contact1": false,
+        "latched2": true,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 177.625
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 1,
+        "carry-tooth-enter1": 1,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 1,
+        "carry-tooth-enter2": 1,
+        "carry-tooth-leave2": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.62499999999997
+        }
+      ]
+    }
+  ],
+  "curta-boundary-360": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 360.0,
+        "selector": 1.0,
+        "wheel0": 360.0,
+        "shaft0": 720.0,
+        "wheel1": 360.0,
+        "shaft1": 720.0,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": true,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 360
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 1,
+        "input-tooth-enter": 1,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 1,
+        "carry-tooth-enter1": 1,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 1,
+        "carry-tooth-enter2": 1,
+        "carry-tooth-leave2": 1,
+        "cam-resets-lever1": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072771
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        }
+      ]
+    }
+  ],
+  "curta-boundary-380": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "crank": 380.00000000000006,
+        "selector": 1.0,
+        "wheel0": 360.0,
+        "shaft0": 720.0,
+        "wheel1": 360.0,
+        "shaft1": 720.0,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 380
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 2,
+        "input-tooth-enter": 1,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 1,
+        "carry-tooth-enter1": 1,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 1,
+        "carry-tooth-enter2": 1,
+        "carry-tooth-leave2": 1,
+        "cam-resets-lever1": 1
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        }
+      ]
+    }
+  ],
+  "curta-checkpoint-replay": [
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 0.004166666666666667,
+      "tick": 480,
+      "q": {
+        "crank": 720.0,
+        "selector": 1.0,
+        "wheel0": 396.0000000000002,
+        "shaft0": 792.0000000000005,
+        "wheel1": 360.00000000000006,
+        "shaft1": 720.0000000000001,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 360
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 2,
+        "input-tooth-enter": 2,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 2,
+        "carry-tooth-enter1": 2,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 2,
+        "carry-tooth-enter2": 2,
+        "carry-tooth-leave2": 2,
+        "cam-resets-lever1": 2
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        }
+      ]
+    },
+    {
+      "program": "c2d6a70d8186191726f2c25e366f50a73a59f94ba9fdc625bf45eb099633f895",
+      "dt": 0.004166666666666667,
+      "tick": 480,
+      "q": {
+        "crank": 720.0,
+        "selector": 1.0,
+        "wheel0": 396.0000000000002,
+        "shaft0": 792.0000000000005,
+        "wheel1": 360.00000000000006,
+        "shaft1": 720.0000000000001,
+        "wheel2": 36.0,
+        "shaft2": 72.0
+      },
+      "m": {
+        "input_contact": false,
+        "selected": true,
+        "latched1": false,
+        "carry_contact1": false,
+        "latched2": false,
+        "carry_contact2": false
+      },
+      "rates": {
+        "crank": 360
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "cam-resets-lever2": 2,
+        "input-tooth-enter": 2,
+        "pin-trips-lever1": 1,
+        "input-tooth-leave": 2,
+        "carry-tooth-enter1": 2,
+        "pin-trips-lever2": 1,
+        "carry-tooth-leave1": 2,
+        "carry-tooth-enter2": 2,
+        "carry-tooth-leave2": 2,
+        "cam-resets-lever1": 2
+      },
+      "trace": [
+        {
+          "id": "cam-resets-lever2",
+          "at": 15.016337334072773
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 113.5
+        },
+        {
+          "id": "pin-trips-lever1",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 124.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 146.375
+        },
+        {
+          "id": "pin-trips-lever2",
+          "at": 335.3934072548142
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 157.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 166.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 177.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 355.0163373340728
+        },
+        {
+          "id": "cam-resets-lever2",
+          "at": 375.0163373340728
+        },
+        {
+          "id": "input-tooth-enter",
+          "at": 473.5
+        },
+        {
+          "id": "input-tooth-leave",
+          "at": 484.75
+        },
+        {
+          "id": "carry-tooth-enter1",
+          "at": 506.375
+        },
+        {
+          "id": "carry-tooth-leave1",
+          "at": 517.625
+        },
+        {
+          "id": "carry-tooth-enter2",
+          "at": 526.375
+        },
+        {
+          "id": "carry-tooth-leave2",
+          "at": 537.625
+        },
+        {
+          "id": "cam-resets-lever1",
+          "at": 715.0163373340728
+        }
+      ]
+    }
+  ],
+  "concurrent-pause-replay": [
+    {
+      "program": "157e1e60c807394884f79c96c50358e7625e904802a8799f7353c410286dcf01",
+      "dt": 0.01,
+      "tick": 90,
+      "q": {
+        "motor": 648.0000000000002,
+        "cam": 324.0000000000001,
+        "steering": 8.999999999999984,
+        "rack": 0.9000000000000006,
+        "x_motor": 720.0,
+        "x": 4.000000000000002,
+        "y_motor": 360.0,
+        "y": 2.000000000000001
+      },
+      "m": {},
+      "rates": {
+        "motor": 720,
+        "steering": 10
+      },
+      "moves": {
+        "print": {
+          "rates": {
+            "x_motor": 1800.0,
+            "y_motor": 900.0
+          },
+          "remaining": 60,
+          "paused": true,
+          "status": "running"
+        }
+      },
+      "blocked": [],
+      "counts": {},
+      "trace": []
+    },
+    {
+      "program": "157e1e60c807394884f79c96c50358e7625e904802a8799f7353c410286dcf01",
+      "dt": 0.01,
+      "tick": 150,
+      "q": {
+        "motor": 1080.000000000003,
+        "cam": 540.0000000000015,
+        "steering": 14.999999999999963,
+        "rack": 1.500000000000001,
+        "x_motor": 1800.0,
+        "x": 9.99999999999998,
+        "y_motor": 900.0,
+        "y": 4.99999999999999
+      },
+      "m": {},
+      "rates": {
+        "motor": 720,
+        "steering": 10
+      },
+      "moves": {
+        "print": {
+          "rates": {
+            "x_motor": 1800.0,
+            "y_motor": 900.0
+          },
+          "remaining": 0,
+          "paused": false,
+          "status": "completed"
+        }
+      },
+      "blocked": [],
+      "counts": {},
+      "trace": []
+    },
+    {
+      "program": "157e1e60c807394884f79c96c50358e7625e904802a8799f7353c410286dcf01",
+      "dt": 0.01,
+      "tick": 150,
+      "q": {
+        "motor": 1080.000000000003,
+        "cam": 540.0000000000015,
+        "steering": 14.999999999999963,
+        "rack": 1.500000000000001,
+        "x_motor": 1800.0,
+        "x": 9.99999999999998,
+        "y_motor": 900.0,
+        "y": 4.99999999999999
+      },
+      "m": {},
+      "rates": {
+        "motor": 720,
+        "steering": 10
+      },
+      "moves": {
+        "print": {
+          "rates": {
+            "x_motor": 1800.0,
+            "y_motor": 900.0
+          },
+          "remaining": 0,
+          "paused": false,
+          "status": "completed"
+        }
+      },
+      "blocked": [],
+      "counts": {},
+      "trace": []
+    }
+  ],
+  "incompatible-drives": [
+    {
+      "error": "incompatible prescribed motion at wheel"
+    },
+    {
+      "program": "fc05c574f8e28647894ae1d59c01df54f84081211faf4d8aea04577b940abb22",
+      "dt": 1,
+      "tick": 0,
+      "q": {
+        "shaft": 0.0,
+        "wheel": 0.0,
+        "sleeve": 1.0
+      },
+      "m": {
+        "mesh": true
+      },
+      "rates": {
+        "shaft": 10,
+        "wheel": 10
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {},
+      "trace": []
+    }
+  ],
+  "same-instant": [
+    {
+      "program": "69f4219d98bb354241ea222746049bc3cc83183a4830d6ac6a1835680acc6f06",
+      "dt": 1,
+      "tick": 1,
+      "q": {
+        "motor": 20.0,
+        "cam": 10.0,
+        "steering": 0.0,
+        "rack": 0.0,
+        "x_motor": 0.0,
+        "x": 0.0,
+        "y_motor": 0.0,
+        "y": 0.0
+      },
+      "m": {
+        "a": true,
+        "b": true
+      },
+      "rates": {
+        "motor": 20
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {
+        "a": 1,
+        "b": 1
+      },
+      "trace": [
+        {
+          "id": "a",
+          "at": 10.0
+        },
+        {
+          "id": "b",
+          "at": 10.0
+        }
+      ]
+    }
+  ],
+  "event-write-conflict": [
+    {
+      "error": "conflicting event writes: a"
+    },
+    {
+      "program": "9389982629da9de6f95b9273b921d0376816c4548dc15a01f8e038919493cd75",
+      "dt": 1,
+      "tick": 0,
+      "q": {
+        "motor": 0.0,
+        "cam": 0.0,
+        "steering": 0.0,
+        "rack": 0.0,
+        "x_motor": 0.0,
+        "x": 0.0,
+        "y_motor": 0.0,
+        "y": 0.0
+      },
+      "m": {
+        "a": false,
+        "b": false
+      },
+      "rates": {
+        "motor": 20
+      },
+      "moves": {},
+      "blocked": [],
+      "counts": {},
+      "trace": []
+    }
+  ]
+}

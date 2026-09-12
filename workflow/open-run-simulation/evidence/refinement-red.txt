@@ -1,0 +1,34 @@
+Observed before corresponding spike implementation/fix. Exit code: 1
+
+test_misaligned_reengagement_is_refused_without_teleporting (test_mechanics.Mechanics.test_misaligned_reengagement_is_refused_without_teleporting) ... FAIL
+test_ratchet_has_backlash_blocks_reverse_and_can_lift (test_mechanics.Mechanics.test_ratchet_has_backlash_blocks_reverse_and_can_lift) ... FAIL
+test_completed_commands_do_not_accumulate (test_mechanics.Mechanics.test_completed_commands_do_not_accumulate) ... FAIL
+
+======================================================================
+FAIL: test_misaligned_reengagement_is_refused_without_teleporting (test_mechanics.Mechanics.test_misaligned_reengagement_is_refused_without_teleporting)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/test_mechanics.py", line 41, in test_misaligned_reengagement_is_refused_without_teleporting
+    with self.assertRaisesRegex(ValueError, 'inadmissible engagement'):
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_ratchet_has_backlash_blocks_reverse_and_can_lift (test_mechanics.Mechanics.test_ratchet_has_backlash_blocks_reverse_and_can_lift)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/test_mechanics.py", line 57, in test_ratchet_has_backlash_blocks_reverse_and_can_lift
+    self.assertEqual(e.q['disc'], 0)
+AssertionError: 5.0 != 0
+
+======================================================================
+FAIL: test_completed_commands_do_not_accumulate (test_mechanics.Mechanics.test_completed_commands_do_not_accumulate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/test_mechanics.py", line 64, in test_completed_commands_do_not_accumulate
+    self.assertLessEqual(len(e.moves), 1)
+AssertionError: 100 not less than or equal to 1
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.034s
+
+FAILED (failures=3)

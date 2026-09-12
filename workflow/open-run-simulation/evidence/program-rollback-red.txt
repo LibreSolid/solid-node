@@ -1,0 +1,16 @@
+Observed before adapter transaction fix. Exit code: 1
+
+file:///home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/gcode_probe.mjs:10
+  const assert = (condition, message) => { if (!condition) throw new Error(message); };
+                                                                 ^
+
+Error: failed tick must roll back program cursor AND mechanics
+    at assert (file:///home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/gcode_probe.mjs:10:66)
+    at probe (file:///home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/gcode_probe.mjs:32:3)
+    at file:///home/asa/devel/libresolid-studio/solid-node/workflow/open-run-simulation/spikes/[eval1]:1:159
+    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:254:26)
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:251:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.11.1

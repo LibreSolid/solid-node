@@ -1,0 +1,24 @@
+{
+  "project": "projects/Calculators/Curta-Type-I-3x",
+  "commit": "60979adbc795785fc51a28a386f85d1a49bfedf7",
+  "license": "Source Curta project identifies Marcus Wu, CC BY-NC-SA 4.0. No CAD assets copied.",
+  "files": {
+    "simulation/carry_profiles.py": "b047f5f8f219e549485a3dfc6b8b6fed601573c36fae80c95d5caec8a097ff86",
+    "simulation/carry_motion.py": "e3651b3c504bee406d473b268ea0ed06c5eeba8baabf52d8d9feb163685239de",
+    "simulation/cycle.py": "03d66e18afc4d0fdf225d0b36966a49b7f84e4f97ef58fcb896d3bfd7a241ea7",
+    "simulation/selectors.py": "f0b9a0ed2bdadbfbb81f5bd66fa7d5316f9dd07012f0148b782080ae3d0d973e",
+    "simulation/pawl.py": "619a7b303a141ae9401560581a8c87654b1c9b00d7b1776faa35911ee2aa758c",
+    "simulation/tools/compile_carry_motion.py": "372546d815025a9c4de3fecfda56982d76b5256342e69e1f5f6ee7bbcb665af9",
+    "_build_evidence/carry-half-trigger-assembled.jsonl": "fd3477fd7bd50b5da9ec491050aec49113275b6063e8b0372150a2560cb4b77a",
+    "_build_evidence/carry-full-trigger-final-tip.jsonl": "0d1fbcf0f3d30add1e98986eb279bc665ed709874b28b4fd1858f0e24c934173",
+    "_build_evidence/carry-reset-profile.jsonl": "9a99631557d50e36136ea044cbe7167039908c90fb0d7e2d675219adf751a74e"
+  },
+  "profile_revalidation": {
+    "pin_samples": 50,
+    "min_sample_clearance_margin_mm": 0.049365485595704195,
+    "max_pin_compaction_error_mm": 0.0009053359374959769,
+    "reset_samples": 21,
+    "max_reset_compaction_error_mm": 0.0009556590169268464,
+    "limit": "Revalidated existing sampled gauge data, NOT a new CAD sweep or exact continuous-contact proof."
+  }
+}

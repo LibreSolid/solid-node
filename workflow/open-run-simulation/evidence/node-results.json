@@ -1,0 +1,29 @@
+{
+  "runtime": "v24.11.1",
+  "memory": [
+    {
+      "ticks": 2000,
+      "heap_used_bytes": 4570168,
+      "snapshot_bytes": 3462,
+      "trace_length": 64,
+      "event_count_slots": 10
+    },
+    {
+      "ticks": 20000,
+      "heap_used_bytes": 4590008,
+      "snapshot_bytes": 3550,
+      "trace_length": 64,
+      "event_count_slots": 10
+    },
+    {
+      "ticks": 100000,
+      "heap_used_bytes": 4590632,
+      "snapshot_bytes": 3636,
+      "trace_length": 64,
+      "event_count_slots": 10
+    }
+  ],
+  "seconds_for_100000_ticks": 3.844924229,
+  "conformance_cases": 20,
+  "max_python_node_coordinate_error": 0
+}

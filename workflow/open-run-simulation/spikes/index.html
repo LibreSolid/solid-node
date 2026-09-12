@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Open-run mechanical spike</title>
+<style>
+body{margin:0;background:#121b28;color:#ebf2fa;font:16px system-ui}main{max-width:1100px;margin:auto;padding:20px}
+h1{font-size:25px;margin:0 0 8px}p{margin:7px 0;color:#bacadb}canvas{display:block;width:100%;border-radius:10px}
+button{background:#294259;border:1px solid #6e8aa1;color:white;padding:9px 15px;border-radius:5px;cursor:pointer;margin:6px 5px 6px 0}
+#state{white-space:pre-wrap;font:14px monospace;line-height:1.6;background:#1c2a3a;padding:12px;border-radius:5px}
+.note{font-size:14px;max-width:950px}#view{margin:10px 0}
+</style></head><body><main>
+<h1>Open-run simulation · measured-contact Curta rig</h1>
+<p>Three marked wheels, driven through shafts and retained carry latches. Read the wheels at the white pointers.</p>
+<div id="view"></div>
+<div><button id="run">Run crank</button><button id="pause">Pause simulation</button><button id="step">Step ½ turn</button><button id="reset">Reset</button></div>
+<pre id="state">Loading…</pre>
+<p class="note">Experimental schematic, not the full Curta CAD assembly. Wheel poses come only from mechanical coordinates computed in a worker. The rig uses measured contact windows and ideal detent transitions; it does not prove continuous 3D clearance, springs, or arbitrary gear contact.</p>
+<p class="note">No calculator result, operand or carry arithmetic drives these wheels. Static marks are attached to the wheel meshes. Geometry stays on the display thread; the worker receives one numeric program and returns coordinates.</p>
+</main><script type="module" src="./scene.mjs"></script></body></html>

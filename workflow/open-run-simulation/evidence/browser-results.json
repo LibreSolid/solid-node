@@ -1,0 +1,22 @@
+{
+  "browser": "151.0.7922.34",
+  "three_revision": "156",
+  "conformance_cases": 20,
+  "max_python_browser_error": 0,
+  "irregular_batches": [
+    1,
+    17,
+    3,
+    79,
+    2,
+    91,
+    47
+  ],
+  "render_only_did_not_advance": true,
+  "responsive_during_worker_30000_ticks": {
+    "beats": 99,
+    "elapsed_ms": 1335.3999999985099
+  },
+  "page_errors": [],
+  "renderer": "headless Chromium / SwiftShader"
+}
