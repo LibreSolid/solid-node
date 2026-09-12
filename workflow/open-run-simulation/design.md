@@ -403,3 +403,77 @@ The next framework/viewer cycles should carry these tests into a real compiled
 program/export contract and preserve the originating Curta mechanical evidence.
 Neither this recommendation nor the successful experiments ratify a new API,
 supersede accepted ADRs, or authorize implementation outside this folder.
+
+## Next step: immediately after the 0.7 release
+
+Pilot direction recorded 2026-09-12: take up this work immediately after the
+solid-node 0.7 release. It is a post-release priority, not additional scope or
+a release gate for 0.7. This update records the next step; it does not start
+implementation or ratify the illustrative interfaces above.
+
+### Recommendation
+
+Implement one narrow end-to-end mechanical subassembly through the actual
+framework and browser viewer. Use the Curta carry mechanism as the first
+acceptance case: the smallest actual subassembly containing an input
+transmission, adjoining carry stages, their pin/lever engagement and reset cam.
+Use its fitted source geometry and physical input travel, not only the
+standalone spike's schematic meshes and normalized selector.
+
+The assessment is that the execution architecture is viable for the tested
+mechanical-law class, but the complete Curta is not yet proven. The largest
+remaining gap is authoring and exporting those laws through solid-node and
+validating the resulting moving parts. Closing that gap is more informative
+than expanding the standalone interpreter or starting a whole-machine
+conversion immediately.
+
+The first increment should connect the whole path:
+
+```text
+Python component/joint/law declarations
+    -> compiled mechanical program and geometry bindings
+    -> stateful run in the browser worker
+    -> actual moving subassembly, with Python/browser conformance
+```
+
+The numeric program must be produced by the framework's build/export path,
+not hand-authored a second time for the browser. Keep one generic runtime:
+the model supplies mechanical relationships, and manual or scripted operation
+requests movement through declared inputs. No calculator result, operand
+evaluation or arithmetic carry routine may determine the wheel poses.
+
+### Acceptance evidence for that increment
+
+1. Operate the physical input and crank repeatedly in the browser. Show
+   engagement, transmitted movement, retained position after disengagement,
+   successive carries and reset across a revolution boundary on the actual
+   fitted parts. Declare and refuse unsupported operations explicitly.
+2. Validate engagement and the swept movement against the subassembly's source
+   geometry, including clearance and inadmissible re-engagement. Inspect
+   rendered evidence. A plausible image or a correct final wheel position
+   alone does not establish non-interference.
+3. Run the same exported mechanical program in Python and the browser; compare
+   coordinates, local mechanical state, events and admitted/blocked movement.
+   Vary display cadence without changing the mechanical outcome.
+4. Demonstrate pause/resume and checkpoint/replay through the common movement
+   interface, including atomic rollback of mechanics and any active command
+   source. Retain bounded history and verify the phase/winding representation.
+5. Measure build/export cost, retained runtime memory, event-processing cost
+   and browser responsiveness for this actual subassembly. Agree its target
+   operating rate during planning; the synthetic 240 Hz result is not an
+   acceptance promise for the real machine.
+6. Preserve existing untimed and looping simulations. Version the new running
+   capability so incompatible consumers refuse it instead of showing an
+   incomplete animation.
+
+After the release, recheck the released/current architecture and open the
+repository-owned framework and viewer change cycles for this increment, with
+the Curta validation work owned by its project. Resolve the concrete law API,
+initialization, blocked-motion behavior and shared export contract there before
+implementation. Carry the spike corpus and its failure cases into those real
+paths; the experimental folder is evidence, not a second production package.
+
+Successful acceptance justifies expanding supported mechanisms and then
+migrating the rest of the Curta using the same engine. General nonlinear
+contact, full-machine conversion and broad G-code/firmware compatibility are
+not prerequisites for this first increment and must not be claimed by it.
