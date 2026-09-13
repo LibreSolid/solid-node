@@ -82,6 +82,7 @@ that way.
 - [ADR-104](NODE/ADR-104-a-third-time-base-elapsed-seconds-that-never-wrap.md) — A third time base — elapsed seconds that never wrap: `Time.running()` beside `Time(loop=...)`, told apart by `mode`, reading bare `$t` until the compiled program is published — **Accepted**, extends 072, cites 008
 - [ADR-105](NODE/ADR-105-the-run-owns-the-coordinates-and-binds-them.md) — The run owns the coordinates and binds them: a bank of every driver and joint coordinate from the rest pose, bound through `set_state`'s delivery as a binder the solver recognizes, one owner per input — **Accepted**, depends on 104, extends 056, cites 089/099
 - [ADR-106](NODE/ADR-106-one-law-two-readings.md) — One law, two readings: running, a relation contributes `f(end) − f(start)` over a tick, exact across kinks, and a law is inspected as the expression it builds over symbols — **Accepted**, depends on 105, extends 089, cites 022/076
+- [ADR-107](NODE/ADR-107-a-jump-is-located-inside-the-tick-and-subtracted.md) — A jump is located inside the tick and subtracted: the path is cut at every crossing, each piece holds a branch read at its midpoint, and the increment is the sum over the pieces — **Accepted**, depends on 106/105, cites 022/076/080
 
 ### BUILD — loading, watching, CLI
 - [ADR-005](BUILD/ADR-005-path-based-dynamic-module-loading.md) — Path-based dynamic module loading — **Accepted**, amended by 073

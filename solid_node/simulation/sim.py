@@ -265,6 +265,17 @@ class Sim:
         return self._trajectory
 
     @property
+    def crossings(self):
+        """Every jump surface met inside a tick, oldest first.
+
+        The bounded ring `record=` asked for, and `[]` when it asked for
+        none: each entry names the tick, the relation as written, the
+        driven coordinate, the primitive that jumped, the surface it
+        reached and the fraction of the tick at which it did.
+        """
+        return self._running('crossings').crossings
+
+    @property
     def time(self):
         """The exact instant this simulation stands at, in seconds.
 

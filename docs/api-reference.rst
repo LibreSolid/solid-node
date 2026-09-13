@@ -352,7 +352,13 @@ imported only when such a simulation is constructed.
 
 .. autofunction:: solid_node.simulation.program.qualified_coordinates
 
+.. autoclass:: solid_node.simulation.program.JumpPlan
+
+.. autoclass:: solid_node.simulation.Crossing
+
 .. autoexception:: solid_node.simulation.UnsupportedLaw
+
+.. autoexception:: solid_node.simulation.TooManyCrossings
 
 .. autoclass:: solid_node.simulation.ScenarioTest
    :members: simulation, scenario_node

@@ -208,6 +208,88 @@ document's instructions table yet — the shipped viewer reads ``targets``
 off every entry — so declare one for a scenario before you declare one
 for a button.
 
+A law that jumps
+----------------
+
+A law may contain a **jump** — ``floor``, ``ceil``, ``sign``, ``%`` or a
+comparison — and a periodic mechanism usually does. The Curta's tooth
+window is the illustration: a pinion that turns 72 degrees while one
+tooth is engaged, once per crank revolution.
+
+.. code-block:: python
+
+    def periodic_window(source, target):
+        return lambda angle: 4 + 72 * clamp01(
+            (angle - 360 * floor(angle / 360) - 113.5) / 11.25)
+
+    crank.drives(pinion.turn, law=periodic_window)
+
+Absolutely, that law can only say where the pinion IS for a crank angle:
+after a whole revolution it reads exactly what it read before. Running,
+it is INTEGRATED, and the jump is subtracted. Over one tick the run cuts
+the path the sources take at every crossing of every jump surface it
+meets; on each piece every jump node holds one branch, read at the
+piece's midpoint; and the increment is the sum of the branch-substituted
+law's change over the pieces. So the pinion stands at ``4`` at rest, at
+``76`` after one crank turn and at ``148`` after two, and the tick in
+which the crank passes 360 degrees contributes exactly zero.
+
+Every crossing inside the tick is found, not only the difference of its
+ends: a crank turned far enough to pass three tooth windows in one tick
+adds three throws. The five primitives cross where their LEVEL QUANTITY
+reaches a surface — ``floor(x)`` and ``ceil(x)`` over ``x`` at every
+integer, ``sign(x)`` over ``x`` at zero, ``a % b`` over ``a / b`` at
+every NONZERO integer (``%`` is ``fmod``, which takes the sign of the
+dividend and is continuous where ``a / b`` crosses zero), and a
+comparison over ``a - b`` at zero. :func:`~solid_node.math.wrap` is
+built on ``ceil`` and integrates through the same door — a wrapped law
+reads as the unwrapped travel — and :func:`~solid_node.math.piecewise`
+needs nothing of its own, being a sum of ``clamp01`` terms with no jump
+in it at all.
+
+DISENGAGEMENT is a law's own business, and both its shapes are now
+expressible: a gate factor in a multi-source law, or the zero-slope
+region of a single-source one.
+
+.. code-block:: python
+
+    def clutch(sources, target):
+        return lambda shaft, sleeve: -2 * shaft * (sleeve > 0.5)
+
+    (shaft.turn & sleeve.travel).drives(wheel.turn, law=clutch)
+
+The wheel holds while the sleeve is out, drives while it is in, and on
+the tick in which the sleeve travels from ``0`` to ``1`` takes the travel
+AFTER engagement only — never the value the gate factor would have jumped
+to. A law naming several sources takes one straight path in their joint
+space, which is what makes a clutch closing while a shaft turns one
+question rather than two.
+
+Two things are refused, and one more can refuse a tick:
+
+* a law that can move its coordinate **only by jumping** — ``floor(turns)``
+  alone — because every jump is subtracted, so such a law can never move
+  anything. It states arithmetic, not a mechanism.
+  ``9 * enabled + floor(turns)`` is not refused: ``enabled`` still
+  carries slope, and the running reading simply gives the turns nothing;
+* a jumping law whose driven ends are all **intermediates** — a plain
+  port, a derived coordinate. A subtracted jump implies a history, and
+  only a coordinate the run owns keeps one; an intermediate is
+  recomputed from the bank on every tick, so it would snap while the
+  joint behind it moved smoothly. State the relation into the joint
+  coordinate and let the port follow it;
+* a tick that would cross more than a thousand surfaces of one law is
+  refused naming the relation, the coordinate, the primitive and the
+  count, and commits nothing. A ``dt`` that coarse is not resolving the
+  mechanism.
+
+A level quantity that is AFFINE in the sources along the path — which is
+every periodic law in practice — has its crossings solved exactly, all of
+them. Anything else is sampled at 64 sub-intervals and each bracketed
+crossing bisected; a level quantity that turns twice inside one
+sub-interval is outside that guarantee, and the answer to it is a smaller
+``dt``.
+
 Snapshot, restore, reset, record
 --------------------------------
 
@@ -221,16 +303,20 @@ different ``dt`` before it touches anything, and ``sim.reset()`` restores
 that never wraps cannot keep every tick, and ``every()`` sees each one as
 it happens.
 
+``record=N`` keeps a second ring of the same length, read through
+``sim.crossings``: the most recent ``N`` crossings located inside a tick,
+each naming the tick, the relation as written, the driven coordinate, the
+primitive that jumped, the surface it reached and the fraction of the
+tick at which it did. ``record=None`` keeps none and builds none, and
+restore and reset clear both rings. A surface reached exactly at a tick's
+own boundary is not inside any tick, so it is integrated — correctly, and
+contributing nothing — without appearing in the record.
+
 What this release refuses
 -------------------------
 
 Each of these is refused by name, and each is a later cycle's to lift:
 
-* a law whose expression contains a **jump** — ``floor``, ``ceil``,
-  ``sign``, ``%`` or a comparison. A continuous law is integrated
-  exactly, kinks included (``abs``, ``min``, ``max``, ``clamp``,
-  ``clamp01``, ``ramp``, ``piecewise``); a jump has to be located inside
-  the tick, which is the next cycle;
 * a law that cannot be applied to a symbol — one written over Python's
   own ``math`` rather than :doc:`solid_node.math <math>`;
 * a relation into a coordinate the run owns whose SOURCE is a plain port

@@ -34,7 +34,8 @@ from .base import BaseNodeTest
 from .running_project.machine import (Backwards, Differential, Follower,
                                       Guarded, HandBound, LoopingTrain,
                                       Opaque, Ranged, Sixfree, Stdlib,
-                                      Stepped, Train, TrainBody, Unbound)
+                                      Stepped, SteppedBody, Train, TrainBody,
+                                      Unbound)
 
 
 def reads(node, name):
@@ -464,14 +465,21 @@ class PurityTest(BaseNodeTest):
 class CompileRefusalTest(BaseNodeTest):
     """(13) A law is inspected as the expression it builds."""
 
-    def test_a_jump_is_refused(self):
-        with self.assertRaises(UnsupportedLaw) as caught:
-            Sim(Stepped(), 0.1)
-        message = str(caught.exception)
-        self.assertIn('crank', message)
-        self.assertIn('first.turn', message)
-        self.assertIn('jump', message)
-        self.assertIn('Stepped', message)
+    def test_a_jump_compiles(self):
+        # Cycle 1 refused this law by name; cycle 2 compiles it into a
+        # JUMP PLAN and integrates it over the tick's pieces
+        # (`test_running_jumps.py`). What has not changed is the untimed
+        # reading, which `SteppedBody` still poses absolutely.
+        sim = Sim(Stepped(), 0.1)
+        edge, = [edge for edge in sim.program.edges if edge.kind == 'law']
+        plan, = edge.plans
+        jump, = plan.jumps
+        self.assertEqual(jump.primitive, 'floor')
+        self.assertTrue(jump.affine)
+        self.assertEqual(jump.argument.evaluate({'crank': 720.0}), 2.0)
+        self.assertNotIn('floor', str(plan.skeleton))
+        body = Sim(SteppedBody(), 0.1, state={'crank': 115.0})
+        self.assertEqual(reads(body.node.first, 'turn'), 13.6)
 
     def test_a_stdlib_law_is_refused_as_non_symbolic(self):
         with self.assertRaises(UnsupportedLaw) as caught:

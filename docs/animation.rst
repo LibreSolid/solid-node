@@ -279,7 +279,9 @@ What the base changes is what a :doc:`simulation <scenarios>` over the
 root owns. Under it `Sim` owns every driver **and every joint
 coordinate** of the linked tree, keeps their history, and moves them by
 increments: a crank turned ten degrees twice leaves its arbor at forty,
-not at twenty. Nothing else about the tree changes.
+not at twenty. A law that JUMPS — a periodic window, a gate — has its
+crossings located inside the tick and the jumps subtracted, so a jump
+never moves a part. Nothing else about the tree changes.
 
 What it does not change yet is the published document. Unbound,
 `self.time` under a running root reads bare ``$t``, exactly as an

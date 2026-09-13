@@ -22,14 +22,26 @@ symbolic token per source coordinate, in the direction the REST RENDER
 solved it, and the graph that application builds -- over the qualified
 ids of its sources -- is what the run evaluates on every tick.
 
+A DISCONTINUOUS primitive (``floor``, ``ceil``, ``sign``, ``%``, a
+comparison) is a JUMP, and a graph carrying one is compiled a second
+time, into a ``JumpPlan``: the jump nodes in the graph's postorder, each
+with the LEVEL QUANTITY whose surfaces it crosses, and a SKELETON of the
+whole law with every jump node replaced by a branch placeholder. Over a
+tick the plan cuts the path at every crossing it meets, reads one branch
+per jump node at each piece's midpoint -- which makes the law continuous
+there -- and sums the branch-substituted law's change over the pieces.
+So a jump never moves a part, and nothing in the sum ever spans one.
+
 That application is also the inspection. What the expression cannot say
 is refused by relation identity, at construction, rather than integrated
-wrongly: a DISCONTINUOUS primitive (``floor``, ``ceil``, ``sign``, ``%``,
-a comparison) is a jump, and jumps are the next cycle's; a law that
-raises when handed a symbol, or whose graph holds text the framework
-cannot evaluate, is not an expression over its sources at all; and an
-edge into a bank coordinate whose source nothing in the program computes
-is a value stated in ``simulate()`` rather than as a relation.
+wrongly: a law that raises when handed a symbol, or whose graph holds
+text the framework cannot evaluate, is not an expression over its
+sources at all; an edge into a bank coordinate whose source nothing in
+the program computes is a value stated in ``simulate()`` rather than as
+a relation; a law that can move its coordinate only by JUMPING states
+arithmetic rather than a mechanism; and a jumping law driving no
+coordinate the run owns has nowhere to keep the history a subtracted
+jump implies.
 
 This module is imported by ``Sim.__init__`` only when the root declares
 ``Time.running()``, so a model that declares no running time pays for
@@ -37,10 +49,13 @@ none of it (capability ``cli-startup-cost``).
 """
 
 import hashlib
+import math
+import operator
+from dataclasses import dataclass
 
 from solid2.core.object_base import OpenSCADConstant
 
-from solid_node.expression_graph import postorder
+from solid_node.expression_graph import ExpressionNode, free_names, postorder
 from solid_node.math import SYMBOLIC_BUILTINS
 from solid_node.motion.couplings import (_solved_formulas, _wirings,
                                          CouplingError)
@@ -49,20 +64,88 @@ from solid_node.node.qualified import driver_id, instance_path
 from solid_node.scad_expression import GraphValue, as_node, symbol
 
 
-# The primitives a continuous law may not contain. `floor`, `ceil` and
-# `sign` jump by construction; `%` jumps at every period; a comparison is
-# a step. Each is a crossing to be located inside the tick and
-# subtracted, which is cycle 2's business, so this cycle refuses them by
-# name rather than integrating across a discontinuity.
+# The primitives that JUMP, and are therefore recognized and planned for
+# rather than integrated straight through. `floor`, `ceil` and `sign`
+# jump by construction; `%` jumps at every period; a comparison is a
+# step. `wrap()` is built on `ceil` and integrates through this list;
+# `piecewise()` is a sum of `clamp01` terms and holds no jump node at
+# all.
 _JUMP_CALLS = ('floor', 'ceil', 'sign')
 _JUMP_OPERATORS = ('%', '<', '<=', '>', '>=', '==', '!=')
 
+# A comparison's level quantity is `a - b` and its one surface is zero,
+# so its branch is the operator read against zero -- exactly what
+# `GraphValue.evaluate` computes, whose `bool` arithmetic then reads as
+# 1 or 0.
+_COMPARISONS = {'<': operator.lt, '<=': operator.le, '>': operator.gt,
+                '>=': operator.ge, '==': operator.eq, '!=': operator.ne}
+
+# Three tolerances, and no more (design.md section 5).
+#
+# `_CROSSING_TOLERANCE` is stated in `t`, the tick's own dimensionless
+# fraction, so one number serves a law over several sources with several
+# units: it converts to each source's units by multiplying by that
+# source's travel over the tick. It is the bisection's stopping bracket
+# AND the width below which two crossings are one cut. The run calls two
+# increments equal within `1e-9 * max(1, |a|, |b|)`, so a crossing
+# located three orders finer than that can never manufacture a
+# disagreement, and bisecting further is below the resolution of `t` as a
+# double over a tick of unit travel.
+#
+# There is deliberately NO surface tolerance. The question "is this
+# coordinate ON the surface" is never asked: a branch is read at a
+# piece's midpoint, which is a point genuinely inside it.
+_CROSSING_TOLERANCE = 1e-12
+
+# How finely a level quantity that is NOT affine in the sources is
+# sampled before each bracketed crossing is bisected. The search resolves
+# any crossing pair separated by more than 1/64 of the tick's travel; a
+# level quantity that turns twice inside one sub-interval is outside the
+# guarantee, and the answer to that is a smaller dt.
+_SUBDIVISIONS = 64
+
+# 40 rounds already reach 2**-40 < 1e-12 from a unit bracket; this is the
+# safety net, not the working number.
+_BISECTION_ROUNDS = 64
+
+# The per-graph per-tick bound on the partition. A thousand surfaces in
+# one tick is a dt that is not resolving the mechanism, and an unbounded
+# partition would be an unbounded per-tick cost inside a mode whose whole
+# promise is bounded memory.
+_MAX_CROSSINGS = 1000
+
 
 class UnsupportedLaw(CouplingError):
-    """A relation cannot be compiled into the running program: its law
-    contains a jump, is not an expression over its sources, or is
-    sourced from a coordinate the run does not own and no edge
-    computes."""
+    """A relation cannot be compiled into the running program, or cannot
+    be integrated over a tick: its law is not an expression over its
+    sources, is sourced from a coordinate the run does not own and no
+    edge computes, can move its coordinate only by jumping, carries a
+    jump with nowhere to keep its history, or divides by zero somewhere
+    on the tick's own path."""
+
+
+class TooManyCrossings(CouplingError):
+    """One tick would cut a law's path more times than the run admits.
+    The tick committed nothing."""
+
+
+@dataclass(frozen=True)
+class Crossing:
+    """One jump surface met inside one tick.
+
+    `level` is the surface value in the LEVEL QUANTITY's own units -- the
+    integer for `floor`, `ceil` and `%`, zero for `sign` and a
+    comparison -- and `t` is the fraction of the tick at which it was
+    reached. `relation` and `coordinate` are computed once at compile
+    time, so appending an entry costs a tuple and no formatting.
+    """
+
+    tick: int
+    relation: str
+    coordinate: str
+    primitive: str
+    level: float
+    t: float
 
 
 def qualified_coordinates(root):
@@ -97,6 +180,342 @@ def qualified_coordinates(root):
 
 
 ##############################################
+# The jump plan
+
+
+class _Jump:
+    """One jump node of a law, as the plan carries it.
+
+    `argument` is the node's LEVEL QUANTITY -- the continuous expression
+    whose surfaces it crosses -- with every jump node INSIDE it already
+    replaced by its own branch placeholder, so evaluating it on a piece
+    where those branches are fixed is one ordinary evaluation.
+    `placeholder` is the free name the skeleton reads this node's branch
+    under.
+    """
+
+    __slots__ = ('primitive', 'placeholder', 'argument', 'affine')
+
+    def __init__(self, primitive, placeholder, argument, affine):
+        self.primitive = primitive
+        self.placeholder = placeholder
+        self.argument = argument
+        self.affine = affine
+
+    def __repr__(self):
+        return (f'<{self.primitive} jump on {self.argument} '
+                f'{"affine" if self.affine else "searched"}>')
+
+
+class JumpPlan:
+    """How a law that jumps is integrated over one tick.
+
+    The tick moves the law's sources along the straight line from the
+    values they hold to those values plus the increments they were
+    given, parametrised by `t` in [0, 1] -- in the JOINT source space
+    for a law naming several, which is what makes a gate closing while a
+    shaft turns one question rather than two.
+
+    That path is cut at every crossing of every jump surface it meets.
+    On each open piece every jump node holds one BRANCH, read by
+    evaluating its level quantity at the piece's MIDPOINT: a point
+    genuinely inside the piece, so the value read there IS the branch,
+    exactly, at any magnitude of source and from either direction of
+    travel. The law with those branches substituted is continuous on the
+    closed piece, so the increment is the plain sum of its change over
+    the pieces -- with no epsilon, no one-sided limit rule and no
+    direction test anywhere.
+    """
+
+    __slots__ = ('skeleton', 'jumps')
+
+    def __init__(self, skeleton, jumps):
+        self.skeleton = skeleton
+        self.jumps = tuple(jumps)
+
+    def __repr__(self):
+        return f'<jump plan of {len(self.jumps)} nodes: {self.skeleton}>'
+
+    ##############################################
+    # The increment
+
+    def increment(self, start, delta, described, coordinate,
+                  crossings=None, tick=0):
+        """The CONTINUOUS part of this law's change over one tick."""
+        if not any(delta.values()):
+            # A zero-length path contributes zero without evaluating
+            # anything -- and must never reach the sum below, where a
+            # one-point piece would read as minus a jump.
+            return 0.0
+        cuts = self._partition(start, delta, described, coordinate,
+                               crossings, tick)
+        total = 0.0
+        for left, right in zip(cuts, cuts[1:]):
+            branches = self._branches(start, delta, (left + right) / 2.0,
+                                      len(self.jumps), described, coordinate)
+            total += (self._substituted(start, delta, right, branches)
+                      - self._substituted(start, delta, left, branches))
+        return total
+
+    def _substituted(self, start, delta, t, branches):
+        values = _along(start, delta, t)
+        values.update(branches)
+        return self.skeleton.evaluate(values)
+
+    def _branches(self, start, delta, t, count, described, coordinate):
+        """Every jump node's branch at one point of the path, in
+        postorder, so a node nested inside another's argument is
+        determined first."""
+        values = _along(start, delta, t)
+        found = {}
+        for jump in self.jumps[:count]:
+            level = self._level(jump, values, described, coordinate)
+            branch = _branch_of(jump, level)
+            found[jump.placeholder] = branch
+            values[jump.placeholder] = branch
+        return found
+
+    def _level(self, jump, values, described, coordinate):
+        try:
+            level = jump.argument.evaluate(values)
+        except ZeroDivisionError:
+            raise _no_level(jump, described, coordinate) from None
+        if jump.primitive in ('floor', 'ceil', '%') \
+                and not math.isfinite(level):
+            # An integer branch cannot be read off an infinity or a nan,
+            # and the arithmetic that would try raises something the
+            # tick's rollback does not catch. Refuse it the same way.
+            raise _no_level(jump, described, coordinate,
+                            'a level quantity that is not a finite number')
+        return level
+
+    ##############################################
+    # The partition
+
+    def _partition(self, start, delta, described, coordinate,
+                   crossings, tick):
+        """The tick's path, cut at every crossing of every jump surface.
+
+        The jump nodes are taken in POSTORDER, so a node's level
+        quantity is asked where it crosses only once every jump node
+        inside it has already cut the path: on each pair of consecutive
+        cuts those inner branches are constant, which is what makes the
+        level quantity a continuous function of `t` there and the search
+        below well-posed.
+        """
+        cuts = [0.0, 1.0]
+        located = []
+        for index, jump in enumerate(self.jumps):
+            found = []
+            for left, right in zip(cuts, cuts[1:]):
+                inner = self._branches(start, delta, (left + right) / 2.0,
+                                       index, described, coordinate)
+                found.extend(self._crossings_of(
+                    jump, start, delta, inner, left, right,
+                    described, coordinate))
+                if len(found) > _MAX_CROSSINGS:
+                    raise _too_many(described, coordinate, jump, len(found))
+            if not found:
+                continue
+            found = _deduplicated(found)
+            cuts = _merged(cuts, [where for where, _level in found])
+            if len(cuts) - 2 > _MAX_CROSSINGS:
+                raise _too_many(described, coordinate, jump, len(cuts) - 2)
+            located.extend((where, index, jump.primitive, level)
+                           for where, level in found)
+        if crossings is not None and located:
+            # Sorted by the fraction of the tick, and by the graph's
+            # postorder where two coincide, so the listing is
+            # deterministic.
+            located.sort(key=lambda entry: (entry[0], entry[1]))
+            crossings.extend(
+                Crossing(tick, described, coordinate, primitive, level, where)
+                for where, _index, primitive, level in located)
+        return cuts
+
+    def _crossings_of(self, jump, start, delta, inner, left, right,
+                      described, coordinate):
+        """Where `jump` reaches one of its surfaces between two cuts."""
+        if jump.affine:
+            # An affine level quantity is determined everywhere on the
+            # piece by its two endpoint values, so every surface between
+            # them is SOLVED -- all of them, which is what makes a crank
+            # that passes three tooth windows in one tick add three
+            # throws rather than one.
+            low = self._level_at(jump, start, delta, left, inner,
+                                 described, coordinate)
+            high = self._level_at(jump, start, delta, right, inner,
+                                  described, coordinate)
+            if high == low:
+                return []
+            found = []
+            for level in _surfaces(jump, low, high, described, coordinate,
+                                   inclusive=False):
+                found.append((left + (right - left)
+                              * (level - low) / (high - low), level))
+            return found
+        return self._searched(jump, start, delta, inner, left, right,
+                              described, coordinate)
+
+    def _searched(self, jump, start, delta, inner, left, right,
+                  described, coordinate):
+        """Anything else: sampled, bracketed and bisected."""
+        width = (right - left) / _SUBDIVISIONS
+        points = [left + width * step for step in range(_SUBDIVISIONS)]
+        points.append(right)
+        levels = [self._level_at(jump, start, delta, where, inner,
+                                 described, coordinate) for where in points]
+        found = []
+        for step in range(_SUBDIVISIONS):
+            low, high = levels[step], levels[step + 1]
+            for level in _surfaces(jump, low, high, described, coordinate,
+                                   inclusive=True):
+                if low == level:
+                    # A sample that IS on the surface is the crossing;
+                    # there is nothing to bisect, and taking it exactly
+                    # is what keeps the answer exact when a crossing
+                    # falls on a sub-interval boundary.
+                    found.append((points[step], level))
+                elif high == level:
+                    found.append((points[step + 1], level))
+                else:
+                    found.append((self._bisect(
+                        jump, start, delta, inner, level, points[step],
+                        points[step + 1], described, coordinate), level))
+            if len(found) > _MAX_CROSSINGS:
+                break
+        return found
+
+    def _bisect(self, jump, start, delta, inner, level, low, high,
+                described, coordinate):
+        below = self._level_at(jump, start, delta, low, inner,
+                               described, coordinate) - level
+        for _round in range(_BISECTION_ROUNDS):
+            if high - low <= _CROSSING_TOLERANCE:
+                break
+            middle = (low + high) / 2.0
+            here = self._level_at(jump, start, delta, middle, inner,
+                                  described, coordinate) - level
+            if here == 0.0 or (here < 0.0) != (below < 0.0):
+                high = middle
+            else:
+                low, below = middle, here
+        return (low + high) / 2.0
+
+    def _level_at(self, jump, start, delta, t, inner, described, coordinate):
+        values = _along(start, delta, t)
+        values.update(inner)
+        return self._level(jump, values, described, coordinate)
+
+
+def _is_jump(node):
+    return ((node.kind == 'call' and node.op in _JUMP_CALLS)
+            or (node.kind == 'binop' and node.op in _JUMP_OPERATORS))
+
+
+def _along(start, delta, t):
+    """The sources at `t` along the tick's straight path.
+
+    At `t == 1` this is exactly `start + delta`, the same float the
+    caller computed, because it is the same arithmetic.
+    """
+    return {name: start[name] + delta[name] * t for name in start}
+
+
+def _branch_of(jump, level):
+    """What `jump` reads on a piece whose level quantity sits at
+    `level` -- design.md section 1's branch column."""
+    primitive = jump.primitive
+    if primitive == 'floor':
+        return float(math.floor(level))
+    if primitive == 'ceil':
+        return float(math.ceil(level))
+    if primitive == 'sign':
+        return float((level > 0) - (level < 0))
+    if primitive == '%':
+        # Not a constant but the integer QUOTIENT: with `q` fixed the
+        # node reads `a - q * b`, which is continuous in `t`.
+        return float(math.trunc(level))
+    return float(_COMPARISONS[primitive](level, 0.0))
+
+
+def _surfaces(jump, low, high, described, coordinate, inclusive):
+    """`jump`'s surfaces between two values of its level quantity."""
+    if jump.primitive == 'sign' or jump.primitive in _COMPARISONS:
+        first, last = (low, high) if low <= high else (high, low)
+        if first < 0.0 < last or (inclusive and first <= 0.0 <= last):
+            return (0.0,)
+        return ()
+    first, last = (low, high) if low <= high else (high, low)
+    if not math.isfinite(first) or not math.isfinite(last):
+        raise _no_level(jump, described, coordinate)
+    span = math.ceil(last) - math.floor(first) - 1
+    if span > _MAX_CROSSINGS:
+        raise _too_many(described, coordinate, jump, span)
+    if inclusive:
+        levels = [float(whole)
+                  for whole in range(math.floor(first), math.ceil(last) + 1)
+                  if first <= whole <= last]
+    else:
+        levels = [float(whole)
+                  for whole in range(math.floor(first) + 1, math.ceil(last))
+                  if first < whole < last]
+    if jump.primitive == '%':
+        # `fmod` is `a - b * trunc(a / b)`, and `trunc` is zero on the
+        # whole of (-1, 1): the operator is CONTINUOUS where `a / b`
+        # crosses zero and jumps only at a nonzero integer of it.
+        levels = [level for level in levels if level != 0.0]
+    return levels
+
+
+def _deduplicated(found):
+    """One entry per surface actually reached: a crossing that falls on
+    a sub-interval boundary is located twice, from either side."""
+    ordered = sorted(found, key=lambda entry: (entry[0], entry[1]))
+    kept = []
+    for where, level in ordered:
+        if kept and kept[-1][1] == level \
+                and where - kept[-1][0] <= _CROSSING_TOLERANCE:
+            continue
+        kept.append((where, level))
+    return kept
+
+
+def _merged(cuts, found):
+    """The partition with `found` folded in: two cuts closer than the
+    tolerance are ONE, and the partition always ends at exactly 1."""
+    ordered = sorted(cuts + list(found))
+    kept = [ordered[0]]
+    for where in ordered[1:]:
+        if where - kept[-1] > _CROSSING_TOLERANCE:
+            kept.append(where)
+    kept[-1] = 1.0
+    return kept
+
+
+def _too_many(described, coordinate, jump, count):
+    return TooManyCrossings(
+        f'{described}: over one tick {coordinate} would cross {count} '
+        f"surfaces of {jump.primitive}, more than the {_MAX_CROSSINGS} a "
+        f'single law is admitted in one tick. A dt that coarse is not '
+        f'resolving the mechanism: the crossings between the frames are '
+        f'what a jump law is FOR. Step in smaller ticks. The tick '
+        f'committed nothing: the bank, the tick count and the tree stand '
+        f'as they were.')
+
+
+def _no_level(jump, described, coordinate, reason=None):
+    what = reason or ('a divisor of zero' if jump.primitive == '%'
+                      else 'a division by zero in its level quantity')
+    return UnsupportedLaw(
+        f"{described}: its {jump.primitive} meets {what} somewhere on this "
+        f'tick\'s path, so there is no level quantity to locate a crossing '
+        f'on -- fmod(a, 0) is nan and a / 0 is nothing at all. The tick '
+        f'committed nothing and {coordinate} stands where it stood: state '
+        f'the relation so the divisor never reaches zero.')
+
+
+##############################################
 # What the program is made of
 
 
@@ -110,16 +529,24 @@ class Edge:
     place a conflict can be detected in this cycle.
     """
 
-    __slots__ = ('kind', 'needs', 'gives', 'graphs', 'names', 'factors',
-                 'constant', 'slot_key', 'description', 'stated_by')
+    __slots__ = ('kind', 'needs', 'gives', 'graphs', 'plans', 'driven',
+                 'names', 'factors', 'constant', 'slot_key', 'description',
+                 'stated_by')
 
     def __init__(self, kind, needs, gives, description, stated_by,
-                 graphs=(), names=(), factors=(), constant=0.0,
-                 slot_key=None):
+                 graphs=(), plans=(), driven=(), names=(), factors=(),
+                 constant=0.0, slot_key=None):
         self.kind = kind
         self.needs = tuple(needs)
         self.gives = tuple(gives)
         self.graphs = tuple(graphs)
+        # Empty for a law with no jump in it at all, so `increments` can
+        # tell the two apart in one test and a continuous law pays
+        # nothing for this cycle (design.md section 12).
+        self.plans = tuple(plans)
+        # The driven coordinates' qualified ids, aligned with `gives`,
+        # computed here so a crossing entry costs a tuple and no lookup.
+        self.driven = tuple(driven)
         self.names = tuple(names)
         self.factors = tuple(factors)
         self.constant = constant
@@ -155,14 +582,37 @@ class Edge:
             return [(self.gives[0], self._linear(values))]
         return []
 
-    def increments(self, values, deltas):
-        """What this edge's targets MOVE BY over the tick: the difference
-        of two exact evaluations, which is what makes a kink exact."""
+    def increments(self, values, deltas, crossings=None, tick=0):
+        """What this edge's targets MOVE BY over the tick.
+
+        A law with no jump in it is the difference of two exact
+        evaluations, which is what makes a kink exact -- and that is the
+        FIRST thing tested here, so a continuous law pays nothing for
+        the jump machinery. A law that jumps takes its plan, which cuts
+        the tick at every crossing and sums the pieces.
+        """
         if self.kind == 'law':
             start = self._inputs(values)
+            if not self.plans:
+                end = self._inputs(values, deltas)
+                return [(key,
+                         _evaluated(graph, end) - _evaluated(graph, start))
+                        for key, graph in zip(self.gives, self.graphs)]
+            delta = {name: deltas[key]
+                     for name, key in zip(self.names, self.needs)}
             end = self._inputs(values, deltas)
-            return [(key, _evaluated(graph, end) - _evaluated(graph, start))
-                    for key, graph in zip(self.gives, self.graphs)]
+            found = []
+            for index, key in enumerate(self.gives):
+                plan = self.plans[index]
+                if plan is None:
+                    graph = self.graphs[index]
+                    found.append((key, _evaluated(graph, end)
+                                  - _evaluated(graph, start)))
+                    continue
+                found.append((key, plan.increment(
+                    start, delta, self.description, self.driven[index],
+                    crossings, tick)))
+            return found
         if self.kind == 'wiring':
             return [(self.gives[0], deltas[self.needs[0]] * self.factors[0])]
         if self.kind == 'formula':
@@ -210,9 +660,11 @@ class Edge:
 def _evaluated(graph, inputs):
     if graph is None:
         # A law whose expression has no free coordinate -- a constant --
-        # has zero slope everywhere, so it contributes nothing. The
-        # refusal the decision asks for needs jump detection to tell a
-        # gate from a constant, and is cycle 2's.
+        # has zero slope everywhere, so it contributes nothing. It moves
+        # nothing by JUMPING either, and untimed it legitimately pins its
+        # driven coordinate, so it is not refused: the running reading
+        # (the coordinate holds where the rest render put it) is the same
+        # statement.
         return 0.0
     return graph.evaluate(inputs)
 
@@ -390,16 +842,39 @@ def _relation_edge(root, assembly, record, nodes, bank_keys):
             f'group; state the rest as joints, or as a relation of their '
             f'own.')
 
-    graphs = _law_graphs(assembly, record, source_nodes, len(target_nodes))
+    compiled = _law_graphs(assembly, record, source_nodes,
+                           len(target_nodes))
+    graphs = [graph for graph, _plan in compiled]
+    plans = [plan for _graph, plan in compiled]
+    if any(plan is not None for plan in plans) and not any(banked):
+        # A subtracted jump implies a HISTORY, and an intermediate keeps
+        # none: the ordinary enumeration recomputes it absolutely from
+        # the bank on every tick, so its value would snap by the
+        # accumulated jumps while the joint behind it moved smoothly.
+        raise UnsupportedLaw(
+            f'{record.described()}, stated by {type(assembly).__name__}: '
+            f'its law contains a jump and its driven ends are '
+            f'{", ".join(node.name for node in target_nodes)}, none of '
+            f'which the running simulation owns. A subtracted jump implies '
+            f'a history, and only a coordinate the run owns keeps one -- a '
+            f'plain port and a derived coordinate are calculations the '
+            f'ordinary enumeration recomputes from the bank on every tick, '
+            f'so this one would snap while the joint behind it moved '
+            f'smoothly. State the relation into the joint coordinate and '
+            f'let the port follow it.')
     return Edge('law', [node.key for node in source_nodes],
                 [node.key for node in target_nodes],
                 record.described(), type(assembly).__name__,
-                graphs=graphs, names=[node.name for node in source_nodes])
+                graphs=graphs,
+                plans=plans if any(plan is not None for plan in plans) else (),
+                driven=[node.name for node in target_nodes],
+                names=[node.name for node in source_nodes])
 
 
 def _law_graphs(assembly, record, source_nodes, count):
     """The law applied ONCE to a symbolic token per source, checked to be
-    an expression the run can evaluate."""
+    an expression the run can evaluate, and compiled into a jump plan
+    where it jumps: one `(graph, plan)` per driven end."""
     def refuse(detail):
         raise UnsupportedLaw(
             f'{record.described()}, stated by {type(assembly).__name__}: '
@@ -434,37 +909,193 @@ def _law_graphs(assembly, record, source_nodes, count):
 
 
 def _graph_of(value, refuse):
-    """`value` as the expression graph the run evaluates, `None` for a
-    constant, or the refusal naming what it is instead."""
+    """`value` as the expression graph the run evaluates and the JUMP
+    PLAN beside it, `(None, None)` for a constant, or the refusal naming
+    what it is instead."""
     if isinstance(value, bool):
         refuse(f'the law returned {value!r}, which is neither a number nor '
                f'an expression.')
     if isinstance(value, (int, float)):
-        return None
+        return None, None
     if not isinstance(value, OpenSCADConstant):
         refuse(f'the law returned {value!r}, which is neither a number nor '
                f'an expression over its sources.')
     root = as_node(value)
+    jumps = []
     for item in postorder([root]):
         if item.kind == 'raw':
             refuse(f'its expression carries the text {item.text!r}, which '
                    f'the framework cannot evaluate: a running law is an '
                    f'expression over its sources.')
-        if item.kind == 'call':
-            if item.op in _JUMP_CALLS:
-                refuse(f'its expression contains {item.op}(), which is a '
-                       f'jump; jumps are not yet supported by the running '
-                       f'mode, and locating a crossing inside the tick is '
-                       f'the next cycle. Untimed and looping, the same law '
-                       f'poses exactly as it always did.')
-            if item.op not in SYMBOLIC_BUILTINS:
-                refuse(f'its expression calls {item.op!r}, which is outside '
-                       f'the symbolic vocabulary the run can evaluate.')
-        if item.kind == 'binop' and item.op in _JUMP_OPERATORS:
-            refuse(f"its expression contains the operator '{item.op}', "
-                   f'which is a jump; jumps are not yet supported by the '
-                   f'running mode.')
-    return GraphValue(root)
+        if item.kind == 'call' and item.op not in SYMBOLIC_BUILTINS:
+            refuse(f'its expression calls {item.op!r}, which is outside '
+                   f'the symbolic vocabulary the run can evaluate.')
+        if _is_jump(item):
+            jumps.append(item)
+    if not jumps:
+        return GraphValue(root), None
+    if _only_jumps(root):
+        refuse('its expression can move its driven coordinate only by '
+               'jumping: with every jump node and the whole argument '
+               'subtree beneath it replaced by a constant, no free '
+               'coordinate is left. Every jump is subtracted -- a jump '
+               'never moves a part -- so this law can never move anything '
+               'at all. It states arithmetic, not a mechanism: give the '
+               'coordinate a relation that carries slope, or leave the '
+               'count to the code that reads the machine.')
+    return GraphValue(root), _plan_of(root, jumps)
+
+
+def _plan_of(root, jumps):
+    """The jump plan of a graph: the skeleton, and the jump nodes in the
+    graph's postorder with their level quantities."""
+    placeholders = {node: ExpressionNode(
+        'name', text=f'${"q" if node.op == "%" else "j"}{index}')
+        for index, node in enumerate(jumps)}
+    skeleton = _skeleton(root, placeholders)
+    planned = []
+    for node in jumps:
+        argument = _argument_graph(node, skeleton.replaced)
+        planned.append(_Jump(node.op, placeholders[node].text,
+                             GraphValue(argument),
+                             _affine_in_sources(argument)))
+    return JumpPlan(GraphValue(skeleton.root), planned)
+
+
+class _Rewritten:
+    """A graph with every jump node replaced, and the replacement map
+    the argument graphs are cut from."""
+
+    __slots__ = ('root', 'replaced')
+
+    def __init__(self, root, replaced):
+        self.root = root
+        self.replaced = replaced
+
+
+def _skeleton(root, placeholders):
+    """`root` with every jump node replaced by its branch placeholder --
+    and every `%` node by `a - q * b`, which is what a fixed quotient
+    leaves of it.
+
+    Memoised BY NODE IDENTITY, because `postorder` visits each reachable
+    identity once: a subgraph two consumers share stays ONE node with one
+    branch, which is the sharing ADR-080 introduced surviving into the
+    plan for free.
+    """
+    replaced = {}
+    for node in postorder([root]):
+        if node in placeholders:
+            if node.op == '%':
+                left = replaced.get(node.children[0], node.children[0])
+                right = replaced.get(node.children[1], node.children[1])
+                replaced[node] = ExpressionNode('binop', '-', (
+                    left, ExpressionNode('binop', '*',
+                                         (placeholders[node], right))))
+            else:
+                replaced[node] = placeholders[node]
+        elif node.children:
+            children = tuple(replaced.get(child, child)
+                             for child in node.children)
+            if children != node.children:
+                replaced[node] = ExpressionNode(
+                    node.kind, node.op, children, node.text)
+    return _Rewritten(replaced.get(root, root), replaced)
+
+
+def _argument_graph(node, replaced):
+    """`node`'s LEVEL QUANTITY -- the continuous quantity whose surfaces
+    it crosses -- with the jump nodes INSIDE it already replaced."""
+    parts = [replaced.get(child, child) for child in node.children]
+    if node.kind == 'call':
+        return parts[0]
+    if node.op == '%':
+        return ExpressionNode('binop', '/', (parts[0], parts[1]))
+    return ExpressionNode('binop', '-', (parts[0], parts[1]))
+
+
+def _affine_in_sources(root):
+    """Whether `root` is AFFINE in the sources along the path, so its
+    crossings can be solved rather than searched.
+
+    Structural and computed once: numbers, source names, branch
+    placeholders (constants on a piece), unary minus, `+` and `-` of
+    affine operands, `*` with a constant operand and `/` by one. A call,
+    a power, or a product of two moving operands is not affine, and
+    falls to the search -- correct but slower, which is why
+    `floor(max(x, 0))` is searched although it is piecewise affine.
+    """
+    degree = {}
+    for node in postorder([root]):
+        degree[node] = _degree_of(node, degree)
+    return degree[root] in ('constant', 'affine')
+
+
+def _degree_of(node, degree):
+    if node.kind == 'num':
+        return 'constant'
+    if node.kind == 'name':
+        # A branch placeholder is a constant on the piece being cut; a
+        # source name is what moves along the path.
+        return 'constant' if node.text.startswith('$') else 'affine'
+    if not node.children:
+        return None
+    children = [degree[child] for child in node.children]
+    if all(child == 'constant' for child in children):
+        return 'constant'
+    if node.kind == 'unary':
+        return children[0] if children[0] == 'affine' else None
+    if node.kind != 'binop':
+        return None
+    left, right = children
+    moving = ('constant', 'affine')
+    if node.op in ('+', '-'):
+        return 'affine' if left in moving and right in moving else None
+    if node.op == '*':
+        if (left == 'constant' and right in moving) \
+                or (right == 'constant' and left in moving):
+            return 'affine'
+        return None
+    if node.op == '/':
+        return 'affine' if right == 'constant' and left in moving else None
+    return None
+
+
+def _only_jumps(root):
+    """Whether the law's CONTINUOUS SKELETON -- every jump node reduced
+    to what a FIXED BRANCH leaves of it -- has no free coordinate left.
+
+    `floor(turns)` reduces to a constant and is refused;
+    `9 * enabled + floor(turns)` keeps `enabled` and is not, because
+    `enabled` still carries slope.
+
+    Four of the five primitives reduce to a constant, so the node and
+    the whole argument subtree beneath it go. `%` does not: its branch
+    is the integer QUOTIENT, and with that fixed `a % b` reads
+    `a - q * b`, which still carries `a`'s slope. Reducing it to a
+    constant would refuse `angle % 360` -- the tooth window written with
+    the operator instead of the `floor`, which design.md section 6
+    requires to read the same at every tick as the `floor` spelling
+    does, and which moves by far more than jumping.
+    """
+    constant = ExpressionNode('num', text='0')
+    replaced = {}
+    for node in postorder([root]):
+        if _is_jump(node):
+            if node.op == '%':
+                left = replaced.get(node.children[0], node.children[0])
+                right = replaced.get(node.children[1], node.children[1])
+                replaced[node] = ExpressionNode('binop', '-', (
+                    left, ExpressionNode('binop', '*', (constant, right))))
+            else:
+                replaced[node] = constant
+        elif node.children:
+            children = tuple(replaced.get(child, child)
+                             for child in node.children)
+            if children != node.children:
+                replaced[node] = ExpressionNode(
+                    node.kind, node.op, children, node.text)
+    return not free_names(replaced.get(root, root))
 
 
 def _wiring_edge(root, assembly, wiring, nodes):

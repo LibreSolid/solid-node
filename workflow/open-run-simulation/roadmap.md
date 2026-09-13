@@ -356,3 +356,74 @@ Open questions the pilot owns, carried from the change's `design.md`:
   of previewing as `$t`? Deferred to cycle 4 with the export.
 - Whether `blocked` reports per command or per rigid group is cycle 3's;
   the vocabulary is fixed here.
+
+### Cycle 2 landed, 2026-09-13
+
+`integrate-jumps` is implemented on branch `open-run-simulation` in
+`solid-node/WTs/open-run-simulation`, two commits from cycle 1's own head
+`5b7f4d0` — the planning commit `84e0d1d` and the implementation commit
+this line is part of. The refusal of `floor`, `ceil`, `sign`, `%` and a
+comparison is lifted: a jump-carrying law compiles into a JUMP PLAN, and
+over a tick the run cuts the path its sources take at every crossing it
+meets, reads one branch per jump node at each piece's midpoint, and sums
+the branch-substituted law's change over the pieces — so a jump never
+moves a part. Every crossing inside the tick is found, solved exactly
+where the level quantity is affine and bisected otherwise; nesting works
+by the graph's postorder; a multi-source law takes one path in the joint
+source space, so a clutch closing mid-tick gives the travel after
+engagement only. Two laws are refused at construction — one that can move
+its coordinate only by jumping, and a jumping law none of whose driven
+ends the run owns — and two refusals belong to the tick, a partition over
+a thousand cuts and a `%` whose divisor reaches zero, both rolling back
+as a conflict does. `record=N` keeps a second bounded ring, `sim.crossings`.
+ADR-107 records the decision and the change is archived under
+`openspec/changes/archive/2026-09-13-integrate-jumps/`. The full suite is
+2380 passed / 4 skipped / 1245 subtests against cycle 1's 2339 / 4 / 925;
+one `Train` tick now costs 1.07 ms against cycle 1's recorded 1.16, the
+saving being one discarded law evaluation a tick that `Run._values()` no
+longer makes, and a jump-carrying law costs 1.3x its continuous twin on a
+non-crossing tick and 1.8x on a crossing one. Nothing is pushed and
+nothing is integrated into any `main`.
+
+The pilot's illustration reads as it was meant to: the Curta window
+leaves its pinion at 4.0 at rest, 76.0 after one crank turn and 148.0
+after two, and a tick that passes three tooth windows adds three throws
+(220.0). Both originating projects' laws compile and integrate VERBATIM
+(`evidence/probe_projects.py` in the archived change).
+
+**A note for the module's running migration.** The committed
+`CARRY_LEAD = 0.10` makes `handed_on` DISCONTINUOUS at the carry window's
+boundary, by `first_rise * lead / first_width = 4.10 * 0.10 / 3 =
+0.136666…`: the lead-shifted first segment already reads that far up its
+ramp when the phase resets. The integrated reading subtracts that jump, so
+a column hands on **65.403333…** per revolution rather than the declared
+`CARRY_THROW = 65.54`. The law compiles and integrates unchanged, which
+was this cycle's obligation; whether the module wants the lead applied to
+the phase reset as well is the module's own change, and its migration now
+starts from the number rather than from a surprise. The module's carry
+also drives `tens.wheel`, a `RotationalPort` — which cycle 2 now refuses
+for a jumping law, saying to state the relation into the joint coordinate
+and let the port follow it. That is the second thing the migration has to
+do, and it already had to do the first (cycle 1 refuses the relation's
+plain-port SOURCE).
+
+Open questions the pilot owns, carried from the change's `design.md`:
+
+- Should a CONSTANT law (no free name, no jump) be refused too, rather
+  than compiling and contributing zero? The cycle keeps cycle 1's
+  ratified behaviour and argues for it; decision item 5 can be read
+  either way.
+- Should `settled_value`'s shape — a sloped term added to a jump-only
+  term — be refused, or is the running reading (the jump-only term
+  contributes nothing) the honest answer? The cycle takes the latter.
+- Should the crossing record be on by default under a running root,
+  rather than tied to `record=N`? It is tied, so a run that records
+  nothing pays nothing.
+- Should a `%` with a MOVING divisor be refused rather than searched? It
+  is searched; no project writes one.
+- One more, found in implementation: a crossing reached EXACTLY at a
+  tick's own boundary is integrated correctly and contributes nothing,
+  but is not "located inside a tick" and so never appears in the crossing
+  record. The record is a diagnostic and the increment is right either
+  way, but a reader counting throws off `sim.crossings` at a cadence that
+  divides the period evenly will count none.

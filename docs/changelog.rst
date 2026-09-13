@@ -8,6 +8,37 @@ Changelog
 Unreleased
 ----------
 
+**A jump is located inside the tick and subtracted.** A running law may
+now contain ``floor``, ``ceil``, ``sign``, ``%`` or a comparison — the
+periodic and gated shapes a real mechanism is written in. Over one tick
+the run cuts the path its sources take at every crossing of every jump
+surface it meets; on each piece every jump node holds one BRANCH, read at
+the piece's midpoint, which makes the law continuous there; and the
+increment is the sum of the branch-substituted law's change over the
+pieces. So a jump never moves a part: the Curta's tooth window leaves its
+pinion at ``4`` at rest, ``76`` after one crank turn and ``148`` after
+two, and the tick in which the crank passes 360 degrees contributes
+exactly zero. Every crossing inside the tick is found, not only the
+difference of its ends — a crank passing three tooth windows in one tick
+adds three throws — including several jump nodes and a jump nested in
+another's argument. ``wrap()`` integrates as the ``ceil`` it is built on,
+so a wrapped law reads as the unwrapped travel, and ``piecewise()``
+needed nothing of its own. Disengagement is a law's own business and both
+its shapes are now expressible: a gate factor in a multi-source law
+(``-2 * shaft * (sleeve > 0.5)``, which re-engages mid-tick without a
+jump) and the zero-slope region of a single-source one.
+
+Two laws are refused at construction, by relation identity: one that can
+move its coordinate ONLY by jumping, because every jump is subtracted so
+it can never move anything — it states arithmetic, not a mechanism — and
+a jumping law none of whose driven ends the run owns, because a
+subtracted jump implies a history and only an owned coordinate keeps one.
+A tick that would cross more than a thousand surfaces of one law, or that
+meets a ``%`` whose divisor is zero, refuses the tick and commits
+nothing. ``record=N`` now keeps a second bounded ring, read through
+``sim.crossings``, of the most recent ``N`` crossings located inside a
+tick.
+
 **A machine can keep its history: the run owns the coordinates.** A pose
 was a function of the current input values and nothing else, so a Curta
 pinion posed at any crank angle was right and turned through two crank
@@ -44,9 +75,8 @@ nothing). Under a running root ``set_state`` also accepts a qualified
 joint-coordinate id, delivered to the node that owns it, a leaf
 included.
 
-This first increment refuses, by name, what it cannot yet do: a law
-containing a jump (``floor``, ``ceil``, ``sign``, ``%``, a comparison), a
-law that cannot be applied to a symbol, a relation into a run-owned
+This first increment refuses, by name, what it cannot yet do: a law that
+cannot be applied to a symbol, a relation into a run-owned
 coordinate sourced from a plain port ``simulate()`` binds, a reverse
 move, and a joint coordinate leaving its declared range, which fails the
 tick rather than stopping the group. Nothing about an untimed or looping

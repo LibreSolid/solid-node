@@ -39,7 +39,8 @@ from solid_node.motion.joints import JointRangeError, declared_joints
 from solid_node.motion.ports import RunBinder, get_coordinate
 
 from .driver import RampProgram
-from .program import compile_program, qualified_coordinates
+from .program import (compile_program, qualified_coordinates,
+                      TooManyCrossings, UnsupportedLaw)
 
 
 # Two increments agree when they are within this of each other,
@@ -219,6 +220,10 @@ class Run:
         self.dt = sim.dt
         self.binder = RunBinder()
         self.ring = _ring(record)
+        # A second ring of the same length, for the CROSSINGS located
+        # inside a tick. `record=None` builds neither, so a run that
+        # records nothing pays nothing for the record.
+        self.crossing_ring = _ring(record)
         self.active = {}
 
         inputs = {identifier: state.declaration
@@ -278,6 +283,10 @@ class Run:
     @property
     def trajectory(self):
         return [] if self.ring is None else list(self.ring)
+
+    @property
+    def crossings(self):
+        return [] if self.crossing_ring is None else list(self.crossing_ring)
 
     def bind(self):
         """Bind the whole bank, and the instant, to the tree.
@@ -416,6 +425,9 @@ class Run:
 
         values = self._values()
         determined = set()
+        # A fresh list per tick, appended to the ring only on COMMIT, so
+        # a refused tick records no crossing.
+        found = None if self.crossing_ring is None else []
         for edge in program.edges:
             if edge.kind == 'check':
                 predicted = edge.predicts(deltas, constant=0.0)
@@ -425,7 +437,14 @@ class Run:
                     raise RunConflict(self._conflict(
                         edge, predicted, received))
                 continue
-            for key, delta in edge.increments(values, deltas):
+            try:
+                increments = edge.increments(values, deltas, found, tick)
+            except (TooManyCrossings, UnsupportedLaw):
+                # A tick a law cannot be integrated over commits
+                # nothing, exactly as a conflict does.
+                self._refuse(moved)
+                raise
+            for key, delta in increments:
                 if key in determined and not _agree(deltas[key], delta):
                     self._refuse(moved)
                     raise RunConflict(self._disagreement(edge, key, delta))
@@ -454,6 +473,7 @@ class Run:
         self.bind()
         if self.ring is not None:
             self.ring.append((self.sim.tick, dict(self.bank)))
+            self.crossing_ring.extend(found)
 
     def _values(self):
         """The bank, plus every INTERMEDIATE the program computes from
@@ -462,6 +482,14 @@ class Run:
         values = {self.keys[identifier]: value
                   for identifier, value in self.bank.items()}
         for edge in self.program.edges:
+            if all(key in self.bank_keys for key in edge.gives):
+                # Nothing this edge computes is an intermediate, so its
+                # values were computed here and discarded. Skipping it is
+                # behaviour-neutral and removes one graph evaluation per
+                # law per tick -- and, with the refusal of a jumping law
+                # that drives no owned coordinate, it means a jump graph
+                # is never evaluated absolutely at all.
+                continue
             for key, value in edge.values(values):
                 if key not in self.bank_keys:
                     values[key] = value
@@ -558,6 +586,7 @@ class Run:
         self.sim.tick = snapshot.tick
         if self.ring is not None:
             self.ring.clear()
+            self.crossing_ring.clear()
         self.bind()
 
     def reset(self):

@@ -825,7 +825,7 @@ cadence budgets assertion cost. `ScenarioTest` composes over the CAD
 `TestCase`: one class runs unchanged under pytest and the `solid
 test` runner, building STLs only when `meshes = True`.
 
-**The running mode** (ADR-105, ADR-106) is a second branch of the same
+**The running mode** (ADR-105, ADR-106, ADR-107) is a second branch of the same
 `Sim`, taken when `declared_time(type(node)).mode` is `'running'`, whose
 two modules — `simulation/program.py` (the compile step) and
 `simulation/run.py` (the engine, the commands, the snapshot) — are
@@ -848,11 +848,28 @@ direction the render solved it, the resulting graph over coordinate ids
 being what the run evaluates; a wiring into a bank coordinate an identity
 edge, a derived coordinate a linear one, and edges ordered by Kahn over
 the ends they determine. What the expression cannot say is refused there,
-by relation identity: a discontinuous primitive (`floor`, `ceil`, `sign`,
-`%`, a comparison), a law that cannot be applied to a symbol, an edge
+by relation identity: a law that cannot be applied to a symbol, an edge
 into a bank coordinate whose source no edge computes, a driven group
-mixing banked and unbanked ends. A relation reaching no bank coordinate
-is not compiled at all and stays the ordinary solver's.
+mixing banked and unbanked ends, a law that can move its coordinate only
+by JUMPING, and a jumping law none of whose driven ends the run owns. A
+relation reaching no bank coordinate is not compiled at all and stays the
+ordinary solver's.
+
+A graph carrying a DISCONTINUOUS primitive (`floor`, `ceil`, `sign`, `%`,
+a comparison) is compiled a second time, into a JUMP PLAN (ADR-107): the
+jump nodes in the graph's postorder, each with the LEVEL QUANTITY whose
+surfaces it crosses and whether that quantity is affine in the sources,
+and a SKELETON of the whole law with every jump node replaced by a branch
+placeholder. Over a tick the plan cuts the path the sources take at every
+crossing it meets — solved exactly where the level quantity is affine,
+bracketed over 64 sub-intervals and bisected otherwise — reads one branch
+per jump node at each piece's MIDPOINT, and sums the branch-substituted
+law's change over the pieces. So a jump never moves a part, nothing in
+the sum ever spans one, and no epsilon or direction test appears
+anywhere. A tick crossing more than `_MAX_CROSSINGS` surfaces of one law,
+or meeting a `%` whose divisor is zero, refuses the tick and commits
+nothing, exactly as a conflict does; `record=N` keeps a second bounded
+ring of the crossings located inside a tick.
 
 A TICK is increments only until it commits: every input's increment is
 what its active command admits, increments propagate over the program —
@@ -900,12 +917,14 @@ remain two declarations; a driver on a list-held child is forbidden
 rather than sanitized; the viewer's `trigger` runs one instruction's
 ramps and nothing sequences them — programs and G-code are a later
 layer, and determinism belongs to `Sim`, not to the client animation.
-Under the running mode: a jump is refused rather than located inside the
-tick, a range fails the tick rather than stopping the group it is
-connected to, a reverse move is refused, the compiled program is not
-published, and the evaluator is `GraphValue.evaluate` per edge per tick —
-measured at 1.16 ms/tick against the untimed loop's 0.36 ms on the same
-machine, with memory flat.
+Under the running mode: a range fails the tick rather than stopping the
+group it is connected to, a reverse move is refused, the compiled program
+is not published, a crossing reached exactly at a tick's own boundary is
+integrated correctly but not recorded, and the evaluator is
+`GraphValue.evaluate` per edge per tick — measured at 1.07 ms/tick on the
+same machine against the untimed loop's 0.34 ms, a jump-carrying law
+costing 1.3x its continuous twin on a non-crossing tick and 1.8x on a
+crossing one, with memory flat.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 

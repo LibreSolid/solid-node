@@ -990,5 +990,6 @@ does the move take, what does the trajectory look like — need the
 machine *stepped* deterministically in Python. That is the simulation
 layer: see :doc:`Simulating and testing scenarios <scenarios>`, whose
 last section covers the machine that keeps its history — a root
-declaring `Time.running()`, whose simulation owns every joint coordinate
-and moves it by increments.
+declaring `Time.running()`, whose simulation owns every joint coordinate,
+moves it by increments, and integrates a law that jumps by locating its
+crossings inside the tick and subtracting them.
