@@ -16,6 +16,12 @@ fall recommendation, and preserved Curta as second. Those scoped decisions do no
 ratify this entire architecture, change a baseline spec, establish mechanical
 acceptance evidence, or authorize production implementation.
 
+The subsequent Pascaline readiness checkpoint is recorded in the
+[active roadmap](roadmap.md): the sampled frozen-input fall passes, but a
+narrow pawl-return collision in the unchanged production motion law keeps
+the readiness gate open. This is project evidence to resolve before production
+proposals, not a change to the proposed framework architecture or solver class.
+
 ## Intent and the boundary that matters
 
 The maker operates physical components and observes the machine in 3D. A
@@ -615,13 +621,16 @@ checkpoint/replay must preserve its progress. Pawl contact transmits movement
 to the receiver; no arithmetic carry or precomputed output count does so.
 This is explicit kinematic fidelity, not a claim of gravity or force dynamics.
 
-Before production proposals, validate the released fall with the driving wheel
-held at/just beyond release, including the actual neighbours, pawl and receiving
-wheel. The restoration's input-scaled sweeps do not prove that different path.
-Set the timed law, supported rates, initialization and profile/numeric bounds
-from this evidence. Its finite faceted comparisons remain distinct from exact
-or continuous clearance proof. A conflict with geometry or the accepted
-piecewise-affine execution class returns to the pilot before scope expands.
+The subsequent project readiness checkpoint `169b035` validates sampled
+released-fall poses with the driving wheel held at/just beyond release and
+all installed neighbours retained, on exact solids in both presets. It also
+exposes a narrow pawl-return collision during independent receiver movement
+using the original production controls. The [roadmap](roadmap.md) records that
+blocker and the bounded correction to bring to the pilot. Timed-law, admitted
+rate, initialization and profile/numeric bounds still need completion.
+Finite faceted and exact checks remain distinct from continuous clearance
+proof. A conflict with geometry or the accepted piecewise-affine execution
+class returns to the pilot before scope expands.
 
 Curta's mechanical checkpoint is `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9`.
 The carry/frame correction is archived but unintegrated; selector fit remains
@@ -634,7 +643,8 @@ This is a pre-spec documentation checkpoint. No production cycle is complete
 or newly ratified by it. Close Pascaline's bounded evidence gate, prepare the
 framework/viewer/Pascaline proposals, and obtain complete ratification and the
 pilot's previously requested feature-start go-ahead before actual solid-node
-feature implementation. No new geometry or runtime measurements accompany
+feature implementation. The new readiness evidence is project-owned; no
+framework/runtime implementation or running-browser measurement accompanies
 this planning update.
 
 ## Earlier Curta-first planning, preserved for context

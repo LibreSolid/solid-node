@@ -8,6 +8,12 @@ direction and its recommended finite-time kinematic fall; it does not claim
 mechanical readiness or ratification of complete production OpenSpec cycles.
 Framework release target remains **0.7 or 0.8, undecided**.
 
+Readiness update, 2026-09-13: Pascaline's sampled frozen-input fall passes
+on exact solids in both presets. A targeted independent-receiver check finds
+a narrow pawl-return collision in the original production motion law, also
+in both receiving bases. The gate is not passed; see the project checkpoint
+and bounded next action below. No production implementation has started.
+
 The existing action-panel direction, input/instruction/control relationship
 and build-time `running(r)` law extension remain recorded in
 [design.md](design.md). The [Curta spike evidence](evidence/report.md) remains
@@ -75,6 +81,13 @@ Committed project handoffs for this planning update:
 - Curta: `4f332d052234e7225b868f8229df241d6d5043d4`, disposition-only
   update on top of mechanical checkpoint `d7bf44b`.
 
+Subsequent Pascaline readiness checkpoint:
+`169b035d3efaa42e9434ed1bbcde6bdc0dd612b1`, project-owned `readiness/README.md`,
+diagnostic sources, logs and inspected mesh-section images. Production parts,
+motion code and the restoration archive are unchanged from `1b0bb5c`.
+Measurements used the workspace's editable framework primary at `6e41f2d`,
+not a new compiler/runtime implementation; no running browser parity was tested.
+
 Framework and viewer production proposals have not been created. This
 documentation commit is a **pre-spec checkpoint**, not the complete ratified
 planning commit of a production cycle. Establish and verify those cycle bases
@@ -141,12 +154,37 @@ mid-fall checkpoint continues the same progress. No number-base test or
 arithmetic carry routine initiates or completes it. The existing
 `fall=0.4` parameter is in input counts and cannot become seconds by relabelling.
 
-The immediate evidence task is to hold the driving wheel at and just beyond
-release and sweep the released fork/pawl/receiver path against the complete
-installed neighbours. Existing fall sweeps advance the source wheel as they
-lower the lever; they do not prove the stationary-source case. Also check
-supported pause before release, independent receiver travel, engagement
-compatibility, valid initialization and repeated operation.
+The first evidence task held the driving wheel at and just beyond release
+and swept the released fork/pawl/receiver path against the complete installed
+neighbours. Both presets pass four exact-solid tests with zero volume epsilon:
+369 imposed poses per preset, three individual carry pairs, all 43 rigid
+bodies retained. Pawl-push and frame-stop perturbations are checked. Clear and
+Nines static setups and supported pauses also pass exact checks. This is
+finite geometric evidence, not a running engine, simultaneous cascade or
+continuous certificate.
+
+The probe must retain the base-20 pawl's initial 20° hinge deflection; a
+straight-pawl negative control correctly intersects the receiving pin.
+Separately, **independent receiver operation remains blocked**: the original
+production controls produce about 0.990564 mm³ exact pawl/pin overlap at
+receiver angles 17.922° (base 20) and 35.922° (base 10), with the lever at
+rest and hinge at 7.8°. A finer screen locates a roughly 0.122° obstructed
+return interval missed by coarse tests; both faceted and exact targeted
+reproductions fail, while nearby endpoint poses clear. Preserve the red
+tests and do not hide the collision with tolerance or skipped samples.
+
+The next bounded project action, subject to pilot direction, is a
+contact-consistent pawl-return correction. First investigate whether a
+motion-law correction on unchanged parts suffices; a need to change geometry
+or fidelity returns to the pilot. This is not authority to reopen a broad
+restoration programme. Engagement compatibility, valid local-state snapshots,
+repeated operation and timed/admitted travel bounds still need completion.
+
+Two migration constraints are now explicit: Nines includes lifted levers and
+deflected pawls, not just digit settings; and the old `fall=0.4` also sets
+printed lifting-pin phase in `Accumulator.render`. Preserve that geometry
+when introducing time-based fall. No duration or input-rate limit was chosen
+by the readiness checkpoint.
 
 Choose the local fall trajectory/duration and admitted input rates together
 with these tests. Prove the timed law can be expressed in the accepted
@@ -162,8 +200,9 @@ evidence, profile-error bounds and explicit numeric tolerances.
 
 **Gate:** a project-owned state/event/geometry contract with a supported
 released-fall path, admissible setup and operating limits, and no dependency
-on precomputed register counts. The bounded readiness investigation comes
-next; it is not completed by this planning commit.
+on precomputed register counts. **Not passed:** the frozen-source path is
+supported, but the pawl-return defect and remaining state/event/operating
+bounds must be resolved before this gate closes.
 
 ## 2. Prepare and ratify the three production changes
 
@@ -292,7 +331,7 @@ does not block Pascaline or become silently accepted when Pascaline passes.
 ## Dependencies, release and handoff
 
 ```text
-Pascaline bounded readiness evidence
+Pascaline pawl-return correction + remaining readiness bounds
     -> framework + viewer + Pascaline ratified proposals
     -> tiny compiled mechanism -> real pair -> three positions
     -> complete eight-position Pascaline qualification
@@ -311,9 +350,14 @@ accepted-ADR/architecture updates; integrate only on pilot direction after
 fresh branch/base checks. Worktree preservation or removal never implies
 permission to delete branches, push or publish.
 
-This handoff commits the previously uncommitted design decisions, the original
-Curta roadmap snapshot and the new ordering. Pascaline's rebased branch owns
-its acceptance plan; Curta's branch records its deferred second-project status.
-No new CAD sweep, simulation suite, build, export or browser run accompanied
-this documentation/rebase task. Rebase/tree identity, record consistency,
-local links and clean committed worktree checks are its verification.
+The initial documentation/rebase handoff (`e32ed68`) committed the previously
+uncommitted design decisions, original Curta roadmap snapshot and new ordering.
+It performed no new CAD sweep, simulation suite, build, export or browser run;
+rebase/tree identity, record consistency, local links and clean committed
+worktree checks verified that preparation.
+
+The subsequent project-owned readiness investigation is committed at
+`169b035`. Its exact/faceted tests and inspected images support the results
+and limits above. This framework follow-up records those findings only;
+it changes no architecture, baseline, compiler, runtime or viewer code.
+Curta's preserved roadmap and paused worktree are unchanged.
