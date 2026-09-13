@@ -7,6 +7,15 @@ an implemented public API. The pilot explicitly authorized this folder and its
 spikes on framework `main`; framework and viewer production code stay outside
 this experiment. Initial framework HEAD: `518bed114c94697a58d95e85ad2831c8fcd9f3a3`.
 
+The mechanical-law, browser-interface and current-planning sections record the
+pilot's subsequent acceptance of action-based controls and ratification of the
+input/instruction/control relationship, build-time `running(r)` law extension
+and Curta acceptance scope. On 2026-09-13 the pilot selected the completed
+Pascaline as first validator, following the assessment's finite-time kinematic
+fall recommendation, and preserved Curta as second. Those scoped decisions do not
+ratify this entire architecture, change a baseline spec, establish mechanical
+acceptance evidence, or authorize production implementation.
+
 ## Intent and the boundary that matters
 
 The maker operates physical components and observes the machine in 3D. A
@@ -138,17 +147,129 @@ of the law.
 | Event boundaries | Contact, release, stop, or another mechanical transition |
 | Local state changes | Mechanical memory changed by that transition |
 
-The concrete low-level syntax should follow the spikes. These capabilities
-must build explicit mathematical descriptions that can be exported, rather
-than arbitrary runtime Python mutations. A law factory may still inspect its
-realized component owners and resolved geometric parameters at build time.
-It must declare all runtime dependence in the mechanical program.
+The pilot ratified the build-time declaration extension below after reviewing
+the spikes and the existing law contract. These capabilities build explicit
+mathematical descriptions that can be exported, rather than arbitrary runtime
+Python mutations. A law factory may still inspect its realized component owners
+and resolved geometric parameters at build time. It must declare all runtime
+dependence in the mechanical program.
 
 Simultaneous constraints are resolved together. Two incompatible prescribed
 inputs on one rigidly connected group are a conflict, not last-writer-wins.
 Redundant but consistent constraints, reverse solving, disconnected groups and
 closed loops need explicit support boundaries. Nonlinear loops may require a
 numeric solver; a propagation-only solver must refuse what it cannot solve.
+
+### Running law protocol — pilot ratification, 2026-09-12
+
+The pilot explicitly ratified adding one optional method, `running(r)`, to
+the existing project-owned law protocol. Keep nodes, joints, frame conventions,
+`.drives(...)`, grouped ends and the existing factory called with realized
+coordinate owners. The factory still returns the law; the framework acquires
+no catalogue of gears, latches or calculator mechanisms.
+
+`running(r)` executes once when building a relation's compiled running
+description, not once per simulation tick. Its arguments and returned symbolic
+references describe the program. The law object's Python fields may hold
+geometry-derived parameters and pure profile helpers, but never mutable live
+mechanical state. Python and the browser execute the published description
+through their runtime implementations, not through per-frame Python callbacks.
+
+The ratified authoring shape, illustrated with one carry relation, is:
+
+```python
+(dial.turn & bell.turn).drives(
+    (lever.travel, next_shaft.turn),
+    law=carry_contact,
+)
+```
+
+`carry_contact` is the existing kind of project factory. Its returned law can
+declare running behavior as follows. This is an API design example, not a
+working Curta implementation: the helper methods stand for project-owned
+measured profiles, geometry/frame offsets and fitted phase checks, omitted
+here. The actual Curta slice still needs its geometric acceptance evidence.
+
+```python
+class CarryLaw:
+    def running(self, r):
+        dial, bell = r.sources
+        lever, shaft = r.targets
+
+        latched = r.state("latched", initial=False)
+
+        r.event(
+            "trip",
+            crossing=self.pin_drop(dial) - self.trip_height,
+            direction=1,
+            updates={latched: True},
+        )
+
+        r.event(
+            "reset",
+            crossing=self.reset_lift(bell) - self.reset_height,
+            direction=1,
+            updates={latched: False},
+        )
+
+        r.equal(
+            lever,
+            self.slider_path(dial, bell, latched),
+        )
+
+        engaged = latched & self.tooth_window(bell)
+
+        r.on_enter(
+            "mesh",
+            engaged,
+            require=self.phase_match(bell, shaft),
+        )
+
+        r.equal(
+            r.delta(shaft),
+            self.ratio * r.delta(bell),
+            when=engaged,
+        )
+```
+
+The declared capabilities have these meanings:
+
+- `r.state` declares retained local memory, stored separately for each
+  realized relation and simulation run. Its initial value participates in
+  validating the complete initial mechanical state; it is not a command to
+  reset that state on each build, render or tick of an existing run.
+- `r.equal` declares a constraint on coordinate positions or movements.
+  `r.delta` is movement within the current event-free interval, not total
+  travel since initialization. When an engagement is inactive its conditional
+  constraint contributes no coupling: other valid connections may move the
+  coordinate, and an otherwise undriven coordinate holds its attained state.
+- `r.event` declares a crossing and the local-memory update to settle there.
+  It does not mutate that memory while the Python declaration executes.
+  `r.on_enter` checks admissible engagement, including tooth phase; neither
+  part may be reset to make an incompatible mesh fit.
+- The runtime localizes crossings, contact changes and profile boundaries,
+  settles simultaneous events, and commits coherent state. These are not
+  endpoint-only tests or events whose order is chosen by rendering cadence.
+
+Compatibility and first implementation scope are part of this ratification:
+
+1. Existing `forward`/`inverse` laws retain their absolute-position meaning.
+   Do not silently reinterpret them as displacement laws.
+2. Supported ordinary algebraic laws compile into running constraints without
+   requiring their authors to add another method.
+3. History-dependent laws provide the running description. A running-only law
+   is not silently treated as a valid old looping/pose law.
+4. Begin with the spike's piecewise-affine solving class. Unsupported laws
+   fail during compilation, with no hidden Python execution fallback and no
+   claim of general nonlinear contact or closed-loop solving.
+5. State mutation remains runtime-owned. Never use `forward()`, `render()` or
+   `simulate()` as a place to accumulate mechanical history.
+
+This records ratification of the extension and demonstrated declaration
+semantics. Complete validation rules, numeric limits, wire representation,
+tests and the repository-owned OpenSpec changes still need preparation and
+review. It does not ratify the whole campaign, certify the omitted Curta
+contact paths, or authorize implementation, integration or release.
 
 ## One step and mechanical events
 
@@ -285,6 +406,26 @@ repeat or skip the interrupted movement. Cancelling is a distinct operation.
 
 ## Browser interface
 
+The pilot accepted the action-panel recommendation on 2026-09-12. This
+accepts the interaction direction and implementation order below, not the
+complete OpenSpec cycle or a particular Python/host API spelling.
+
+Running controls submit movement requests; the runtime emits committed state
+changes and command outcomes. There is no two-way binding between an editable
+position and the mechanism. Nudge controls request finite relative movements;
+hold-to-jog controls request a rate until released. Amount and rate editors
+configure future commands, not current mechanical coordinates. Readouts follow
+committed state and never feed another movement request back into the run.
+
+Implement nudge and hold-to-jog first, then constrained 3D dragging through
+the same command interface. Report completed, blocked, refused and cancelled
+requests with actual admitted motion. A blocked drag accumulates no hidden
+movement for later execution. Release, lost pointer capture and lost window
+focus end the manual jog; manual controls never silently replace a program's
+ownership of the same input. No live-time scrubber is offered: seeking belongs
+to recorded history and replay. Existing static/looping position controls keep
+their existing semantics and do not become running mechanical controls.
+
 - Run, pause, step, speed and elapsed simulation time.
 - Physical picking and constrained dragging bound to declared inputs.
 - Actual input positions and blocked-motion feedback.
@@ -301,6 +442,46 @@ The renderer can drop intermediate display frames but not mechanical events.
 It draws absolute poses from committed coordinates, retaining today's rest
 placement and joint-frame conventions. Large STL data is loaded once; moving
 the machine sends coordinates or transforms, not rebuilt CAD.
+
+### Inputs, instructions and controls — pilot ratification, 2026-09-12
+
+The pilot explicitly ratified the following relationship after reviewing the
+Python declaration sketch and asking how controls relate to instructions:
+
+- An **input** exposes a mechanical coordinate as an entry point for movement
+  requests. It does not store an additional editable copy of that coordinate.
+- An **instruction** is a reusable, named movement request: for example, turn
+  the crank another revolution over six simulated seconds. A declaration
+  executes nothing and carries no mutable run state. Each invocation creates
+  a command against the actual mechanical state; requested movement can be
+  completed, blocked, refused or cancelled.
+- A **control** describes how a person issues requests: clicking a button,
+  holding a jog control or dragging a part. A button for a named instruction
+  references that instruction; it does not repeat its movement definition.
+  Python scripts and the viewer invoke the same named action through the same
+  command semantics and mechanical constraints.
+- Named instructions receive ordinary buttons by default, preserving the
+  current authoring convenience. An optional controls declaration adds jog/drag
+  interactions or customizes presentation. Authors do not maintain two
+  matching lists just to make named actions usable.
+- Not every control needs a named instruction. A jog starts a rate command on
+  press and cancels that command on release; its duration comes from the
+  interaction. A nudge is an inline button/relative-request convenience, not a
+  second instruction execution engine. Give a movement a named instruction
+  when it needs reuse from scripts or demonstrations.
+- Instructions remain usable without a viewer. Both instructions and direct
+  controls submit to the same runtime with the same ownership, admission and
+  outcome rules. Neither controls nor instructions assign downstream wheel
+  positions or manufacture carry state.
+
+This ratifies the conceptual separation, shared execution path and default
+presentation, not final constructor signatures, import paths or serialization.
+The illustrative `Input`, `Instruction.move`, `Button`, `Nudge` and `Jog`
+spellings remain proposed. Today's `Instruction(targets, duration)` keeps its
+existing target-ramp contract for existing modes; the running-mode extension
+must be explicit in the later repository-owned proposals, not a silent
+reinterpretation of old documents. No complete OpenSpec cycle, implementation,
+ADR or release choice is ratified by this record.
 
 ## Resource and verification discipline
 
@@ -404,7 +585,137 @@ program/export contract and preserve the originating Curta mechanical evidence.
 Neither this recommendation nor the successful experiments ratify a new API,
 supersede accepted ADRs, or authorize implementation outside this folder.
 
-## Next step: immediately after the 0.7 release
+## Current planning direction: Pascaline first, Curta second
+
+Pilot direction, 2026-09-13: rebase Pascaline's `open-run-simulation` worktree
+onto its completed restoration, commit the planning records and follow the
+assessment's recommendations with Pascaline as the first validator. Curta's
+roadmap and ratified slice remain the second project, currently paused.
+The framework's 0.7/0.8 release placement remains undecided.
+
+The [active roadmap](roadmap.md) owns the current sequence, bases and gates.
+The [preserved Curta-first roadmap](curta-roadmap-2026-09-13.md) retains the
+previous draft verbatim beneath its historical-status notice. The original
+Curta experiments and their evidence remain relevant to the generic engine;
+the accepted `running(r)` and input/instruction/control decisions above stand.
+
+Pascaline's new base is `1b0bb5c7979451ce4bc6ffbea187408078229930`, its completed
+source-led restoration. Its project `docs/open-run-acceptance.md` owns the
+readiness and migration plan. The first stage proves one transmission/carry
+pair, then three positions and two carries, then all eight positions in both
+accounting 12/20 and scientific 10/10 presets. The real framework must compile
+the project laws into the same program that Python and the browser execute.
+
+The current Pascaline computes counts from a starting register and one stroke.
+Its restored lift uses contact-derived profiles, but its fall consumes further
+input travel. Following the approved assessment, the running model should use
+a finite-time kinematic fall triggered by local release. Stopping the input
+after release must not freeze the fall; whole-run pause does freeze it, and
+checkpoint/replay must preserve its progress. Pawl contact transmits movement
+to the receiver; no arithmetic carry or precomputed output count does so.
+This is explicit kinematic fidelity, not a claim of gravity or force dynamics.
+
+Before production proposals, validate the released fall with the driving wheel
+held at/just beyond release, including the actual neighbours, pawl and receiving
+wheel. The restoration's input-scaled sweeps do not prove that different path.
+Set the timed law, supported rates, initialization and profile/numeric bounds
+from this evidence. Its finite faceted comparisons remain distinct from exact
+or continuous clearance proof. A conflict with geometry or the accepted
+piecewise-affine execution class returns to the pilot before scope expands.
+
+Curta's mechanical checkpoint is `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9`.
+The carry/frame correction is archived but unintegrated; selector fit remains
+paused at 2/22 tasks with 19 expected red tests. Its full 0–9 input,
+three-wheel/two-carry slice, ideal detent fidelity, cross-revolution reset and
+later whole-machine sequence remain intact. They no longer gate Pascaline's
+first validation. The project handoff is the current mechanical status.
+
+This is a pre-spec documentation checkpoint. No production cycle is complete
+or newly ratified by it. Close Pascaline's bounded evidence gate, prepare the
+framework/viewer/Pascaline proposals, and obtain complete ratification and the
+pilot's previously requested feature-start go-ahead before actual solid-node
+feature implementation. No new geometry or runtime measurements accompany
+this planning update.
+
+## Earlier Curta-first planning, preserved for context
+
+Historical direction from 2026-09-12 through the early selector investigation,
+superseded in project order by the section above. The readiness counts below
+describe those earlier checkpoints; the later Curta handoff at `d7bf44b` is
+the mechanical status. Instructions in this historical section do not resume
+the paused project or make its remaining work a Pascaline dependency.
+
+Pilot direction on 2026-09-12 reopens the timing: prepare matching
+`open-run-simulation` worktrees and work out a roadmap before implementation.
+After assessing Pascaline's ongoing historical restoration, the pilot chose
+Curta as the first project consumer, alongside the framework and viewer.
+Its assembled source, measured contacts and existing carry spikes provide the
+stronger reference for this work. Pascaline remains a later independent
+validation project; its restoration does not gate this campaign.
+
+The pilot will decide whether the framework work belongs in 0.7 or 0.8.
+See [roadmap.md](roadmap.md) for repository bases, dependencies, scoped pilot
+decisions and the remaining draft details. On 2026-09-12 the pilot ratified
+one input column, three result wheels and two carry stages, addition only
+with the carriage fixed: `099 + 1 -> 100` must emerge from mechanics. The
+slice preserves paused and cross-turn carry state, permits selector changes
+only at a stationary verified home window, uses ideal quasi-static detents
+with checked transition clearance, and explicitly refuses operations beyond
+its boundary. Full-machine migration follows this slice's acceptance.
+
+The scope is settled. Profile-input provenance and byte-for-byte reproduction
+are now verified in the project-owned `simulation/docs/open-run-evidence-2026-09-12.md`;
+that report distinguishes its fresh bounded checks from complete running
+acceptance. Curta's subsequent frame-only prerequisite is verified and
+committed as `3afcac97a808aebf9d7019d6e43a6dc3086fea62`: continuous local frame
+clearance and four sampled installed transitions pass. Continuous-neighbour,
+complete home-window, initial-fixture and outgoing-boundary evidence remain
+open. Close those gaps and prepare the three coordinated
+repository-owned OpenSpec proposals;
+after full proposal ratification, begin implementation with a tiny Python
+mechanism proving the contract before tackling the actual Curta geometry.
+This records planning decisions, not a complete cycle ratification or
+authorization to begin production implementation. The pilot explicitly asks
+to be consulted once ready, before actual solid-node feature development.
+
+### Subsequent selector-readiness finding, 2026-09-13
+
+Curta's evidence commit `dd981041ff41108727abc9ae02db0c291d0126cd` records
+the selected input's installed 0–9 travel at initial and post-cascade home.
+Independent native copies preserve the latter's pending second carry without
+using the old operand law. Both 428-body fixtures expose eight intersecting
+pairs at seated digits and nine with half-detents included. Housing, installed
+detent and helical-follower findings prevent home-travel acceptance; see the
+project-owned `simulation/docs/open-run-selector-evidence-2026-09-13.md`.
+The completed two-station frame fit remains unchanged. That evidence led to
+the bounded Curta-only selector-fit cycle ratified below; it does not authorize
+package feature implementation. Retain the
+full 0–9 acceptance requirement, the current framework contract direction and
+the pilot's explicit solid-node feature-start gate.
+
+The pilot then approved preparation of that bounded correction. Curta's
+`openspec/changes/fit-selected-input-selector/` now contains the complete
+proposal/design/spec/tasks. The pilot subsequently ratified the complete plan
+("ratify, go on", 2026-09-13), strictly validated and committed in Curta as
+`aec7ca4877c58820c6c02a32c44d8c6c206c9e9b`. It authorizes the manual's 5 mm
+ball, installed quasi-static spring/ball motion, two conditional fixed-seat
+candidates and protected local fitting, subject to its source/support stop
+conditions. Task 1.1 is complete: 20 independent native contracts produced
+three passing geometry/frozen-fixture guards and 17 expected red failures.
+Measurements then exposed a source detent/guide indexing conflict: with the
+5 mm ball on the source guide, numbered setting one lies on the ramp while
+the sampled seat is near 0.83. A new native retention contract reproduces it;
+the updated 21-test run has three passing guards and 18 expected red failures.
+Curta paused at its alignment/protected-seat decision gate before operating
+geometry changes. No operating fit is accepted and no package feature code
+has changed. See Curta's
+`simulation/docs/selector-fit-implementation-2026-09-13.md` for current evidence.
+
+## Earlier sequencing: immediately after the 0.7 release
+
+Historical recommendation, superseded on release timing and first-project
+ordering by the current planning direction above. Its Curta-subassembly scope
+and evidence requirements inform the preserved second-project roadmap.
 
 Pilot direction recorded 2026-09-12: take up this work immediately after the
 solid-node 0.7 release. It is a post-release priority, not additional scope or
