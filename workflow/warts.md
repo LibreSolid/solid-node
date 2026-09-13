@@ -1927,3 +1927,47 @@ in `docs/framework-findings.md` and `docs/validation.md`.
   fetched by `tools/fetch-source.py`. No STEP repair was made. Whether the
   defect belongs to tessellation, export or source tolerance needs isolation;
   no root cause is claimed. Filed here; triage open.
+
+# Voron-2 (2026-09-13, Voron 2.4r2 source assembly)
+
+Project: `projects/3D-Printers/Voron-2`, active change
+`simulate-the-voron-2`, project evidence commit `235451b`. This entry is
+provisional evidence, not a ratified requirement. The pilot authorized a
+separate framework cycle; `voron-faceted-contact` is proposed in an isolated
+bench from `main` at `b768bdf979552751d016dd89c2f5814693134f9a`, not yet
+ratified, implemented or integrated. No external issue was opened.
+
+- **Negative faceted volume is rejected as assembly interference.** The
+  unchanged source extrusions 1262 (horizontal) and 1388 (vertical) reproduce
+  `assertNoSolidInterference` failure at −9.947598300641403e−14 mm³. Both this
+  assembly check and `assertNotIntersecting` fail with `--faceted`; both pass
+  with `--exact`. Direct CadQuery reports an empty exact intersection with
+  zero solids. This was reproduced in `WTs/voron-faceted-contact` using the
+  workspace venv and `PYTHONPATH` pointing at that bench; logs are ignored
+  `_build/voron-corner-faceted.log` and `_build/voron-corner-exact.log`.
+  Public reproduction: the project's
+  `simulation/tools/corner_probe.py:SourceCorner` and companion tests.
+  The initial project interpretation conflated the two assertion contracts:
+  ADR-029 deliberately preserves non-empty faceted contact as a strict
+  pairwise foul; ADR-040's whole-assembly check instead promises positive
+  shared volume. Its current `is_empty or volume == 0.0` branch rejects
+  negative results too. Proposed fix: pass finite negative faceted
+  candidates only in assembly integrity, keeping raw measurements,
+  pairwise/fit strictness, all positive failures and exact-path behavior.
+  No epsilon, source displacement, mesh repair or skipped component is the
+  workaround: the project remains paused with its honest tests red. The
+  original frame also has genuine fastener overlaps; a direct exact scan's
+  54 positive results are recorded in the project, not waived by this fix.
+  Related evidence: the Locks negative-volume finding above. Triage:
+  scope ratified 2026-09-13 ("ratify, go on"), including implementation and
+  fast-forward integration after validation; implementation not yet complete.
+- **Duplicate STEP names still defeat generated selectors.** This document
+  contains 118 products named `SOLID`; `solid import-step` emits distinct
+  Python classes with identical `part = 'SOLID'` selectors, then a build is
+  ambiguous. CadQuery's convenience `Assembly.load` also rejects duplicate
+  assembly names. The project's `simulation/tools/probe.py` traverses OCP
+  document occurrence labels, retains identities/placements/colours, and
+  extracts all 1,715 unchanged solids to individually addressable ignored
+  STEP files. The 180-solid frame builds through ordinary `StepNode`.
+  This repeats the YouCanBuildDog and orcahand findings. Selector changes are
+  not part of `voron-faceted-contact`; workaround retained, triage open.
