@@ -2126,7 +2126,10 @@ class TestCase(BaseTestCase):
         The topmost rigid nodes are placed in world coordinates at the testing
         instant already selected by the runner. Empty and zero-volume boundary
         contact pass; every positive candidate intersection reported by the
-        kernel fails. There is intentionally no public overlap epsilon:
+        kernel fails. A finite negative faceted volume is not positive shared
+        material; its raw engine verdict remains untouched for strict pairwise
+        assertions. Exact and non-finite candidate verdicts are unchanged.
+        There is intentionally no public overlap epsilon:
         manufacturing clearances are length-based project contracts, not a
         globally permitted volume of interpenetration.
 
@@ -2152,11 +2155,14 @@ class TestCase(BaseTestCase):
         solids = _placed_assembly_solids(node)
         for first, second in _bounds_candidates(
                 _indexing_frame_boxes(solids)):
-            is_empty, volume = _candidate_intersection(
+            stats = _candidate_intersection(
                 solids, first, second, 'assertNoSolidInterference',
                 'one of the two solids in a candidate pair has no exact '
                 'geometry, so the pair is compared through their meshes')
+            is_empty, volume = stats
             if is_empty or volume == 0.0:
+                continue
+            if volume < 0.0 and math.isfinite(volume) and not stats.exact:
                 continue
             solid1 = solids[first][0]
             solid2 = solids[second][0]

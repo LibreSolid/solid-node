@@ -567,6 +567,16 @@ kernel the verdicts it reads have already had the run's volume epsilon
 applied, like every other volume question in that run; the assertion adds
 nothing to it.
 
+For a candidate evaluated on the faceted representation, a finite negative
+intersection volume SHALL NOT count as positive-volume interference and the
+assertion SHALL continue to the remaining candidates. This rule SHALL NOT
+alter the engine's raw emptiness or measured volume, apply a magnitude cutoff,
+or change the shared verdict consumed by pairwise or fit assertions. The
+representation of the candidate, not only the run's selected kernel, SHALL
+determine whether this rule applies. Non-empty candidates with non-finite
+volume SHALL still fail; exact-representation candidate behavior SHALL remain
+unchanged.
+
 When an offending candidate is found, the assertion SHALL raise
 `AssertionError` naming both topmost rigid solids and their measured
 intersection volume. The framework SHALL run the assertion only when ordinary
@@ -703,6 +713,46 @@ project test code calls it; builders and non-test commands SHALL NOT invoke it.
   another topmost rigid solid and one wholly outside it
 - **THEN** the assertion fails naming that pair, the containment guard being
   applied to every solid of a shape rather than to the shape as a whole
+
+#### Scenario: Negative faceted volume is not positive shared material
+
+- **WHEN** a non-empty faceted candidate reports a finite negative volume,
+  including −9.947598300641403e−14 mm³, at zero run epsilon
+- **THEN** the assembly assertion passes that candidate without rewriting
+  its raw measurement or emptiness and continues checking the assembly
+
+#### Scenario: A later positive candidate still fails
+
+- **WHEN** a negative-volume faceted candidate is followed by a positive-volume
+  candidate at zero run epsilon
+- **THEN** the assertion fails naming the positive pair and its volume
+
+#### Scenario: No positive-volume allowance is introduced
+
+- **WHEN** a candidate reports the smallest representable positive volume
+  at zero run epsilon
+- **THEN** the assembly assertion fails without any absolute-value or
+  magnitude-based forgiveness
+
+#### Scenario: Mixed assembly preserves the representation boundary
+
+- **WHEN** a pair involving a faceted solid is evaluated on meshes during
+  an exact run and reports a finite negative volume
+- **THEN** the assembly assertion passes that candidate, while an
+  exact-representation non-empty negative result retains its failure
+
+#### Scenario: Non-finite volume is not a passing measurement
+
+- **WHEN** a non-empty candidate reports NaN, positive infinity or negative
+  infinity
+- **THEN** the assembly assertion fails naming the pair and measurement
+
+#### Scenario: Strict pairwise contact remains strict
+
+- **WHEN** the faceted engine reports a non-empty negative or zero-volume
+  result at zero run epsilon and the caller uses `assertNotIntersecting`
+- **THEN** that pairwise assertion still fails under its engine-emptiness
+  contract, even when the assembly integrity assertion passes the same pair
 
 ### Requirement: Whole-assembly gravity support assertion
 

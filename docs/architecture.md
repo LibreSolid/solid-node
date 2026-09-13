@@ -1169,6 +1169,12 @@ is settled by an exact same-kernel
 intersection — the sole verification path, with no whole-assembly measurement.
 Exact zero-volume boundary contact passes, every positive candidate volume
 fails, and no public volume epsilon or private numerical tolerance is exposed.
+A finite negative faceted candidate also passes this assembly-only decision:
+it does not report positive shared material. The raw engine emptiness and
+signed volume remain intact for strict pairwise and fit assertions, whose
+non-empty contact still fouls. Non-finite candidate volumes still fail, and
+exact-representation candidate decisions are unchanged. The candidate's
+existing representation tag carries this distinction even in a mixed assembly.
 Correctness rests on the broad phase being complete in whichever frame it
 indexed, which is proved by
 framework tests rather than re-checked at runtime (ADR-040). Up to 8,192

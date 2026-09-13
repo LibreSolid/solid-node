@@ -1932,10 +1932,11 @@ in `docs/framework-findings.md` and `docs/validation.md`.
 
 Project: `projects/3D-Printers/Voron-2`, active change
 `simulate-the-voron-2`, project evidence commit `235451b`. This entry is
-provisional evidence, not a ratified requirement. The pilot authorized a
-separate framework cycle; `voron-faceted-contact` is proposed in an isolated
-bench from `main` at `b768bdf979552751d016dd89c2f5814693134f9a`, not yet
-ratified, implemented or integrated. No external issue was opened.
+historical evidence, not a requirement. The pilot ratified the separate cycle
+`voron-faceted-contact`, implemented in an isolated bench from `main` at
+`b768bdf979552751d016dd89c2f5814693134f9a`. Its accepted behavior and proof
+are in the archived change; integration is authorized after clean-state
+verification. No external issue was opened.
 
 - **Negative faceted volume is rejected as assembly interference.** The
   unchanged source extrusions 1262 (horizontal) and 1388 (vertical) reproduce
@@ -1950,8 +1951,8 @@ ratified, implemented or integrated. No external issue was opened.
   The initial project interpretation conflated the two assertion contracts:
   ADR-029 deliberately preserves non-empty faceted contact as a strict
   pairwise foul; ADR-040's whole-assembly check instead promises positive
-  shared volume. Its current `is_empty or volume == 0.0` branch rejects
-  negative results too. Proposed fix: pass finite negative faceted
+  shared volume. The baseline `is_empty or volume == 0.0` branch rejected
+  negative results too. Implemented fix: pass finite negative faceted
   candidates only in assembly integrity, keeping raw measurements,
   pairwise/fit strictness, all positive failures and exact-path behavior.
   No epsilon, source displacement, mesh repair or skipped component is the
@@ -1960,7 +1961,11 @@ ratified, implemented or integrated. No external issue was opened.
   54 positive results are recorded in the project, not waived by this fix.
   Related evidence: the Locks negative-volume finding above. Triage:
   scope ratified 2026-09-13 ("ratify, go on"), including implementation and
-  fast-forward integration after validation; implementation not yet complete.
+  fast-forward integration after validation. Resolution: the assembly check
+  now passes this unchanged corner on both kernels; strict faceted pairwise
+  still fails and both exact tests pass. Framework regression: 237 tests and
+  72 subtests pass; both old-sign and positive-skipping mutations are caught.
+  See `openspec/changes/archive/2026-09-13-voron-faceted-contact/validation.md`.
 - **Duplicate STEP names still defeat generated selectors.** This document
   contains 118 products named `SOLID`; `solid import-step` emits distinct
   Python classes with identical `part = 'SOLID'` selectors, then a build is
