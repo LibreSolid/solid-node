@@ -23,8 +23,10 @@ the readiness gate open. This is project evidence to resolve before production
 proposals, not a change to the proposed framework architecture or solver class.
 The authorized bounded correction investigation subsequently found a sampled
 delayed-return candidate on unchanged parts. It leaves the pawl pin-supported
-after one independent input step and needs retained contact state. This
-candidate awaits the pilot's direction; production behavior is still unchanged.
+after one independent input step and needs retained contact state. The pilot
+approved carrying that direction into the project-owned running draft on
+unchanged parts; production behavior is still unchanged and full ratification
+remains ahead.
 
 ## Intent and the boundary that matters
 
@@ -634,10 +636,13 @@ blocker and the authorized bounded correction investigation. The subsequent
 project record `readiness/PAWL-RETURN-2026-09-13.md` finds a delayed-return
 candidate on unchanged parts: the pawl stays pin-supported at one input pitch
 and returns only after further requested receiver motion clears its path.
-Carrying that retained-contact behavior into the running proposal is the next
-pilot decision, not a delivered repair. Timed-law, admitted rate,
-initialization, subsequent engagement and profile/numeric bounds still need
-completion.
+The pilot approved carrying that retained-contact behavior into the running
+proposal on unchanged parts. Pascaline commit `135f94f` opens the draft
+`run-pascaline-with-retained-contact`, with proposal, design, four interface
+deltas and 37 open tasks; strict OpenSpec validation passes. This is a
+planning checkpoint, not a delivered repair or complete proposal ratification.
+Timed-law, admitted rate, initialization, subsequent engagement and
+profile/numeric bounds still need completion.
 Finite faceted and exact checks remain distinct from continuous clearance
 proof. A conflict with geometry or the accepted piecewise-affine execution
 class returns to the pilot before scope expands.
@@ -650,9 +655,9 @@ later whole-machine sequence remain intact. They no longer gate Pascaline's
 first validation. The project handoff is the current mechanical status.
 
 This is a pre-spec documentation checkpoint. No production cycle is complete
-or newly ratified by it. Close Pascaline's bounded evidence gate, prepare the
-framework/viewer/Pascaline proposals, and obtain complete ratification and the
-pilot's previously requested feature-start go-ahead before actual solid-node
+or newly ratified by it. Close Pascaline's bounded evidence gate, reconcile
+its draft with the separate framework/viewer proposals, and obtain complete
+ratification and the pilot's previously requested feature-start go-ahead before actual solid-node
 feature implementation. The new readiness evidence is project-owned; no
 framework/runtime implementation or running-browser measurement accompanies
 this planning update.

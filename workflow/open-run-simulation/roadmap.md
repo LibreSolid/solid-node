@@ -16,9 +16,10 @@ and bounded next action below. No production implementation has started.
 
 The pilot then authorized a bounded correction investigation. It finds a
 sampled delayed-return path on unchanged parts, with the pawl still supported
-by a receiving pin at the end of one input step. Retaining that contact state
-is a candidate for the running migration, not an implemented production fix.
-The original-control collision and the readiness gate remain open.
+by a receiving pin at the end of one input step. The pilot subsequently
+approved carrying that retained-contact direction into the running proposal
+on unchanged parts. A project-owned draft now records it; no production fix
+is implemented and the original-control collision and readiness gate remain open.
 
 The existing action-panel direction, input/instruction/control relationship
 and build-time `running(r)` law extension remain recorded in
@@ -105,7 +106,16 @@ correction, continuous certificate or running-engine validation. The original
 control regression remains red; the refined faceted candidate retains a
 near-zero negative gear-volume failure which does not reproduce on exact solids.
 
-Framework and viewer production proposals have not been created. This
+Pilot-approved direction and Pascaline draft:
+`135f94f2680d1819557a11a4dd903be5a5300a31`, project-owned
+`openspec/changes/run-pascaline-with-retained-contact/`. It contains proposal,
+design, four interface delta specs and 37 open tasks. Supported OpenSpec
+strict validation passes. This is an early draft recording the chosen return
+behavior and remaining evidence/dependency gates, not complete production
+ratification or permission to start implementation. No new geometry/runtime
+tests accompanied this planning-only update.
+
+Framework and viewer production proposals have not been created. This framework
 documentation commit is a **pre-spec checkpoint**, not the complete ratified
 planning commit of a production cycle. Establish and verify those cycle bases
 when the repository-owned proposals are opened. Each cycle still needs its
@@ -201,8 +211,10 @@ connection within its fixed-lever, forward-input, 0–20° hinge grid; it is not
 a general impossibility proof.
 
 The candidate retains a contact branch rather than retiming the current
-periodic stroke formula. The next pilot decision is whether to carry that
-delayed, pin-supported end state into the running proposal on unchanged parts.
+periodic stroke formula. The pilot approved carrying that delayed,
+pin-supported end state into the running proposal on unchanged parts; the
+Pascaline draft now records the choice. It distinguishes a resting lever from
+a seated pawl and prohibits a stroke-end hinge reset or unrequested overtravel.
 Production motion code is still unchanged and the original regression red;
 no correction is being claimed complete. Engagement from the supported end
 state, valid local-state snapshots, repeated operation and timed/admitted
@@ -229,9 +241,12 @@ evidence, profile-error bounds and explicit numeric tolerances.
 
 **Gate:** a project-owned state/event/geometry contract with a supported
 released-fall path, admissible setup and operating limits, and no dependency
-on precomputed register counts. **Not passed:** the frozen-source path is
-supported, but the pawl-return defect and remaining state/event/operating
-bounds must be resolved before this gate closes.
+on precomputed register counts. **Not passed:** the frozen-source path and
+sampled delayed return are supported, but subsequent engagement from the
+pin-supported state, repeated operation and state/event/operating bounds
+remain unqualified. Qualify those paths here; making the original production
+regression green belongs to the later running migration, not a temporary
+stateless repair required before proposal ratification.
 
 ## 2. Prepare and ratify the three production changes
 
@@ -241,6 +256,11 @@ commits in their owning repositories. Pascaline's completed
 `2026-09-12-build-pascaline` archive remains historical; the new migration
 must explicitly reconcile its one-stroke/register controls, input-scaled fall
 and scripted demonstration with the new running behavior.
+
+The Pascaline draft `run-pascaline-with-retained-contact` is open, with every
+task unchecked. Close its readiness questions and reconcile it with the
+framework/viewer proposals before seeking complete ratification. Its artifact
+completion does not advance the readiness or feature-start gates.
 
 Resolve complete initial snapshots; stable coordinate/relation identities;
 event localization and same-instant settlement; finite moves, rates, command
@@ -360,7 +380,7 @@ does not block Pascaline or become silently accepted when Pascaline passes.
 ## Dependencies, release and handoff
 
 ```text
-Pascaline pawl-return correction + remaining readiness bounds
+Pascaline retained-pawl path qualification + remaining readiness bounds
     -> framework + viewer + Pascaline ratified proposals
     -> tiny compiled mechanism -> real pair -> three positions
     -> complete eight-position Pascaline qualification
