@@ -58,15 +58,17 @@ EXPECTED_EXPORTS = {
     'ScenarioTest': 'solid_node.simulation.scenario',
     'Sim': 'solid_node.simulation.sim',
     # The running mode's error kinds, added with the running time base
-    # (OpenSpec change ``run-owns-the-coordinates``), and the entry its
-    # crossing record is made of, added with ``integrate-jumps``. Lazy
-    # like the rest, and for one more reason: naming any of them imports
-    # the running engine, which a model declaring no running time never
-    # pays for.
+    # (OpenSpec change ``run-owns-the-coordinates``), the entry its
+    # crossing record is made of, added with ``integrate-jumps``, and the
+    # entry its STOP record is made of, added with ``ranges-are-stops``.
+    # Lazy like the rest, and for one more reason: naming any of them
+    # imports the running engine, which a model declaring no running time
+    # never pays for.
     'RunConflict': 'solid_node.simulation.run',
     'UnsupportedLaw': 'solid_node.simulation.program',
     'TooManyCrossings': 'solid_node.simulation.program',
     'Crossing': 'solid_node.simulation.program',
+    'Stop': 'solid_node.simulation.program',
 }
 
 # Refuse `cadquery` the way an interpreter without the wheel does: a

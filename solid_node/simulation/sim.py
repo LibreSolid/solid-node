@@ -276,6 +276,18 @@ class Sim:
         return self._running('crossings').crossings
 
     @property
+    def stops(self):
+        """Every declared bound reached inside a tick, oldest first.
+
+        The bounded ring `record=` asked for, and `[]` when it asked for
+        none: each entry names the tick, the coordinate that stopped,
+        which bound it reached and that bound's evaluated value, the
+        fraction of the tick at which it was reached, and the inputs the
+        stop blocked.
+        """
+        return self._running('stops').stops
+
+    @property
     def time(self):
         """The exact instant this simulation stands at, in seconds.
 

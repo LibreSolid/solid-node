@@ -385,13 +385,25 @@ class Joint(Coordinate):
                 node, 'range', f'{declared!r} is not a (lo, hi) pair')
         bounds = []
         for bound in declared:
+            if bound is None or callable(bound):
+                # `None` is unbounded on that side, and a CALLABLE states
+                # the bound as an expression over the joint's OWN
+                # coordinate: neither is a number now, and neither is
+                # resolved here. Both are applied where the bound is
+                # USED -- at the value being bound, and once per tick
+                # from the committed bank under a running root.
+                bounds.append(bound)
+                continue
             value = self._resolved(node, bound, 'range')
             if not _is_number(value):
                 raise self._refusal(
                     node, 'range', f'bound {value!r} is not a number')
             bounds.append(value)
         low, high = bounds
-        if low > high:
+        if _is_number(low) and _is_number(high) and low > high:
+            # The ordering is required where both bounds resolve to
+            # numbers at realization, and checked where each is evaluated
+            # otherwise.
             raise self._refusal(
                 node, 'range',
                 f'({low!r}, {high!r}) is reversed: a range is (lo, hi)')
@@ -421,15 +433,54 @@ class Joint(Coordinate):
             # a driver token -- has no value here to judge, and an
             # unbound source is bind()'s refusal to make, not this one's.
             return
-        low, high = span
-        if low <= value <= high:
+        low = self._bound_at(node, span[0], value, 'lower')
+        high = self._bound_at(node, span[1], value, 'upper')
+        if low is not None and high is not None and low > high:
+            raise JointRangeError(
+                f"{_where(node)}: joint '{self.name}' declares a range "
+                f"whose bounds evaluate at {value!r} to ({low}, {high}), "
+                f"which is reversed: a range is (lo, hi). A bound stated "
+                f"as an expression is evaluated at the value being bound, "
+                f"and it has to order with the other one there.")
+        if (low is None or low <= value) and (high is None or value <= high):
             return
         raise JointRangeError(
             f"{_where(node)}: joint '{self.name}' declares the range "
-            f"{low} to {high} {self.unit or 'units'}, and {value!r} is "
+            f"{'unbounded' if low is None else low} to "
+            f"{'unbounded' if high is None else high} "
+            f"{self.unit or 'units'}, and {value!r} is "
             f"outside it. A range refuses the binding rather than "
             f"clamping it, because a pose outside the joint's travel is "
             f"a mistake in what drives it.")
+
+    def _bound_at(self, node, bound, value, side):
+        """One bound as a number AT the value being bound: `None` for
+        unbounded, and a CALLABLE applied to that value.
+
+        A bound that is not satisfied at its own argument forbids every
+        value, and this is where it says so by name -- there is nowhere
+        earlier, because the bound is a function of what is being bound.
+        """
+        if bound is None or not callable(bound):
+            return bound
+        try:
+            evaluated = bound(value)
+        except Exception as failure:
+            raise JointRangeError(
+                f"{_where(node)}: joint '{self.name}' states its {side} "
+                f'bound as an expression over its own coordinate, and '
+                f'evaluating it at {value!r} raised '
+                f'{type(failure).__name__}: {failure}. A bound is applied '
+                f'to the value being bound, so it has to be a function of '
+                f'it alone.') from None
+        if not _is_number(evaluated):
+            raise JointRangeError(
+                f"{_where(node)}: joint '{self.name}' states its {side} "
+                f'bound as an expression over its own coordinate, and at '
+                f'{value!r} it evaluates to {evaluated!r}, which is not a '
+                f'number. A bound states where the coordinate may be, in '
+                f'{self.unit or "units"}.')
+        return evaluated
 
     def place(self, node, value):
         """Move `node` about this joint, absolutely.

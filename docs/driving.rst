@@ -294,6 +294,30 @@ at bind time. Nothing here is deprecated: a project that turns its parts
 by hand in `simulate()` keeps working, and both forms may sit on one
 node.
 
+**Either bound may be open, or an expression over the coordinate
+itself.** `None` as a bound means unbounded on that side, so
+`range=(0, None)` states a coordinate that may not go below zero and may
+go as far above it as the mechanism takes it. A bound given as a
+**callable of one argument** states itself as an expression over the
+joint's own coordinate, written in ``solid_node.math``:
+
+.. code-block:: python
+
+    class InputArbor(AssemblyNode):
+        turn = Revolute(axis=(1, 0, 0),
+                        range=(lambda turn: 36 * floor(turn / 36), None))
+
+That is a ten-tooth ratchet: the lower bound is the last seated tooth
+and there is no upper one, because forward rotation is free. The bound
+is applied where it is USED — at the value being bound, so the same
+declaration poses at any angle, and once per tick from the committed
+bank under a running root, where it becomes a physical stop
+(:ref:`scenarios <scenarios>`). A bound that is not satisfied at its own
+argument — `lambda turn: turn + 1` — forbids every value, and the first
+binding says so by name. A callable given as the WHOLE `range`, called
+with the realized declarer and returning two numbers, keeps its own
+meaning: the two forms are told apart by position, not by arity.
+
 **A body may have more than one freedom, and the class says how they
 stack.** The joints declared on one class compose in **declaration
 order**, innermost first: the first declared is applied closest to the

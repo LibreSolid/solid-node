@@ -121,7 +121,13 @@ class UnsupportedLaw(CouplingError):
     sources, is sourced from a coordinate the run does not own and no
     edge computes, can move its coordinate only by jumping, carries a
     jump with nowhere to keep its history, or divides by zero somewhere
-    on the tick's own path."""
+    on the tick's own path.
+
+    A declared range's BOUND is compiled by exactly the same rule and
+    refused by the same kind: it is applied once to a symbolic token for
+    the joint's own coordinate, and what the expression cannot say is
+    refused here rather than evaluated wrongly every tick.
+    """
 
 
 class TooManyCrossings(CouplingError):
@@ -146,6 +152,29 @@ class Crossing:
     primitive: str
     level: float
     t: float
+
+
+@dataclass(frozen=True)
+class Stop:
+    """One declared bound reached inside one tick.
+
+    `bound` is `'low'` or `'high'` and `value` is that bound EVALUATED
+    for this tick -- a number for a number bound, the last seated tooth
+    for a ratchet -- which is also the value the coordinate now holds,
+    exactly. `t` is the fraction of the tick at which it was reached and
+    `inputs` names the inputs the stop blocked, sorted.
+
+    A stop is a BOUND OF A COORDINATE, which stops motion; a `Crossing`
+    is a JUMP SURFACE of a law, which moves nothing. They answer
+    different questions and live in different rings.
+    """
+
+    tick: int
+    coordinate: str
+    bound: str
+    value: float
+    t: float
+    inputs: tuple
 
 
 def qualified_coordinates(root):
@@ -291,6 +320,21 @@ class JumpPlan:
 
     ##############################################
     # The partition
+
+    def cuts(self, start, delta, described, coordinate):
+        """The breakpoints this law's own jumps put on the tick's path.
+
+        The partition the increment already builds, made reachable and
+        recording nothing: between two consecutive cuts every jump node
+        holds one branch, so a law whose SKELETON is affine has a value
+        that is affine in `t` there -- which is what lets a stop on it be
+        SOLVED piece by piece rather than searched (design.md section 2,
+        case 2).
+        """
+        if not any(delta.values()):
+            return (0.0, 1.0)
+        return tuple(self._partition(start, delta, described, coordinate,
+                                     None, 0))
 
     def _partition(self, start, delta, described, coordinate,
                    crossings, tick):
@@ -531,7 +575,7 @@ class Edge:
 
     __slots__ = ('kind', 'needs', 'gives', 'graphs', 'plans', 'driven',
                  'names', 'factors', 'constant', 'slot_key', 'description',
-                 'stated_by')
+                 'stated_by', 'affine')
 
     def __init__(self, kind, needs, gives, description, stated_by,
                  graphs=(), plans=(), driven=(), names=(), factors=(),
@@ -553,6 +597,29 @@ class Edge:
         self.slot_key = slot_key
         self.description = description
         self.stated_by = stated_by
+        # One flag per DRIVEN END, aligned with `gives`: whether this
+        # edge's value is affine in its sources along the tick's path, so
+        # a stop on that end can be SOLVED rather than searched. A wiring
+        # and a formula are linear by construction; a law is read off its
+        # graph, or off its SKELETON where it carries a jump plan, whose
+        # branch placeholders are constants on a piece.
+        self.affine = tuple(self._affine_ends())
+
+    def _affine_ends(self):
+        if self.kind != 'law':
+            return [True] * len(self.gives)
+        found = []
+        for index, graph in enumerate(self.graphs):
+            plan = self.plans[index] if self.plans else None
+            if plan is not None:
+                found.append(_affine_in_sources(as_node(plan.skeleton)))
+            elif graph is None:
+                # A constant law has zero slope everywhere, which is
+                # affine and moves nothing.
+                found.append(True)
+            else:
+                found.append(_affine_in_sources(as_node(graph)))
+        return found
 
     def __repr__(self):
         return f'<{self.kind} edge {self.description}>'
@@ -619,6 +686,19 @@ class Edge:
             return [(self.gives[0], self._linear(deltas, constant=0.0))]
         return []
 
+    def cuts(self, values, deltas, index):
+        """The breakpoints of the driven end at `index` along the tick's
+        path, or `()` where that end carries no jump plan."""
+        if self.kind != 'law' or not self.plans:
+            return ()
+        plan = self.plans[index]
+        if plan is None:
+            return ()
+        start = self._inputs(values)
+        delta = {name: deltas[key]
+                 for name, key in zip(self.names, self.needs)}
+        return plan.cuts(start, delta, self.description, self.driven[index])
+
     def _linear(self, held, constant=None):
         """The linear combination this formula edge states, in the
         direction the rest render resolved it.
@@ -678,7 +758,7 @@ class Program:
     a tree whose kinematics have moved on.
     """
 
-    def __init__(self, root, inputs, coordinates, nodes, edges):
+    def __init__(self, root, inputs, coordinates, nodes, edges, spans=()):
         self.root_class = type(root)
         self.inputs = tuple(inputs)
         self.coordinates = tuple(coordinates)
@@ -686,6 +766,11 @@ class Program:
         self.edges = tuple(edges)
         self.determiner = {key: edge for edge in self.edges
                            for key in edge.gives}
+        # Every banked coordinate whose joint declares a range, each
+        # bound a number, `None`, or a compiled graph over the
+        # coordinate's own id.
+        self.spans = tuple(spans)
+        self.sources = _reaching_inputs(self.nodes, self.edges)
         self.identity = hashlib.sha256(
             self.described().encode()).hexdigest()
 
@@ -699,6 +784,11 @@ class Program:
                          f'scale={declaration.scale!r}')
         for identifier in self.coordinates:
             lines.append(f'coordinate {identifier}')
+        for identifier, low, high, unit in self.spans:
+            # A changed range changes the identity, so a snapshot cannot
+            # be restored into a machine whose stops have moved.
+            lines.append(f'span {identifier} {_written(low)} to '
+                         f'{_written(high)} {unit or "units"}')
         for edge in self.edges:
             ends = (f'{[self.nodes[key].name for key in edge.needs]} -> '
                     f'{[self.nodes[key].name for key in edge.gives]}')
@@ -716,6 +806,39 @@ class Program:
     def __repr__(self):
         return (f'<program of {self.root_class.__name__}: '
                 f'{len(self.nodes)} coordinates, {len(self.edges)} edges>')
+
+
+def _written(bound):
+    """One bound as the identity prints it."""
+    if bound is None:
+        return 'unbounded'
+    if isinstance(bound, GraphValue):
+        return str(bound)
+    return repr(bound)
+
+
+def _reaching_inputs(nodes, edges):
+    """Every INPUT that reaches each node key through the program: the
+    CANDIDATE table a stop's group is filtered out of.
+
+    One pass over the already topologically ordered edges, so it costs
+    the program once and nothing per tick. A CHECK edge determines
+    nothing and contributes nothing. Being reached is necessary and not
+    sufficient: whether a candidate actually PUSHES a stopped coordinate
+    is a property of the tick, tested there, because an input coupled
+    only through a disengaged law reaches it and moves it not at all.
+    """
+    found = {key: (frozenset({key[1]}) if node.kind == 'input'
+                   else frozenset())
+             for key, node in nodes.items()}
+    for edge in edges:
+        if edge.kind == 'check':
+            continue
+        reached = frozenset().union(*(found[key] for key in edge.needs)) \
+            if edge.needs else frozenset()
+        for key in edge.gives:
+            found[key] |= reached
+    return found
 
 
 class _Node:
@@ -775,7 +898,96 @@ def compile_program(root, inputs, coordinates):
     _refuse_opaque(kept, bank_keys, nodes)
     ordered = _ordered(kept, nodes)
     return Program(root, sorted(inputs.items()), sorted(coordinates),
-                   nodes, ordered)
+                   nodes, ordered, _compiled_spans(coordinates))
+
+
+##############################################
+# The span table
+
+
+def _compiled_spans(coordinates):
+    """`(qualified id, low, high, unit)` for every banked coordinate
+    whose joint declares a range, resolved ONCE.
+
+    Each bound is a number, `None` for unbounded on that side, or an
+    expression GRAPH over the coordinate's own qualified id -- compiled
+    here exactly as a law is, and for the same two reasons: what the
+    expression cannot say is refused now rather than every tick, and a
+    graph is what cycle 4 can publish beside the coordinate table.
+    """
+    found = []
+    for identifier, (node, name) in sorted(coordinates.items()):
+        for joint in declared_joints(type(node)).values():
+            if name not in joint.coordinates:
+                continue
+            span = joint.arguments(node)[2]
+            if span is not None:
+                found.append((identifier,
+                              _compiled_bound(span[0], identifier, node,
+                                              joint, 'lower'),
+                              _compiled_bound(span[1], identifier, node,
+                                              joint, 'upper'),
+                              joint.unit))
+            break
+    return tuple(found)
+
+
+def _compiled_bound(bound, identifier, node, joint, side):
+    """One declared bound as the run reads it: `None`, a float, or an
+    expression graph over `identifier` alone."""
+    def refuse(detail):
+        raise UnsupportedLaw(
+            f"{type(node).__name__}.{joint.name}: its {side} bound -- "
+            f"the range of the coordinate '{identifier}' -- {detail}")
+
+    if bound is None:
+        return None
+    if isinstance(bound, bool):
+        refuse(f'is {bound!r}, which is neither a number nor an expression.')
+    if isinstance(bound, (int, float)):
+        return float(bound)
+    if not callable(bound):
+        refuse(f'resolved to {bound!r}, which is neither a number nor a '
+               f"callable of the joint's own coordinate.")
+    try:
+        returned = bound(symbol(identifier))
+    except Exception as failure:
+        refuse(f'cannot be applied to a symbol '
+               f'({type(failure).__name__}: {failure}). A bound is an '
+               f'expression over the joint\'s own coordinate: it is applied '
+               f'once, to a token for that coordinate, and the graph it '
+               f'builds is what the run evaluates at the start of every '
+               f'tick. Write it with solid_node.math, whose primitives are '
+               f'symbolic.')
+    if isinstance(returned, bool):
+        refuse(f'returned {returned!r}, which is neither a number nor an '
+               f'expression.')
+    if isinstance(returned, (int, float)):
+        return float(returned)
+    if not isinstance(returned, OpenSCADConstant):
+        refuse(f'returned {returned!r}, which is neither a number nor an '
+               f"expression over the joint's own coordinate.")
+    root = as_node(returned)
+    for item in postorder([root]):
+        if item.kind == 'raw':
+            refuse(f'carries the text {item.text!r}, which the framework '
+                   f'cannot evaluate.')
+        if item.kind == 'call' and item.op not in SYMBOLIC_BUILTINS:
+            refuse(f'calls {item.op!r}, which is outside the symbolic '
+                   f'vocabulary the run can evaluate.')
+    names = free_names(root)
+    if not names <= {identifier}:
+        others = ', '.join(sorted(names - {identifier}))
+        refuse(f'reads {others}, and a bound in this release is an '
+               f"expression over the joint's OWN coordinate alone. A bound "
+               f'naming a second coordinate needs a declaration that says '
+               f'what it reads, resolved against the declarer subtree; it '
+               f'is not in this release.')
+    # A JUMP is admitted and needs no plan: a bound is EVALUATED at one
+    # point per tick and never integrated, so `floor` means `floor` and
+    # nothing is subtracted. That asymmetry with a law is the point -- a
+    # law's jump would move a part, a bound's jump is the tooth pitch.
+    return GraphValue(root)
 
 
 def _units(root):

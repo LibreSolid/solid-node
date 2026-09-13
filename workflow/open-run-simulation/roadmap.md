@@ -427,3 +427,89 @@ Open questions the pilot owns, carried from the change's `design.md`:
   record. The record is a diagnostic and the increment is right either
   way, but a reader counting throws off `sim.crossings` at a cadence that
   divides the period evenly will count none.
+
+### Cycle 3 landed, 2026-09-13
+
+`ranges-are-stops` is implemented on branch `open-run-simulation` in
+`solid-node/WTs/open-run-simulation`, two commits from cycle 2's own head
+`8019c6d` — the planning commit `5045b9c` and the implementation commit
+this line is part of. A joint's declared `range` is now the physical stop
+it states rather than a refusal of the tick: when a tick would take a
+banked coordinate outside a bound, and FURTHER outside than it stood at
+the start, the run locates the fraction `t*` at which it reaches that
+bound, commits it there exactly, and the tick commits. What stops with it
+is the connected group — every input whose own movement PUSHES the
+stopped coordinate, tested per candidate of the compiled program's static
+`sources` table on blocking ticks only, and everything those inputs alone
+determine. An unrelated input runs its full tick, and so does one coupled
+to the stopped coordinate only through a law that is currently
+disengaged: an open gate does not stop its crank, and closing it stops
+both. A coordinate determined by a stopped input and a free one goes on
+moving on what the free one contributes. The tick becomes segments, each
+integrated by exactly cycles 1 and 2's procedure, and stays atomic across
+them. A command on a stopped input retires `blocked` with the travel it
+actually admitted, fractional within the tick, and never resumes; a
+`rate` on one retires `blocked` too. Reverse moves and reverse rates are
+admitted, and a rate's cumulative travel on an integer input now
+truncates toward zero. Either bound may be `None`, or a callable of the
+joint's own coordinate stating it as an expression — compiled once like a
+law, evaluated once per tick from the committed bank under a running root
+and at the value being bound everywhere else — which is the ratchet.
+`record=N` keeps a third bounded ring, `sim.stops`. ADR-108 and ADR-109
+record the two decisions and the change is archived under
+`openspec/changes/archive/2026-09-13-ranges-are-stops/`. The full suite is
+2424 passed / 5 skipped / 1295 subtests against cycle 2's 2380 / 4 /
+1245, the one extra skip being the suite's own record of the deferred
+bound over a second coordinate; one `Train` tick costs 1.065 ms against
+cycle 2's recorded 1.057,
+which is inside that measurement's run-to-run spread and identical in
+graph evaluations, and a blocking tick costs `2S + 1` propagation passes
+plus one per pushing candidate. Nothing is pushed and nothing is
+integrated into any `main`.
+
+**The module's ratchet retention is unblocked.** The one line the
+Pascaline module adds in its own repository is
+
+```python
+turn = Revolute(axis=(1, 0, 0),
+                range=(lambda turn: DIGIT_STEP * floor(turn / DIGIT_STEP),
+                       None))
+```
+
+on `InputArbor`, and `evidence/probe_projects.py` in the archived change
+runs the module's own chain — `input.turn` → `drum.turn` at `-1` →
+`carry.turn` at `-1` — with it: from `40` a reverse of `-10` blocks at
+exactly `36` having admitted `-4`, a further reverse blocks at once with
+`0`, `+4` is free, the reverse after that blocks at `36` again, and from
+`75` the bound reads `72`. The same reverse admits exactly `-4` taken in
+one tick, four or forty. Both originating projects' laws still compile
+and integrate VERBATIM with their cycle-2 numbers.
+
+Open questions the pilot owns, carried from the change's `design.md`:
+
+- Should a stop also be reported through `sim.commands` for an input
+  whose group stopped but which had NO command — that is, should the run
+  offer a "which inputs are standing against a stop" read at all? This
+  cycle reports a stop only through the record and the commands that
+  existed.
+- Should a stop on an INTEGER-dtype input admit only whole native units,
+  flooring `t*` of the tick's travel, rather than leaving the driver
+  between steps? This cycle leaves it between steps and says so.
+- Should the detection probe stop at the first stop rather than
+  integrating the whole tick, so a law that cannot be integrated past
+  `t*` does not refuse a tick the machine would never have reached? This
+  cycle probes the whole tick.
+- Should an expression bound be admitted UNTIMED at all, or only under a
+  running root? This cycle admits it everywhere, evaluated at the value
+  being bound, so that one declaration poses and runs.
+- Should `sim.stops` be on by default under a running root rather than
+  tied to `record=N`? It is tied, exactly as the crossing ring is.
+- Whether `blocked` reports per command or per rigid group — cycle 1's
+  open question — is answered here: per COMMAND, because a command owns
+  one input and a group is not a thing a caller holds. The group is
+  visible in the stop record, which names the inputs it blocked.
+- A bound may not name a SECOND coordinate in this release (design §10).
+  The spike's ratchet fixture carries a `lift` that releases the pawl,
+  and the smallest form that would serve it is a declaration that names
+  what it reads, resolved against the declarer's subtree at `Sim`
+  construction. Strictly additive; deferred.

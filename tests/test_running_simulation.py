@@ -26,16 +26,15 @@ from unittest import TestCase
 
 from solid_node.core.serializer import instructions_table
 from solid_node.motion.couplings import DoublyBound
-from solid_node.motion.joints import JointRangeError
 from solid_node.motion.ports import get_coordinate
 from solid_node.simulation import Instruction, RunConflict, Sim, UnsupportedLaw
 
 from .base import BaseNodeTest
 from .running_project.machine import (Backwards, Differential, Follower,
                                       Guarded, HandBound, LoopingTrain,
-                                      Opaque, Ranged, Sixfree, Stdlib,
-                                      Stepped, SteppedBody, Train, TrainBody,
-                                      Unbound)
+                                      Opaque, Ranged, RangedExact, Sixfree,
+                                      Stdlib, Stepped, SteppedBody, Stepper,
+                                      Train, TrainBody, Unbound)
 
 
 def reads(node, name):
@@ -392,18 +391,47 @@ class CommandTest(BaseNodeTest):
         self.assertIsNone(sim.rate('crank', 0))
         self.assertEqual(sim.commands, ())
 
-    def test_a_reverse_request_is_refused(self):
-        sim = Sim(Train(), 0.1)
-        sim.move('crank', by=20.0, duration=1.0)
-        sim.run(1.0)
-        for call in (lambda: sim.move('crank', by=-10.0, duration=1.0),
-                     lambda: sim.move('crank', to=5.0, duration=1.0),
-                     lambda: sim.rate('crank', -90.0)):
-            with self.subTest(call=call):
-                with self.assertRaises(ValueError) as caught:
-                    call()
-                self.assertIn('crank', str(caught.exception))
-        self.assertEqual(sim.state['crank'], 20.0)
+    def test_a_reverse_request_runs(self):
+        """Cycle 3: a reverse move meets a stop exactly as a forward one
+        does, and a crank that meets none runs backwards through the same
+        laws."""
+        for kind, call, landed in (
+                ('by', lambda sim: sim.move('crank', by=-10.0, duration=1.0),
+                 10.0),
+                ('to', lambda sim: sim.move('crank', to=5.0, duration=1.0),
+                 5.0),
+                ('rate', lambda sim: sim.rate('crank', -90.0), -70.0)):
+            with self.subTest(kind=kind):
+                node = Train()
+                sim = Sim(node, 0.1)
+                sim.move('crank', by=20.0, duration=1.0)
+                sim.run(1.0)
+                handle = call(sim)
+                sim.run(1.0)
+                if kind == 'rate':
+                    sim.rate('crank', 0)
+                self.assertEqual(sim.state['crank'], landed)
+                self.assertEqual(sim.state['first.turn'], landed * 2)
+                self.assertEqual(sim.state['second.turn'], landed * -3.0)
+                self.assertEqual(reads(node.first, 'turn'), landed * 2)
+                self.assertEqual(handle.status, 'completed')
+                self.assertEqual(handle.admitted, landed - 20.0)
+
+    def test_a_reverse_rate_on_an_integer_input_truncates_toward_zero(self):
+        """A negative rate rounds the way a positive one does: `trunc`,
+        not `floor`, so the state neither leads nor lags by a whole
+        native unit depending on direction."""
+        for rate, expected in ((-1.5, [-1, -3, -4, -6]),
+                               (1.5, [1, 3, 4, 6])):
+            with self.subTest(rate=rate):
+                sim = Sim(Stepper(), 1.0)
+                sim.rate('step', rate)
+                trace = []
+                for _ in range(4):
+                    sim.run(1.0)
+                    trace.append(sim.state['step'])
+                self.assertEqual(trace, expected)
+                self.assertEqual(sim.state['carriage.travel'], expected[-1])
 
     def test_only_a_declared_input_can_be_moved(self):
         sim = Sim(Train(), 0.1)
@@ -503,22 +531,39 @@ class CompileRefusalTest(BaseNodeTest):
 
 
 class RangeTest(BaseNodeTest):
-    """A joint's range fails the tick in this cycle."""
+    """A joint's range STOPS the tick's motion rather than failing it
+    (cycle 3). Cycle 1 refused the whole tick here and left the bank at
+    the last admitted one; the declaration has not changed, only what the
+    run reads it as."""
 
-    def test_the_crossing_tick_is_refused_and_the_bank_stands(self):
-        sim = Sim(Ranged(), 0.1)
-        sim.move('crank', by=50.0, duration=0.5)
-        with self.assertRaises(JointRangeError) as caught:
-            sim.run(0.5)
-        message = str(caught.exception)
-        self.assertIn('first.turn', message)
-        self.assertIn('100', message)
-        self.assertIn('-90', message)
-        self.assertIn('90', message)
-        self.assertIn('deg', message)
-        self.assertEqual(sim.state['first.turn'], 80.0)
-        self.assertEqual(sim.state['crank'], 40.0)
-        self.assertEqual(sim.tick, 4)
+    def test_the_crossing_tick_commits_at_the_bound(self):
+        node = Ranged()
+        sim = Sim(node, 0.1, record=8)
+        handle = sim.move('crank', by=50.0, duration=0.5)
+        sim.run(0.5)
+        self.assertEqual(sim.state['first.turn'], 90.0)
+        self.assertEqual(sim.state['crank'], 45.0)
+        self.assertEqual(reads(node.first, 'turn'), 90.0)
+        self.assertEqual(sim.tick, 5)
+        self.assertEqual(handle.status, 'blocked')
+        self.assertEqual(handle.admitted, 45.0)
+        self.assertEqual(handle.requested, 50.0)
+        stop, = sim.stops
+        self.assertEqual(stop.coordinate, 'first.turn')
+        self.assertEqual(stop.bound, 'high')
+        self.assertEqual(stop.value, 90.0)
+        self.assertEqual(stop.t, 0.5)
+        self.assertEqual(stop.inputs, ('crank',))
+
+    def test_a_move_landing_exactly_on_the_bound_completes(self):
+        sim = Sim(RangedExact(), 0.1, record=8)
+        handle = sim.move('crank', by=5.0, duration=0.1)
+        sim.run(0.1)
+        self.assertEqual(sim.state['first.turn'], 90.0)
+        self.assertEqual(handle.status, 'completed')
+        self.assertEqual(handle.admitted, 5.0)
+        self.assertEqual(sim.stops, [])
+        self.assertEqual(sim.tick, 1)
 
 
 class UnboundCoordinateTest(BaseNodeTest):

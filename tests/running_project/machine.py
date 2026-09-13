@@ -24,12 +24,20 @@ level quantities -- a moving divisor and a product of two sources -- the
 crossing search has to answer for. Each running root subclasses an
 untimed `...Body` twin, so the same law is read both ways and the
 untimed reading is pinned by a control.
+
+The STOP machines at the end are cycle 3's: a ratchet whose lower bound
+is an expression over its own coordinate, a rack that stops while an
+unrelated motor runs on, a coordinate two inputs share, two groups that
+stop at two fractions of one tick, an open gate whose crank is coupled
+to the stopped wheel only through a closed one, a stop and a jump
+crossing in one tick, and a bound reached through a law that is not
+affine. Each has its own untimed twin for the same reason.
 """
 
 import math
 
-from solid_node.math import abs, clamp01, floor, sign, wrap
-from solid_node.motion.joints import Free, Revolute
+from solid_node.math import abs, clamp01, floor, sign, sin, wrap
+from solid_node.motion.joints import Free, Prismatic, Revolute
 from solid_node.motion.ports import RotationalPort, Time
 from solid_node.node import AssemblyNode
 from solid_node.simulation import Driver, Instruction
@@ -365,15 +373,43 @@ class OpaqueBody(AssemblyNode):
         self.relay = self.crank * 3
 
 
-class Ranged(AssemblyNode):
-    """A joint whose declared range the crank drives it out of."""
-
-    time = Time.running()
+class RangedBody(AssemblyNode):
+    """The same machine untimed, where a range still REFUSES a binding
+    outside it: the control cycle 3 does not move."""
 
     crank = Driver(default=0.0, unit='deg')
     first = Arbor(turn=Revolute(axis=(0, 0, 1), range=(-90, 90), unit='deg'))
 
     crank.drives(first.turn, ratio=2.0)
+
+
+class Ranged(RangedBody):
+    """A joint whose declared range the crank drives it INTO.
+
+    Cycle 1 failed the tick here. Cycle 3 stops `first.turn` at `90`
+    inside the tick, commits it, and retires the command `blocked` with
+    the travel it admitted -- the same declaration, read as the physical
+    stop it states.
+    """
+
+    time = Time.running()
+
+
+class RangedExactBody(AssemblyNode):
+    """`Ranged`'s machine resting one tick short of its bound."""
+
+    crank = Driver(default=40.0, unit='deg')
+    first = Arbor(turn=Revolute(axis=(0, 0, 1), range=(-90, 90), unit='deg'))
+
+    crank.drives(first.turn, ratio=2.0)
+
+
+class RangedExact(RangedExactBody):
+    """The same machine, running, resting at `first.turn == 80`: a move
+    of `+5` on the crank lands it on exactly `90`, which is INSIDE the
+    inclusive bound and therefore no stop at all."""
+
+    time = Time.running()
 
 
 class Unbound(AssemblyNode):
@@ -795,3 +831,296 @@ class SmoothBody(AssemblyNode):
 
 class Smooth(SmoothBody):
     time = Time.running()
+
+
+##############################################
+# Cycle 3: the stop machines
+#
+# A range is a physical stop located inside the tick. Each running root
+# subclasses its own untimed `...Body`, so the one declaration is read
+# both ways: untimed a range still REFUSES a binding outside it, and
+# running it stops the coordinate at its bound and blocks the inputs
+# that push it.
+
+
+def summed(sources, target):
+    """A multi-source law with separable contributions: the shape of a
+    coordinate one stopped input and one free one share."""
+    return lambda a, b: 2 * a + 3 * b
+
+
+def gated(sources, target):
+    """The open gate. `crank` reaches the wheel only through a factor
+    that is zero while the gate is open, so it is a CANDIDATE of the
+    wheel's group and not a member of it: a static group would stop the
+    crank, and the contribution test does not."""
+    return lambda p, c, g: p + c * (g > 0.5)
+
+
+def folded(source, target):
+    """A `wrap` of period 90, whose fold falls at 135 -- inside the
+    stretch a crank at 130 covers before its own stop at 145."""
+    return lambda angle: 2 * wrap(angle, 90.0)
+
+
+def curved(source, target):
+    """A law that is NOT affine in its source, so the stop on the
+    coordinate it drives is sampled and bisected rather than solved."""
+    return lambda x: 40 * sin(x)
+
+
+class RatchetBody(AssemblyNode):
+    """The Pascaline module's ratchet, as the framework states it: the
+    lower bound is the LAST SEATED TOOTH, an expression over the joint's
+    own coordinate, and there is no upper bound because forward rotation
+    is free.
+
+    Untimed it poses at any angle, because `36 * floor(v / 36) <= v` for
+    every `v`: the bound is evaluated at the value being bound.
+    """
+
+    arbor = Driver(default=40.0, unit='deg')
+    wheel = Arbor(turn=Revolute(
+        axis=(1, 0, 0), range=(lambda turn: 36 * floor(turn / 36), None),
+        unit='deg'))
+
+    arbor.drives(wheel.turn, ratio=1.0)
+
+
+class Ratchet(RatchetBody):
+    time = Time.running()
+
+
+class ImpossibleBoundBody(AssemblyNode):
+    """A bound no value satisfies: `turn + 1` is above every `turn`, so
+    the declaration forbids every value and says so at the first
+    binding."""
+
+    arbor = Driver(default=40.0, unit='deg')
+    wheel = Arbor(turn=Revolute(axis=(1, 0, 0),
+                                range=(lambda turn: turn + 1, None),
+                                unit='deg'))
+
+    arbor.drives(wheel.turn, ratio=1.0)
+
+
+class OpenLowBody(AssemblyNode):
+    """One open bound: `(0, None)` accepts anything above zero."""
+
+    arbor = Driver(default=10.0, unit='deg')
+    wheel = Arbor(turn=Revolute(axis=(1, 0, 0), range=(0, None), unit='deg'))
+
+    arbor.drives(wheel.turn, ratio=1.0)
+
+
+class SweptBody(AssemblyNode):
+    """The spike's swept stop: a rack that stops at its own limit while
+    an unrelated motor runs its full tick. Two inputs, two groups,
+    nothing shared."""
+
+    steer = Driver(default=45.0, unit='mm')
+    motor = Driver(default=0.0, unit='deg')
+
+    rack = Slide(travel=Prismatic(axis=(1, 0, 0), range=(None, 50.0),
+                                  unit='mm'))
+    wheel = Arbor()
+
+    steer.drives(rack.travel, ratio=1.0)
+    motor.drives(wheel.turn, ratio=3.0)
+
+    instructions = {
+        'Sweep': Instruction(by={'steer': 10.0, 'motor': 9.0}, duration=0.1),
+    }
+
+    def render(self):
+        self.wheel.translate([0.0, -40.0, 0.0])
+
+
+class Swept(SweptBody):
+    time = Time.running()
+
+
+class SweptWideBody(SweptBody):
+    """The same machine with the rack's bound MOVED and nothing else, so
+    a snapshot of one cannot restore into the other."""
+
+    rack = Slide(travel=Prismatic(axis=(1, 0, 0), range=(None, 80.0),
+                                  unit='mm'))
+
+
+class SweptWide(SweptWideBody):
+    time = Time.running()
+
+
+class StepperBody(AssemblyNode):
+    """An INTEGER input: a rate's cumulative travel is truncated toward
+    zero, so a negative rate rounds like a positive one."""
+
+    step = Driver(default=0, dtype=int, unit='step')
+    carriage = Slide()
+
+    step.drives(carriage.travel, ratio=1.0)
+
+
+class Stepper(StepperBody):
+    time = Time.running()
+
+
+class StoppedDifferentialBody(AssemblyNode):
+    """`Differential`'s rigid group with a BOUND on `wrist`.
+
+    Over the whole tick the two inputs agree, so nothing is refused and
+    the stop is located; after it `wrist_in` is stopped while `sum_in`
+    goes on prescribing `left`, and the check edge catches the
+    disagreement. The tick is atomic, so the whole of it commits
+    nothing.
+    """
+
+    wrist_in = Driver(default=0.0, unit='deg')
+    sum_in = Driver(default=0.0, unit='deg')
+
+    wrist = Revolute(axis=(0, 0, 1), range=(None, 5.0), unit='deg')
+    tool = Revolute(axis=(0, 1, 0), unit='deg')
+
+    left = wrist + 2 * tool
+
+    wrist_in.drives(wrist)
+    wrist.drives(tool, ratio=1.0)
+    sum_in.drives(left)
+
+    block = Block()
+
+
+class StoppedDifferential(StoppedDifferentialBody):
+    time = Time.running()
+
+
+class SharedBody(AssemblyNode):
+    """A coordinate two inputs determine, one of which stops: `d.turn`
+    goes on moving on what `b_in` contributes after `a_in` is stopped by
+    `c.turn`'s bound."""
+
+    a_in = Driver(default=8.0, unit='deg')
+    b_in = Driver(default=0.0, unit='deg')
+
+    c = Arbor(turn=Revolute(axis=(0, 0, 1), range=(None, 10.0), unit='deg'))
+    d = Arbor()
+
+    a_in.drives(c.turn, ratio=1.0)
+    (a_in & b_in).drives(d.turn, law=summed)
+
+    def render(self):
+        self.d.translate([30.0, 0.0, 0.0])
+
+
+class Shared(SharedBody):
+    time = Time.running()
+
+
+class TwoStopsBody(AssemblyNode):
+    """Two independent groups reaching two bounds at two fractions of
+    one tick."""
+
+    lever_in = Driver(default=18.0, unit='deg')
+    steer = Driver(default=45.0, unit='mm')
+
+    lever = Arbor(turn=Revolute(axis=(0, 0, 1), range=(None, 20.0),
+                                unit='deg'))
+    rack = Slide(travel=Prismatic(axis=(1, 0, 0), range=(None, 50.0),
+                                  unit='mm'))
+
+    lever_in.drives(lever.turn, ratio=1.0)
+    steer.drives(rack.travel, ratio=1.0)
+
+    def render(self):
+        self.rack.translate([0.0, 40.0, 0.0])
+
+
+class TwoStops(TwoStopsBody):
+    time = Time.running()
+
+
+class OpenGateBody(AssemblyNode):
+    """The group is who PUSHES, not who is wired.
+
+    `crank` reaches `wheel.turn` through the compiled program -- it is a
+    source of the law -- but while the gate stands open its motion
+    changes nothing there, so the wheel's stop does not stop it and the
+    flywheel it also drives runs the full tick. Close the gate and the
+    same tick stops both.
+    """
+
+    push = Driver(default=15.0, unit='deg')
+    crank = Driver(default=0.0, unit='deg')
+    gate = Driver(default=0.0)
+
+    wheel = Arbor(turn=Revolute(axis=(0, 0, 1), range=(None, 20.0),
+                                unit='deg'))
+    flywheel = Arbor()
+
+    (push & crank & gate).drives(wheel.turn, law=gated)
+    crank.drives(flywheel.turn, ratio=1.0)
+
+    def render(self):
+        self.flywheel.translate([30.0, 0.0, 0.0])
+
+
+class OpenGate(OpenGateBody):
+    time = Time.running()
+
+
+class StopAndJumpBody(AssemblyNode):
+    """A stop and a jump crossing in one tick: the crank's own stop at
+    `145` falls after the `wrap` fold at `135`, so the crossing is
+    located inside segment A and recorded at its fraction OF THE TICK."""
+
+    crank = Driver(default=130.0, unit='deg')
+
+    first = Arbor(turn=Revolute(axis=(0, 0, 1), range=(None, 145.0),
+                                unit='deg'))
+    folder = Arbor()
+
+    crank.drives(first.turn, ratio=1.0)
+    crank.drives(folder.turn, law=folded)
+
+    def render(self):
+        self.folder.translate([30.0, 0.0, 0.0])
+
+
+class StopAndJump(StopAndJumpBody):
+    time = Time.running()
+
+
+class CurvedBody(AssemblyNode):
+    """A bound reached through a law that is not affine in its source:
+    `40 * sin(x)` reaches `20` at `x == 30`, and the run has to SEARCH
+    for that fraction rather than solve for it."""
+
+    crank = Driver(default=0.0, unit='deg')
+    dial = Arbor(turn=Revolute(axis=(0, 0, 1), range=(None, 20.0),
+                               unit='deg'))
+
+    crank.drives(dial.turn, law=curved)
+
+
+class Curved(CurvedBody):
+    time = Time.running()
+
+
+# Design.md section 10: a bound naming a SECOND coordinate is deferred.
+# The spike's ratchet fixture carries a `lift` that releases the pawl,
+# and the shape the general form would take is
+#
+#     class InputArbor(AssemblyNode):
+#         lift = Revolute(axis=(0, 1, 0), unit='deg')
+#         turn = Revolute(
+#             axis=(1, 0, 0),
+#             range=(Bound(lambda turn, lift: -inf if lift > 1 else
+#                          36 * floor(turn / 36), reads=('turn', 'lift')),
+#                    None))
+#
+# resolved against the declarer's subtree at `Sim` construction, where
+# the ids exist. There is no `Bound` in this cycle and a one-argument
+# callable keeps meaning what it means here; the deferral is pinned by a
+# skipped test in `tests/test_running_stops.py` rather than only by this
+# comment.

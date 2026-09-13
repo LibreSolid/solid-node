@@ -324,9 +324,9 @@ scenario tests.
 .. autoclass:: solid_node.simulation.RampProgram
 
 .. autoclass:: solid_node.simulation.Sim
-   :members: at, every, trigger, run, state, time, trajectory, running,
-             move, rate, commands, snapshot, restore, reset, initial,
-             program, cadence_costs, assertion_stats
+   :members: at, every, trigger, run, state, time, trajectory, crossings,
+             stops, running, move, rate, commands, snapshot, restore,
+             reset, initial, program, cadence_costs, assertion_stats
 
 Running simulation
 ------------------
@@ -355,6 +355,8 @@ imported only when such a simulation is constructed.
 .. autoclass:: solid_node.simulation.program.JumpPlan
 
 .. autoclass:: solid_node.simulation.Crossing
+
+.. autoclass:: solid_node.simulation.Stop
 
 .. autoexception:: solid_node.simulation.UnsupportedLaw
 

@@ -508,7 +508,11 @@ in a CLASS BODY is the body's own statement about itself, so `axis` and
 `at` are read in that body's OWN REST FRAME — the frame its own
 `render()` states its geometry in, one rest placement away from the
 parent's, and the frame MuJoCo's `<joint pos>` reads too — with an
-optional `(lo, hi)` `range` and a `unit`; an `Orbit` states one further
+optional `(lo, hi)` `range` and a `unit`; either bound of that pair may
+be `None` for unbounded on that side, or a CALLABLE of one argument
+stating the bound as an expression over the joint's own coordinate
+(ADR-109), applied where the bound is used rather than resolved to a
+number at realization; an `Orbit` states one further
 own-frame point, `carries`; a `Free` states only `at`, with an
 `angle_unit` and a `length_unit`, and takes no axis and no range. `at`
 defaults to `(0, 0, 0)`, the body's own origin, so a joint whose line
@@ -626,7 +630,9 @@ appends outside a phase and a carried line must stay innermost);
 under a `simulate()` phase they are tagged and swept like any motion.
 A rest placement that is not numeric is refused by name rather than
 placing the body about a wrong line, and a numeric binding outside the
-declared range raises `JointRangeError`.
+declared range raises `JointRangeError` — a callable bound being
+evaluated AT THE VALUE BEING BOUND, so a bound no value satisfies forbids
+every value and says so by name at the first binding.
 
 Several joints on one body — a disk that spins on its own centre while an
 orbit carries it round another line, say — compose in **declaration
@@ -825,7 +831,7 @@ cadence budgets assertion cost. `ScenarioTest` composes over the CAD
 `TestCase`: one class runs unchanged under pytest and the `solid
 test` runner, building STLs only when `meshes = True`.
 
-**The running mode** (ADR-105, ADR-106, ADR-107) is a second branch of the same
+**The running mode** (ADR-105 to ADR-109) is a second branch of the same
 `Sim`, taken when `declared_time(type(node)).mode` is `'running'`, whose
 two modules — `simulation/program.py` (the compile step) and
 `simulation/run.py` (the engine, the commands, the snapshot) — are
@@ -871,15 +877,44 @@ or meeting a `%` whose divisor is zero, refuses the tick and commits
 nothing, exactly as a conflict does; `record=N` keeps a second bounded
 ring of the crossings located inside a tick.
 
-A TICK is increments only until it commits: every input's increment is
-what its active command admits, increments propagate over the program —
-forward through a law as `f(end) − f(start)` over the sources' start and
-end values, backward through an invertible one, identity through a
-wiring, linear through a formula — a coordinate no edge determines holds,
-and a disagreement beyond `1e-9·max(1, |a|, |b|)`, or a coordinate
-leaving a declared range, refuses the tick with nothing committed and
-retires the commands that moved an input in it as `refused`. On success
-the bank advances and is bound with `set_state` at `k*dt`.
+The compile step also carries the SPAN TABLE and the CANDIDATE table.
+Every banked coordinate's declared range is resolved once, each bound a
+number, `None`, or — where the declaration states it as a callable of the
+joint's own coordinate — an expression graph compiled exactly as a law
+is, with jumps admitted because a bound is evaluated at one point per
+tick and never integrated (ADR-109). The spans enter `Program.described()`
+and therefore the identity a snapshot is checked against. `Program.sources`
+is the inputs reaching each node key, one pass over the already ordered
+edges, a `check` edge contributing nothing; `Edge.affine` is the
+per-driven-end classification that decides whether a stop on that end is
+solved or searched.
+
+A TICK is increments only until it commits, and it is integrated in
+SEGMENTS (ADR-108): every input's increment is what its active command
+admits, increments propagate over the program — forward through a law as
+`f(end) − f(start)` over the sources' start and end values, backward
+through an invertible one, identity through a wiring, linear through a
+formula — and a coordinate no edge determines holds. A disagreement
+beyond `1e-9·max(1, |a|, |b|)` refuses the tick with nothing committed
+and retires the commands that moved an input in it as `refused`. A
+coordinate that ends the stretch OUTSIDE a declared bound and further
+outside than it began it does not refuse anything: its bound is a
+PHYSICAL STOP. The fraction `t*` at which it reaches the bound is located
+— solved from the full-tick increment where its determiner is affine,
+solved piece by piece over its own jump partition where it has one,
+sampled over 64 sub-intervals and bisected otherwise, on the same three
+tolerances a jump crossing uses — the stretch is re-integrated over
+`[0, t*]`, the coordinate is committed AT its bound exactly, and every
+input whose own movement pushes it (a candidate of `Program.sources`
+whose admission alone gives it a nonzero increment) is stopped for the
+rest of the tick, its commands retired `blocked` with the travel they
+actually admitted. The remainder is examined again, the earliest `t*`
+always taken first and stops within the crossing tolerance of each other
+taken as one event; the bank, the admitted travel and the three records
+are staged across the segments, so a failure in any of them commits
+nothing. On success the bank advances and is bound with `set_state` at
+`k*dt`, and `record=N` keeps a third bounded ring, `sim.stops`, of the
+stops located inside a tick.
 
 The RUN IS A BINDER the solver recognizes rather than a second kind of
 state (`motion/ports.py::RunBinder`, recognized in `couplings`): the
@@ -903,7 +938,11 @@ Requests replace bindings: `move(input, by=|to=, duration=)`,
 rule, only a declared driver being movable and one owner at a time, each
 returning a handle reporting `active`/`completed`/`blocked`/`refused`/
 `cancelled` and the travel admitted in design units, retired from
-`sim.commands` the tick it completes. `Instruction(by=...)` is the
+`sim.commands` the tick it completes, blocks or is refused. A reverse
+request — a negative `by`, a `to` below the committed value, a negative
+rate — is ordinary and meets a stop exactly as a forward one does. A
+blocked command never resumes: nothing remembers the travel it did not
+make, and the caller issues a new one. `Instruction(by=...)` is the
 relative form, ramping relatively under every base and becoming a
 relative move under a running one; the serializer omits a relative
 instruction from the document's table until the compiled program is
@@ -911,20 +950,24 @@ published. `snapshot`/`restore`/`reset` act on the bank and refuse a
 snapshot whose program identity or `dt` differs before touching live
 state; recording is explicit and bounded.
 
-Known stage boundaries (ADR-056 stage 3c+ territory): `range` is
-declarative metadata, not a clamp; `Driver.scale` and `Port.scale`
+Known stage boundaries (ADR-056 stage 3c+ territory): a `Driver`'s own
+`range` is declarative metadata, not a clamp, and stays one under every
+time base — a joint's range is what became a stop; `Driver.scale` and `Port.scale`
 remain two declarations; a driver on a list-held child is forbidden
 rather than sanitized; the viewer's `trigger` runs one instruction's
 ramps and nothing sequences them — programs and G-code are a later
 layer, and determinism belongs to `Sim`, not to the client animation.
-Under the running mode: a range fails the tick rather than stopping the
-group it is connected to, a reverse move is refused, the compiled program
-is not published, a crossing reached exactly at a tick's own boundary is
-integrated correctly but not recorded, and the evaluator is
-`GraphValue.evaluate` per edge per tick — measured at 1.07 ms/tick on the
-same machine against the untimed loop's 0.34 ms, a jump-carrying law
-costing 1.3x its continuous twin on a non-crossing tick and 1.8x on a
-crossing one, with memory flat.
+Under the running mode: the compiled program is not published, a crossing
+reached exactly at a tick's own boundary is integrated correctly but not
+recorded, a coordinate that leaves its range and returns within one tick
+is not stopped (impossible for an affine determiner; a smaller `dt`
+otherwise), a range bound may not name a second coordinate, and the
+evaluator is `GraphValue.evaluate` per edge per tick — measured at
+1.05 ms/tick on the same machine against the untimed loop's 0.33 ms, a
+jump-carrying law costing 1.3x its continuous twin on a non-crossing tick
+and 1.8x on a crossing one, a blocking tick costing its own localization
+plus one propagation pass per segment and one per pushing candidate, with
+memory flat.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 

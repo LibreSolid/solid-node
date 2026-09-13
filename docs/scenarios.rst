@@ -290,6 +290,88 @@ crossing bisected; a level quantity that turns twice inside one
 sub-interval is outside that guarantee, and the answer to it is a smaller
 ``dt``.
 
+A range is a physical stop
+--------------------------
+
+Under a running root a joint's declared ``range`` is a MECHANICAL LIMIT,
+not a refusal of the tick. When a tick would take a banked coordinate
+outside a bound — and further outside than it stood at the start — the
+run locates the fraction ``t*`` of the tick at which it reaches that
+bound, commits it there EXACTLY, and the tick commits like any other.
+Both bounds stay inclusive, so a move landing exactly on one is no stop
+at all.
+
+What stops with it is the CONNECTED GROUP: every input whose own
+movement over that stretch pushes the stopped coordinate, and everything
+those inputs alone determine. An input that does not reach it, or reaches
+it only through a law that is currently disengaged — an open clutch, a
+carry outside its window — runs its full tick, and a coordinate
+determined by both a stopped input and a free one goes on moving on what
+the free one contributes. The tick becomes two segments, ``[0, t*]`` and
+``[t*, 1]``, each integrated by exactly the procedure above; the second
+is examined for a further stop, and the earliest ``t*`` is always taken
+first. The tick stays atomic: a conflict or an unintegrable law in any
+segment commits nothing.
+
+A command whose input is stopped is retired reporting ``blocked``, with
+the travel it ACTUALLY admitted — fractional within the tick, in design
+units. A blocked command NEVER resumes: nothing remembers the travel it
+did not make, and a later tick does not continue it. The caller issues a
+new command, which may move away from the stop or push into it again and
+be blocked at once with ``0`` admitted. A ``rate`` on a stopped input is
+retired ``blocked`` too. Where one instruction names several inputs, each
+handle reports for itself: the free one is not held back.
+
+.. code-block:: python
+
+    rack = Slide(travel=Prismatic(axis=(1, 0, 0), range=(None, 50.0),
+                                  unit='mm'))
+
+    steer.drives(rack.travel, ratio=1.0)
+    motor.drives(wheel.turn, ratio=3.0)
+
+With the rack at ``45`` and the motor running, ``move('steer', by=10,
+duration=0.1)`` at ``dt = 0.1`` leaves the rack at exactly ``50``, the
+steering handle ``blocked`` with ``5.0`` of ``10`` admitted, and the
+wheel with its full 27 degrees for that tick.
+
+Either bound may be ``None``, meaning unbounded on that side, or a
+CALLABLE of one argument stating the bound as an expression over the
+joint's OWN coordinate. That is a ratchet:
+
+.. code-block:: python
+
+    turn = Revolute(axis=(1, 0, 0),
+                    range=(lambda turn: 36 * floor(turn / 36), None))
+
+The lower bound is the last seated tooth and there is no upper bound,
+because forward rotation is free. Under a running root the expression is
+compiled once, like a law, and evaluated ONCE PER TICK from the committed
+bank, so within a tick the bound is a number and the self-reference is
+well defined; a jump in it is evaluated rather than integrated, which is
+what makes the tooth pitch a tooth pitch. Untimed and looping it is
+evaluated at THE VALUE BEING BOUND, exactly as a number bound is compared
+against it, so the same declaration poses and runs. A bound that is not
+satisfied at its own argument forbids every value, and the first binding
+says so by name.
+
+From ``40``, a reverse of ``-10`` blocks at exactly ``36`` having
+admitted ``-4``; a further reverse blocks at once with ``0``; ``+4`` is
+free; and the reverse after that blocks at ``36`` again. That is
+retention, and it admits the same travel whether the move is taken in one
+tick, four or forty. ``t*`` is EXACT wherever every edge between the
+pushing inputs and the stopped coordinate is affine — every ratio, every
+wiring, every linear formula; for a nonlinear upstream edge the stopped
+coordinate is still committed at its bound exactly, while the group's
+other coordinates are stopped at a ``t*`` located on the linearized path.
+
+A ``Driver``'s own declared ``range`` is untouched by all of this: it is
+presentation metadata, and nothing clamps to it, because a machine driven
+past its declared travel is a crash a simulation must be able to SHOW. A
+stop is a joint's, not a driver's. Untimed and looping documents are
+unchanged too: there a range REFUSES a binding outside it, and never
+clamps or stops.
+
 Snapshot, restore, reset, record
 --------------------------------
 
@@ -308,9 +390,18 @@ it happens.
 each naming the tick, the relation as written, the driven coordinate, the
 primitive that jumped, the surface it reached and the fraction of the
 tick at which it did. ``record=None`` keeps none and builds none, and
-restore and reset clear both rings. A surface reached exactly at a tick's
+restore and reset clear every ring. A surface reached exactly at a tick's
 own boundary is not inside any tick, so it is integrated — correctly, and
-contributing nothing — without appearing in the record.
+contributing nothing — without appearing in the record. Where a stop cut
+the tick into segments, each crossing is still recorded at its fraction
+OF THE TICK, whichever segment located it.
+
+``record=N`` keeps a THIRD ring, read through ``sim.stops``: the most
+recent ``N`` stops, each naming the tick, the coordinate that stopped,
+which bound it reached and that bound's evaluated value, the fraction of
+the tick at which it was reached, and the inputs the stop blocked. A stop
+is appended only when the tick commits, and ``record=None`` keeps none
+and builds none.
 
 What this release refuses
 -------------------------
@@ -326,12 +417,17 @@ Each of these is refused by name, and each is a later cycle's to lift:
   unconditionally — that is a law written imperatively, and it belongs in
   a relation. The rest-default idiom, binding under ``if ... is None``,
   keeps working: it binds once, at the rest render;
-* a **reverse** move — a negative ``by``, a ``to`` below where the input
-  stands, a negative rate — because reverse travel meets no stop until a
-  joint range becomes a physical one;
-* a joint coordinate leaving its declared **range**, which fails the tick
-  rather than stopping the group it is connected to.
+* a range bound naming a SECOND coordinate. A bound is an expression over
+  the joint's own coordinate; a pawl lift releasing a ratchet needs a
+  declaration that says what it reads, and that is a later cycle's.
 
 A tick that refuses commits nothing: the bank, the tick count and the
 posed tree stand as they were, and the commands that moved an input in
 it are retired reporting ``refused``.
+
+One limit is stated rather than refused: a coordinate that leaves its
+range and RETURNS within one tick is not stopped, because the detection
+compares the tick's committed value. It cannot happen where the
+determiner is affine along the path — the common case, and every case in
+practice — and anywhere else the answer is a smaller ``dt``, as it is for
+a jump surface crossed twice inside one sub-interval.

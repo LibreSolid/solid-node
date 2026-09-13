@@ -8,6 +8,44 @@ Changelog
 Unreleased
 ----------
 
+**A joint's range is a physical stop, located inside the tick.** Under a
+running root a declared ``range`` is now the mechanical limit it states
+rather than a refusal of the tick: when a tick would take a banked
+coordinate outside a bound, and further outside than it stood at the
+start, the run locates the fraction of the tick at which it reaches that
+bound, commits it there exactly, and the tick commits. What stops with it
+is the connected group — every input whose own movement pushes the
+stopped coordinate, and everything those inputs alone determine. An
+unrelated input runs its full tick, and so does one coupled to the
+stopped coordinate only through a law that is currently disengaged: an
+open clutch does not stop its crank. A coordinate determined by both a
+stopped input and a free one goes on moving on what the free one
+contributes. The tick becomes segments, each integrated by exactly the
+procedure above, and stays atomic across them: a conflict or an
+unintegrable law in any segment commits nothing. Both bounds stay
+inclusive, so a move landing exactly on one is no stop at all.
+
+A command whose input is stopped is retired reporting ``blocked``, with
+the travel it actually admitted — fractional within the tick, in design
+units — and it never resumes: nothing remembers the travel it did not
+make. A ``rate`` on a stopped input is retired ``blocked`` too, and a new
+command on that input is accepted at once. **Reverse moves and reverse
+rates are admitted**, meeting a stop exactly as forward ones do; a rate's
+cumulative travel on an integer input is now truncated toward zero, so
+the two directions round alike.
+
+**A range bound may be an expression over the joint's own coordinate**,
+written as a callable of one argument inside the ``(lo, hi)`` pair, and
+either bound may be ``None`` for unbounded on that side.
+``range=(lambda turn: 36 * floor(turn / 36), None)`` is a ten-tooth
+ratchet whose lower bound is the last seated tooth. Under a running root
+it is compiled once, like a law, and evaluated at the start of every tick
+from the committed bank; everywhere else it is evaluated at the value
+being bound, so one declaration poses and runs. A jump in a bound is
+evaluated, never integrated. ``record=N`` keeps a third bounded ring,
+read through ``sim.stops``, of the most recent ``N`` stops; a crossing
+located inside a segment is still recorded at its fraction of the TICK.
+
 **A jump is located inside the tick and subtracted.** A running law may
 now contain ``floor``, ``ceil``, ``sign``, ``%`` or a comparison — the
 periodic and gated shapes a real mechanism is written in. Over one tick

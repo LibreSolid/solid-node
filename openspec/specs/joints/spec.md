@@ -337,7 +337,15 @@ declaration's arguments are; `axis`, `at`, `carries` or `range` as a
 whole MAY instead be a callable of ONE argument, which the framework
 SHALL call with the realized DECLARER — the node itself for a
 class-declared joint, the declaring parent for a site-declared one — and
-which SHALL return the components as plain numbers. A site-declared
+which SHALL return the components as plain numbers. EITHER BOUND of a
+`range` pair MAY instead be `None`, meaning unbounded on that side, or
+a CALLABLE of one argument, which states the bound as an expression
+over the joint's OWN COORDINATE and which the framework SHALL NOT
+resolve to a number at realization — it is applied where the bound is
+used, under the requirement "A declared range refuses a binding outside
+it". A callable given as the whole `range` and a callable given as one
+of its bounds SHALL be told apart by POSITION and SHALL keep their
+separate meanings. A site-declared
 joint's callable SHALL be able to read the declaring parent's resolved
 parameters and flags and anything that parent's own `__init__` has set,
 and SHALL NOT be able to read the child's placement, which does not exist
@@ -366,7 +374,9 @@ An argument that cannot resolve SHALL fail at realization, naming the
 class, the joint and the argument: a token that is not a declared
 parameter of the class, an `axis`, `at` or `carries` that is not three
 numbers, an `axis` of zero length, or a `range` that is not a `(lo, hi)`
-pair with `lo <= hi`.
+pair whose bounds are each a number, `None` or a callable — the
+`lo <= hi` ordering being required where both resolve to numbers at
+realization and checked where each bound is evaluated otherwise.
 
 #### Scenario: A joint sized by a parameter
 
@@ -399,6 +409,15 @@ pair with `lo <= hi`.
 - **WHEN** two instances of one class differ only in the resolved value
   of a joint anchor
 - **THEN** they share one build identity and one set of artifacts
+
+#### Scenario: An expression bound is carried through realization
+
+- **WHEN** a class declares
+  `turn = Revolute(axis=(1, 0, 0), range=(lambda turn: 36 * floor(turn / 36), None))`
+  and the instance is realized
+- **THEN** realization succeeds, the joint's resolved range carries the
+  callable and the open bound as declared, and no number was computed
+  for either
 
 #### Scenario: A defaulted carried point resolves at realization
 
@@ -433,10 +452,24 @@ under a root, and otherwise by its name and class, because a node bound
 before any walker linked it has no path to name. A binding that is not a plain
 number — a symbolic expression, a driver token — SHALL NOT be checked at
 bind time, because its value is not known there; a joint with no
-declared range SHALL accept any binding. A `Driver` bound to a joint
+declared range, and a bound stated as `None`, SHALL accept any binding
+on that side. A `Driver` bound to a joint
 SHALL keep its own declared range, which is presentation metadata and
 never a clamp, and the joint's range SHALL apply to the value that
 reaches the joint.
+
+A bound stated as a CALLABLE SHALL be applied, at the moment of
+binding, to THE VALUE BEING BOUND, and the binding refused when that
+value lies outside the pair so evaluated — the refusal naming the
+evaluated bound as well as the joint, the value, the unit and the node,
+and refusing likewise when the evaluated pair is reversed or is not a
+number. A bound that is not satisfied at its own argument therefore
+forbids every value and says so by name at the first binding. Under a
+RUNNING root the same declaration is additionally a physical stop,
+evaluated once per tick from the committed state, under the simulation
+requirement "A declared range is a physical stop located inside the
+tick"; under every other root a range refuses a binding and never
+clamps or stops.
 
 #### Scenario: An out-of-range angle is refused by name
 
@@ -457,6 +490,30 @@ reaches the joint.
 
 - **WHEN** the same joint is bound to `-135` and then to `135`
 - **THEN** both bindings succeed, the bounds being inclusive
+
+
+#### Scenario: An open bound accepts anything on its side
+
+- **WHEN** a joint declares `range=(0, None)` and is bound to `10000`,
+  and then to `-1`
+- **THEN** the first binding succeeds and the second is refused naming
+  the joint, `-1` and the lower bound
+
+#### Scenario: A self-referential bound is evaluated at the value being bound
+
+- **WHEN** a joint declaring
+  `range=(lambda turn: 36 * floor(turn / 36), None)` is bound to `40`,
+  and then to `36`, and then to `0`
+- **THEN** every binding succeeds, because the lower bound evaluates to
+  `36`, `36` and `0` respectively, and the body carries the motion of
+  each
+
+#### Scenario: A bound no value can satisfy is refused by name
+
+- **WHEN** a joint declaring `range=(lambda turn: turn + 1, None)` is
+  bound to any number
+- **THEN** the binding is refused naming the joint, the value and the
+  evaluated bound
 
 ### Requirement: A joint takes part in a relation
 

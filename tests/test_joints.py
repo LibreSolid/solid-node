@@ -31,6 +31,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from solid2 import cube
 
+from solid_node.math import floor
 from solid_node.motion.joints import (Free, Joint, JointRangeError, Orbit,
                                       Prismatic, Revolute,
                                       declared_joints)
@@ -3250,6 +3251,111 @@ class RangeTest(BaseNodeTest):
         free.spin = 10_000
 
         self.assertEqual(free.spin.value, 10_000)
+
+    ##############################################
+    # An OPEN bound and an EXPRESSION bound (OpenSpec `ranges-are-stops`).
+    #
+    # Either bound of the pair may be `None`, meaning unbounded on that
+    # side, or a CALLABLE of one argument stating the bound as an
+    # expression over the joint's OWN coordinate. Untimed the callable is
+    # applied to THE VALUE BEING BOUND, which is the same meaning a
+    # number bound has with the bound computed from that value.
+
+    def test_an_open_bound_accepts_anything_on_its_side(self):
+        class HalfOpen(Solid2Node):
+            spin = Revolute(axis=(0, 0, 1), range=(0, None), unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        node = HalfOpen()
+        node.spin = 10_000
+        self.assertEqual(node.spin.value, 10_000)
+
+        with self.assertRaises(JointRangeError) as raised:
+            HalfOpen().spin = -1
+        message = str(raised.exception)
+        for expected in ('spin', '-1', '0'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
+
+    def test_an_expression_bound_is_carried_through_realization(self):
+        class Ratchet(Solid2Node):
+            turn = Revolute(axis=(1, 0, 0),
+                            range=(lambda turn: 36 * floor(turn / 36), None),
+                            unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        node = Ratchet()
+        low, high = declared_joints(Ratchet)['turn'].arguments(node)[2]
+        self.assertTrue(callable(low))
+        self.assertIsNone(high)
+
+    def test_a_self_referential_bound_is_evaluated_at_the_value(self):
+        class Ratchet(Solid2Node):
+            turn = Revolute(axis=(1, 0, 0),
+                            range=(lambda turn: 36 * floor(turn / 36), None),
+                            unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        for value in (40, 36, 0, -720, 359):
+            with self.subTest(value=value):
+                node = Ratchet()
+                node.turn = value
+                self.assertEqual(node.turn.value, value)
+                self.assertEqual(len(motions(node)), 1)
+
+    def test_a_bound_no_value_can_satisfy_is_refused_by_name(self):
+        class Impossible(Solid2Node):
+            turn = Revolute(axis=(1, 0, 0), range=(lambda turn: turn + 1, None),
+                            unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        for value in (0, 40, -5):
+            with self.subTest(value=value):
+                node = Impossible()
+                with self.assertRaises(JointRangeError) as raised:
+                    node.turn = value
+                message = str(raised.exception)
+                for expected in ('turn', str(value), str(value + 1)):
+                    with self.subTest(expected=expected):
+                        self.assertIn(expected, message)
+                self.assertIsNone(node.turn.value)
+
+    def test_a_bound_evaluating_to_something_else_is_refused_by_name(self):
+        class Wrong(Solid2Node):
+            turn = Revolute(axis=(1, 0, 0), range=(None, lambda turn: 'far'),
+                            unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        with self.assertRaises(JointRangeError) as raised:
+            Wrong().turn = 10
+        message = str(raised.exception)
+        self.assertIn('turn', message)
+        self.assertIn('far', message)
+
+    def test_a_reversed_evaluated_pair_is_refused_by_name(self):
+        class Backwards(Solid2Node):
+            turn = Revolute(axis=(1, 0, 0),
+                            range=(lambda turn: 10.0, 5.0), unit='deg')
+
+            def render(self):
+                return cube(1, center=True)
+
+        with self.assertRaises(JointRangeError) as raised:
+            Backwards().turn = 7
+        message = str(raised.exception)
+        self.assertIn('turn', message)
+        self.assertIn('10', message)
+        self.assertIn('5', message)
 
 
 ##############################################
