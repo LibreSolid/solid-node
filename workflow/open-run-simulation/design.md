@@ -10,17 +10,18 @@ this experiment. Initial framework HEAD: `518bed114c94697a58d95e85ad2831c8fcd9f3
 The mechanical-law, browser-interface and current-planning sections record the
 pilot's subsequent acceptance of action-based controls and ratification of the
 input/instruction/control relationship, build-time `running(r)` law extension
-and Curta acceptance scope. On 2026-09-13 the pilot selected the completed
-Pascaline as first validator, following the assessment's finite-time kinematic
-fall recommendation, and preserved Curta as second. Those scoped decisions do not
+and Curta acceptance scope. On 2026-09-13 the pilot first selected the restored
+historical Pascaline, then revised the sequence to the Pascaline module first,
+the full historical Pascaline second, and Curta third. The module is the
+feature-development scope; the other two are later stress tests. Those scoped decisions do not
 ratify this entire architecture, change a baseline spec, establish mechanical
 acceptance evidence, or authorize production implementation.
 
-The subsequent Pascaline readiness checkpoint is recorded in the
-[active roadmap](roadmap.md): the sampled frozen-input fall passes, but a
-narrow pawl-return collision in the unchanged production motion law keeps
-the readiness gate open. This is project evidence to resolve before production
-proposals, not a change to the proposed framework architecture or solver class.
+The historical Pascaline readiness checkpoint is preserved in the
+[previous roadmap](pascaline-roadmap-2026-09-13.md): the sampled frozen-input
+fall passes, but a narrow pawl-return collision in the unchanged production
+motion law keeps that project's readiness gate open. It belongs to the second
+validation stage and does not gate the module's first feature increment.
 The authorized bounded correction investigation subsequently found a sampled
 delayed-return candidate on unchanged parts. It leaves the pawl pin-supported
 after one independent input step and needs retained contact state. The pilot
@@ -597,7 +598,53 @@ program/export contract and preserve the originating Curta mechanical evidence.
 Neither this recommendation nor the successful experiments ratify a new API,
 supersede accepted ADRs, or authorize implementation outside this folder.
 
-## Current planning direction: Pascaline first, Curta second
+## Current planning direction: module first, historical Pascaline second, Curta third
+
+Pilot direction, 2026-09-13: use `projects/Calculators/Pascaline-module/` as
+the first scope to develop and validate the running feature. Follow with the
+full historical Pascaline in `projects/Vibecoded-demos/pascaline/`, then
+`projects/Calculators/Curta-Type-I-3x/`, both for stress-testing. The
+[active roadmap](roadmap.md) owns the sequence, checkpoints and gates.
+
+The first project is José Campos's modern modular calculator, distinct from
+the historical reconstruction. Its existing plan already calls for three
+alternating decimal columns. Begin with one fitted module, then one carry
+pair, then three columns and two carries. The module's project-owned
+`docs/open-run-acceptance.md` records repeated physical input, retained wheel
+positions, single/chained carry, re-engagement, pause/replay and the real
+framework-to-browser acceptance path. The framework compiles its declared
+laws into one program for Python and the viewer worker; arithmetic never
+supplies poses or carry state.
+
+The module checkpoint `36e72e7` has a single-module build and a sampled,
+validated flexible ratchet blade. Gear phase/axial-stack fit, inter-column
+carry and complete assembly remain unfinished. Its existing project change
+owns that work; this selection does not declare those checks passed. Close
+the module's bounded mechanical contract and reconcile its assembly/migration
+plan with the first framework/viewer production proposals.
+
+The module is intended to be sufficient for the first feature increment.
+The full historical Pascaline later exercises timed released fall, retained
+pawl contact, mixed bases and eight-position cascades. Curta follows with its
+ratified slice, cross-revolution detent/reset behavior and full-machine scale.
+Their readiness and fit obligations remain with those projects and do not
+gate module acceptance or release. The accepted generic authoring and control
+directions remain intact; new stress-test findings become scoped follow-up
+work when supported by evidence.
+
+This is a planning update. Complete production ratification and the pilot's
+previously requested feature-start go-ahead remain ahead. Framework 0.7/0.8
+placement is undecided. No new architecture, baseline, implementation or
+mechanical evidence is claimed by the resequencing.
+
+## Earlier historical-Pascaline-first planning, preserved for context
+
+Historical direction from earlier on 2026-09-13, superseded in priority and
+first-increment dependencies by the section above. Its finite-time fall and
+retained-contact decisions remain historical-Pascaline commitments for stage
+two. The [preserved roadmap](pascaline-roadmap-2026-09-13.md) retains its full
+evidence and planning record. First-project wording below describes the
+earlier plan, not the current feature gate.
 
 Pilot direction, 2026-09-13: rebase Pascaline's `open-run-simulation` worktree
 onto its completed restoration, commit the planning records and follow the
@@ -740,7 +787,7 @@ has changed. See Curta's
 
 Historical recommendation, superseded on release timing and first-project
 ordering by the current planning direction above. Its Curta-subassembly scope
-and evidence requirements inform the preserved second-project roadmap.
+and evidence requirements inform the preserved Curta roadmap, now third.
 
 Pilot direction recorded 2026-09-12: take up this work immediately after the
 solid-node 0.7 release. It is a post-release priority, not additional scope or

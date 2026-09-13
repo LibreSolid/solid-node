@@ -1,11 +1,13 @@
 # Preserved Curta-first roadmap — 13 September 2026
 
 Status: historical planning snapshot, retained when the pilot selected
-Pascaline as the first validator on 2026-09-13. The original roadmap below is
+the historical Pascaline as the first validator on 2026-09-13. The pilot has
+since selected the Pascaline module first, the full historical Pascaline
+second, and Curta third; the latter two are stress tests. The original roadmap below is
 preserved verbatim. Its first-project ordering and instructions to resume
 Curta are superseded by [the active roadmap](roadmap.md); its Curta scope,
 evidence, decisions and later whole-machine sequence remain the record for
-the second validation project. Nothing in this snapshot resumes paused work.
+the third validation project. Nothing in this snapshot resumes paused work.
 
 The latest mechanical checkpoint is Curta
 `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9`, documented in that project's

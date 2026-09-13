@@ -1,130 +1,74 @@
-# Open-run simulation: Pascaline first, Curta second
+# Open-run simulation: Pascaline module, historical Pascaline, Curta
 
 Status: pilot-directed validation sequence and pre-spec planning checkpoint,
-2026-09-13. Pascaline is the first validation project; Curta is preserved as
-the second. The pilot approved the preceding assessment and requested the
-Pascaline rebase, roadmap hygiene and committed handoff. This records that
-direction and its recommended finite-time kinematic fall; it does not claim
-mechanical readiness or ratification of complete production OpenSpec cycles.
-Framework release target remains **0.7 or 0.8, undecided**.
+updated 2026-09-13. The pilot selected `Calculators/Pascaline-module` as the
+first scope, sufficient to develop and validate the running feature. The full
+historical Pascaline follows second, then Curta third; both are stress tests.
+Their remaining restoration and migration work does not gate the first
+feature increment. Framework release target remains **0.7 or 0.8, undecided**.
 
-Readiness update, 2026-09-13: Pascaline's sampled frozen-input fall passes
-on exact solids in both presets. A targeted independent-receiver check finds
-a narrow pawl-return collision in the original production motion law, also
-in both receiving bases. The gate is not passed; see the project checkpoint
-and bounded next action below. No production implementation has started.
+This changes project priority and the first acceptance scope. It does not
+claim that the module's assembly or mechanics are already validated. Complete
+production proposals and the pilot's previously requested feature-start
+go-ahead remain ahead; no compiler, runtime, viewer or model implementation
+is introduced by this planning update.
 
-The pilot then authorized a bounded correction investigation. It finds a
-sampled delayed-return path on unchanged parts, with the pawl still supported
-by a receiving pin at the end of one input step. The pilot subsequently
-approved carrying that retained-contact direction into the running proposal
-on unchanged parts. A project-owned draft now records it; no production fix
-is implemented and the original-control collision and readiness gate remain open.
+## Why this is the first scope
 
-The existing action-panel direction, input/instruction/control relationship
-and build-time `running(r)` law extension remain recorded in
-[design.md](design.md). The [Curta spike evidence](evidence/report.md) remains
-part of the generic runtime's evidence and conformance corpus. The complete
-[previous Curta-first roadmap](curta-roadmap-2026-09-13.md) is preserved with
-its original wording and an explicit historical-status notice.
+The original José Campos modular calculator in
+`projects/Calculators/Pascaline-module/` already has a source-backed single
+decimal module, an authorized flexible ratchet stop and a planned three-column
+alternating carry train. One module, one carry pair, then three columns give
+a bounded path through physical input, transmission, intermittent engagement,
+retention and chained carry. The aim is to build the generic feature against
+this machine and then stress it with the larger mechanisms.
 
-The pilot's separate request to be consulted when ready to start actual
-solid-node feature development still applies. This preparation introduces no
-compiler, runtime, viewer or mechanical-model implementation.
+The historical Pascaline adds an eight-position mixed-base reconstruction,
+timed sautoir fall and retained pawl contact. Its unresolved return and
+subsequent-engagement questions belong to its second-stage migration.
+Curta adds selectable engagement, cross-revolution detent/reset behavior,
+source-fit obligations and scale at the third stage. Keep those findings and
+approved fidelity choices, without requiring their completion for the module.
 
-## Why the order changed
+The [design](design.md) retains the accepted action controls,
+input/instruction/control relationship and build-time `running(r)` law
+extension. The [Curta spike evidence](evidence/report.md) remains generic
+runtime evidence and a conformance corpus. Earlier plans are preserved in the
+[historical-Pascaline-first roadmap](pascaline-roadmap-2026-09-13.md) and
+[Curta-first roadmap](curta-roadmap-2026-09-13.md). Their former ordering and
+package-start dependencies are historical.
 
-The earlier comparison used Pascaline checkpoint `4222796`, whose restored
-supporting contact and receiving-pawl proof were incomplete. The completed
-restoration is now `1b0bb5c7979451ce4bc6ffbea187408078229930`. Its project-owned
-`restoration/COMPLETION-2026-09-12.md` records 108 passing cases, supporting
-two-pin contact, pawl push, installed clearances and both accounting 12/20 and
-scientific 10/10 presets. These are historical results, not new measurements
-made during this planning update.
+## Repository ownership and checkpoints
 
-Curta's preparation has exposed a substantial independent fit/restoration
-programme. Its latest handoff is `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9`:
-the two-station carry/frame correction is complete, but the selected-input
-fit is paused at 2/22 tasks, with 4 passes and 19 expected red failures.
-Complete home travel, valid initialization and other installed-neighbour
-proofs remain open. Those findings remain Curta work; they no longer gate
-the first framework/viewer increment.
+Paths are relative to `/home/asa/devel/libresolid-studio`. Each row is an
+independent repository; this is standalone work, not a shop sprint.
 
-Pascaline is a completed reconstruction with a precise remaining limitation:
-its manual register is the state before one stroke, and its calculated counts
-drive the wheel poses. Repeating "Add a denier" does not accumulate additions.
-The first validation must replace that mechanism of posing with retained
-coordinates and local mechanical causes, while reusing the restored parts.
-
-## Repository ownership and verified bases
-
-Paths are relative to `/home/asa/devel/libresolid-studio`. These are independent
-repositories and standalone worktrees, not a shop sprint.
-
-| Owner | Worktree | Verified source/checkpoint | Role |
+| Owner | Working location | Recorded content checkpoint | Role |
 | --- | --- | --- | --- |
-| Framework | `solid-node/WTs/open-run-simulation/` | `main` at `6e41f2da132a8604f9b68895967247fb8876fc4d` | Shared authoring, compiler/program contract, Python run, export and producer fixtures |
-| Viewer | `solid-node-viewer/WTs/open-run-simulation/` | `main` at `6fb082ba9823fb0839631bd4a3ecbf4a41b33b64` | Worker execution, controls, rendering, replay and publication lifecycle |
-| Pascaline | `projects/Vibecoded-demos/pascaline/WTs/open-run-simulation/` | Restoration at `1b0bb5c7979451ce4bc6ffbea187408078229930` | First validation: project laws, geometry, operation and acceptance |
-| Curta | `projects/Calculators/Curta-Type-I-3x/WTs/open-run-simulation/` | Paused checkpoint `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9` | Second validation, preserving its existing scoped and full-machine roadmap |
+| Framework | `solid-node/WTs/open-run-simulation/` | Primary base `6e41f2da132a8604f9b68895967247fb8876fc4d`; preceding planning head `67b767ae40c7058bbc38c174b365ff576fd6d301` | Shared authoring, compiler/program contract, Python run, export and producer fixtures |
+| Viewer | `solid-node-viewer/WTs/open-run-simulation/` | Recorded base `6fb082ba9823fb0839631bd4a3ecbf4a41b33b64` | Worker execution, controls, rendering, replay and publication lifecycle |
+| Pascaline module | `projects/Calculators/Pascaline-module/` | `36e72e70f598a6d3fff9f0d59801e021824389b7` | First feature-development and acceptance project; source fit, project laws and three-column validation |
+| Historical Pascaline | `projects/Vibecoded-demos/pascaline/WTs/open-run-simulation/` | Restoration `1b0bb5c7979451ce4bc6ffbea187408078229930`; running draft `135f94f2680d1819557a11a4dd903be5a5300a31` | Second validation: full-machine stress test |
+| Curta | `projects/Calculators/Curta-Type-I-3x/WTs/open-run-simulation/` | Mechanical checkpoint `d7bf44b5ddd7ffb5b2521fdb5979c7fc1f6adff9`; disposition `4f332d052234e7225b868f8229df241d6d5043d4` | Third validation: scoped carry rig, then full-machine stress test |
 
-Pascaline's clean `open-run-simulation` worktree was rebased from
-`4a6b73149937dfec8f066e9ca0195b8e6548edc6` onto the exact completed restoration.
-It had no unique commits to replay and matched the restoration tree after
-rebase. The primary checkout remains on `restore-axle-mounted-carry` at
-`1b0bb5c`; its `main` remains at `c274a5d`. Do not substitute that older
-`main` as the model source. Pascaline's eventual integration destination
-must be decided against its then-current branch state.
+Project-owned acceptance records are `docs/open-run-acceptance.md` in both
+Pascaline repositories and `simulation/docs/open-run-acceptance.md` in Curta.
+The module's active `simulate-the-pascaline` change still owns unfinished
+assembly work. The historical Pascaline's `run-pascaline-with-retained-contact`
+draft remains open and deferred to stage two, with its decisions and unchecked
+tasks preserved. Reconcile it with the module-validated package contract when
+that migration is taken up; draft completion is not mechanical acceptance.
 
-The project-owned first-acceptance record is Pascaline's
-`docs/open-run-acceptance.md` on its rebased branch. Curta's matching
-`simulation/docs/open-run-acceptance.md` records its second-project
-disposition; its historical handoff and existing changes remain intact.
+The historical Pascaline worktree was previously rebased onto restoration
+`1b0bb5c`; its older `main` at `c274a5d` is not the restored model base.
+That history and the readiness commits remain in the preserved roadmap.
+No rebase, integration or worktree removal is part of this resequencing.
 
-Committed project handoffs for this planning update:
-
-- Pascaline: `11009101e4bf19ee932efcfb7079340cb8f3a36f`, acceptance plan
-  on top of the completed restoration.
-- Curta: `4f332d052234e7225b868f8229df241d6d5043d4`, disposition-only
-  update on top of mechanical checkpoint `d7bf44b`.
-
-Subsequent Pascaline readiness checkpoint:
-`169b035d3efaa42e9434ed1bbcde6bdc0dd612b1`, project-owned `readiness/README.md`,
-diagnostic sources, logs and inspected mesh-section images. Production parts,
-motion code and the restoration archive are unchanged from `1b0bb5c`.
-Measurements used the workspace's editable framework primary at `6e41f2d`,
-not a new compiler/runtime implementation; no running browser parity was tested.
-
-Subsequent bounded pawl-return investigation:
-`34c26e1092cbcd631fa4a5a6df60746c0fecf4ce`, project-owned
-`readiness/PAWL-RETURN-2026-09-13.md`. The unchanged-parts delayed-return
-candidate passes 3/3 exact tests at zero volume epsilon: 228 installed-assembly
-poses across both receiving bases, support perturbations and distinct pawl
-states at identical wheel/lever coordinates. Actual mesh sections were
-inspected. These are imposed finite geometric samples, not a production
-correction, continuous certificate or running-engine validation. The original
-control regression remains red; the refined faceted candidate retains a
-near-zero negative gear-volume failure which does not reproduce on exact solids.
-
-Pilot-approved direction and Pascaline draft:
-`135f94f2680d1819557a11a4dd903be5a5300a31`, project-owned
-`openspec/changes/run-pascaline-with-retained-contact/`. It contains proposal,
-design, four interface delta specs and 37 open tasks. Supported OpenSpec
-strict validation passes. This is an early draft recording the chosen return
-behavior and remaining evidence/dependency gates, not complete production
-ratification or permission to start implementation. No new geometry/runtime
-tests accompanied this planning-only update.
-
-Framework and viewer production proposals have not been created. This framework
-documentation commit is a **pre-spec checkpoint**, not the complete ratified
-planning commit of a production cycle. Establish and verify those cycle bases
-when the repository-owned proposals are opened. Each cycle still needs its
-ratified planning and completed implementation records.
-
-The framework bench remains registered as slot 9 (ports 8009/3009).
-No service was started for this preparation. Package integration targets remain
-their respective `main` branches, subject to fresh checks and pilot direction;
-no branch integration, release, publication or cleanup is included here.
+Framework and viewer production proposals have not been created. These are
+pre-spec checkpoints, not complete ratified planning commits. Reverify the
+selected bases when opening those cycles. Package integration targets remain
+their respective `main` branches subject to fresh checks and pilot direction;
+project integration destinations follow their own branch state.
 
 ## Preserved shared decisions
 
@@ -132,281 +76,216 @@ no branch integration, release, publication or cleanup is included here.
   ends and project law factories. A returned law may add build-time
   `running(r)` to declare retained local state, position/movement constraints,
   event updates and admissible engagement. Live state belongs to the run.
-- Existing supported `forward`/`inverse` laws retain absolute-position
-  semantics. The initial solver class is piecewise-affine; compilation refuses
-  unsupported laws rather than running arbitrary Python in the browser.
-- Produce one compact mechanical program and geometry bindings through the
-  framework build. Python and the viewer worker execute that published
-  description. The framework contains no calculator-specific engine.
-- Begin physical operation with relative nudge and hold-to-jog controls, then
-  picking/constrained dragging through the same movement interface. Actual
-  positions are read-only; amounts/rates configure commands. Releasing or
-  losing focus ends a jog, blocked travel creates no hidden backlog, and
-  command ownership prevents silent replacement.
+- Supported `forward`/`inverse` laws retain absolute-position semantics.
+  Start with the piecewise-affine solver class; compilation refuses unsupported
+  laws rather than executing arbitrary project Python in the browser.
+- Compile one compact mechanical program and geometry bindings through the
+  framework build. Python and the viewer worker consume that description.
+  The framework contains no calculator-specific engine.
+- Begin physical operation with relative nudge and hold-to-jog, then constrained
+  dragging through the same movement interface. Actual positions are readouts;
+  amounts/rates configure requests. Release or lost focus ends a jog, blocked
+  travel creates no hidden backlog, and ownership prevents silent replacement.
 - Inputs expose mechanical coordinates; instructions name reusable movement
   requests; controls provide gestures. Named instructions get buttons by
-  default and also work without a viewer. Controls never assign output digits.
+  default and also work without a viewer. Neither assigns output digits.
 - Keep a finite forward simulation clock, pure pose evaluation and independent
-  rendering cadence. Live elapsed time is a readout; seeking requires recorded
-  history. Existing untimed/looping behavior remains supported.
+  rendering cadence. Seeking requires recorded history. Preserve existing
+  untimed/looping behavior.
 - Framework and AGPL viewer remain separate packages connected through
-  published data and their existing discovery/process boundary. The shop
-  remains a host of published artifacts.
+  published data and the existing discovery/process boundary. The shop hosts
+  published artifacts. Flexible shape follows committed mechanical state.
 
-The complete declaration/host spellings, validation rules and wire contract
-remain proposal work. The new run must explicitly extend the simulation,
-ports/time, joints/couplings and export baselines. Preserve ADR-066/097/098
-pose/frame rules and address ADR-083/089/099/100 solver/time boundaries.
-ADR-056 is indexed as Proposed; its later accepted amendments and baseline
-specs, not an assumption that the entire draft was accepted, govern today.
+Complete declaration spellings, validation rules and the wire contract remain
+proposal work. Explicitly extend the simulation, ports/time, joints/couplings
+and export baselines. Preserve ADR-066/097/098 pose/frame rules and address
+ADR-083/089/099/100 solver/time boundaries. ADR-056 is indexed as Proposed;
+its accepted amendments and baseline specs govern today's behavior.
 
-## 1. Close a bounded Pascaline readiness gate
+## 1. Prepare the Pascaline module's mechanical contract
 
-Use the restored geometry unchanged as the starting reference. Map one
-transmission/carry pair, then the three lowest positions, including input
-spindle, accumulator, separate numeral gearing, lifting pins, receiving-axle
-sautoir, hinged pawl, journals, stops and constraining neighbours. Identify
-which existing tests observe prescribed poses and which can independently
-check coordinates produced by a run.
+The module's recorded validation has four passing source tests and five
+flexible-stop contracts, including 145 sampled tooth poses, on both kernel
+settings. A single-module build exists. Gear phase/axial-stack interference and
+the missing second/third columns remain red. These are historical results from
+the project checkpoint, not tests rerun for this update. STL source parts
+remain mesh comparisons even under the exact-kernel setting.
 
-The pilot approved following the assessment's recommendation: use a
-**finite-time kinematic fall triggered by contact release** for the first
-validation. This is an explicit motion approximation, not gravity, friction,
-spring-force or impact simulation. Its physical support, pawl engagement and
-receiving-wheel movement must still follow the actual parts.
+Close those assembly findings within the project's existing change and map the
+input/ratchet, dial-to-drum transmission and alternating A/B carry pieces.
+Validate one fitted module, then one actual carry pair; retain bases, supports,
+stops and constraining covers in geometric checks. Derive engagement windows,
+ratios and phases from the source parts. The current fixed drum/carry ratio
+is provisional posing, not proof of intermittent carry.
 
-A released fall progresses on simulation time even if the operator stops
-moving the input. Whole-run pause freezes it; resuming or restoring a
-mid-fall checkpoint continues the same progress. No number-base test or
-arithmetic carry routine initiates or completes it. The existing
-`fall=0.4` parameter is in input counts and cannot become seconds by relabelling.
+Declare independent coordinates, local contact/retention states, admissible
+initial setups and input travel. Prove disengaged retention and admissible
+re-engagement, and test ratchet admission separately from blade clearance.
+The authorized blade deformation remains prescribed geometric kinematics,
+without a force, material-strength or reverse-blocking claim from sampling.
 
-The first evidence task held the driving wheel at and just beyond release
-and swept the released fork/pawl/receiver path against the complete installed
-neighbours. Both presets pass four exact-solid tests with zero volume epsilon:
-369 imposed poses per preset, three individual carry pairs, all 43 rigid
-bodies retained. Pawl-push and frame-stop perturbations are checked. Clear and
-Nines static setups and supported pauses also pass exact checks. This is
-finite geometric evidence, not a running engine, simultaneous cascade or
-continuous certificate.
+**Gate:** a bounded project-owned state/event/geometry contract for the modular
+mechanism, with validated fit and named operating limits. Neither the historical
+Pascaline's timed fall/pawl return nor Curta's selector fit is part of this gate.
+If the actual module cannot fit the accepted exportable law class, record the
+measured conflict before changing the solver or fidelity.
 
-The probe must retain the base-20 pawl's initial 20° hinge deflection; a
-straight-pawl negative control correctly intersects the receiving pin.
-Separately, **independent receiver operation remains blocked**: the original
-production controls produce about 0.990564 mm³ exact pawl/pin overlap at
-receiver angles 17.922° (base 20) and 35.922° (base 10), with the lever at
-rest and hinge at 7.8°. A finer screen locates a roughly 0.122° obstructed
-return interval missed by coarse tests; both faceted and exact targeted
-reproductions fail, while nearby endpoint poses clear. Preserve the red
-tests and do not hide the collision with tolerance or skipped samples.
+## 2. Prepare and ratify the first production changes
 
-The pilot authorized the bounded pawl-return correction investigation. Its
-project-owned `readiness/PAWL-RETURN-2026-09-13.md` records a delayed-return
-candidate: at one independent receiver pitch the pawl remains pin-supported
-at about 13.262°, with the lever on its stop. After another sampled 3.4° of
-requested receiver travel, an imposed hinge return clears with the receiver
-held. This is not automatic overtravel, an exact event threshold, a running
-law or a continuous certificate. The bounded search found no earlier reseating
-connection within its fixed-lever, forward-input, 0–20° hinge grid; it is not
-a general impossibility proof.
+Prepare one framework cycle, one viewer cycle and the module-owned running
+migration plan. Reconcile the module's active assembly change and controls
+with that migration without duplicating tasks or silently changing accepted
+behavior. Present the shared contract together; each repository owns its
+source, tests, specs and commits. Historical Pascaline and Curta migration
+proposals are not required for this first increment.
 
-The candidate retains a contact branch rather than retiming the current
-periodic stroke formula. The pilot approved carrying that delayed,
-pin-supported end state into the running proposal on unchanged parts; the
-Pascaline draft now records the choice. It distinguishes a resting lever from
-a seated pawl and prohibits a stroke-end hinge reset or unrequested overtravel.
-Production motion code is still unchanged and the original regression red;
-no correction is being claimed complete. Engagement from the supported end
-state, valid local-state snapshots, repeated operation and timed/admitted
-travel bounds remain open. A geometry or fidelity change returns to the
-pilot; this does not reopen a broad restoration programme.
+Resolve initial snapshots; coordinate/relation identities; localized events
+and same-instant settlement; finite moves, rates, command ownership and
+admitted/blocked/cancelled progress. Checkpoints and rollback include the
+clock, local mechanical state, active trajectories and instruction sources.
+Keep bounded phase plus winding, bounded recording and command retirement.
 
-Two migration constraints are now explicit: Nines includes lifted levers and
-deflected pawls, not just digit settings; and the old `fall=0.4` also sets
-printed lifting-pin phase in `Accumulator.render`. Preserve that geometry
-when introducing time-based fall. No duration or input-rate limit was chosen
-by the readiness checkpoint.
-
-Choose the local fall trajectory/duration and admitted input rates together
-with these tests. Prove the timed law can be expressed in the accepted
-exportable class. The clock-driven local fall is a new law to validate;
-the Curta spike did not establish it. Return a measured conflict with that
-class or the restored geometry before expanding scope or changing fidelity.
-
-Keep method and tolerances separate: the restoration used finite faceted
-sweeps with 0.01 mm³ volume epsilon, 0.05 mm nominal contact and at most
-0.08 mm measured gap. Those results are not continuous or exact-solid
-certificates. New runtime paths require their own engagement and clearance
-evidence, profile-error bounds and explicit numeric tolerances.
-
-**Gate:** a project-owned state/event/geometry contract with a supported
-released-fall path, admissible setup and operating limits, and no dependency
-on precomputed register counts. **Not passed:** the frozen-source path and
-sampled delayed return are supported, but subsequent engagement from the
-pin-supported state, repeated operation and state/event/operating bounds
-remain unqualified. Qualify those paths here; making the original production
-regression green belongs to the later running migration, not a temporary
-stateless repair required before proposal ratification.
-
-## 2. Prepare and ratify the three production changes
-
-Prepare one framework, one viewer and one Pascaline migration cycle. Present
-their shared contract together while keeping their source, tests, specs and
-commits in their owning repositories. Pascaline's completed
-`2026-09-12-build-pascaline` archive remains historical; the new migration
-must explicitly reconcile its one-stroke/register controls, input-scaled fall
-and scripted demonstration with the new running behavior.
-
-The Pascaline draft `run-pascaline-with-retained-contact` is open, with every
-task unchecked. Close its readiness questions and reconcile it with the
-framework/viewer proposals before seeking complete ratification. Its artifact
-completion does not advance the readiness or feature-start gates.
-
-Resolve complete initial snapshots; stable coordinate/relation identities;
-event localization and same-instant settlement; finite moves, rates, command
-ownership and exact admitted/blocked/cancelled progress; and the timed local
-fall. Transactions/checkpoints must include clock, mechanical memory,
-active trajectories and instruction-source state. Retain bounded phase plus
-winding and explicit bounded recording; retire completed commands.
-
-Resolve versioned program/geometry publication, supported expression limits,
+Resolve versioned program/geometry publication, expression limits, profile and
 numeric tolerances, producer-generated conformance fixtures, old-consumer
-refusal, running-pose capture and incompatible-republish reset/refusal.
-Define background-tab policy, numerical resolution versus playback speed,
-and whole-run pause versus an instruction source stopping its input motions.
+refusal, running-pose capture and incompatible-republish reset/refusal. Define
+background-tab behavior, simulation resolution versus playback speed, and
+whole-run pause versus an instruction source stopping input motion.
+Timed released-sautoir motion remains historical-Pascaline stress scope; it
+is not an extra first-module acceptance condition.
 
-**Gate:** complete proposal ratification, supported OpenSpec validation and
-the pilot's explicit feature-start go-ahead before production implementation.
-This resequencing is not that go-ahead.
+**Gate:** complete proposal ratification, supported OpenSpec validation and the
+pilot's explicit feature-start go-ahead before production implementation.
+This planning adjustment does not start feature development.
 
-## 3. Prove the real producer and browser path on a small mechanism
+## 3. Build and qualify the feature with the Pascaline module
 
-Start red-first with a tiny Python mechanism proving compilation, retained
-state and the timed local law. Then connect the real Pascaline transmission
-and one carry pair, followed by three positions with two carries.
+Start red-first with a tiny Python mechanism proving the compiler, retained
+state and event contract, then the actual fitted module, one carry pair and
+three alternating decimal columns with two carry stages.
 
-Compile the project declarations once, run them in Python, and export that
-same program for the browser worker. Rendering and snapshot inspection
-advance nothing. Reuse meshes and update poses from committed coordinates.
-No hand-authored parallel browser model or output-count setter is acceptance.
-
-The three-position scientific case is `099 + 1 -> 100`. The accounting case
-is `0 livres, 19 sols, 11 deniers + 1 denier -> 1 livre, 0 sols, 0 deniers`.
-Initial digits describe validated complete setups, including lever/contact
-state, not merely wheel positions. Bound the outgoing carry of a reduced
-fixture explicitly; a three-position rig does not prove full overflow.
-
-Run the same commands through Python, standalone browser export and the
-development viewer. Exercise capture of a committed running pose, worker
-teardown, malformed-program refusal and republish behavior. Exported worker
-assets must work without an undeclared live Python service.
-
-**Gate:** repeated physical input strokes accumulate, contact-driven carries
-operate, released motion survives input cessation, and Python/browser
-coordinates, local states, events and admitted movement agree.
-
-## 4. Qualify the complete Pascaline as first validator
-
-After the small assembly passes, extend the same laws to all eight positions
-and both validated presets. Preserve the reconstructed geometry and its
-recorded limitations; unrelated reconstruction or manufacturing work is not
-part of this migration.
+Compile the project declarations once. Python, standalone browser export and
+the development viewer execute that same program. Reuse source meshes and
+pose them from committed coordinates; inspection, rendering and capture
+advance nothing. The browser must not depend on an undeclared live Python
+service or a second hand-authored mechanical model.
 
 Acceptance covers:
 
-1. Repeated strokes without register re-entry, wheel selection and independent
-   receiver operation, two successive carries and a full eight-position ripple/
-   overflow. The visible numerals come from moving geometry. Test arithmetic
-   may independently interpret them but must not generate the runtime motion.
-2. Supported stops before release, input cessation after release, whole-run
-   pause/resume during fall/push, checkpoint/replay, blocked-input feedback,
-   conflicting input ownership and atomic rollback.
-3. Python/browser conformance, event-boundary and phase/winding cases, changed
-   display cadence independently of numerical resolution, and repeated
-   inspection without state advancement.
-4. Engagement and swept-path clearance on runtime-produced poses; deliberately
-   missing transmission/contact, reversed ratio and lost release/push events
-   detected independently. Inspect actual rendered parts and numeral windows.
+1. Repeated physical dial movements accumulate without register re-entry.
+   Single carry `009 + 1 -> 010` and chained carry `099 + 1 -> 100` arise from
+   contact/transmission and retained coordinates. Arithmetic may independently
+   check readouts in tests; it must not determine runtime poses or carry events.
+2. Validated complete setups include gear phases, local contact state and the
+   ratchet/blade configuration. Determine the highest column's actual end
+   condition; refuse travel into an unvalidated outgoing interface. Reset
+   restores a setup, without claiming physical clearing.
+3. Pause/resume and checkpoint/replay during engagement, independent input
+   operation within declared limits, blocked travel, conflicting commands and
+   atomic rollback. Compare Python/browser coordinates, local states, events
+   and admitted motion, including phase/winding and changed display cadence.
+4. Engagement and clearance checks on runtime-produced poses and inspected
+   images of the actual assembly. Missing transmission, incorrect phase/ratio
+   and lost contact events must fail independent negative controls. State
+   finite mesh sampling and profile/numerical bounds separately.
 5. Actual build/export cost, program size, step/event cost, browser
-   responsiveness and retained memory without recording. Set operating-rate
+   responsiveness and retained memory without recording. Choose operating-rate
    and resource budgets during proposal work; synthetic 240 Hz results do not
    promise this machine's performance.
-6. Untimed/looping regressions, version refusal, coherent geometry/program
-   publication and failure-safe reload. Record exact framework, viewer and
-   Pascaline content commits, resolved package/bundle paths and environment.
+6. Untimed/looping regression, version refusal, coherent publication, running
+   pose capture, worker lifecycle and reload. Record exact framework, viewer
+   and module content commits, resolved packages/bundle and environment.
 
-The running inputs operate physical spindles. A selected-wheel gesture may
-choose which declared input receives a command; it must not be a numerical
-operand. Clear/Nines become explicitly validated setup/reset choices unless
-a physical clearing operation is separately modeled. Scripted demonstrations
-request input movements; they do not precompute the downstream wheel timeline.
-Detailed stylus engagement and stop/admission rules belong in the proposal.
+Use an isolated combined-validation environment with the selected framework
+and viewer content and the module as model/build root. Matching branch names
+do not select installed packages; verify resolved paths and carry bench ports
+explicitly. Use separate, non-nested build roots for concurrent checks.
 
-Combined validation must use a dedicated environment containing the selected
-framework and viewer worktrees and Pascaline as the model/build root.
-Matching branch names do not switch the workspace-installed packages. Verify
-the actual resolved implementations and carry bench ports explicitly.
-Do not rewire the shared installation. Use separate, non-nested build roots
-for concurrent geometry/publication checks.
+**Gate:** the module validates a useful end-to-end running feature. Completing
+the next two machines is not an acceptance or release gate for this increment.
 
-## 5. Resume Curta as the second validation project
+## 4. Stress-test the full historical Pascaline
 
-Curta stays paused until the pilot resumes it. Its existing scope is retained:
+Resume its project-owned migration after the module increment. Reuse the
+restored parts and preserve the approved finite-time kinematic fall triggered
+by release and the retained pin-supported pawl-return direction. They do not
+claim gravity/friction/impact dynamics.
 
-- One physical selector through the full 0–9 travel; three result wheels and
-  two carries; forward addition with fixed carriage.
-- Mechanical `099 + 1 -> 100`, retained second carry across a crank revolution,
-  later cam reset, stationary verified home-window selector changes and
-  explicit outgoing-boundary refusal.
-- Ideal quasi-static detents with checked transition clearance. Pascaline's
-  finite-time fall choice does not replace Curta's ratified detent fidelity.
-- Finish its own fit/readiness obligations before accepting that slice; then
-  expand to all selectors/result bank, subtraction, carriage lift/shift,
-  turns counter and physical clearing.
+The exact frozen-input fall samples pass; independent receiver operation in
+the unchanged production law still has a narrow pawl/pin collision. The
+sampled delayed-return candidate and draft at `135f94f` do not close subsequent
+engagement, repeated operation, initialization, timing or admitted-rate bounds.
+Keep the original red control and distinguish imposed geometric samples from
+a running or continuous certificate. Full detail and pinned evidence are in
+the preserved Pascaline roadmap and the project's readiness records.
 
-Keep the original `simulate-the-curta` open at 7/17 tasks, the archived
-`clear-result-carry-frame-contacts` unintegrated, and the ratified
-`fit-selected-input-selector` paused at 2/22. Preserve the source and measured
-geometry, fit protections, expected red tests, worktree and ignored evidence.
-The exact paused code/evidence checkpoint remains `d7bf44b`; a subsequent
-disposition-only documentation commit does not remeasure it.
+Qualify a real carry pair, three positions, then all eight positions in both
+scientific 10/10 and accounting 12/20 presets. Stress retained contact branches,
+input cessation after release, pause/replay during timed fall/push, independent
+receiver motion, mixed-base cascading and full ripple/overflow. Preserve
+lifting-pin geometry when replacing the old input-count-based fall parameter.
 
-The preserved [Curta roadmap](curta-roadmap-2026-09-13.md) and project
-`simulation/docs/open-run-handoff-2026-09-13.md` hold the detailed campaign.
-Curta adds independent evidence for selectable engagement, cross-turn detent
-memory/reset, fitted-source geometry and scale. Its uncompleted restoration
-does not block Pascaline or become silently accepted when Pascaline passes.
+Reconcile the deferred draft with the module-validated program/API. New
+generic requirements supported by this evidence become separately scoped
+package changes; the historical machine's readiness failures do not
+retroactively make the first module increment incomplete.
+
+## 5. Stress-test Curta third
+
+Curta remains paused until resumed by the pilot. Preserve its ratified slice:
+one physical selector through full 0–9 travel, three result wheels and two
+carries, forward addition with fixed carriage, mechanical `099 + 1 -> 100`,
+retained second carry across a revolution and later cam reset. Selector
+changes require a stationary verified home window; refuse outgoing-boundary
+travel. Ideal quasi-static detents with checked transition clearance remain
+its fidelity choice.
+
+The original `simulate-the-curta` remains at 7/17 tasks; the carry/frame
+correction is archived but unintegrated, and `fit-selected-input-selector`
+is paused at 2/22 with 19 expected red tests at mechanical checkpoint
+`d7bf44b`. Preserve fit protections, source geometry and ignored evidence.
+Finish those obligations for Curta, then expand to all selectors/result bank,
+subtraction, carriage lift/shift, turns counter and physical clearing.
+
+The preserved Curta roadmap and project handoff hold the detailed campaign.
+Curta tests selectable engagement, cross-turn detent memory/reset and scale
+against the shared feature. Its readiness is independent of both Pascalines.
 
 ## Dependencies, release and handoff
 
 ```text
-Pascaline retained-pawl path qualification + remaining readiness bounds
-    -> framework + viewer + Pascaline ratified proposals
-    -> tiny compiled mechanism -> real pair -> three positions
-    -> complete eight-position Pascaline qualification
-    -> Curta's own readiness and retained validation roadmap
+Module fit + bounded mechanical contract
+    -> framework + viewer + module ratified production plans
+    -> tiny compiled mechanism -> module -> carry pair -> three columns
+    -> accepted first running feature increment
+    -> full historical Pascaline readiness + migration + stress tests
+    -> Curta readiness + scoped rig + full-machine stress tests
 ```
 
-The generic motor/steering, command-source pause/rollback and existing Curta
-spike cases remain cross-runtime regression fixtures throughout. Production
-G-code/firmware coverage, deposition, general nonlinear contact/dynamics and
-broad browser/hardware qualification remain later explicit scope.
+Generic motor/steering, command-source pause/rollback and the existing Curta
+spike cases remain conformance fixtures throughout. Production G-code/firmware
+coverage, deposition, general nonlinear contact/dynamics and broad browser/
+hardware qualification remain later explicit scope.
 
-Choose release placement from the accepted API and measured results. Curta's
-later completion is not a new gate on a Pascaline-validated package increment.
+Choose release placement from the accepted API and measured module results.
 Archive completed production cycles after tests, baseline synchronization and
 accepted-ADR/architecture updates; integrate only on pilot direction after
-fresh branch/base checks. Worktree preservation or removal never implies
-permission to delete branches, push or publish.
+fresh branch/base checks. No integration, release, publication or cleanup is
+included in this documentation update.
 
-The initial documentation/rebase handoff (`e32ed68`) committed the previously
-uncommitted design decisions, original Curta roadmap snapshot and new ordering.
-It performed no new CAD sweep, simulation suite, build, export or browser run;
-rebase/tree identity, record consistency, local links and clean committed
-worktree checks verified that preparation.
+This handoff changes planning records and project dispositions only. No CAD
+sweep, build, export, running parity or performance measurement was repeated.
+Earlier evidence and its limits remain preserved; record/link consistency,
+diff hygiene and repository ownership are the validation for this edit.
 
-The subsequent project-owned readiness investigation is committed at
-`169b035`. Its exact/faceted tests and inspected images support the results
-and limits above. This framework follow-up records those findings only;
-it changes no architecture, baseline, compiler, runtime or viewer code.
-Curta's preserved roadmap and paused worktree are unchanged.
+Committed project handoffs for this resequencing:
+
+- Pascaline module: `ee52b9433f6694d1594937185e06fa88898948a7`, first-scope
+  acceptance plan and README on project `main`.
+- Historical Pascaline: `6b40bd5aff713560e9b6260fd777b18fb8479946`, second-stage
+  disposition on its existing `open-run-simulation` branch.
+- Curta: `06bdfc5718f9ad1af0362955fdc79a7fcd176177`, third-stage disposition
+  on its existing `open-run-simulation` branch.
+
+All three are documentation-only commits; the mechanical checkpoints above
+remain the evidence bases. The framework planning update stays in its existing
+isolated `open-run-simulation` worktree, based on primary `6e41f2d`.
