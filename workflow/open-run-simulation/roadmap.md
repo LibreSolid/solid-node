@@ -14,6 +14,12 @@ a narrow pawl-return collision in the original production motion law, also
 in both receiving bases. The gate is not passed; see the project checkpoint
 and bounded next action below. No production implementation has started.
 
+The pilot then authorized a bounded correction investigation. It finds a
+sampled delayed-return path on unchanged parts, with the pawl still supported
+by a receiving pin at the end of one input step. Retaining that contact state
+is a candidate for the running migration, not an implemented production fix.
+The original-control collision and the readiness gate remain open.
+
 The existing action-panel direction, input/instruction/control relationship
 and build-time `running(r)` law extension remain recorded in
 [design.md](design.md). The [Curta spike evidence](evidence/report.md) remains
@@ -87,6 +93,17 @@ diagnostic sources, logs and inspected mesh-section images. Production parts,
 motion code and the restoration archive are unchanged from `1b0bb5c`.
 Measurements used the workspace's editable framework primary at `6e41f2d`,
 not a new compiler/runtime implementation; no running browser parity was tested.
+
+Subsequent bounded pawl-return investigation:
+`34c26e1092cbcd631fa4a5a6df60746c0fecf4ce`, project-owned
+`readiness/PAWL-RETURN-2026-09-13.md`. The unchanged-parts delayed-return
+candidate passes 3/3 exact tests at zero volume epsilon: 228 installed-assembly
+poses across both receiving bases, support perturbations and distinct pawl
+states at identical wheel/lever coordinates. Actual mesh sections were
+inspected. These are imposed finite geometric samples, not a production
+correction, continuous certificate or running-engine validation. The original
+control regression remains red; the refined faceted candidate retains a
+near-zero negative gear-volume failure which does not reproduce on exact solids.
 
 Framework and viewer production proposals have not been created. This
 documentation commit is a **pre-spec checkpoint**, not the complete ratified
@@ -173,12 +190,24 @@ return interval missed by coarse tests; both faceted and exact targeted
 reproductions fail, while nearby endpoint poses clear. Preserve the red
 tests and do not hide the collision with tolerance or skipped samples.
 
-The next bounded project action, subject to pilot direction, is a
-contact-consistent pawl-return correction. First investigate whether a
-motion-law correction on unchanged parts suffices; a need to change geometry
-or fidelity returns to the pilot. This is not authority to reopen a broad
-restoration programme. Engagement compatibility, valid local-state snapshots,
-repeated operation and timed/admitted travel bounds still need completion.
+The pilot authorized the bounded pawl-return correction investigation. Its
+project-owned `readiness/PAWL-RETURN-2026-09-13.md` records a delayed-return
+candidate: at one independent receiver pitch the pawl remains pin-supported
+at about 13.262°, with the lever on its stop. After another sampled 3.4° of
+requested receiver travel, an imposed hinge return clears with the receiver
+held. This is not automatic overtravel, an exact event threshold, a running
+law or a continuous certificate. The bounded search found no earlier reseating
+connection within its fixed-lever, forward-input, 0–20° hinge grid; it is not
+a general impossibility proof.
+
+The candidate retains a contact branch rather than retiming the current
+periodic stroke formula. The next pilot decision is whether to carry that
+delayed, pin-supported end state into the running proposal on unchanged parts.
+Production motion code is still unchanged and the original regression red;
+no correction is being claimed complete. Engagement from the supported end
+state, valid local-state snapshots, repeated operation and timed/admitted
+travel bounds remain open. A geometry or fidelity change returns to the
+pilot; this does not reopen a broad restoration programme.
 
 Two migration constraints are now explicit: Nines includes lifted levers and
 deflected pawls, not just digit settings; and the old `fall=0.4` also sets

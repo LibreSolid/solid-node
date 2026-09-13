@@ -21,6 +21,10 @@ The subsequent Pascaline readiness checkpoint is recorded in the
 narrow pawl-return collision in the unchanged production motion law keeps
 the readiness gate open. This is project evidence to resolve before production
 proposals, not a change to the proposed framework architecture or solver class.
+The authorized bounded correction investigation subsequently found a sampled
+delayed-return candidate on unchanged parts. It leaves the pawl pin-supported
+after one independent input step and needs retained contact state. This
+candidate awaits the pilot's direction; production behavior is still unchanged.
 
 ## Intent and the boundary that matters
 
@@ -626,8 +630,14 @@ released-fall poses with the driving wheel held at/just beyond release and
 all installed neighbours retained, on exact solids in both presets. It also
 exposes a narrow pawl-return collision during independent receiver movement
 using the original production controls. The [roadmap](roadmap.md) records that
-blocker and the bounded correction to bring to the pilot. Timed-law, admitted
-rate, initialization and profile/numeric bounds still need completion.
+blocker and the authorized bounded correction investigation. The subsequent
+project record `readiness/PAWL-RETURN-2026-09-13.md` finds a delayed-return
+candidate on unchanged parts: the pawl stays pin-supported at one input pitch
+and returns only after further requested receiver motion clears its path.
+Carrying that retained-contact behavior into the running proposal is the next
+pilot decision, not a delivered repair. Timed-law, admitted rate,
+initialization, subsequent engagement and profile/numeric bounds still need
+completion.
 Finite faceted and exact checks remain distinct from continuous clearance
 proof. A conflict with geometry or the accepted piecewise-affine execution
 class returns to the pilot before scope expands.
