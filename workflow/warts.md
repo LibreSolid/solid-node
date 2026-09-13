@@ -1873,3 +1873,57 @@ rather than folded into the closure:
   STLs are watertight single bodies. Evidence:
   `projects/Robotic-Hands/orcahand_hardware`, change
   `simulate-orca-v1`. Filed here; not triaged.
+
+# Locks (2026-09-13, Combination safe lock)
+
+Recorded at the pilot's explicit request. Project: `projects/Locks`, change
+`simulate-the-combination-safe-lock`, Roffe's Printables model 921305.
+These are empirical findings, not ratified requirements or permission to
+implement a framework change. No framework source was read or modified for
+the simulation; the public API skill and viewer's public host interface were
+used. Reproductions and full validation remain with the originating project
+in `docs/framework-findings.md` and `docs/validation.md`.
+
+- **History-dependent pickup requires a project-owned host controller.**
+  A combination lock reaches different wheel positions at the same absolute
+  dial angle after different reversals and complete turns. The public
+  snapshot/driver/instruction surface does not describe a serialized state
+  transition for history-dependent contacts. The lock therefore retains
+  history in `simulation/mechanism.py`, mirrors the numeric law in
+  `web/mechanism.mjs`, and poses the standard viewer with public `setDriver`
+  calls. Tests cover all 900 supported combinations and compare Python and
+  browser state at 120 poses. The full interaction works in the project's
+  exported demonstration; the ordinary shop viewer exposes pose channels
+  but does not acquire the history controller by loading its manifest.
+  Candidate requirement: a supported, portable way to retain and replay
+  mechanism history across the machine's control surface. Whether that
+  belongs in the framework, viewer or host is undecided. Filed here;
+  triage open.
+- **Faceted strict tangency can fail on a negative intersection volume.**
+  `solid test --faceted simulation/lock.py` reports dial/cam interference
+  at −4.440892098500626e−16 mm³ and wheel 3/peg 3 at
+  −4.440892098500626e−15 mm³. A reconfigured fitted peg also reports a
+  positive 5.538349691151255e−7 mm³ intersection in the faceted representation;
+  that is distinct from the negative-volume failure and is not asserted to
+  have the same cause. Final faceted result: 8 passed, 6 failed, volume
+  epsilon zero. The same 14 contracts pass with `--exact`, including sampled
+  opening/relocking and 145 quarter-degree final-cam positions. No solids
+  are skipped and no volume allowance hides the failures. The source's
+  original exact pairwise overlap inventory is empty; documented 0.05 mm
+  dial/lid axial seating stand-offs do not eliminate fitted-face tangency.
+  Candidate framework investigation: distinguish negative-volume artifacts
+  from true overlap and characterize faceted fitted-face disagreement.
+  Filed here; triage open.
+- **Finer STEP tessellation can open engraved-text seams.** The source dial
+  is one exact solid. At `angular_deflection = 0.15`, its generated STL is
+  not watertight according to trimesh and the faceted engine refuses it.
+  At the import scaffold's 0.5 setting the mesh is watertight; the project
+  retains that setting for the dial and 0.15 for the other parts. The root's
+  `test_display_meshes_are_watertight` checks every delivered leaf. To
+  reproduce, change only `Dial.angular_deflection` in
+  `simulation/source/parts.py`, rebuild and run that contract; restore 0.5
+  afterwards. Source: ignored `upstream/safe-lock.step`, SHA-256
+  `70d467a15ce8b4dcf7ab081d23466474a9b07974d17be5638d78c61a6883291a`,
+  fetched by `tools/fetch-source.py`. No STEP repair was made. Whether the
+  defect belongs to tessellation, export or source tolerance needs isolation;
+  no root cause is claimed. Filed here; triage open.
