@@ -53,7 +53,7 @@ def qualified_instructions(root):
     """
     found = {}
 
-    def visit(node, path):
+    def visit(node, path, _children):
         for name, instruction in getattr(node, 'instructions', {}).items():
             found['.'.join(path + (name,))] = (node, path, instruction)
 

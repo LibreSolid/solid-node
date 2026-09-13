@@ -8,6 +8,77 @@ Changelog
 Unreleased
 ----------
 
+**A running root's document publishes the compiled program, under schema
+version 5.** Cycles one to three built a machine that runs in Python and
+nothing of it reached the browser: a running root's document was
+byte-identical to an untimed root's, so its pose expressions were the law
+read *absolutely* at the driver values — the reading that makes a
+register snap back at every carry window. It now carries a ``program``
+object beside the geometry: the coordinate table with each bank id's
+kind, rest value, declared unit and domain, the intermediates, the
+compiled edges in program order with their expressions, per-end affine
+flags and jump plans, the spans, the candidate table of which inputs
+reach what, the program identity, the clock name, and the constants the
+algorithm is defined by — everything compile time decided, and nothing
+the tick computes.
+
+**A committed bank poses the geometry.** Under a running root every joint
+coordinate of the tree is serialized as its own qualified id, so a
+joint's placement publishes as that coordinate's name and every plain
+port, derived coordinate and flexible ``params`` expression publishes as
+an expression over the bank. A consumer evaluates exactly the expressions
+it always evaluated, from a scope holding the bank it just committed
+instead of the driver values alone. The clock leaves with it: a version 5
+document carries the free name ``time``, declared as ``program.clock``,
+never ``$t``; every other reading of an unbound ``time`` is unchanged.
+
+Both instruction forms are published under version 5 — each entry
+carrying exactly one of ``targets`` and ``by`` — where versions 2 to 4 go
+on publishing only the absolute form. An untimed or looping root's
+document is unchanged in every byte.
+
+The bump is **not additive**: a consumer ignoring ``program`` would read
+a document whose joint placements are bare coordinate names it can bind
+nothing to. The framework asks the installed viewer which document
+versions it renders (``solid viewer``'s new ``documentVersions`` field; a
+viewer without it renders 1 to 4). ``solid build``, ``solid develop`` and
+``solid export`` publish a version 5 document and **warn once**, naming
+the version written, the versions the viewer renders and its package
+version; the Sphinx directive warns about a committed export it embeds,
+without failing the build; and ``solid snapshot --renderer web``
+**refuses** before it starts the browser, because a capture is a one-shot.
+A browser that runs the machine is the viewer package's own next release.
+
+**A conformance corpus pins the two runtimes to each other.**
+``tools/generate_running_corpus.py`` writes ``tests/running-corpus.json``
+from the framework's own run over thirteen scenarios across eleven small
+running roots — every tick, with its bank, crossings, stops and command
+outcomes — and refuses to write one missing any of the features the
+export contract lists. The suite replays it exactly for discrete state
+and within the run's own ``1e-9`` agreement window for floats.
+
+**``solid snapshot --drive NAME=VALUE``**, repeatable, binds a declared
+driver by its qualified id before the image is taken; drivers left
+unnamed stand at their declared defaults. It works under every root — a
+driver-declaring untimed project had the same gap — and it is distinct
+from ``--set``, which reaches the root's declared *parameters*. Under a
+running root the image is the untimed rest pose at those driver values,
+the state a simulation itself starts from. A ``--drive`` naming a joint
+coordinate of a running root is refused by name, and a non-zero
+``--time`` on a running root is refused too: elapsed simulation seconds
+never wrap, so there is no timeline to be a position on.
+
+**One simulation owns a tree at a time, and the newest takes it.**
+Constructing a ``Sim`` over a tree a previous run owns now releases that
+ownership before the rest render, instead of failing as doubly bound —
+which is what makes ``ScenarioTest.simulation()``'s "fresh per call"
+promise true over a node built once per class, so two scenarios of one
+running class run. The released run refuses to advance, naming both,
+rather than binding over the simulation that now poses the tree. An
+author's ``simulate()`` binding a run-owned coordinate is still refused
+exactly as before. ``time`` is reserved: a driver or joint coordinate
+qualifying to that id is refused at construction.
+
 **A joint's range is a physical stop, located inside the tick.** Under a
 running root a declared ``range`` is now the mechanical limit it states
 rather than a refusal of the tick: when a tick would take a banked

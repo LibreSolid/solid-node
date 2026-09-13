@@ -24,9 +24,8 @@ import shutil
 
 from solid_node._artifact import ArtifactChanged
 from .serializer import (
-    DOCUMENT_FORMAT, DOCUMENT_VERSION, animation_block, bind_document,
-    document_version, drivers_table, instructions_table, serialize_node,
-    symbolic_document,
+    DOCUMENT_FORMAT, DOCUMENT_VERSION, compiled_program, document_body,
+    drivers_table, instructions_table, serialize_node, symbolic_document,
 )
 from .builder import get_build_dir, project_build_lock
 from .pieces import PieceInventory
@@ -106,6 +105,11 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
             with PieceInventory() as inventory:
                 # Maps each rigid node's stl_file to its manifest-relative path
                 models = {}
+                # Compiled BEFORE the symbolic walk, off the NUMERIC rest
+                # render, and `(None, None)` under any root but a running
+                # one -- so a model that declares no running time loads
+                # none of the simulation compiler.
+                program, initial = compiled_program(node)
                 with symbolic_document(node) as (declarations, instructions):
                     root = serialize_node(
                         node,
@@ -116,20 +120,14 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
                         graph_values=True,
                     )
                     drivers = drivers_table(declarations)
-                    events = instructions_table(instructions)
+                    events = instructions_table(
+                        instructions, running=program is not None)
 
-                bindings = bind_document(root, drivers.keys())
-                manifest = {
-                    'format': MANIFEST_FORMAT,
-                    'version': document_version(root, bindings),
-                    'animation': animation_block(node, fps, frames),
-                    'drivers': drivers,
-                    'instructions': events,
-                }
-                if bindings:
-                    manifest['bindings'] = bindings
+                manifest = document_body(node, root, drivers, events,
+                                         program, initial, fps, frames)
                 manifest['root'] = root
                 manifest['pieces'] = inventory.pieces()
+                _warn_unreadable(manifest['version'])
 
                 os.makedirs(output_dir, exist_ok=True)
                 for stl_file, model_path in models.items():
@@ -151,6 +149,25 @@ def export_node(node, output_dir, fps=30, frames=360, widget=True):
         _copy_widget(output_dir)
 
     return manifest
+
+
+def _warn_unreadable(version):
+    """Say, once, that the installed viewer cannot read what was just
+    written -- and write it anyway.
+
+    An export is an artifact that may be opened by a LATER viewer, so it
+    is never refused; the document's own refusal is the consumer's to
+    make, and a browser that cannot render changes nothing about the
+    models beside it.
+    """
+    message = viewer_bundle.unreadable_document(version)
+    if message is not None:
+        logger.warning(
+            f'{message}. The export is written anyway: an export is an '
+            f'artifact a LATER viewer may open, and a viewer that cannot '
+            f'read it refuses it by name rather than rendering part of a '
+            f'machine it does not understand. A browser that runs the '
+            f'machine is the viewer package\'s own next release.')
 
 
 def _copy_widget(output_dir):

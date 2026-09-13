@@ -189,3 +189,25 @@ class CommandFirstGrammarTest(TestCase):
 
         self.assertTrue(handle.called)
         self.assertFalse(hasattr(handle.call_args[0][0], 'path'))
+
+
+class SnapshotDriveOptionTest(TestCase):
+    """`--drive NAME=VALUE` is repeatable and belongs to `snapshot`
+    alone: `--set` reaches the root's declared PARAMETERS, and a driver
+    is not a parameter."""
+
+    def test_drive_is_repeatable_and_reaches_the_handler(self):
+        argv = ['solid', 'snapshot', 'model.py',
+                '--drive', 'units_entry=3', '--drive', 'tens_entry=1']
+        with patch.object(sys, 'argv', argv):
+            with patch('solid_node.manager.snapshot.Snapshot.handle') as handle:
+                manage()
+        self.assertTrue(handle.called)
+        self.assertEqual(handle.call_args[0][0].drive,
+                         ['units_entry=3', 'tens_entry=1'])
+
+    def test_without_the_option_the_handler_sees_none(self):
+        with patch.object(sys, 'argv', ['solid', 'snapshot', 'model.py']):
+            with patch('solid_node.manager.snapshot.Snapshot.handle') as handle:
+                manage()
+        self.assertIsNone(handle.call_args[0][0].drive)

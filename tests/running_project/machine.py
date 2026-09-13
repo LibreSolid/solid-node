@@ -1124,3 +1124,178 @@ class Curved(CurvedBody):
 # callable keeps meaning what it means here; the deferral is pinned by a
 # skipped test in `tests/test_running_stops.py` rather than only by this
 # comment.
+
+
+##############################################
+# Cycle 4: the machines the PUBLISHED document is answerable to
+#
+# Three shapes the document has to be able to say, and one the tick
+# already says and the document must not: a clock read in `simulate()`,
+# three jumping laws in one tree, and a machine whose bank is the whole
+# of what poses it.
+
+
+class ClockedBody(AssemblyNode):
+    """A machine whose `simulate()` reads the clock: untimed, that read
+    is the bare animation variable it always was."""
+
+    crank = Driver(default=0.0, unit='deg')
+
+    first = Arbor()
+    flag = Block()
+
+    crank.drives(first.turn, ratio=2.0)
+
+    def simulate(self):
+        self.flag.rotate(30.0 * self.time, [0, 0, 1])
+
+    def render(self):
+        self.flag.translate([0.0, 25.0, 0.0])
+
+
+class Clocked(ClockedBody):
+    """The same machine, running: elapsed seconds, published under the
+    program's own clock name."""
+
+    time = Time.running()
+
+
+class ThreeCarriesBody(AssemblyNode):
+    """The Pascaline's shape in the fixture's own constants: three laws
+    in one tree, each carrying exactly one `floor`.
+
+    The collision `evidence/probe_placeholders.py` found needs three
+    plans in ONE document to show itself, and the acceptance project
+    lives in another repository. This is that machine, here.
+    """
+
+    units_entry = Driver(default=0.0, unit='digit')
+    tens_entry = Driver(default=0.0, unit='digit')
+    hundreds_entry = Driver(default=0.0, unit='digit')
+
+    units = Arbor()
+    tens = Arbor()
+    hundreds = Arbor()
+    trail = Arbor()
+
+    units_entry.drives(units.turn, ratio=DIGIT_STEP)
+    (tens_entry & units.turn).drives(tens.turn, law=carried_column_lead)
+    (hundreds_entry & tens.turn).drives(hundreds.turn,
+                                        law=carried_column_lead)
+    hundreds.turn.drives(trail.turn, law=periodic_window)
+
+    def render(self):
+        self.tens.translate([30.0, 0.0, 0.0])
+        self.hundreds.translate([60.0, 0.0, 0.0])
+        self.trail.translate([90.0, 0.0, 0.0])
+
+
+class ThreeCarries(ThreeCarriesBody):
+    time = Time.running()
+
+
+class WiredBody(AssemblyNode):
+    """A WIRING into a joint coordinate the run owns: the declaration
+    site hands the child's own coordinate the parent's plain port, and
+    the relation driving that port reaches the bank through it."""
+
+    crank = Driver(default=0.0, unit='deg')
+    relay = RotationalPort(unit='deg')
+
+    first = Arbor(turn=relay)
+
+    crank.drives(relay, ratio=2.0)
+
+
+class Wired(WiredBody):
+    time = Time.running()
+
+
+class DerivedBody(AssemblyNode):
+    """A DERIVED COORDINATE the rest render solves FORWARD, whose value
+    then drives a joint the run owns: the formula edge, with the
+    coefficients a consumer evaluates it by."""
+
+    wrist_in = Driver(default=0.0, unit='deg')
+    tool_in = Driver(default=0.0, unit='deg')
+
+    wrist = Revolute(axis=(0, 0, 1), unit='deg')
+    tool = Revolute(axis=(0, 1, 0), unit='deg')
+
+    left = wrist + 2 * tool
+
+    arm = Arbor()
+
+    wrist_in.drives(wrist)
+    tool_in.drives(tool)
+    left.drives(arm.turn, ratio=1.0)
+
+    block = Block()
+
+    def render(self):
+        self.arm.translate([30.0, 0.0, 0.0])
+
+
+class Derived(DerivedBody):
+    time = Time.running()
+
+
+class SixboundBody(AssemblyNode):
+    """A `Free` joint every one of whose six coordinates a relation
+    drives, so the whole floating placement publishes."""
+
+    lift = Driver(default=0.0, unit='mm')
+    surge = Driver(default=0.0, unit='mm')
+    sway = Driver(default=0.0, unit='mm')
+    heading = Driver(default=0.0, unit='deg')
+    pitching = Driver(default=0.0, unit='deg')
+    rolling = Driver(default=0.0, unit='deg')
+
+    chassis = Chassis()
+
+    lift.drives(chassis.pose.z)
+    surge.drives(chassis.pose.x)
+    sway.drives(chassis.pose.y)
+    heading.drives(chassis.pose.yaw)
+    pitching.drives(chassis.pose.pitch)
+    rolling.drives(chassis.pose.roll)
+
+
+class Sixbound(SixboundBody):
+    time = Time.running()
+
+
+class Needle(AssemblyNode):
+    """A part posed by a PLAIN PORT its parent drives: the module's
+    readout idiom, where the register's angle turns something no joint
+    carries."""
+
+    angle = RotationalPort(unit='deg')
+
+    hand = Block()
+
+    def render(self):
+        self.hand.translate([0.0, 12.0, 0.0])
+
+    def simulate(self):
+        self.hand.rotate(self.angle.value, [0, 0, 1])
+
+
+class GaugedBody(AssemblyNode):
+    """A running root whose readout poses geometry from an
+    INTERMEDIATE."""
+
+    crank = Driver(default=0.0, unit='deg')
+
+    first = Arbor()
+    gauge = Needle()
+
+    crank.drives(first.turn, ratio=2.0)
+    first.turn.drives(gauge.angle, ratio=-1)
+
+    def render(self):
+        self.gauge.translate([0.0, 60.0, 0.0])
+
+
+class Gauged(GaugedBody):
+    time = Time.running()

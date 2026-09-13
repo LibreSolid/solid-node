@@ -945,8 +945,8 @@ blocked command never resumes: nothing remembers the travel it did not
 make, and the caller issues a new one. `Instruction(by=...)` is the
 relative form, ramping relatively under every base and becoming a
 relative move under a running one; the serializer omits a relative
-instruction from the document's table until the compiled program is
-published. `snapshot`/`restore`/`reset` act on the bank and refuse a
+instruction from the document's table below version 5 and publishes both
+forms in it. `snapshot`/`restore`/`reset` act on the bank and refuse a
 snapshot whose program identity or `dt` differs before touching live
 state; recording is explicit and bounded.
 
@@ -957,7 +957,16 @@ remain two declarations; a driver on a list-held child is forbidden
 rather than sanitized; the viewer's `trigger` runs one instruction's
 ramps and nothing sequences them — programs and G-code are a later
 layer, and determinism belongs to `Sim`, not to the client animation.
-Under the running mode: the compiled program is not published, a crossing
+ONE simulation owns a tree at a time and the NEWEST takes it: constructing
+a simulation over a tree a previous run owns releases that ownership
+before the rest render, so the render finds a tree no run owns and poses
+it as it would a fresh one, and the released run refuses to advance
+rather than binding over the simulation that now poses the tree. That is
+what makes `ScenarioTest.simulation()`'s "fresh per call" true over a
+node built once per class. `time` is reserved: a driver or joint
+coordinate qualifying to that id is refused at construction.
+
+Under the running mode: a crossing
 reached exactly at a tick's own boundary is integrated correctly but not
 recorded, a coordinate that leaves its range and returns within one tick
 is not stopped (impossible for an affine determiner; a smaller `dt`
@@ -1170,7 +1179,17 @@ that loads a node takes `--set name=value`, registered once beside the
 shared reference positional: the loader parses each value by the root's
 declared kind and constructs the root with the overrides, the develop
 loop carries them into every builder it starts, and an unknown or derived
-name fails listing what is settable (ADR-062). Only the invoked
+name fails listing what is settable (ADR-062). `solid snapshot` alone also
+takes `--drive NAME=VALUE`, repeatable, which binds a declared DRIVER by
+its qualified id through `set_state` before the node is keyframed and
+assembled — a driver is not a parameter, and under a running root the
+image is the untimed rest pose at those values. A name that is no
+declared driver fails listing the drivers the tree publishes; a joint
+coordinate of a running root is refused by name, because with no run to
+own it the enumeration that binding runs would recompute it from the
+drivers and discard the value. A non-zero `--time` on a running root is
+refused too: elapsed seconds never wrap, so there is no timeline to be a
+position on (ADR-110). Only the invoked
 command's module is imported, and the node and simulation packages resolve
 their exports on first access, so a command pays for the backends it uses and
 not for the rest (ADR-059) — `solid viewer` answers from the viewer's entry
@@ -1398,10 +1417,14 @@ use without it. The OpenSCAD CLI remains the default fixed-pose snapshot
 renderer, not an interactive viewer.
 The framework touches the viewer in exactly two ways. `solid_node/viewers/
 bundle.py` loads the viewer's `solid_node.viewer` entry point — a
-standard-library-only function returning the bundle path, the export page
-and the declared API version — and nothing else of it; `solid viewer`,
+standard-library-only function returning the bundle path, the export page,
+the declared API version and the document schema versions the viewer
+renders — and nothing else of it; `solid viewer`,
 `solid export`, the Sphinx directive and the web snapshot all resolve the
-bundle there and name one remedy when it is absent. Everything else runs the
+bundle there and name one remedy when it is absent. A report carrying no
+`documentVersions` is read as `[1, 2, 3, 4]`, the versions every viewer
+released before the field existed renders, so an older viewer beside a
+newer framework keeps working and is described truthfully (ADR-110). Everything else runs the
 viewer as a separate process through `sys.executable -m solid_node_viewer`.
 
 `solid develop` opens only the browser viewer and fails before starting
@@ -1440,8 +1463,9 @@ Chromium/SwiftShader; staging is removed after either success or failure
 `solid export` (ADR-020/034/035/042) emits a self-contained static artifact:
 `manifest.json` (`format: solid-node-export`, at the versioned tree-document
 schema shared with `viewer.json` — `version: 2`, `3` when the tree holds a
-flexible node, or `4` when its expressions share a subexpression (ADR-080);
-not a portability claim),
+flexible node, `4` when its expressions share a subexpression (ADR-080),
+or `5` when the ROOT declares `Time.running()` (ADR-110); not a
+portability claim),
 deduplicated `models/*.stl`, and — copied from the installed viewer
 package — a React-free three.js **widget** whose side-effect-free imperative core mounts a
 published tree into a host and returns a lifecycle handle; its published entry
@@ -1644,10 +1668,64 @@ with numbers, and legacy Solid2 numeric evaluation remains available.
 Flexible time detection follows graph inputs and diagnostics are bounded
 before rendering. `solid snapshot --renderer web` keyframes and bakes constants
 before serializing, so its staged document shares nothing, carries no
-table, and stays at version 2 or 3. The independent viewer's current content
+table, and stays at version 2 or 3 — or at 5, under a running root, whose
+version follows the declaration rather than the content. The independent
+viewer's current content
 accepts versions 1, 2, 3 and 4; expression graphs require no viewer change.
 OpenSCAD remains a supported backend, and the SCAD-centred assembly lifecycle
 is not replaced by this cycle.
+
+**Schema version 5 publishes the COMPILED PROGRAM** (ADR-110). A root
+declaring `time = Time.running()` publishes, beside the geometry, a
+top-level `program` object holding what compile time decided and nothing
+the tick computes: the coordinate table with each bank id's kind, rest
+value, declared unit and domain (an input's domain is `null` — a driver
+declares none); the intermediates; the compiled edges IN PROGRAM ORDER
+with their law expressions, per-end `affine` flags and jump plans, a
+wiring's `factor`, a formula's and a check's coefficients; the spans; the
+candidate `sources` table; the program `identity`; the `clock` name; and
+the five constants the algorithm is defined by, `agreement` included, so
+a consumer cannot silently differ from the producer. What the TICK
+computes — every bank value after the initial one, the determiner
+inversion, the partition, a stop's `t*`, the statuses — is derived, not
+published. The producer compiles it through the run's own construction
+(`program_of`), so the published program and identity are the run's by
+construction; a live run is asked for its own instead, and a root the run
+refuses has no program to publish.
+
+Under that base the serialization ALSO binds every joint coordinate of
+the linked tree to a symbolic token of its qualified id, beside every
+driver's, through the delivery a run's own `set_state` uses, with a
+`RunBinder` installed for the duration so the solver records the
+relations as solved and a live run's slots are admitted and restored.
+Every joint's placement therefore publishes as its coordinate's own id
+and every plain port, derived coordinate and flexible `params`
+expression as an expression over the bank: a consumer poses the geometry
+from a bank it COMMITTED, which is the whole difference between a
+machine that accumulates and one that snaps back. `time` leaves the
+document with it, published as `program.clock` and bound by a runtime to
+elapsed simulation seconds; the Python `$t` preview outside the producer
+is unchanged. The program's expressions travel through the document's own
+`bindings` pass, so nothing is published twice and no `let(...)` reaches
+the wire, and branch placeholders are minted document-wide as `_j0`,
+`_j1`, … The version is the one step of the ladder read off the
+DECLARATION rather than the content, because a running root with a
+trivial program is still a machine a version 4 consumer would animate
+wrongly, and the bump is not additive.
+
+The framework asks the installed viewer what it can read, through the
+existing `solid_node.viewer` entry point: `bundle.document_versions()`
+returns the report's `documentVersions`, or `[1, 2, 3, 4]` when the field
+is absent. `solid build`, `solid develop` and `solid export` publish a
+version 5 document and WARN once; the Sphinx directive warns about a
+committed export it embeds, off the manifest it already opened and with
+no CAD runtime loaded; `solid snapshot --renderer web` REFUSES before the
+browser starts, because a capture is a one-shot. A CONFORMANCE CORPUS
+(ADR-111) pins the two runtimes to each other: a generator writes
+`tests/running-corpus.json` from the framework's own run over a set of
+small running roots, exact for discrete state and at the run's own
+`1e-9` agreement window for floats, and refuses to write a corpus
+missing any stated feature.
 
 Every producer — export, build snapshot, browser snapshot — also publishes a
 **printed-piece inventory** (ADR-043): a top-level `pieces` list beside `root`,

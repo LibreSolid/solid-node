@@ -38,8 +38,8 @@ from dataclasses import dataclass, field, replace
 from solid_node.motion.ports import RunBinder, get_coordinate
 
 from .driver import RampProgram
-from .program import (compile_program, qualified_coordinates, Stop,
-                      TooManyCrossings, UnsupportedLaw,
+from .program import (CLOCK_NAME, compile_program, qualified_coordinates,
+                      Stop, TooManyCrossings, UnsupportedLaw,
                       _BISECTION_ROUNDS, _CROSSING_TOLERANCE, _SUBDIVISIONS)
 
 
@@ -53,6 +53,16 @@ _TOLERANCE = 1e-9
 class RunConflict(ValueError):
     """Two increments disagreed on one coordinate over one tick. The
     tick committed nothing."""
+
+
+class ReleasedRun(RuntimeError):
+    """A simulation whose tree a later simulation took over was stepped.
+
+    One simulation owns a tree at a time and the newest takes it, so this
+    run's bank no longer describes the tree: advancing would bind over
+    the simulation that now poses it, and the last tick to run would win
+    the pose. It refuses instead.
+    """
 
 
 class StopInvariantError(RuntimeError):
@@ -253,6 +263,15 @@ class Run:
                 f'{", ".join(clash)} is claimed twice under a running root: '
                 f'a driver and a joint coordinate cannot share a qualified '
                 f'id, because the run banks both under it. Rename one.')
+        if CLOCK_NAME in inputs or CLOCK_NAME in coordinates:
+            raise ValueError(
+                f"'{CLOCK_NAME}' is reserved for the simulation clock and "
+                f'cannot also be a driver or a joint coordinate of a '
+                f'running root. It is the one snapshot entry that is global '
+                f'by contract, the run binds it beside the whole bank on '
+                f'every tick, and a version 5 document publishes it as the '
+                f"program's own clock -- so a bank entry under that id "
+                f'would be silently overwritten. Rename it.')
 
         self.coordinates = coordinates
         self.bank = dict(_driver_values(sim))
@@ -284,6 +303,9 @@ class Run:
         # coordinate entry as this run, the solver leaves them alone, and
         # an author's simulate() that binds one is refused as doubly
         # bound -- at construction, where the message can name the class.
+        # The binder carries this run so a run whose tree was taken over
+        # can name the one that took it.
+        self.binder.owner = self
         self.node.__dict__['_run_binder'] = self.binder
         self.bind()
 
@@ -319,7 +341,33 @@ class Run:
         as its binder and is cleared and rebound like any other
         (design.md sections 4.5 and 7.7).
         """
+        self._owns()
         self.node.set_state(**dict(self.bank, time=self.sim.time))
+
+    def _owns(self):
+        """Refuse to touch a tree another simulation has taken over.
+
+        Checked before anything is bound, and again at the start of every
+        tick, so a released run never mutates its own bank either: what a
+        coordinate remembers is where it STANDS, and this run's bank
+        stopped describing where anything stands the moment the tree was
+        posed by someone else.
+        """
+        current = self.node.__dict__.get('_run_binder')
+        if current is self.binder:
+            return
+        taker = getattr(current, 'owner', None)
+        took = ('another simulation' if taker is None
+                else f'a simulation standing at tick {taker.sim.tick}')
+        raise ReleasedRun(
+            f'this simulation no longer owns '
+            f'{type(self.node).__name__}: {took} was constructed over the '
+            f'same node, and one simulation owns a tree at a time -- the '
+            f'newest takes it. This run stands at tick {self.sim.tick} and '
+            f'its bank no longer describes the tree, so it refuses to '
+            f'advance rather than binding over the simulation that now '
+            f'poses it. Step that simulation, or build a fresh node for '
+            f'this one.')
 
     ##############################################
     # Requests
@@ -438,6 +486,7 @@ class Run:
         nothing, exactly as an unsegmented tick does. Nothing is bound
         until the commit, so a refused tick touches no slot.
         """
+        self._owns()
         admissions = {}
         for input_id, command in self.active.items():
             if only is not None and command is not only:

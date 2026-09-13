@@ -430,8 +430,14 @@ class RunningBasePublicationTest(BaseNodeTest):
         self.assertEqual(animation_block(Running()),
                          animation_block(Undeclared()))
 
-    def test_a_running_root_is_keyframed_at_the_fraction(self):
-        from solid_node.manager.snapshot import Snapshot
+    def test_a_running_root_has_no_timeline_to_keyframe(self):
+        """A non-zero `--time` used to keyframe a bare fraction into a
+        running root's clock and change nothing the machine does. Cycle
+        4 refuses it by name and points at `--drive`, which poses the
+        rest pose at given driver values (OpenSpec change
+        ``publish-the-mechanical-program``, design section 8.2)."""
+        from solid_node.manager.snapshot import (Snapshot,
+                                                 SnapshotOptionError)
         snapshot = Snapshot.__new__(Snapshot)
         snapshot.path = 'model.py'
         snapshot.time = 0.5
@@ -441,5 +447,21 @@ class RunningBasePublicationTest(BaseNodeTest):
               patch('solid_node.manager.snapshot.project_build_lock'),
               patch.object(node, 'set_keyframe') as keyframe,
               patch.object(node, 'assemble')):
+            with self.assertRaises(SnapshotOptionError) as raised:
+                snapshot._load_and_prepare_node()
+        self.assertIn('--drive', str(raised.exception))
+        keyframe.assert_not_called()
+
+    def test_a_running_root_is_keyframed_at_zero(self):
+        from solid_node.manager.snapshot import Snapshot
+        snapshot = Snapshot.__new__(Snapshot)
+        snapshot.path = 'model.py'
+        snapshot.time = 0.0
+        node = Running()
+        with (patch('solid_node.manager.snapshot.load_node',
+                    return_value=node),
+              patch('solid_node.manager.snapshot.project_build_lock'),
+              patch.object(node, 'set_keyframe') as keyframe,
+              patch.object(node, 'assemble')):
             snapshot._load_and_prepare_node()
-        keyframe.assert_called_once_with(0.5)
+        keyframe.assert_called_once_with(0.0)

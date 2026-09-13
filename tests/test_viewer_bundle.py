@@ -85,3 +85,38 @@ class LookupTest(TestCase):
     def test_the_viewer_runs_through_this_interpreter(self):
         self.assertEqual(bundle.viewer_command(),
                          [sys.executable, '-m', 'solid_node_viewer'])
+
+
+class DocumentVersionsTest(TestCase):
+    """The versions the installed viewer renders, asked of the report
+    rather than inferred from the viewer's own release counter."""
+
+    def test_the_report_says_which_documents_the_viewer_renders(self):
+        report = dict(REPORT, documentVersions=[1, 2, 3, 4, 5])
+        with patch.object(bundle, 'entry_points',
+                          return_value=[fake_entry(report)]):
+            self.assertEqual(bundle.document_versions(), [1, 2, 3, 4, 5])
+
+    def test_a_viewer_that_predates_the_field_renders_one_to_four(self):
+        with patch.object(bundle, 'entry_points',
+                          return_value=[fake_entry(REPORT)]):
+            self.assertEqual(bundle.document_versions(), [1, 2, 3, 4])
+
+    def test_without_a_viewer_there_is_nothing_to_warn_about(self):
+        with patch.object(bundle, 'entry_points', return_value=[]):
+            self.assertIsNone(bundle.unreadable_document(5))
+
+    def test_a_version_the_viewer_cannot_read_names_the_three_facts(self):
+        with patch.object(bundle, 'entry_points',
+                          return_value=[fake_entry(REPORT)]):
+            message = bundle.unreadable_document(5)
+        self.assertIn('5', message)
+        self.assertIn('1, 2, 3, 4', message)
+        self.assertIn('0.1.0', message)
+
+    def test_a_version_the_viewer_reads_warns_about_nothing(self):
+        report = dict(REPORT, documentVersions=[1, 2, 3, 4, 5])
+        with patch.object(bundle, 'entry_points',
+                          return_value=[fake_entry(report)]):
+            self.assertIsNone(bundle.unreadable_document(5))
+            self.assertIsNone(bundle.unreadable_document(4))

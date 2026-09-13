@@ -1,0 +1,154 @@
+{
+  "format": "solid-node-export",
+  "version": 4,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {
+    "share": {
+      "default": 0,
+      "range": [
+        0,
+        100
+      ],
+      "unit": "step",
+      "dtype": "int",
+      "scale": null
+    }
+  },
+  "instructions": {},
+  "bindings": [
+    {
+      "name": "_b0",
+      "expression": "(360.0 * $t)"
+    },
+    {
+      "name": "_b1",
+      "expression": "floor(_b0)"
+    },
+    {
+      "name": "_b2",
+      "expression": "(share * 2.0)"
+    },
+    {
+      "name": "_b3",
+      "expression": "(_b1 + _b2)"
+    }
+  ],
+  "root": {
+    "name": "SharedValueTree",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": null,
+    "operations": [],
+    "children": [
+      {
+        "name": "time_only",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "_b1",
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        ],
+        "model": "time_only"
+      },
+      {
+        "name": "time_nested",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "(_b1 + 1.0)",
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        ],
+        "model": "time_nested"
+      },
+      {
+        "name": "driver_only",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "_b2",
+            [
+              1,
+              0,
+              0
+            ]
+          ]
+        ],
+        "model": "driver_only"
+      },
+      {
+        "name": "driver_nested",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "t",
+            [
+              "_b2",
+              "0",
+              "0"
+            ]
+          ]
+        ],
+        "model": "driver_nested"
+      },
+      {
+        "name": "combo_a",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "t",
+            [
+              "_b3",
+              "_b3",
+              "0"
+            ]
+          ]
+        ],
+        "model": "combo_a"
+      },
+      {
+        "name": "combo_b",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "_b3",
+            [
+              0,
+              1,
+              0
+            ]
+          ]
+        ],
+        "model": "combo_b"
+      }
+    ]
+  }
+}

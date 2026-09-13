@@ -513,3 +513,95 @@ Open questions the pilot owns, carried from the change's `design.md`:
   and the smallest form that would serve it is a declaration that names
   what it reads, resolved against the declarer's subtree at `Sim`
   construction. Strictly additive; deferred.
+
+### Cycle 4 landed, 2026-09-13
+
+`publish-the-mechanical-program` is implemented on branch
+`open-run-simulation` in `solid-node/WTs/open-run-simulation`, two commits
+from cycle 3's own head `9a05e90` — the planning commit `5e0860f` and the
+implementation commit this line is part of. A running root's document is
+now **schema version 5**: beside the geometry it carries a `program`
+object holding what compile time decided — the coordinate table with each
+bank id's kind, rest value, declared unit and domain, the intermediates,
+the compiled edges in program order with their expressions, per-end
+affine flags and jump plans, the spans, the candidate `sources` table,
+the program identity, the clock name and the five constants the algorithm
+is defined by — and nothing the tick computes. Under that base a
+COMMITTED BANK poses the geometry: every joint coordinate is serialized
+as its own qualified id, so a joint's placement publishes as that
+coordinate's name and every plain port, derived coordinate and flexible
+`params` expression publishes as an expression over the bank. `time`
+leaves the document with it, published as `program.clock`; the Python
+`$t` preview outside the producer is unchanged. Both instruction forms
+travel under 5. An untimed or looping root's document is byte-identical
+to the base's, pinned against six documents captured from `9a05e90` and
+committed as `tests/base_documents/`.
+
+The bump is not additive, and the framework asks the installed viewer
+what it reads through the existing entry point
+(`bundle.document_versions()`, `[1, 2, 3, 4]` when the field is absent):
+`solid build`, `solid develop` and `solid export` publish and warn once,
+the Sphinx directive warns about a committed export it embeds without
+failing the build and without loading the CAD runtime, and `solid
+snapshot --renderer web` refuses before the browser starts. `solid
+snapshot --drive NAME=VALUE` poses declared drivers for a still under
+every root, refusing a joint coordinate of a running root by name; a
+non-zero `--time` on a running root is refused, naming `--drive`. One
+simulation owns a tree at a time and the newest takes it, so two
+scenarios of one running class run and a released run refuses to advance;
+`time` is refused as a driver or coordinate id. ADR-110 and ADR-111
+record the two decisions, ADR-105 carries a dated amendment for the
+ownership repair, and the change is archived under
+`openspec/changes/archive/2026-09-13-publish-the-mechanical-program/`.
+
+The full suite is 2508 passed / 5 skipped / 1387 subtests against cycle
+3's 2424 / 5 / 1295. The conformance corpus
+`tests/running-corpus.json` is 13 scenarios over 11 machines, 260 ticks,
+170,449 bytes, regenerating byte for byte in 1.3 s, and the coverage
+guard accepted it on the first run. The acceptance project rebuilt
+against this worktree publishes version 5 at 32,994 bytes against the
+base's 30,529 (+8.1%) with 50 bindings against 147, its three carry plans
+under three distinct placeholders, its registers posed by
+`<column>.drum.turn`, its three flexible stops' molejo `bend` over
+`units.drum.turn`, and no `$t` and no `let(` anywhere. Nothing is pushed
+and nothing is integrated into any `main`.
+
+**What cycle 5 takes verbatim.** The change's `design.md` section 1 is
+the schema, field by field, and the `export` capability's requirements
+"A running root's document publishes the compiled program", "The
+published edges say what each one reads, gives and computes", "A
+committed bank poses the geometry", "A running document's clock is a
+published name" and "The two runtimes share a conformance corpus" are it
+in normative form. `tests/running-corpus.json` is the executable half and
+is copied into the viewer by that cycle. The viewer's own work is
+`documentVersions` in its report, version 5 in `RENDERED_VERSIONS`, the
+worker, the running controls and the non-wrapping clock.
+
+Open questions the pilot owns, carried from the change's `design.md`:
+
+- Should a `Driver` declare a `domain`? It does not, so every INPUT entry
+  of `program.coordinates` publishes `domain: null` while a joint
+  coordinate publishes its port's. Found in implementation; the review's
+  wording said every entry would carry one, and design section 1.1 and
+  the export spec were corrected before the field was written. Strictly
+  additive whenever the pilot wants it.
+- A running root the RUN refuses — one whose rest render leaves a joint
+  coordinate unbound, cycle 1's own open question — now fails to build or
+  export, with the run's own message. The program a document publishes is
+  the program the run executes, so a root with no program has none to
+  publish; it is the one behaviour change a project outside this campaign
+  could meet.
+- Should `solid snapshot` be able to photograph a REACHABLE run state — a
+  `sim.snapshot()` written to a file and replayed — rather than only the
+  rest pose at given driver values? This cycle offers the rest pose.
+- Should a version 4 document gain the relative instruction under a key
+  the shipped viewer ignores? It does not: the shipped viewer does not
+  ignore it.
+- `dt` is not published and stays the executing runtime's choice, as
+  `Sim(dt=)` is the caller's. Resolved in review; recorded because cycle
+  5 picks its default.
+- Carried from cycles 1 to 3, still the pilot's: whether a CONSTANT law
+  should be refused; whether crossing and stop records should be on by
+  default under a running root; whether an integer-dtype input should
+  stop only on whole native units; whether a bound may name a SECOND
+  coordinate.

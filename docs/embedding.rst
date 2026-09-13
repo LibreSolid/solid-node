@@ -46,6 +46,20 @@ version 2, a flexible part makes it version 3, and a model whose
 operations repeat a subexpression makes it version 4, so documents
 published by earlier releases keep rendering.
 
+**Version 5 is the exception**, and it is a property of the root's
+*declaration* rather than of the content: a root declaring
+``time = Time.running()`` publishes version 5 whatever its tree holds,
+carrying a ``program`` object beside the tables above — the coordinate
+table with each bank id's kind, rest value, unit and domain, the
+intermediates, the compiled edges in program order with their
+expressions and jump plans, the spans, the candidate table, the program
+identity, the clock name and the constants the algorithm is defined by.
+Its joint placements are those coordinates' own qualified ids, and both
+instruction forms travel. A consumer that cannot read version 5 refuses
+the document by name: its poses are bare coordinate names it can bind
+nothing to. See :doc:`Scenario tests <scenarios>`, "What a running root
+publishes".
+
 ``bindings`` is how a repeated subexpression reaches the wire once
 instead of once per use: each entry is ``{name, expression}``, named
 ``_b0``, ``_b1``, … in the order a consumer must evaluate them (an
@@ -193,6 +207,14 @@ committed (or produced by a CI step) — the Sphinx build itself never
 runs the CAD stack. A missing or invalid export directory fails the
 build with a message saying which ``solid export`` invocation would
 create it.
+
+An embedded export whose document version the installed viewer does not
+render makes the directive **warn**, naming the export, the version it
+declares and the versions the viewer renders. It does not fail the
+build: the export is a committed artifact this build does not produce
+and cannot fix, and the embedded widget refuses such a document in the
+page, visibly. The check reads the version off the ``manifest.json``
+the directive already opens, and loads no CAD runtime to do it.
 
 The directive's options are ``:height:``, ``:t:`` and ``:autoplay:``
 only — like the URL surface, it cannot yet preset a driver or

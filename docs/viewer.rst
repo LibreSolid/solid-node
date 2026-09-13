@@ -54,6 +54,30 @@ back. If the `solid develop` process itself is not running (or was
 restarted), the viewer shows a persistent offline banner until it
 reconnects.
 
+Document versions, and a running root
+=====================================
+
+The document a build or an export publishes declares a schema
+**version**, and the installed viewer reports which versions it renders
+(``solid viewer``, the ``documentVersions`` field; a viewer that predates
+the field renders 1 to 4). A root declaring ``time = Time.running()``
+publishes **version 5**, which carries the compiled program beside the
+geometry — see :doc:`Scenario tests <scenarios>`, "What a running root
+publishes".
+
+That bump is not additive, so a viewer that cannot read version 5
+refuses the document by name rather than rendering part of a machine.
+``solid build``, ``solid develop`` and ``solid export`` publish it anyway
+and warn once, naming the version written, the versions the installed
+viewer renders and its package version — the build, the STLs, the tests
+and ``--no-web`` are unaffected by a browser that cannot render.
+``solid snapshot --renderer web`` is the one channel that REFUSES
+instead: a capture is a one-shot, and a failure inside a headless page
+would reach you as an opaque non-zero exit.
+
+A browser that runs the machine — the program integrated at frame rate,
+with running controls — is the viewer package's own next release.
+
 Ports
 =====
 

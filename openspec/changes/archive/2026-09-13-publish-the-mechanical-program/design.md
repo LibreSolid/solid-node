@@ -135,6 +135,18 @@ a consumer holding both cannot tell which is authoritative. The
 publication asserts the identity instead: a task proves every
 `kind == "input"` id is a key of `drivers` and vice versa.
 
+EVERY entry also carries `domain` — §10 item 4. For a JOINT COORDINATE
+that is the port's declared domain, `rotational`, `translational` or
+`signal`, read off the port the joint owns. For an INPUT it is `null`:
+**a `Driver` declaration has no domain to publish** (`solid_node/
+simulation/driver.py` declares `default`, `range`, `unit`, `dtype` and
+`scale`, and nothing else), and deriving one from the unit string would
+be a guess the framework makes nowhere else — the Pascaline's dials are
+in `digit`, which is neither an angle nor a length. Corrected here
+against the review's wording during implementation, because the tree
+contradicted it; giving `Driver` a declared `domain=` is strictly
+additive and is recorded as an open question (§10 item 7).
+
 ### 1.2 `intermediates`
 
 Every `Program.nodes` entry whose kind is `intermediate`: a plain port or
@@ -853,7 +865,14 @@ there is no `docs/math.rst`. The module is documented as a section of
    name them) beside its unit, for every input and joint coordinate. The
    schema is new in this cycle, so the field costs no version and saves
    cycle 5 a second reading of the tree for its jog and readout
-   presentation.
+   presentation. **Corrected in implementation:** every entry carries the
+   field, and an INPUT's value is `null`, because a `Driver` declares no
+   domain (§1.1).
+7. **Should a `Driver` declare a `domain`**, so an input's entry can
+   carry one? Strictly additive — a new optional field on the
+   declaration, published where `null` stands today — and it is what a
+   jog control for an input wants. Found in implementation, not decided
+   here.
 5. **Should a version 4 document gain the relative instruction** under a
    new key the shipped viewer ignores? §6.2 says no, because the shipped
    viewer does not ignore it.

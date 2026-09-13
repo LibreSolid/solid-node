@@ -23,8 +23,7 @@ from solid_node.core.builder import get_build_dir, project_build_lock
 from solid_node.core.camera import parse_camera
 from solid_node.core.pieces import PieceInventory
 from solid_node.core.serializer import (
-    DOCUMENT_FORMAT, animation_block, document_version, serialize_node,
-    bind_document,
+    compiled_program, document_body, drivers_table, serialize_node,
 )
 from solid_node.viewers import bundle as viewer_bundle
 
@@ -73,8 +72,13 @@ class BrowserRenderer:
             raise BrowserSnapshotError(viewer_bundle.missing_bundle_remedy())
 
         artifacts = {}
-        # A snapshot is a read-only consumer of the build. It may reuse a
-        # valid fact record, but never creates or repairs one there.
+        # A capture BAKES one instant: the node arrives keyframed and
+        # posed at whatever `--drive` asked for, and its operations hold
+        # the numbers that pose produced. So this document is not the
+        # machine's own -- there is nothing symbolic in it to bind -- and
+        # the drivers table it carries under a running root is the
+        # declaration beside the program, not a scope for expressions.
+        program, initial = compiled_program(node)
         with PieceInventory(publish_facts=False) as inventory:
             root = serialize_node(
                 node,
@@ -85,18 +89,13 @@ class BrowserRenderer:
                 inventory.register,
                 graph_values=True,
             )
-            bindings = bind_document(root, [])
-            document = {
-                "format": DOCUMENT_FORMAT,
-                "version": document_version(root, bindings),
-                "drivers": {},
-                "instructions": {},
-                "animation": animation_block(node),
-                "root": root,
-                "pieces": inventory.pieces(),
-            }
-            if bindings:
-                document['bindings'] = bindings
+            drivers = ({} if program is None
+                       else drivers_table(dict(program.inputs)))
+            document = document_body(node, root, drivers, {},
+                                     program, initial)
+            self.refuse_unreadable(document['version'])
+            document["root"] = root
+            document["pieces"] = inventory.pieces()
 
             staging = tempfile.mkdtemp(
                 prefix=f"{os.path.basename(build_dir)}.web-snapshot.",
@@ -118,6 +117,26 @@ class BrowserRenderer:
             except Exception:
                 self.remove_stage(staging)
                 raise
+
+    def refuse_unreadable(self, version):
+        """Refuse a document the installed viewer cannot read, BEFORE the
+        browser starts and before a staging directory exists.
+
+        A capture is a one-shot: the viewer's own refusal would reach the
+        caller as an opaque non-zero exit from a headless page, and this
+        capability's standing rule is to fail with what is missing rather
+        than substitute. It never falls back to OpenSCAD, which is the
+        same rule stated for a missing viewer package and a missing
+        browser.
+        """
+        message = viewer_bundle.unreadable_document(version)
+        if message is not None:
+            raise BrowserSnapshotError(
+                f'{message}. A capture is a one-shot, so it is refused '
+                f'here rather than failing inside a headless page: no '
+                f'browser was started and no image was written. Install a '
+                f'viewer that renders it, or photograph the model with '
+                f'--renderer openscad.')
 
     def artifact_path(self, stl_file, build_dir):
         """The staged, build-relative location of one artifact."""

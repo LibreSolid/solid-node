@@ -1,0 +1,197 @@
+{
+  "format": "solid-node-export",
+  "version": 4,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {
+    "x_axis.motor": {
+      "default": 8000,
+      "range": [
+        0,
+        100
+      ],
+      "unit": "ustep",
+      "dtype": "int",
+      "scale": 0.0125
+    },
+    "y_axis.motor": {
+      "default": 8000,
+      "range": [
+        0,
+        100
+      ],
+      "unit": "ustep",
+      "dtype": "int",
+      "scale": 0.0125
+    }
+  },
+  "instructions": {
+    "x_axis.Home": {
+      "targets": {
+        "x_axis.motor": 0.0
+      },
+      "duration": 2.0
+    },
+    "y_axis.Home": {
+      "targets": {
+        "y_axis.motor": 0.0
+      },
+      "duration": 2.0
+    }
+  },
+  "bindings": [
+    {
+      "name": "_b0",
+      "expression": "(x_axis.motor * 0.0125)"
+    },
+    {
+      "name": "_b1",
+      "expression": "(360.0 * $t)"
+    },
+    {
+      "name": "_b2",
+      "expression": "cos(_b1)"
+    },
+    {
+      "name": "_b3",
+      "expression": "(5.0 * _b2)"
+    },
+    {
+      "name": "_b4",
+      "expression": "(y_axis.motor * 0.0125)"
+    }
+  ],
+  "root": {
+    "name": "Machine",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": null,
+    "operations": [],
+    "children": [
+      {
+        "name": "x_axis",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": null,
+        "operations": [],
+        "children": [
+          {
+            "name": "carriage",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "t",
+                [
+                  "_b0",
+                  "0",
+                  "0"
+                ]
+              ]
+            ],
+            "model": "carriage"
+          },
+          {
+            "name": "pulley",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "r",
+                "(x_axis.motor * 0.1125)",
+                [
+                  0,
+                  0,
+                  1
+                ]
+              ]
+            ],
+            "model": "pulley"
+          },
+          {
+            "name": "cover",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "t",
+                [
+                  "(_b3 + (_b0 * 0.1))",
+                  "0",
+                  "0"
+                ]
+              ]
+            ],
+            "model": "cover"
+          }
+        ]
+      },
+      {
+        "name": "y_axis",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": null,
+        "operations": [],
+        "children": [
+          {
+            "name": "carriage",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "t",
+                [
+                  "_b4",
+                  "0",
+                  "0"
+                ]
+              ]
+            ],
+            "model": "carriage"
+          },
+          {
+            "name": "pulley",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "r",
+                "(y_axis.motor * 0.1125)",
+                [
+                  0,
+                  0,
+                  1
+                ]
+              ]
+            ],
+            "model": "pulley"
+          },
+          {
+            "name": "cover",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "t",
+                [
+                  "(_b3 + (_b4 * 0.1))",
+                  "0",
+                  "0"
+                ]
+              ]
+            ],
+            "model": "cover"
+          }
+        ]
+      }
+    ]
+  }
+}

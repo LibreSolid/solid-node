@@ -1,0 +1,167 @@
+{
+  "format": "solid-node-export",
+  "version": 2,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {},
+  "instructions": {},
+  "root": {
+    "name": "ThirdLevel",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": null,
+    "operations": [],
+    "children": [
+      {
+        "name": "TwoCylindersTwice",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": null,
+        "operations": [],
+        "children": [
+          {
+            "name": "TwoCylinders",
+            "type": "AssemblyNode",
+            "color": null,
+            "mtime": null,
+            "operations": [],
+            "children": [
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              },
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              }
+            ]
+          },
+          {
+            "name": "TwoCylinders",
+            "type": "AssemblyNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "r",
+                "180",
+                [
+                  1,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "children": [
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              },
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "TwoCylindersTwice",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "180",
+            [
+              0,
+              1,
+              0
+            ]
+          ]
+        ],
+        "children": [
+          {
+            "name": "TwoCylinders",
+            "type": "AssemblyNode",
+            "color": null,
+            "mtime": null,
+            "operations": [],
+            "children": [
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              },
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              }
+            ]
+          },
+          {
+            "name": "TwoCylinders",
+            "type": "AssemblyNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "r",
+                "180",
+                [
+                  1,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "children": [
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              },
+              {
+                "name": "SimpleCylinder",
+                "type": "LeafNode",
+                "color": null,
+                "mtime": null,
+                "operations": [],
+                "model": "SimpleCylinder"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

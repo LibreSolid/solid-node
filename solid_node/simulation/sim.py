@@ -137,8 +137,20 @@ class Sim:
         self._trajectory = []
         self._at = {}
         self._every = []
-        self._bind_initial(state)
         base = declared_time(type(node))
+        if base is not None and base.mode == 'running':
+            # ONE simulation owns a tree at a time, and the NEWEST takes
+            # it. A previous run's claim is released BEFORE the rest
+            # render below, so that render finds a tree no run owns and
+            # poses it exactly as it would a tree no run ever touched --
+            # which is what makes `ScenarioTest.simulation()`'s "fresh
+            # per call" true over a node built once per class. The
+            # released run then refuses to advance rather than binding
+            # over this one.
+            from .program import release_tree
+
+            release_tree(node)
+        self._bind_initial(state)
         if base is not None and base.mode == 'running':
             # The running engine and the compile step are imported HERE,
             # and nowhere else: a model that declares no running time

@@ -74,7 +74,8 @@ from solid_node.core.expressions import bind_expressions
 from solid_node.node.qualified import (
     DriverToken, declared_drivers_of, driver_id, drive_tree,
 )
-from solid_node.motion.ports import declared_time
+from solid_node.motion.ports import CLOCK_NAME, declared_time
+from solid_node.scad_expression import symbol
 from solid_node.simulation.enumeration import tree_declares_drivers
 
 
@@ -99,6 +100,27 @@ FLEXIBLE_DOCUMENT_VERSION = 3
 #: `DOCUMENT_VERSION` or `FLEXIBLE_DOCUMENT_VERSION`, byte-identical to
 #: what the framework published before bindings existed.
 BINDINGS_DOCUMENT_VERSION = 4
+
+#: The version a RUNNING root's document declares (OpenSpec change
+#: `publish-the-mechanical-program`). Unlike the ladder below it, this
+#: one is a property of the ROOT'S DECLARATION rather than of the tree's
+#: content: flexible leaves and shared subexpressions are properties of
+#: the tree, while a compiled program is a property of what the root
+#: declares, and a running root with a trivial program is still a machine
+#: a version 4 consumer would animate wrongly. The bump is not additive:
+#: a consumer ignoring `program` would read a document whose joint
+#: placements are bare coordinate names it can bind nothing to, so a
+#: consumer that cannot read version 5 must refuse it by name.
+RUNNING_DOCUMENT_VERSION = 5
+
+
+_MISSING = object()
+
+
+def running_root(node):
+    """Whether `node` declares `time = Time.running()`."""
+    base = declared_time(type(node))
+    return base is not None and base.mode == 'running'
 
 
 @contextmanager
@@ -133,22 +155,65 @@ def symbolic_document(node):
     version 1 document with two empty tables added -- including the
     instruction one, because an instruction moves a driver and a tree with
     no drivers has nothing for one to move.
+
+    Under a RUNNING root the same walk does two more things, because
+    under that base a COMMITTED BANK is what poses the geometry (OpenSpec
+    change ``publish-the-mechanical-program``, design section 3).  Every
+    JOINT COORDINATE of the linked tree is bound to a symbolic token of
+    its own qualified id, beside every driver's, so a joint's placement
+    publishes as that coordinate's id and every plain port, derived
+    coordinate and flexible ``params`` expression publishes as an
+    expression over the bank; and ``time`` is bound to its own name, so a
+    version 5 document carries the free name the program publishes as its
+    clock rather than the 0..1 animation variable.
+
+    The coordinate binding goes where the driver binding goes -- inside
+    the walk's own ``visit``, after that node's drivers are bound and
+    before anything renders -- through ``CoordinateDelivery``, the path a
+    run's own ``set_state`` takes, with a ``RunBinder`` installed as the
+    root's ``_run_binder`` for the duration.  That is what makes the
+    relations record as SOLVED rather than refuse as doubly bound, and
+    what lets publication run over a tree a live run owns: the binder is
+    admitted over a run-owned slot, and every slot's value, binder and
+    freshness marks are put back afterwards with its joint re-placed, so
+    the run goes on as if nothing had happened.
     """
-    if not tree_declares_drivers(node):
+    running = running_root(node)
+    if not running and not tree_declares_drivers(node):
         yield {}, {}
         return
 
     previous = {}
     instructions = {}
+    delivery = _coordinate_publication(node) if running else None
+    held = (node.__dict__.get('_run_binder', _MISSING) if running
+            else _MISSING)
+    if delivery is not None:
+        node.__dict__['_run_binder'] = delivery.binder
 
-    def symbolic(target, path, name, declaration):
+    def remember(target):
         if id(target) not in previous:
             previous[id(target)] = (target, dict(target._states))
+
+    def symbolic(target, path, name, declaration):
+        remember(target)
         return DriverToken(driver_id(path, name))
 
-    def collect(target, path):
+    def collect(target, path, children):
         for name, instruction in getattr(target, 'instructions', {}).items():
             instructions['.'.join(path + (name,))] = (path, instruction)
+        if delivery is None:
+            return
+        remember(target)
+        # `time` is global by contract and propagates flat, so every node
+        # holding a snapshot gets it -- exactly as `set_state` delivers it.
+        target._states[CLOCK_NAME] = symbol(CLOCK_NAME)
+        _publish_coordinates(delivery, target, path)
+        for child in children:
+            if getattr(child, '_states', None) is None:
+                # A LEAF holds no snapshot, so the walk never visits it on
+                # its own -- and a joint may be declared on one.
+                _publish_coordinates(delivery, child, path + (child.name,))
 
     declarations = drive_tree(node, symbolic, collect)
     try:
@@ -157,6 +222,12 @@ def symbolic_document(node):
         for target, states in previous.values():
             target._states.clear()
             target._states.update(states)
+        if delivery is not None:
+            delivery.restore()
+            if held is _MISSING:
+                node.__dict__.pop('_run_binder', None)
+            else:
+                node.__dict__['_run_binder'] = held
         # Re-render under the restored snapshot: an operation holds the
         # value its render computed, so nothing else would drop the tokens.
         # Unless the prior binding had holes -- a tree nobody bound could
@@ -168,6 +239,33 @@ def symbolic_document(node):
                for name in declared_drivers_of(type(target))):
             drive_tree(node, lambda target, path, name, declaration:
                        target._states[name])
+
+
+def _coordinate_publication(node):
+    """The delivery this publication binds its coordinates through.
+
+    `CoordinateDelivery` is what `set_state` already uses to bind a joint
+    coordinate under a running root: it saves each slot's value, binder
+    and freshness marks, binds through `set_coordinate` so the joint's own
+    placement applies, and restores them in reverse with the joint
+    re-placed from what its coordinates then hold. A publication needs
+    exactly that, and a second implementation of it would be a second
+    thing to keep in step.
+    """
+    from solid_node.motion.ports import RunBinder
+    from solid_node.node.assembly import CoordinateDelivery
+
+    return CoordinateDelivery(RunBinder())
+
+
+def _publish_coordinates(delivery, target, path):
+    from solid_node.node.assembly import CoordinateDelivery
+
+    names = CoordinateDelivery.names(type(target))
+    if not names:
+        return
+    delivery.deliver(target, {name: symbol(driver_id(path, name))
+                              for name in names}, path, {})
 
 
 def drivers_table(declarations):
@@ -197,7 +295,7 @@ def drivers_table(declarations):
     }
 
 
-def instructions_table(instructions):
+def instructions_table(instructions, running=False):
     """The document's ``instructions`` table: what the machine can be told.
 
     ``instructions`` is what ``symbolic_document`` collected --
@@ -214,22 +312,30 @@ def instructions_table(instructions):
     once, in the client, exactly as ``Driver.native`` performs it.
 
     A RELATIVE instruction -- one stating ``by=`` rather than ``targets=``
-    -- is OMITTED until a later change publishes the compiled program
-    under a new schema version: the shipped viewer reads ``targets`` off
-    every entry of this table and would fail on one without them, so a
-    root whose instructions are all relative publishes an empty table and
-    the rest of its document is unchanged (OpenSpec change
-    ``run-owns-the-coordinates``).
+    -- is OMITTED below version 5: the shipped viewer reads ``targets``
+    off every entry of this table and would fail on one without them, so
+    a root whose instructions are all relative publishes an empty table
+    and the rest of its document is unchanged (OpenSpec change
+    ``run-owns-the-coordinates``).  ``running`` says the document is the
+    version 5 one a running root publishes, where EVERY declared
+    instruction travels and each entry carries exactly one of ``targets``
+    (where the drivers land) and ``by`` (how far they travel from where
+    they stand) -- both keyed by qualified driver id and both in design
+    units.
     """
-    return {
-        name: {
-            'targets': {driver_id(path, target): value
-                        for target, value in instruction.targets.items()},
-            'duration': instruction.duration,
-        }
-        for name, (path, instruction) in sorted(instructions.items())
-        if instruction.targets is not None
-    }
+    table = {}
+    for name, (path, instruction) in sorted(instructions.items()):
+        if instruction.targets is not None:
+            stated = {'targets': {driver_id(path, target): value
+                                  for target, value
+                                  in instruction.targets.items()}}
+        elif running:
+            stated = {'by': {driver_id(path, target): value
+                             for target, value in instruction.by.items()}}
+        else:
+            continue
+        table[name] = dict(stated, duration=instruction.duration)
+    return table
 
 
 def animation_block(root, fps=30, frames=360):
@@ -256,7 +362,7 @@ def animation_block(root, fps=30, frames=360):
     return block
 
 
-def document_version(root, bindings=()):
+def document_version(root, bindings=(), program=None):
     """The LOWEST schema version the serialized tree ``root`` needs.
 
     Read off the document rather than tracked while building it, so the
@@ -274,7 +380,15 @@ def document_version(root, bindings=()):
     ``instructions`` were.  With nothing bound this answers exactly what it
     always has, so a document with nothing to share stays byte-identical
     to the one published before bindings existed.
+
+    ``program``, when given, always wins, and is the one step of the
+    ladder that is NOT read off the content: a compiled program is a
+    property of the ROOT'S DECLARATION, and a running root with nothing
+    shared and no flexible leaf is still a machine a version 4 consumer
+    would animate wrongly.
     """
+    if program is not None:
+        return RUNNING_DOCUMENT_VERSION
     if bindings:
         return BINDINGS_DOCUMENT_VERSION
     return _tree_version(root)
@@ -323,14 +437,40 @@ def _collect_slots(root, slots):
         _collect_slots(child, slots)
 
 
-def bind_document(root, driver_ids):
+def _collect_program_slots(program, slots):
+    """Every expression location the published program carries: a law's
+    expressions, a jump plan's skeleton and each of its jumps' level
+    quantities, and an expression span bound."""
+    for edge in program['edges']:
+        for index in range(len(edge.get('expressions', ()))):
+            slots.append(_Slot(edge['expressions'], index))
+        for plan in edge.get('plans', ()):
+            if plan is None:
+                continue
+            slots.append(_Slot(plan, 'skeleton'))
+            for jump in plan['jumps']:
+                slots.append(_Slot(jump, 'level'))
+    for span in program['spans'].values():
+        for side in ('low', 'high'):
+            if isinstance(span[side], dict):
+                slots.append(_Slot(span[side], 'expression'))
+
+
+def bind_document(root, driver_ids, program=None):
     """Publish each subexpression that repeats across ``root``'s operation
     and flexible ``params`` expressions once, named, and rewrite every
     occurrence to reference it in place (ADR-080).
 
-    ``driver_ids`` is every qualified driver id declared in the same
-    document -- the document's own ``drivers`` table keys -- so a minted
-    name can never collide with one (design.md D4).
+    ``driver_ids`` is every qualified id the document's expressions may
+    read -- the ``drivers`` table's keys, and under a running root the
+    bank's coordinates and the program's intermediates beside them -- so a
+    minted name can never collide with one (design.md D4).
+
+    ``program``, when given, is the published program object, whose own
+    expression slots are compiled in the SAME pass: the whole document
+    shares one table, so a subexpression a law shares with its own jump
+    plan's level quantity is published once and nothing anywhere carries
+    producer-local ``let(...)`` syntax.
 
     Returns the ordered ``bindings`` list: ``[]`` when nothing in the tree
     repeats, in which case ``root`` is left untouched and the caller omits
@@ -339,11 +479,64 @@ def bind_document(root, driver_ids):
     """
     slots = []
     _collect_slots(root, slots)
+    if program is not None:
+        _collect_program_slots(program, slots)
     expressions = [slot.get() for slot in slots]
     rewritten, bindings, _warnings = bind_expressions(expressions, driver_ids)
     for slot, text in zip(slots, rewritten):
         slot.set(text)
     return bindings
+
+
+def compiled_program(node):
+    """``(program, rest bank)`` for a running root, ``(None, None)`` for
+    every other root.
+
+    The simulation layer's compiler is imported HERE and nowhere else in
+    the producers, so a model that declares no running time pays for none
+    of it (capability ``cli-startup-cost``).
+    """
+    if not running_root(node):
+        return None, None
+    from solid_node.simulation.program import program_of
+
+    return program_of(node)
+
+
+def program_block(program, initial):
+    """The document's ``program`` object: what compile time decided about
+    the machine, with its expression slots still native graphs for
+    ``bind_document`` to compile with the tree's."""
+    return program.published(initial)
+
+
+def document_body(node, root, drivers, instructions, program=None,
+                  initial=None, fps=30, frames=360):
+    """Everything a published document carries except the two keys a
+    producer owns -- the model paths it resolves in ``root``, and
+    ``pieces``.
+
+    One place, so the three producers that share this walk cannot
+    disagree about what they just emitted. ``root``'s expressions are
+    rewritten in place by the binding pass.
+    """
+    block = None if program is None else program_block(program, initial)
+    identifiers = set(drivers)
+    if program is not None:
+        identifiers |= program.published_names()
+    bindings = bind_document(root, sorted(identifiers), block)
+    body = {
+        'format': DOCUMENT_FORMAT,
+        'version': document_version(root, bindings, block),
+        'animation': animation_block(node, fps, frames),
+        'drivers': drivers,
+        'instructions': instructions,
+    }
+    if bindings:
+        body['bindings'] = bindings
+    if block is not None:
+        body['program'] = block
+    return body
 
 
 def serialize_node(node, model_path, piece_id=None, *, graph_values=False):

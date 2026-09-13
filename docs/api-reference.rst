@@ -346,9 +346,13 @@ imported only when such a simulation is constructed.
 .. autoexception:: solid_node.simulation.RunConflict
 
 .. autoclass:: solid_node.simulation.program.Program
-   :members: described
+   :members: described, published, published_names
 
 .. autofunction:: solid_node.simulation.program.compile_program
+
+.. autofunction:: solid_node.simulation.program.program_of
+
+.. autofunction:: solid_node.simulation.program.release_tree
 
 .. autofunction:: solid_node.simulation.program.qualified_coordinates
 
@@ -368,6 +372,30 @@ imported only when such a simulation is constructed.
 .. autofunction:: solid_node.simulation.qualified_drivers
 
 .. autofunction:: solid_node.simulation.qualified_instructions
+
+The conformance corpus
+----------------------
+
+``tools/generate_running_corpus.py`` writes ``tests/running-corpus.json``
+from the framework's own run: for each of a set of small running roots,
+the program-bearing keys of the document it publishes, a script of
+commands, and every tick of the run with its bank, crossings, stops and
+command outcomes. Every expected value in it is a value the run
+PRODUCED, never one recomputed a second way, so a disagreement means the
+other runtime drifted. The framework's suite replays it
+(``tests/test_running_corpus.py``) and the browser viewer replays its own
+committed copy.
+
+The generator refuses to write a corpus that misses any of the features
+the export capability lists — each discontinuous primitive, a
+multi-source law, a stop inside a tick, an expression bound, a blocked
+command, a rate, a snapshot and a restore, both instruction forms, and a
+tick carrying both a crossing and a stop — so the corpus's width cannot
+narrow by accident.
+
+.. code-block:: bash
+
+    $ PYTHONPATH="$PWD" python tools/generate_running_corpus.py
 
 Expression math
 ========

@@ -10,6 +10,7 @@ tests that run under both pytest and the `solid test` runner. State
 lives in drivers; geometry stays a pure function of the bound
 snapshot.
 ## Requirements
+
 ### Requirement: Driver declarations separate from simulation state
 
 The system SHALL let an assembly declare its drivers as stateless
@@ -448,6 +449,25 @@ not a binding and SHALL keep working.
 `sim.time` SHALL remain `tick * dt`, and every instant, duration and
 period SHALL keep the whole-tick rule.
 
+ONE simulation SHALL own a tree at a time, and the newest SHALL take it.
+Constructing a simulation over a tree a previous run owns SHALL RELEASE that
+ownership before the rest render: the run's claim on the tree and on every
+joint coordinate it bound is dropped, so the rest render finds a tree no run
+owns and poses it exactly as it would a tree no run ever touched. A released
+run SHALL REFUSE to advance, naming both simulations and saying its bank no
+longer describes the tree, rather than binding over the simulation that now
+owns it. This is what makes a fresh simulation per call possible over a node
+built once and shared — the contract the scenario base states — and it does
+not weaken the doubly-bound refusal: an author's `simulate()` binding of a
+run-owned coordinate is still refused, because a release happens only before
+the rest render of a NEW simulation and never during one.
+
+A declared driver or joint coordinate whose qualified id is `time` SHALL be
+REFUSED at construction, naming the id and the reservation: `time` is the one
+snapshot entry that is global by contract, the run binds it beside the whole
+bank on every tick, and a bank entry under that id would be silently
+overwritten.
+
 #### Scenario: The bank lists joint coordinates by qualified id
 
 - **WHEN** a simulation is constructed over a running root declaring
@@ -504,6 +524,34 @@ period SHALL keep the whole-tick rule.
 - **WHEN** the joint `turn` is declared on a leaf class held as `first`
 - **THEN** `first.turn` is in the bank, the run binds it on every tick, and
   the leaf's body is placed by the bound value
+
+#### Scenario: A second simulation over one tree starts fresh
+
+- **WHEN** a simulation over a running root has moved its crank for twenty
+  ticks and a second simulation is constructed over the SAME node
+- **THEN** construction succeeds, the second simulation's bank is the rest
+  pose — identical to the first's initial snapshot — and nothing is refused
+  as doubly bound
+
+#### Scenario: A released simulation refuses to advance
+
+- **WHEN** a simulation whose tree a later simulation has taken over is
+  stepped
+- **THEN** it refuses naming both simulations and saying its bank no longer
+  describes the tree, and the tree is left as the owning simulation posed it
+
+#### Scenario: An author binding is still refused
+
+- **WHEN** a running root's `simulate()` binds a run-owned coordinate
+  unconditionally
+- **THEN** construction is refused as doubly bound, naming the class and the
+  coordinate, exactly as before
+
+#### Scenario: A driver named for the clock is refused
+
+- **WHEN** a running root declares a driver whose qualified id is `time`
+- **THEN** construction is refused naming the id and saying `time` is
+  reserved for the simulation clock
 
 ### Requirement: A continuous law is integrated over a tick and increments propagate
 

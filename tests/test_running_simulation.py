@@ -23,6 +23,7 @@ or looping root does, which the untouched suites pin.
 import gc
 import tracemalloc
 from unittest import TestCase
+from unittest.mock import patch
 
 from solid_node.core.serializer import instructions_table
 from solid_node.motion.couplings import DoublyBound
@@ -710,3 +711,93 @@ class RelativeInstructionDocumentTest(BaseNodeTest):
         self.assertEqual(sorted(table), ['Park'])
         self.assertEqual(table['Park']['targets'], {'crank': 40.0})
         self.assertEqual(table['Park']['duration'], 0.5)
+
+
+class ReservedClockNameTest(BaseNodeTest):
+    """(4.4) `time` is the run's own name, and a bank entry under it
+    would be silently overwritten every tick."""
+
+    def test_a_driver_qualifying_to_time_is_refused_at_construction(self):
+        from solid_node.simulation import sim as sim_module
+        from solid_node.simulation.driver import Driver as Declaration
+
+        real = sim_module.qualified_drivers
+
+        def with_a_clock_named_driver(node):
+            return dict(real(node), time=Declaration(default=0.0))
+
+        with patch.object(sim_module, 'qualified_drivers',
+                          with_a_clock_named_driver):
+            with self.assertRaises(ValueError) as caught:
+                Sim(Train(), 0.1)
+        message = str(caught.exception)
+        self.assertIn("'time'", message)
+        self.assertIn('reserved', message)
+
+    def test_the_python_preview_of_an_unbound_clock_is_unchanged(self):
+        """(4.2) Cycle 1's preview, which the document producer alone
+        leaves behind: everywhere else an unbound `time` under a running
+        root still reads the bare animation variable."""
+        node = Train()
+        node.set_state(crank=0.0, lever=100.0)
+        node.assemble()
+        self.assertEqual(str(node.time), '$t')
+
+
+class OneTreeOneOwnerTest(BaseNodeTest):
+    """(6) One simulation owns a tree at a time, and the newest takes
+    it -- which is what makes `ScenarioTest.simulation()`'s "fresh per
+    call" promise true over a node built once per class."""
+
+    def test_a_second_simulation_over_one_tree_starts_fresh(self):
+        node = Train()
+        first = Sim(node, 0.1)
+        first.move('crank', by=20.0, duration=1.0)
+        first.run(1.0)
+        self.assertEqual(first.state['crank'], 20.0)
+
+        second = Sim(node, 0.1)
+
+        self.assertEqual(second.state, dict(first.initial.bank))
+        self.assertEqual(second.tick, 0)
+
+    def test_a_released_simulation_refuses_to_advance(self):
+        node = Train()
+        first = Sim(node, 0.1)
+        first.move('crank', by=20.0, duration=1.0)
+        first.run(0.5)
+        second = Sim(node, 0.1)
+
+        with self.assertRaises(RuntimeError) as caught:
+            first.run(0.1)
+        message = str(caught.exception)
+        self.assertIn('Train', message)
+        self.assertIn('no longer', message)
+
+        second.move('crank', by=10.0, duration=1.0)
+        second.run(1.0)
+        self.assertEqual(second.state['crank'], 10.0)
+        self.assertEqual(second.state['first.turn'], 20.0)
+
+    def test_an_author_binding_is_still_refused(self):
+        with self.assertRaises(DoublyBound) as caught:
+            Sim(HandBound(), 0.1)
+        message = str(caught.exception)
+        self.assertIn('HandBound', message)
+        self.assertIn('first.turn', message)
+
+    def test_two_scenarios_of_one_class_run_off_one_built_node(self):
+        from solid_node.simulation.scenario import ScenarioTest
+
+        class Scenario(ScenarioTest):
+            node = Train
+            dt = 0.1
+
+        banks = []
+        for _ in range(2):
+            scenario = Scenario()
+            simulation = scenario.simulation()
+            simulation.move('crank', by=10.0, duration=1.0)
+            simulation.run(1.0)
+            banks.append(simulation.state)
+        self.assertEqual(banks[0], banks[1])

@@ -144,3 +144,40 @@ differs before touching live state; recording is explicit and bounded.
   cost what every tick already paid for drivers: measured at 1.16 ms per
   tick against the untimed loop's 0.36 ms on the same machine, with
   memory flat under a bounded ring.
+
+## Amendment, 2026-09-13 (`publish-the-mechanical-program`)
+
+This ADR said "a run-bound slot survives `clear_solved` even after its
+`Sim` is discarded, exactly as a hand binding outside a phase does today;
+a later `set_state` or construction rebinds it". A later CONSTRUCTION did
+not: the second `Sim` over one node rendered at rest, the relation
+reached `bind()` against a slot the FIRST run still owned, and the
+binding was refused as doubly bound — naming `simulate()`, with no
+`simulate()` involved. `ScenarioTest.simulation()` promises the opposite
+in its own docstring ("fresh per call, never per class"), and the node IS
+shared per class, so the second scenario of any running class failed.
+
+The ownership rule is amended to say what it always meant: **ONE
+simulation owns a tree at a time, and the NEWEST takes it.** Constructing
+a simulation over a tree a previous run owns RELEASES that ownership
+before the rest render — the root's `_run_binder` is dropped and every
+run-owned coordinate slot cleared — so the rest render finds a tree no
+run owns and poses it exactly as it would a tree no run ever touched. A
+RELEASED run then refuses to advance, naming both simulations and saying
+its bank no longer describes the tree, rather than binding over the
+simulation that now poses it.
+
+Nothing about the doubly-bound refusal weakens: an author's `simulate()`
+binding a run-owned coordinate is still refused at the first `Sim`'s own
+construction, by the same test and with the same message, because a
+release happens only BEFORE the rest render of a NEW simulation and never
+during one. The one relaxation is that `bind()` admits a `RunBinder` over
+a slot another `RunBinder` owns, which is what lets the document producer
+bind a live run's coordinates symbolically for one walk and put them back
+(ADR-110); the binder that reaches `bind()` for an author's law is the
+RELATION's, and never a run's.
+
+Reserved with it: a declared driver or joint coordinate whose qualified
+id is `time` is refused at construction. `time` is the one snapshot entry
+that is global by contract, the run binds it beside the whole bank on
+every tick, and a bank entry under that id would be silently overwritten.

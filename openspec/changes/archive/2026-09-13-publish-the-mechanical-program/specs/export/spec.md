@@ -213,9 +213,13 @@ joint coordinate qualifies to the id `time`, naming it and the reservation:
 running document's clock is published under.
 
 Every entry of `program.coordinates`, input or joint coordinate, SHALL
-carry its `domain` — `rotational`, `translational` or `signal`, as the
-port kinds name them — beside its unit, so a consumer's readouts and jog
-controls need no second reading of the tree. The document SHALL NOT
+carry a `domain` field, so a consumer's readouts and jog controls need no
+second reading of the tree. For a JOINT COORDINATE its value SHALL be the
+declared domain of the port the joint owns — `rotational`,
+`translational` or `signal`, as the port kinds name them — beside its
+unit. For an INPUT its value SHALL be `null`: a driver declaration states
+a default, a range, a unit, a dtype and a scale, and no domain, and the
+producer SHALL NOT derive one from the unit. The document SHALL NOT
 publish a `dt`: the step is the executing runtime's choice, the supported
 law class is exact across its kinks and locates its jumps and stops
 inside whatever tick they fall in, and the conformance corpus pins each
@@ -229,8 +233,9 @@ run's binder is restored afterwards.
 #### Scenario: Coordinates publish their domain
 
 - **WHEN** the Pascaline module's running root is exported
-- **THEN** every `program.coordinates` entry carries `domain`, the dials
-  and arbor coordinates reading `rotational`, beside their unit
+- **THEN** every `program.coordinates` entry carries `domain`, each arbor
+  coordinate reading `rotational` beside its unit, and each dial — a
+  declared driver, which states no domain — reading `null`
 
 #### Scenario: Publishing does not disturb a live run
 

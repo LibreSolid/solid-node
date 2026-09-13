@@ -63,6 +63,11 @@ from dataclasses import dataclass
 from solid_node.node.phase import (current, current_enumeration, note_bound,
                                    note_read, note_unbound_read)
 
+#: The one snapshot entry that is global by contract, and the free name a
+#: running document publishes its clock under. Declared here, beside
+#: `Time`, so the document producer and the run read one string.
+CLOCK_NAME = 'time'
+
 
 class BoundPort:
     """The per-instance value slot of one declared port.
@@ -277,6 +282,10 @@ class RunBinder:
     layer. It carries no import of its own, which is what keeps the
     motion package's import cost exactly what it was.
 
+    `owner`, when set, is the `Run` that binds as this marker, so a run
+    whose tree a later simulation took over can name the one that took
+    it. Set by the run itself; never read by this module.
+
     The run binds OUTSIDE every enumeration, in `set_state`'s delivery
     walk, and rebinds the whole bank on every tick. Two consequences
     live in this module: a slot the run owns accepts a binding from no
@@ -286,6 +295,8 @@ class RunBinder:
     "a wired coordinate has one binder" rule still holds, with the run
     as that binder.
     """
+
+    owner = None
 
     def described(self):
         return 'the running simulation'
@@ -344,9 +355,17 @@ def bind(sink, source):
     a once-only render() would bind once and never rebind.
     """
     note_read('bound port', sink.name)
-    if run_owned(sink) and _binder is not sink.binder:
+    if run_owned(sink) and not isinstance(_binder, RunBinder):
         # A coordinate the run owns has exactly one binder, and it is
-        # the run. Raised as the couplings capability's own kind --
+        # the run -- or the DOCUMENT PRODUCER, which binds every joint
+        # coordinate symbolically for one walk and puts back exactly
+        # what it found (OpenSpec change `publish-the-mechanical-
+        # program`, design section 3). Admitting a `RunBinder` over a
+        # run-owned slot is what lets a scenario or a development server
+        # publish a tree its own run owns; it does not weaken the
+        # refusal below, because the binder that reaches here for an
+        # author's law is the RELATION's and never a run's.
+        # Raised as the couplings capability's own kind --
         # imported here rather than at module scope, because a run
         # binding exists only when couplings is already loaded, and a
         # module-scope import would close the cycle ADR-089 keeps open.

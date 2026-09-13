@@ -403,13 +403,48 @@ the tick at which it was reached, and the inputs the stop blocked. A stop
 is appended only when the tick commits, and ``record=None`` keeps none
 and builds none.
 
+What a running root publishes
+-----------------------------
+
+A running root's document is a **version 5** document. Beside the
+geometry it always published it carries a ``program`` object: what
+compile time decided about the machine, and nothing the tick computes —
+the coordinate table with each bank id's kind, rest value, unit and
+domain, the intermediates, the compiled edges in program order with
+their expressions and jump plans, the spans, the candidate table of
+which inputs reach what, the program identity, the clock name and the
+constants the algorithm is defined by. And every joint's placement in
+the tree is published as its own coordinate's qualified id, so a
+consumer poses the geometry from a bank it committed rather than from
+the law read absolutely at the driver values, which is the whole
+difference between a machine that accumulates and one that snaps back.
+
+Both instruction forms travel under version 5 — ``targets`` and ``by``,
+each entry carrying exactly one of them — where versions 2 to 4 publish
+only the absolute form.
+
+The bump is not additive, and a consumer that cannot read version 5
+refuses the document by name rather than rendering part of a machine it
+does not understand. ``solid build``, ``solid develop`` and ``solid
+export`` publish it anyway and warn once, naming the version written,
+the versions the installed viewer renders and the viewer's package
+version; ``solid snapshot --renderer web`` refuses before it starts the
+browser, because a capture is a one-shot. A browser that RUNS the
+machine is the viewer package's own next release.
+
+Under a running root the clock leaves the document too: the model's
+``self.time`` publishes as the free name ``time``, declared as
+``program.clock``, which a runtime binds to elapsed simulation seconds
+and a consumer with no run binds to zero. The bare ``$t`` preview a
+Python read gets is unchanged.
+
 What this release refuses
 -------------------------
 
 Each of these is refused by name, and each is a later cycle's to lift:
 
 * a law that cannot be applied to a symbol — one written over Python's
-  own ``math`` rather than :doc:`solid_node.math <math>`;
+  own ``math`` rather than :doc:`solid_node.math <api-reference>`;
 * a relation into a coordinate the run owns whose SOURCE is a plain port
   an author's ``simulate()`` binds: state that value as a relation, or
   give the part a joint;

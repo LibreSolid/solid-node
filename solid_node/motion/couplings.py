@@ -2168,6 +2168,16 @@ def _step_derived(assembly, formula, claimed, bound):
     return True
 
 
+def _restated(binder, wiring):
+    """Whether `binder` is THIS wiring, stated again on a later pass.
+
+    A fresh `Wiring` is built for every enumeration, so the two are the
+    same statement when they name the same keyword of the same child.
+    """
+    return (isinstance(binder, Wiring) and binder.child is wiring.child
+            and binder.keyword == wiring.keyword)
+
+
 def _step_wiring(wiring, bound):
     if wiring.applied:
         return False
@@ -2179,7 +2189,16 @@ def _step_wiring(wiring, bound):
         return False
     if wiring.slot._value is None:
         return False
-    if wiring.target._value is not None:
+    if (wiring.target._value is not None
+            and not _restated(_binder_of(wiring.target), wiring)):
+        # A value THIS SAME wiring left behind is not a second statement
+        # of the same coordinate: a wiring binds its target once per
+        # enumeration (`applied`, above), so what it finds there can only
+        # be its own earlier binding, stale and about to be replaced. It
+        # survives a `clear_solved` only where something outside a phase
+        # put it back -- the document producer restoring a tree it bound
+        # symbolically (OpenSpec change `publish-the-mechanical-
+        # program`) -- and refusing it there named one wiring twice.
         _refuse_double(wiring.target, wiring,
                        f'{where(wiring.child)}.{wiring.keyword}')
     wiring.apply()

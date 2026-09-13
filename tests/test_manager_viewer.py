@@ -35,3 +35,17 @@ class ViewerCommandTest(TestCase):
         self.assertEqual(raised.exception.code, 1)
         self.assertEqual(output.getvalue(), '')
         self.assertIn('Install the viewer extra.', errors.getvalue())
+
+
+class DocumentVersionsReportTest(TestCase):
+    """`solid viewer` is the one report, so a field the viewer added
+    reaches a host through it unchanged."""
+
+    def test_the_report_carries_the_document_versions(self):
+        report = dict(REPORT, documentVersions=[1, 2, 3, 4, 5])
+        output = io.StringIO()
+        with patch('solid_node.manager.viewer.describe', return_value=report), \
+             redirect_stdout(output):
+            Viewer().handle(Namespace())
+        self.assertEqual(json.loads(output.getvalue())['documentVersions'],
+                         [1, 2, 3, 4, 5])

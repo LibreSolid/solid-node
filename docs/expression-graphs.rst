@@ -13,6 +13,22 @@ removed no geometry backend. A subsequent v0.7 decision removed the OpenSCAD
 GUI from ``solid develop`` while retaining those modelling technologies and
 the fixed-pose OpenSCAD snapshot renderer.
 
+Under a running root the COMPILED PROGRAM shares that same table. A
+version 5 document's law expressions, jump-plan skeletons, level
+quantities and expression span bounds are compiled in one pass with the
+tree's operations and ``params``, so a subexpression a law shares with
+its own plan's level quantity is published once and nothing anywhere
+carries the producer-side ``let(...)`` closure.
+
+A jump plan's BRANCH PLACEHOLDERS are a published name kind of their
+own. The compiler names them per plan; publication renames them
+``_j0``, ``_j1``, … across the WHOLE document, in edge order and then
+the graph's postorder, under a prefix lengthened by a leading underscore
+for as long as any published id matches it — exactly as ``_b`` is
+lengthened. Per-plan names would let three plans each calling their
+first jump ``$j0`` share one binding entry between three different jump
+nodes.
+
 Text compatibility
 ------------------
 

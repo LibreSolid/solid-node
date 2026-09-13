@@ -204,3 +204,56 @@ class RenderVisibilityTest(TestCase):
             self.assertEqual(artifact.read(), 'previous complete artifact')
         self.assertFalse(os.path.exists(temporary))
         self.assertFalse(os.path.exists(lock))
+
+
+class RunningSnapshotWarningTest(TestCase):
+    """(7.4) The build publishes a version 5 document and warns once
+    when the installed viewer does not list it."""
+
+    def setUp(self):
+        from tests.base import BUILD_DIR
+        from solid_node.simulation.enumeration import bind_declared_defaults
+        from tests.running_project.machine import Train
+
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        os.makedirs(BUILD_DIR)
+        self.addCleanup(shutil.rmtree, BUILD_DIR, ignore_errors=True)
+        self.build_dir = BUILD_DIR
+        self.node = Train()
+        bind_declared_defaults(self.node)
+        self.node.assemble()
+        self.node.build_stls()
+
+    def published(self, message):
+        import json
+        from unittest.mock import patch
+        from solid_node.core import builder as builder_module
+        from solid_node.core.builder import Builder
+
+        builder = Builder('model.py', build_dir=self.build_dir, watch=False)
+        builder.node = self.node
+        with patch.object(builder_module.viewer_bundle,
+                          'unreadable_document', return_value=message):
+            if message is None:
+                builder._write_viewer_snapshot()
+                records = []
+            else:
+                with self.assertLogs('core.builder', level='WARNING') as log:
+                    builder._write_viewer_snapshot()
+                records = log.output
+        with open(os.path.join(self.build_dir, 'viewer.json')) as handle:
+            return json.load(handle), records
+
+    def test_the_document_is_published_and_the_warning_is_one(self):
+        document, records = self.published(
+            'document version 5; the installed viewer renders 1, 2, 3, 4 '
+            '(solid-node-viewer 0.1.0)')
+        self.assertEqual(document['version'], 5)
+        self.assertIn('program', document)
+        warnings = [line for line in records if 'document version 5' in line]
+        self.assertEqual(len(warnings), 1, records)
+
+    def test_a_viewer_that_can_read_it_is_not_warned_about(self):
+        document, records = self.published(None)
+        self.assertEqual(document['version'], 5)

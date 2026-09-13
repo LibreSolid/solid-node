@@ -51,6 +51,7 @@ none of it (capability ``cli-startup-cost``).
 import hashlib
 import math
 import operator
+import re
 from dataclasses import dataclass
 
 from solid2.core.object_base import OpenSCADConstant
@@ -60,6 +61,7 @@ from solid_node.math import SYMBOLIC_BUILTINS
 from solid_node.motion.couplings import (_solved_formulas, _wirings,
                                          CouplingError)
 from solid_node.motion.joints import coordinates_of, declared_joints
+from solid_node.motion.ports import CLOCK_NAME
 from solid_node.node.qualified import driver_id, instance_path
 from solid_node.scad_expression import GraphValue, as_node, symbol
 
@@ -758,10 +760,15 @@ class Program:
     a tree whose kinematics have moved on.
     """
 
-    def __init__(self, root, inputs, coordinates, nodes, edges, spans=()):
+    def __init__(self, root, inputs, coordinates, nodes, edges, spans=(),
+                 declared=None):
         self.root_class = type(root)
         self.inputs = tuple(inputs)
         self.coordinates = tuple(coordinates)
+        # `{qualified id: (unit, domain)}` for every banked JOINT
+        # coordinate, read off the port declaration once so the
+        # published table needs no second walk of the tree.
+        self.declared = dict(declared or {})
         self.nodes = nodes
         self.edges = tuple(edges)
         self.determiner = {key: edge for edge in self.edges
@@ -803,6 +810,145 @@ class Program:
             lines.append(f'{edge.kind} {ends} {how} [{edge.description}]')
         return '\n'.join(lines)
 
+    ##############################################
+    # Publication
+
+    def published(self, initial):
+        """The projection a version 5 document carries: what COMPILE
+        TIME decided about this machine, and nothing the tick computes.
+
+        `initial` is the REST BANK -- `dict(sim.initial.bank)` -- the one
+        number a consumer cannot compute, because computing it means
+        running the CAD tree's rest render.
+
+        Every expression slot holds a native graph rather than text: the
+        document's own binding pass compiles them together with the
+        tree's, so a subexpression a law shares with its own plan's level
+        quantity is published once and nothing carries producer-local
+        `let(...)` syntax. Branch placeholders are minted HERE, across
+        the whole document -- `_j0`, `_j1`, ... in edge order and then
+        the graph's postorder -- because the compiler names them per plan
+        and three plans calling their first jump `$j0` would let the
+        binding pass share one subtree between three different jump
+        nodes.
+        """
+        self._refuse_unqualified()
+        names = self.published_names()
+        placeholders = self._placeholders(names)
+        return {
+            'identity': self.identity,
+            'clock': CLOCK_NAME,
+            'coordinates': self._published_coordinates(initial),
+            'intermediates': sorted(
+                node.name for node in self.nodes.values()
+                if node.kind == 'intermediate'),
+            'edges': [self._published_edge(edge, placeholders[index])
+                      for index, edge in enumerate(self.edges)],
+            'spans': {identifier: {'low': _published_bound(low),
+                                   'high': _published_bound(high)}
+                      for identifier, low, high, _unit in self.spans},
+            'sources': {self.nodes[key].name: sorted(names)
+                        for key, names in sorted(
+                            self.sources.items(),
+                            key=lambda item: self.nodes[item[0]].name)},
+            'limits': {
+                'crossing_tolerance': _CROSSING_TOLERANCE,
+                'subdivisions': _SUBDIVISIONS,
+                'bisection_rounds': _BISECTION_ROUNDS,
+                'max_crossings': _MAX_CROSSINGS,
+                'agreement': _agreement(),
+            },
+        }
+
+    def published_names(self):
+        """Every id the published program's expressions may read: the
+        inputs, the bank's coordinates and the intermediates.
+
+        The set a minted name must not collide with, and the set the
+        document's binding pass is given so it cannot mint one either.
+        """
+        found = {identifier for identifier, _declaration in self.inputs}
+        found.update(self.coordinates)
+        found.update(node.name for node in self.nodes.values())
+        return found
+
+    def _refuse_unqualified(self):
+        for node in self.nodes.values():
+            if node.qualified:
+                continue
+            raise UnsupportedLaw(
+                f"the program names '{node.name}', which is a FALLBACK "
+                f'derived from a class name rather than an instance '
+                f'path: the node it belongs to is not linked under the '
+                f'root, so its qualified id is not computable. A class '
+                f'name is not unique across two instances of that class, '
+                f'and publishing it would put two different coordinates '
+                f'under one name in one expression scope. Hold the node '
+                f'on its own attribute of its parent.')
+
+    def _published_coordinates(self, initial):
+        entries = {}
+        for identifier, _declaration in self.inputs:
+            entries[identifier] = {
+                'kind': 'input',
+                'initial': initial[identifier],
+                # A driver declares no DOMAIN -- see the export spec --
+                # so there is none to publish and none is invented.
+                'domain': None,
+            }
+        for identifier in self.coordinates:
+            unit, domain = self.declared.get(identifier, (None, None))
+            entries[identifier] = {
+                'kind': 'coordinate',
+                'initial': initial[identifier],
+                'unit': unit,
+                'domain': domain,
+            }
+        return entries
+
+    def _placeholders(self, names):
+        """One `{compiler name: published name}` map per edge, in edge
+        order and then the graph's postorder, under a prefix lengthened
+        while any published id matches `<prefix>` followed by digits."""
+        prefix = _placeholder_prefix(names)
+        minted = 0
+        found = []
+        for edge in self.edges:
+            per_edge = []
+            for index in range(len(edge.gives)):
+                plan = edge.plans[index] if edge.plans else None
+                mapping = {}
+                if plan is not None:
+                    for jump in plan.jumps:
+                        mapping[jump.placeholder] = f'{prefix}{minted}'
+                        minted += 1
+                per_edge.append(mapping)
+            found.append(per_edge)
+        return found
+
+    def _published_edge(self, edge, placeholders):
+        entry = {
+            'kind': edge.kind,
+            'needs': [self.nodes[key].name for key in edge.needs],
+            'gives': [self.nodes[key].name for key in edge.gives],
+            'description': edge.description,
+            'stated_by': edge.stated_by,
+        }
+        if edge.kind == 'law':
+            entry['expressions'] = list(edge.graphs)
+            entry['affine'] = list(edge.affine)
+            entry['plans'] = [
+                _published_plan(edge.plans[index] if edge.plans else None,
+                                placeholders[index])
+                for index in range(len(edge.gives))]
+        elif edge.kind == 'wiring':
+            entry['factor'] = edge.factors[0]
+        else:
+            entry['factors'] = list(edge.factors)
+            entry['constant'] = edge.constant
+            entry['slot'] = self.nodes[edge.slot_key].name
+        return entry
+
     def __repr__(self):
         return (f'<program of {self.root_class.__name__}: '
                 f'{len(self.nodes)} coordinates, {len(self.edges)} edges>')
@@ -843,14 +989,23 @@ def _reaching_inputs(nodes, edges):
 
 class _Node:
     """One coordinate the program computes over: a bank id, or an
-    INTERMEDIATE a compiled edge determines."""
+    INTERMEDIATE a compiled edge determines.
 
-    __slots__ = ('key', 'name', 'kind')
+    `qualified` is whether `name` is the instance-qualified id or the
+    `<ClassName>.<name>` FALLBACK `_qualified` takes when the node is not
+    linked under the root. The fallback is good enough for a message and
+    is not unique across two instances of one class, so publication
+    refuses it rather than putting two coordinates under one name in one
+    expression scope.
+    """
 
-    def __init__(self, key, name, kind):
+    __slots__ = ('key', 'name', 'kind', 'qualified')
+
+    def __init__(self, key, name, kind, qualified=True):
         self.key = key
         self.name = name
         self.kind = kind
+        self.qualified = qualified
 
     def __repr__(self):
         return f'<{self.kind} {self.name}>'
@@ -898,7 +1053,22 @@ def compile_program(root, inputs, coordinates):
     _refuse_opaque(kept, bank_keys, nodes)
     ordered = _ordered(kept, nodes)
     return Program(root, sorted(inputs.items()), sorted(coordinates),
-                   nodes, ordered, _compiled_spans(coordinates))
+                   nodes, ordered, _compiled_spans(coordinates),
+                   _declared_coordinates(coordinates))
+
+
+def _declared_coordinates(coordinates):
+    """Each banked coordinate's declared `(unit, domain)`.
+
+    Read here, once, off the port the joint owns: the document publishes
+    both beside the coordinate's rest value, and a consumer's readouts
+    and jog controls then need no second reading of the tree.
+    """
+    from solid_node.motion.ports import get_coordinate
+
+    return {identifier: (get_coordinate(node, name).unit,
+                         get_coordinate(node, name).domain)
+            for identifier, (node, name) in coordinates.items()}
 
 
 ##############################################
@@ -1013,23 +1183,30 @@ def _units(root):
 
 def _register(nodes, root, end):
     """`end`'s program node, created on first sight."""
+    name, qualified = _qualified(root, end)
     if end.is_driver:
-        key = ('input', _qualified(root, end))
+        key = ('input', name)
     else:
         key = ('slot', id(end.slot))
     found = nodes.get(key)
     if found is None:
-        found = nodes[key] = _Node(key, _qualified(root, end), 'intermediate')
+        found = nodes[key] = _Node(key, name, 'intermediate', qualified)
     return found
 
 
 def _qualified(root, end):
+    """`end`'s qualified id and whether it IS one.
+
+    The `<ClassName>.<name>` fallback names the node in a refusal; it is
+    not unique across two instances of one class, which is why the flag
+    travels with it.
+    """
     from solid_node.node.qualified import DriverIdError
 
     try:
-        return driver_id(instance_path(end.node, root), end.name)
+        return driver_id(instance_path(end.node, root), end.name), True
     except DriverIdError:
-        return f'{type(end.node).__name__}.{end.name}'
+        return f'{type(end.node).__name__}.{end.name}', False
 
 
 def _relation_edge(root, assembly, record, nodes, bank_keys):
@@ -1328,9 +1505,11 @@ def _slot_node(nodes, root, slot):
 
         try:
             name = driver_id(instance_path(slot.node, root), slot.name)
+            qualified = True
         except DriverIdError:
             name = f'{type(slot.node).__name__}.{slot.name}'
-        found = nodes[key] = _Node(key, name, 'intermediate')
+            qualified = False
+        found = nodes[key] = _Node(key, name, 'intermediate', qualified)
     return found
 
 
@@ -1452,3 +1631,162 @@ def _ordered(kept, nodes):
             remaining.remove(edge)
             resolved.update(edge.gives)
     return order
+
+##############################################
+# Publication helpers
+
+
+
+
+def _agreement():
+    """`run.py`'s `_TOLERANCE`, imported where it is read rather than at
+    module scope: `run` imports THIS module."""
+    from .run import _TOLERANCE
+
+    return _TOLERANCE
+
+
+def _placeholder_prefix(names):
+    r"""`_j`, lengthened by a leading underscore for as long as some
+    published id matches `<prefix>\d+` -- exactly as the bindings pass
+    lengthens `_b`."""
+    prefix = '_j'
+    while any(re.fullmatch(re.escape(prefix) + r'\d+', name)
+              for name in names):
+        prefix = '_' + prefix
+    return prefix
+
+
+def _published_plan(plan, placeholders):
+    if plan is None:
+        return None
+    return {
+        'skeleton': _renamed(plan.skeleton, placeholders),
+        'jumps': [{'name': placeholders[jump.placeholder],
+                   'primitive': jump.primitive,
+                   'level': _renamed(jump.argument, placeholders),
+                   'affine': jump.affine}
+                  for jump in plan.jumps],
+    }
+
+
+def _published_bound(bound):
+    if bound is None or isinstance(bound, float):
+        return bound
+    return {'expression': bound}
+
+
+def _renamed(graph, mapping):
+    """`graph` with every branch placeholder replaced through `mapping`.
+
+    The compiler names a placeholder `$j0` per plan, which is not a name
+    in the published grammar at all; this is where it becomes one.
+    """
+    if graph is None:
+        return None
+    root = as_node(graph)
+    replaced = {}
+    for node in postorder([root]):
+        if node.kind == 'name' and node.text in mapping:
+            replaced[node] = ExpressionNode('name', text=mapping[node.text])
+        elif node.children:
+            children = tuple(replaced.get(child, child)
+                             for child in node.children)
+            if children != node.children:
+                replaced[node] = ExpressionNode(
+                    node.kind, node.op, children, node.text)
+    return GraphValue(replaced.get(root, root))
+
+
+##############################################
+# What a producer takes from a running root
+
+
+def owning_run(root):
+    """The `Run` that currently owns `root`'s tree, or None."""
+    return getattr(root.__dict__.get('_run_binder'), 'owner', None)
+
+
+def release_tree(root):
+    """Drop a previous run's ownership of `root`'s tree.
+
+    ONE simulation owns a tree at a time and the NEWEST takes it: the
+    run's claim on the root and on every joint coordinate it bound is
+    dropped, so the rest render that follows finds a tree no run owns and
+    poses it exactly as it would a tree no run ever touched. The released
+    run refuses to advance afterwards (`Run._owns`), because its bank no
+    longer describes the tree.
+    """
+    from solid_node.motion.ports import get_coordinate, run_owned
+
+    root.__dict__.pop('_run_binder', None)
+    for _identifier, (node, name) in qualified_coordinates(root).items():
+        slot = get_coordinate(node, name)
+        if run_owned(slot):
+            slot._value = None
+            slot.binder = None
+            slot._enum_marker = None
+
+
+def program_of(root):
+    """The compiled program of a running root and its REST BANK, taken
+    WITHOUT taking the tree over.
+
+    A live run is the authority on both and is asked for them: it holds
+    the program it compiled and the snapshot it took at construction, and
+    a publication is a read that must leave no trace on it. With no run,
+    one is constructed and released again -- the same construction, so
+    the published program and identity are the run's by construction
+    rather than by two implementations agreeing -- and every node's
+    snapshot is put back and re-rendered, so a caller that held a posed
+    tree still holds one.
+
+    A root the run cannot be constructed over has no program to publish,
+    and this raises exactly what `Sim` raises.
+    """
+    run = owning_run(root)
+    if run is not None:
+        return run.program, dict(run.initial.bank)
+    from .sim import Sim
+
+    snapshots = _snapshots(root)
+    try:
+        sim = Sim(root, 1.0)
+        return sim.program, dict(sim.initial.bank)
+    finally:
+        release_tree(root)
+        _restore(snapshots, root)
+
+
+def _snapshots(root):
+    from solid_node.node.assembly import _rest_children
+
+    found = []
+
+    def visit(node):
+        if getattr(node, '_states', None) is None:
+            return
+        found.append((node, dict(node._states)))
+        for child in _rest_children(node):
+            visit(child)
+
+    visit(root)
+    return found
+
+
+def _restore(snapshots, root):
+    from solid_node.node.qualified import declared_drivers_of
+
+    complete = True
+    for node, states in snapshots:
+        node._states.clear()
+        node._states.update(states)
+        if any(name not in states
+               for name in declared_drivers_of(type(node))):
+            complete = False
+    if complete and getattr(root, '_states', None) is not None:
+        # Re-render under the restored snapshot: an operation holds the
+        # value its render computed, so nothing else would drop the
+        # numbers the rest render just put there. A snapshot with holes
+        # could not have been rendered before this either.
+        root.render()
