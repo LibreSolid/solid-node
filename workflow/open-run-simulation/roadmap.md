@@ -323,3 +323,36 @@ agent reviews adversarially as the ratification gate. Module: one agent
 proposes and implements each cycle. The campaign's goal is the module
 simulated in the browser, with the shop opened from the worktrees on port 9001
 for the pilot to test. Release placement is still undecided.
+
+### Cycle 1 landed, 2026-09-13
+
+`run-owns-the-coordinates` is implemented on branch `open-run-simulation`
+in `solid-node/WTs/open-run-simulation`, two commits from base
+`1d6f794` — the planning commit `a1d54cc` and the implementation commit
+below. `Time.running()`, the bank of every driver and joint coordinate,
+the run as a binder the solver recognizes, continuous-law integration
+with propagation, hold, conflict and rollback, commands with one owner
+per input, `Instruction(by=)`, snapshot/restore/reset and bounded
+recording are all in; ADR-104, ADR-105 and ADR-106 record the three
+decisions and the change is archived under
+`openspec/changes/archive/2026-09-13-run-owns-the-coordinates/`. The full
+suite is 2339 passed / 4 skipped / 925 subtests against the base's 2270 /
+4 / 893; one running tick costs 1.16 ms against the untimed loop's
+0.36 ms, with memory flat. Nothing is pushed and nothing is integrated
+into any `main`.
+
+Open questions the pilot owns, carried from the change's `design.md`:
+
+- Should an input be able to EXPOSE a joint coordinate, so a wheel
+  advanced by a carry reads as the input's position (the controls record
+  of 2026-09-12), instead of a `Driver` being the input? Cycles 4 and 5.
+- Should a joint coordinate the rest render leaves unbound be OMITTED
+  from the bank instead of refused? The cycle refuses, and a `Free` whose
+  machine binds four of six now needs one guarded line per unused
+  coordinate.
+- Should `Instruction(by=)` be accepted under an untimed root? The cycle
+  accepts it as a relative ramp.
+- Should an unbound `time` read under a running root be refused instead
+  of previewing as `$t`? Deferred to cycle 4 with the export.
+- Whether `blocked` reports per command or per rigid group is cycle 3's;
+  the vocabulary is fixed here.

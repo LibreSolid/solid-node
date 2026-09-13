@@ -385,6 +385,22 @@ a relation that would also bind its child end is a double binding, and
 the rule that binding a wired child end by hand is refused is
 unchanged.
 
+A RUNNING SIMULATION is a binder kind of its own (the `ports`
+capability's `RunBinder`), and the solver SHALL recognize it. A relation
+ALL of whose driven ends are run-bound SHALL be recorded as solved BY THE
+RUN, in neither direction, whatever its source ends hold: the run
+integrated it, and applying it again would bind a coordinate the run
+owns. A relation whose driven ends are not run-bound SHALL solve as
+today from its bound side; where that would bind a run-bound SOURCE
+backward it SHALL be refused as doubly bound naming the run as the other
+binder. A wiring whose target is run-bound SHALL likewise be recorded as
+applied by the run; a wiring whose target is a plain port SHALL apply
+from a run-bound source as from any bound source. A derived coordinate
+whose terms are run-bound SHALL be computed forward and bound as the
+formula, exactly as today; the run checks the formula's consistency on
+its own side. Every message that names a binder SHALL describe the run
+as the running simulation.
+
 Because a value slot keeps what was bound into it, the system SHALL
 make freshness explicit. At the START of an assembly's simulate phase,
 before the author's `simulate()` runs, the framework SHALL clear the
@@ -397,7 +413,13 @@ coordinate can never go on holding a value whose operations the sweep
 has already removed. The only values present when the solve runs are
 therefore those bound during the current enumeration of the tree: by
 this author's `simulate()`, by an ancestor's wiring or relation already
-applied in this enumeration, or by a driver read.
+applied in this enumeration, or by a driver read — and those a running
+simulation binds. A run-bound slot SHALL be EXEMPT from the clear: the
+run bound it outside any phase, owns its history and rebinds it on every
+tick, so the freshness rule SHALL leave its value and binder alone
+whatever enumeration last touched it, and an end that is run-bound SHALL
+read as BOUND at every attempt, before any question of freshness is
+asked.
 
 Because a coordinate this instance's own attempt reads as an END is not
 necessarily the current enumeration's value — tree order runs an
@@ -626,6 +648,30 @@ runner.
   previous enumeration's mark as UNBOUND and defers, and the pass's own
   fixpoint solves it only once the descendant's fresh rebind has landed
 
+#### Scenario: A run-bound coordinate survives the freshness clear
+
+- **WHEN** a running simulation binds every joint coordinate of a train
+  whose rest render had solved them through relations, and the tree is
+  enumerated at three successive ticks
+- **THEN** no phase clears a run-bound slot, every relation into a
+  run-bound coordinate is recorded as solved by the run, and nothing is
+  refused as doubly bound or unreached
+
+#### Scenario: A wiring into a run-bound joint is the run's
+
+- **WHEN** an arbor's joint coordinate is run-bound and the arbor wires it
+  down into a rod's joint and a wheel's plain port
+- **THEN** the rod's joint is recorded as applied by the run and holds
+  the run's value, and the wheel's port is bound from the run-bound source
+  exactly as from any bound source
+
+#### Scenario: A backward solve into a run-bound source is refused
+
+- **WHEN** a relation's driven end is a plain port the author's
+  `simulate()` binds and its source is a coordinate the run owns
+- **THEN** solving raises the doubly-bound refusal naming the relation,
+  the author's binding and the running simulation
+
 ### Requirement: Three refusals keep a wrong drive network from becoming a pose
 
 The system SHALL refuse, by name, each of the following, and SHALL name
@@ -649,12 +695,15 @@ reach the coordinate:
   and nothing else;
 - a DOUBLY BOUND coordinate: a relation would bind a coordinate that
   something else already bound during this enumeration of the tree —
-  the author's `simulate()`, a wiring, or another relation — or a
-  relation both of whose ends were already bound by other binders. Two
+  the author's `simulate()`, a wiring, another relation, or the running
+  simulation that owns it — or a relation both of whose ends were
+  already bound by other binders, a relation all of whose driven ends the
+  run owns excepted, since the run solved it. Two
   relations that would give the SAME value SHALL be refused as well:
   the framework SHALL NOT compare two values to decide whether a
   redundant statement agrees, because they are ordinarily symbolic
-  expressions, and the message SHALL name both binders;
+  expressions, and the message SHALL name both binders, the running
+  simulation described as such when it is one of them;
 - a NOT INVERTIBLE relation: the driven end is the bound one and the
   relation's law offers no inverse, or is an affine law whose ratio is
   numerically zero, or the relation is one copy of a BROADCAST, or the
@@ -738,6 +787,13 @@ deferred until the descendants had solved.
 - **WHEN** the same relation has its DRIVER end bound instead
 - **THEN** the driven end is bound through the law's forward face and
   nothing is refused
+
+#### Scenario: The running simulation is named as a binder
+
+- **WHEN** an assembly's `simulate()` binds a joint coordinate the running
+  simulation owns
+- **THEN** the doubly-bound refusal names the coordinate, the assembly's
+  class and "the running simulation" as the two binders
 
 ### Requirement: Each end of a relation resolves to a coordinate, or to one per copy of a repeated child
 

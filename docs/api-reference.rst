@@ -245,6 +245,8 @@ parent assembly binds it every ``simulate()`` with
 
 .. autofunction:: solid_node.motion.ports.get_coordinate
 
+.. autoclass:: solid_node.motion.ports.RunBinder
+
 Joints
 ======
 
@@ -322,13 +324,35 @@ scenario tests.
 .. autoclass:: solid_node.simulation.RampProgram
 
 .. autoclass:: solid_node.simulation.Sim
-   :members: at, every, trigger, run, state, time,
-             cadence_costs, assertion_stats
+   :members: at, every, trigger, run, state, time, trajectory, running,
+             move, rate, commands, snapshot, restore, reset, initial,
+             program, cadence_costs, assertion_stats
 
-   .. attribute:: trajectory
+Running simulation
+------------------
 
-      The recorded ``(tick, states)`` history of the run, one entry
-      per stepped tick.
+Under a root declaring ``Time.running()`` a simulation owns every driver
+and every joint coordinate of the linked tree, keeps their history and
+moves them by increments. The engine and the compile step below are
+imported only when such a simulation is constructed.
+
+.. autoclass:: solid_node.simulation.run.Run
+
+.. autoclass:: solid_node.simulation.run.Command
+   :members: requested, admitted, remaining, rate, cancel
+
+.. autoclass:: solid_node.simulation.run.RunSnapshot
+
+.. autoexception:: solid_node.simulation.RunConflict
+
+.. autoclass:: solid_node.simulation.program.Program
+   :members: described
+
+.. autofunction:: solid_node.simulation.program.compile_program
+
+.. autofunction:: solid_node.simulation.program.qualified_coordinates
+
+.. autoexception:: solid_node.simulation.UnsupportedLaw
 
 .. autoclass:: solid_node.simulation.ScenarioTest
    :members: simulation, scenario_node

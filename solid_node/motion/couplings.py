@@ -50,8 +50,9 @@ module pulls no CAD backend and no exact stack.
 from dataclasses import dataclass
 
 from solid_node.motion.ports import (BoundPort, Port, RotationalPort,
-                                     SignalPort, TranslationalPort, bind,
-                                     binding_as, declared_ports,
+                                     RunBinder, SignalPort,
+                                     TranslationalPort, bind, binding_as,
+                                     declared_ports, run_owned,
                                      set_coordinate, wiring_binding)
 from solid_node.node.phase import current as _current_phase
 from solid_node.node.phase import current_enumeration as _current_enumeration
@@ -1480,6 +1481,12 @@ class ResolvedEnd:
             return True
         if self.slot._value is None:
             return False
+        if run_owned(self.slot):
+            # A running simulation bound it, outside every enumeration,
+            # and rebinds it on every tick: it is this pass's answer
+            # whatever `_enum_marker` says, and the question of freshness
+            # below is not asked of it at all.
+            return True
         if self.slot._enum_marker is _current_enumeration():
             # Bound during THIS pass -- by whichever assembly, including
             # one still ahead of whatever is currently attempting
@@ -1807,6 +1814,12 @@ def clear_solved(assembly):
     for slot in assembly.__dict__.pop('_solver_bound', ()):
         if slot._enum_marker is current_enumeration:
             continue
+        if run_owned(slot):
+            # A RUNNING SIMULATION bound it outside any phase, owns its
+            # history and rebinds it on every tick. Clearing it here
+            # would sweep the bank on the first tick -- the measured
+            # fact this exemption exists for (evidence.md, task 0.3).
+            continue
         slot._value = None
         slot.binder = None
 
@@ -1964,6 +1977,8 @@ def _binder_of(slot):
 def _describe_binder(binder):
     if binder is None:
         return "the author's simulate()"
+    if isinstance(binder, RunBinder):
+        return binder.described()
     if isinstance(binder, RelationRecord):
         return f'the relation {binder.described()}'
     if isinstance(binder, Wiring):
@@ -1997,10 +2012,22 @@ def _claim(end, binder, claimed):
         _refuse_double(end.slot, binder, end.described())
 
 
+def _run_bound_end(end):
+    return end.slot is not None and run_owned(end.slot)
+
+
 def _step_relation(record, claimed, bound):
     driver_ends = record.driver_ends
     driven_ends = record.driven_ends
     several = len(driver_ends) > 1 or len(driven_ends) > 1
+
+    if all(_run_bound_end(end) for end in driven_ends):
+        # A RUNNING SIMULATION owns every driven end: it integrated this
+        # relation over the tick and bound the result, so the relation is
+        # solved -- in neither direction -- whatever its sources hold.
+        # Applying it again would bind a coordinate the run owns.
+        record.direction = 'run'
+        return False
 
     if not several:
         # The n = m = 1 case, unchanged: either direction, whichever end
@@ -2012,6 +2039,20 @@ def _step_relation(record, claimed, bound):
         if driver_bound and driven_bound:
             if record.direction is not None:
                 return False
+            if _run_bound_end(driver_end):
+                # The driven end is bound by something else, so the
+                # relation would have to be read BACKWARDS into a
+                # coordinate the run owns.
+                raise DoublyBound(
+                    f'{record.described()}: {driven_end.described()} is '
+                    f'bound by '
+                    f'{_describe_binder(_binder_of(driven_end.slot))}, so '
+                    f'the relation would have to be read backwards into '
+                    f'{driver_end.described()} -- which '
+                    f'{_describe_binder(_binder_of(driver_end.slot))} '
+                    f'owns. A coordinate has exactly one binder, and the '
+                    f'framework does not compare two values to decide '
+                    f'whether two statements agree. Drop one of them.')
             _refuse_double(
                 driven_end.slot if driven_end.slot is not None
                 else driver_end.slot,
@@ -2128,7 +2169,15 @@ def _step_derived(assembly, formula, claimed, bound):
 
 
 def _step_wiring(wiring, bound):
-    if wiring.applied or wiring.slot._value is None:
+    if wiring.applied:
+        return False
+    if run_owned(wiring.target):
+        # The RUN holds parent and child consistent -- the wiring is an
+        # identity edge of the compiled program -- so it is recorded as
+        # applied rather than binding a coordinate the run owns.
+        wiring.applied = True
+        return False
+    if wiring.slot._value is None:
         return False
     if wiring.target._value is not None:
         _refuse_double(wiring.target, wiring,

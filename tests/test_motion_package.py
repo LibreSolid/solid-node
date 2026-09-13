@@ -215,3 +215,47 @@ class MotionImportCostTest(TestCase):
         self.assertFalse(result.imported('OCP'),
                          'importing solid_node.motion.ports imported the '
                          'boundary-representation kernel')
+
+
+class RunningEngineImportCostTest(TestCase):
+    """The running engine costs nothing to a model that declares no
+    running time (OpenSpec change ``run-owns-the-coordinates``).
+
+    The compile step and the engine live under `solid_node.simulation`
+    and are imported by `Sim.__init__` only when the root declares
+    `Time.running()`; the running time base and the run-binder marker
+    live in `solid_node.motion.ports`, which imports nothing new for
+    them.
+    """
+
+    def test_a_looping_roots_simulation_imports_no_running_engine(self):
+        result = probe(
+            'from tests.running_project.machine import LoopingTrain\n'
+            'from solid_node.simulation import Sim\n'
+            'sim = Sim(LoopingTrain(), 0.1)\n'
+            'sim.run(1.0)\n'
+            "print('DONE')\n").check()
+        self.assertEqual(result.stdout.strip(), 'DONE', result.stderr)
+        self.assertFalse(result.imported('solid_node.simulation.run'),
+                         'a looping simulation imported the running engine')
+        self.assertFalse(result.imported('solid_node.simulation.program'),
+                         'a looping simulation imported the compile step')
+
+    def test_ports_and_couplings_import_nothing_from_the_simulation_layer(self):
+        for module in ('solid_node.motion.ports', 'solid_node.motion.couplings'):
+            with self.subTest(module=module):
+                result = probe(f'import {module}\n' + "print('DONE')\n").check()
+                self.assertFalse(result.imported('solid_node.simulation'),
+                                 f'{module} imported the simulation layer')
+
+    def test_a_running_roots_simulation_imports_the_engine(self):
+        result = probe(
+            'from tests.running_project.machine import Train\n'
+            'from solid_node.simulation import Sim\n'
+            'sim = Sim(Train(), 0.1)\n'
+            "print('DONE')\n").check()
+        self.assertEqual(result.stdout.strip(), 'DONE', result.stderr)
+        self.assertTrue(result.imported('solid_node.simulation.run'))
+        self.assertTrue(result.imported('solid_node.simulation.program'))
+        self.assertFalse(result.imported('cadquery'))
+        self.assertFalse(result.imported('OCP'))

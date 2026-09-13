@@ -57,6 +57,12 @@ EXPECTED_EXPORTS = {
     'Instruction': 'solid_node.simulation.instruction',
     'ScenarioTest': 'solid_node.simulation.scenario',
     'Sim': 'solid_node.simulation.sim',
+    # The running mode's two error kinds, added with the running time
+    # base (OpenSpec change ``run-owns-the-coordinates``). Lazy like the
+    # rest, and for one more reason: naming either imports the running
+    # engine, which a model declaring no running time never pays for.
+    'RunConflict': 'solid_node.simulation.run',
+    'UnsupportedLaw': 'solid_node.simulation.program',
 }
 
 # Refuse `cadquery` the way an interpreter without the wheel does: a

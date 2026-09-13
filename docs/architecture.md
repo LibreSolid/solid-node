@@ -419,6 +419,18 @@ Clearing is reversible by re-render: an operation records whatever
 value `render()` computed, so a bound tree has no symbolic form left
 to recover until it re-renders (ADR-051).
 
+A root may declare the base the OTHER way (ADR-104): `Time.running()`
+is the same frozen descriptor with `loop` at `None`, told apart by
+`Root.time.mode` reading `'running'` rather than `'loop'`, and `Time()`
+with neither is refused naming both spellings. Elapsed simulation
+seconds never wrap, so there is no span to scale by and no symbolic form
+to publish yet: unbound, `self.time` reads bare `$t` exactly as an
+undeclared root's does, and every producer that reads the declaration
+treats `loop is None` as no loop — no `loop` key in the document's
+`animation` object, a snapshot keyframed at the fraction. A running
+root's document is therefore byte-identical to an undeclared root's, and
+what the base changes is entirely what a simulation over the root owns.
+
 An entry is addressed to the whole tree or to one instance in it
 (ADR-056 stage 3a). A **qualified driver id** is the dotted path of
 linked child names from the addressing root plus the class-local
@@ -813,12 +825,87 @@ cadence budgets assertion cost. `ScenarioTest` composes over the CAD
 `TestCase`: one class runs unchanged under pytest and the `solid
 test` runner, building STLs only when `meshes = True`.
 
+**The running mode** (ADR-105, ADR-106) is a second branch of the same
+`Sim`, taken when `declared_time(type(node)).mode` is `'running'`, whose
+two modules — `simulation/program.py` (the compile step) and
+`simulation/run.py` (the engine, the commands, the snapshot) — are
+imported inside the constructor and nowhere else, so a model declaring no
+running time pays for neither (capability `cli-startup-cost`). Under it
+the simulation owns a BANK of every driver AND every joint coordinate of
+the linked tree — assemblies and leaves alike, class-declared and
+site-declared joints alike — keyed by the qualified ids
+`qualified_drivers` and the port enumeration produce, and initialized
+from the untimed rest pose: construction binds the driver values,
+enumerates the tree exactly as an untimed root is enumerated, and reads
+every coordinate off it, refusing an unbound one by name. Plain ports and
+derived coordinates are deliberately not banked; they are calculations
+the ordinary enumeration recomputes every tick. There is no memory bank
+and the author declares no state.
+
+The PROGRAM is compiled once from what that render solved: each
+relation's law applied ONCE to a symbolic token per source, in the
+direction the render solved it, the resulting graph over coordinate ids
+being what the run evaluates; a wiring into a bank coordinate an identity
+edge, a derived coordinate a linear one, and edges ordered by Kahn over
+the ends they determine. What the expression cannot say is refused there,
+by relation identity: a discontinuous primitive (`floor`, `ceil`, `sign`,
+`%`, a comparison), a law that cannot be applied to a symbol, an edge
+into a bank coordinate whose source no edge computes, a driven group
+mixing banked and unbanked ends. A relation reaching no bank coordinate
+is not compiled at all and stays the ordinary solver's.
+
+A TICK is increments only until it commits: every input's increment is
+what its active command admits, increments propagate over the program —
+forward through a law as `f(end) − f(start)` over the sources' start and
+end values, backward through an invertible one, identity through a
+wiring, linear through a formula — a coordinate no edge determines holds,
+and a disagreement beyond `1e-9·max(1, |a|, |b|)`, or a coordinate
+leaving a declared range, refuses the tick with nothing committed and
+retires the commands that moved an input in it as `refused`. On success
+the bank advances and is bound with `set_state` at `k*dt`.
+
+The RUN IS A BINDER the solver recognizes rather than a second kind of
+state (`motion/ports.py::RunBinder`, recognized in `couplings`): the
+freshness clear leaves a run-bound slot alone, `ResolvedEnd.bound` reads
+one as bound before any question of freshness, a relation all of whose
+driven ends it owns is recorded as solved `'run'`, a wiring whose target
+it owns is recorded as applied, and any other binding of such a slot is
+refused as doubly bound naming the run. The scoping is load-bearing: the
+run binder wraps the DELIVERY of `set_state` and never the enumeration
+that follows, so a plain port an author's `simulate()` binds keeps the
+author as its binder and is cleared and rebound every tick — the
+ADR-099 shape. Because the run binds through `set_state` alone,
+`render()` and `simulate()` stay pure over the snapshot: an inspection,
+an extra render or an extra binding of the same snapshot advances
+nothing. `set_state` accepts a qualified joint-coordinate id under a
+running root and only there, delivered to the owning node — a leaf
+included — through `set_coordinate`.
+
+Requests replace bindings: `move(input, by=|to=, duration=)`,
+`rate(input, rate)` and `trigger(name)` are one path with one ownership
+rule, only a declared driver being movable and one owner at a time, each
+returning a handle reporting `active`/`completed`/`blocked`/`refused`/
+`cancelled` and the travel admitted in design units, retired from
+`sim.commands` the tick it completes. `Instruction(by=...)` is the
+relative form, ramping relatively under every base and becoming a
+relative move under a running one; the serializer omits a relative
+instruction from the document's table until the compiled program is
+published. `snapshot`/`restore`/`reset` act on the bank and refuse a
+snapshot whose program identity or `dt` differs before touching live
+state; recording is explicit and bounded.
+
 Known stage boundaries (ADR-056 stage 3c+ territory): `range` is
 declarative metadata, not a clamp; `Driver.scale` and `Port.scale`
 remain two declarations; a driver on a list-held child is forbidden
 rather than sanitized; the viewer's `trigger` runs one instruction's
 ramps and nothing sequences them — programs and G-code are a later
 layer, and determinism belongs to `Sim`, not to the client animation.
+Under the running mode: a jump is refused rather than located inside the
+tick, a range fails the tick rather than stopping the group it is
+connected to, a reverse move is refused, the compiled program is not
+published, and the evaluator is `GraphValue.evaluate` per edge per tick —
+measured at 1.16 ms/tick against the untimed loop's 0.36 ms on the same
+machine, with memory flat.
 
 ### Build pipeline (BUILD · spec `build-pipeline`)
 
@@ -1725,8 +1812,9 @@ The short list that changes must not silently break:
 |---|---|---|---|
 | Node model | `solid_node/node/`, `solid_node/exact.py` | `node-model`, `exact-geometry`, `flexible-parts`, `step-assembly` | 001–004, 006, 026, 044–045, 047, 053–055, 057, 077, 078, 079, 082 |
 | Build parameters | `solid_node/parameters.py`, `node/declarative.py` | `declarative-nodes` | 061–065, 082 |
-| Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088 |
-| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096, 100 |
+| Kinematics | `node/operations.py`, `node/assembly.py`, `motion/ports.py`, `math.py` | `kinematics` | 008, 022, 023, 028, 087, 088, 104 |
+| Motion | `solid_node/motion/` | `ports`, `joints`, `couplings` | 056, 072, 087, 088, 089, 096, 100, 105 |
+| Simulation | `solid_node/simulation/` (`sim.py`, `driver.py`, `instruction.py`, `enumeration.py`, `scenario.py`, `program.py`, `run.py`) | `simulation`, `cli-startup-cost` | 050, 056, 083, 104, 105, 106 |
 | Mechanisms | `solid_node/mechanisms/` | `mechanisms` | 022, 076 |
 | Build pipeline | `solid_node/core/` | `build-pipeline` | 005–007, 018, 026, 038, 067, 080, 081, 084, 086 |
 | CLI | `cli.py`, `solid_node/manager/` | `cli` | 021, 024, 068, 079, 103 |

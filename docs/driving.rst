@@ -152,6 +152,17 @@ current snapshot rather than replacing it — `set_keyframe(t)` is
 :doc:`Animating with time <animation>`). A name that no declaration
 backs is rejected on the spot, listing what is declared.
 
+Under a root declaring `Time.running()`, and only there, a bound name
+may instead be the qualified id of a JOINT COORDINATE the tree
+publishes — ``set_state(**{'first.turn': 12.0})``,
+``set_state(**{'chassis.pose.roll': 3.0})``. The entry is delivered to
+the node that owns the coordinate, a leaf included, and bound through the
+same path an assignment takes, so the joint's declared range and its
+placement apply exactly as they always do. That is how a running
+simulation binds its bank; a hand binding is not a run, so a coordinate a
+relation drives is still re-solved by that relation on the render that
+follows.
+
 Ports: how parts talk
 =====================
 
@@ -921,6 +932,17 @@ Triggering one ramps every target from its current value to the named
 value over the duration, landing exactly on target; triggering another
 while one runs replaces the active ramp.
 
+An instruction may state travel instead of a landing place:
+``Instruction(by={'crank': 10.0}, duration=0.5)`` advances the crank ten
+degrees from wherever it stands, which is what "advance one step" means
+on a machine that is operated rather than positioned. Exactly one of
+``targets`` and ``by`` is stated; both, or neither, is refused at
+declaration. A relative instruction ramps relatively under every time
+base, and under a root declaring `Time.running()` it becomes a relative
+move on the run (see :doc:`Simulating and testing scenarios
+<scenarios>`). It is not published in the document's instructions table
+yet, so it drives a scenario rather than a viewer button.
+
 Declare machine-level moves on the machine, not on its parts: `Home`
 above belongs to the `Plotter`, because homing is something the whole
 machine does.
@@ -966,4 +988,7 @@ Sliders answer "what does this pose look like". The questions that
 follow — does the carriage clear the stop on the way home, how long
 does the move take, what does the trajectory look like — need the
 machine *stepped* deterministically in Python. That is the simulation
-layer: see :doc:`Simulating and testing scenarios <scenarios>`.
+layer: see :doc:`Simulating and testing scenarios <scenarios>`, whose
+last section covers the machine that keeps its history — a root
+declaring `Time.running()`, whose simulation owns every joint coordinate
+and moves it by increments.

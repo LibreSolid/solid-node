@@ -8,6 +8,52 @@ Changelog
 Unreleased
 ----------
 
+**A machine can keep its history: the run owns the coordinates.** A pose
+was a function of the current input values and nothing else, so a Curta
+pinion posed at any crank angle was right and turned through two crank
+revolutions was wrong. A root may now declare a third time base,
+``time = Time.running()`` — elapsed simulation seconds that never wrap —
+and under it a ``Sim`` owns a BANK of every driver AND every joint
+coordinate of the linked tree, by the same qualified ids the document
+publishes, initialized from the untimed rest pose and advanced by
+INCREMENTS: over one tick a continuous law contributes exactly
+``f(end) - f(start)`` to its driven coordinate, from where it stood,
+exact across the kinks of ``abs``, ``min``, ``max`` and the compositions
+built on them. Increments propagate in the direction the rest render
+solved each relation, a coordinate no increment reaches holds, and two
+that disagree are a conflict that rolls the tick back.
+
+The run is a BINDER the solver recognizes rather than a second kind of
+state: it binds the whole bank through ``set_state``, so ``render()`` and
+``simulate()`` stay pure over the snapshot and an inspection or an extra
+render advances nothing; the freshness clear leaves its slots alone, a
+relation whose driven ends it owns is recorded as solved by the run, and
+an author's ``simulate()`` that binds one is refused as doubly bound.
+There is no memory bank and the author declares no state.
+
+Requests replace bindings: ``sim.move(input, by=|to=, duration=)``,
+``sim.rate(input, rate)`` and ``sim.trigger(name)`` are one path with one
+ownership rule — only a declared driver can be moved, one owner at a
+time — and each returns a handle reporting ``active``, ``completed``,
+``blocked``, ``refused`` or ``cancelled`` and the travel actually
+admitted. ``Instruction(by=..., duration=)`` is the relative form, and
+ramps relatively under every time base. ``sim.snapshot()``,
+``sim.restore()`` and ``sim.reset()`` act on the bank, and recording is
+explicit and bounded (``record=N`` keeps a ring; the default keeps
+nothing). Under a running root ``set_state`` also accepts a qualified
+joint-coordinate id, delivered to the node that owns it, a leaf
+included.
+
+This first increment refuses, by name, what it cannot yet do: a law
+containing a jump (``floor``, ``ceil``, ``sign``, ``%``, a comparison), a
+law that cannot be applied to a symbol, a relation into a run-owned
+coordinate sourced from a plain port ``simulate()`` binds, a reverse
+move, and a joint coordinate leaving its declared range, which fails the
+tick rather than stopping the group. Nothing about an untimed or looping
+model changes: a running root's document is byte-identical to an
+undeclared root's, ``Time(loop=...)`` is untouched, and a model that
+declares no running time imports none of the new modules.
+
 **OpenSCAD is no longer an interactive viewer.** OpenSCAD was solid-node's
 first reliable development viewer, but the browser viewer became the faithful
 machine surface as simulation gained independent drivers, instructions and

@@ -225,7 +225,9 @@ class Snapshot:
             # declaring a time base is keyframed at the seconds that
             # position means, so the image shows what the slider shows.
             base = declared_time(type(node))
-            node.set_keyframe(self.time * base.loop if base else self.time)
+            loop = base.loop if base is not None else None
+            node.set_keyframe(self.time * loop if loop is not None
+                              else self.time)
             node.assemble()
 
         return node

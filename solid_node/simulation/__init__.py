@@ -49,6 +49,11 @@ _EXPORTS = {
     'Instruction': 'instruction',
     'ScenarioTest': 'scenario',
     'Sim': 'sim',
+    # The running mode's two error kinds. Lazy like every export here,
+    # and for one more reason: naming either imports the running engine,
+    # which a model declaring no running time never pays for.
+    'RunConflict': 'run',
+    'UnsupportedLaw': 'program',
 }
 
 __all__ = list(_EXPORTS)

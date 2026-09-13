@@ -24,20 +24,48 @@ from .timebase import finite_seconds
 class Instruction:
     """A named event source declared on an assembly.
 
-    `targets` are keyed by driver name and expressed in DESIGN units;
-    `duration` is in seconds, converted to whole ticks by the
-    simulation that triggers it. The targets are copied on the way in
-    so a declaration cannot be edited through the mapping a caller
-    happens to still hold.
+    An instruction states exactly ONE of two things, both keyed by
+    class-local driver name and both in DESIGN units:
+
+    - `targets`, where the drivers are to LAND -- the absolute form
+      every existing document publishes; and
+    - `by`, how far they are to TRAVEL from wherever they stand -- the
+      relative form a running machine needs, where "advance the dial one
+      step" has no absolute answer (OpenSpec change
+      ``run-owns-the-coordinates``).
+
+    Both, or neither, is refused here: an instruction that stated both
+    would have two answers for one press, and one that stated neither
+    would move nothing. The one given reads back under its own name and
+    the other reads `None`.
+
+    `duration` is in seconds, converted to whole ticks by the simulation
+    that triggers it. The mapping is copied on the way in so a
+    declaration cannot be edited through one a caller happens to still
+    hold.
     """
 
-    def __init__(self, targets, duration):
+    def __init__(self, targets=None, duration=None, *, by=None):
+        if (targets is None) == (by is None):
+            raise TypeError(
+                'an instruction states exactly one of targets= (where the '
+                'drivers land) and by= (how far they travel from where '
+                'they stand), both in design units; '
+                f'got targets={targets!r} and by={by!r}.')
         duration = finite_seconds(duration, 'instruction duration')
         if duration < 0:
             raise ValueError(
                 f'instruction duration must be non-negative, not {duration}')
-        self.targets = dict(targets)
+        self.targets = None if targets is None else dict(targets)
+        self.by = None if by is None else dict(by)
         self.duration = duration
 
+    @property
+    def relative(self):
+        """Whether this instruction states travel rather than a landing
+        place."""
+        return self.by is not None
+
     def __repr__(self):
-        return f'<instruction {self.targets} over {self.duration}s>'
+        stated = (f'by {self.by}' if self.relative else f'to {self.targets}')
+        return f'<instruction {stated} over {self.duration}s>'

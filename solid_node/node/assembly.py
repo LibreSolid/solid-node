@@ -222,7 +222,7 @@ def _rest_children(assembly):
     return children
 
 
-def _entries_for(entries, child_name):
+def _entries_for(entries, child_name, consumed=()):
     """The entries addressed to `child_name`'s subtree, with the
     consumed leading segment stripped.
 
@@ -231,15 +231,120 @@ def _entries_for(entries, child_name):
     `motor` its render() actually reads. An undotted entry -- a
     project driver bound by its bare name, and `time`, the one global
     -- propagates flat to everyone, exactly as it always has.
+
+    `consumed` are the names THIS node already bound as its own joint
+    coordinates. A dotted one of those -- `pose.roll`, a coordinate of a
+    joint owning several -- is dropped rather than forwarded: its head
+    is the JOINT's name, not a child's, and forwarding it would address
+    a child that happened to share the name.
     """
     delivered = {}
     for name, value in entries.items():
         head, dot, rest = name.partition('.')
+        if dot and name in consumed:
+            continue
         if not dot:
             delivered[name] = value
         elif head == child_name:
             delivered[rest] = value
     return delivered
+
+
+class CoordinateDelivery:
+    """`set_state`'s delivery of JOINT COORDINATE entries, under a
+    running root and nowhere else (OpenSpec change
+    ``run-owns-the-coordinates``).
+
+    Under `Time.running()` a bound name may be the qualified id of a
+    joint coordinate the tree publishes -- `first.turn`,
+    `chassis.pose.roll` -- and it is delivered to the node that OWNS the
+    coordinate, a leaf included, and bound through `set_coordinate`, the
+    one binding path a coordinate assignment takes. So the joint's
+    declared range and placement apply exactly as for any binding.
+
+    `binder` is what to record as having bound them: the RUNNING
+    SIMULATION when a run owns the tree, so the solver recognizes its
+    slots, and `None` when a caller binds one by hand. It wraps the
+    BINDING and nothing else -- never the enumeration `set_state` runs
+    afterwards, whose author bindings must stay the author's (design.md
+    sections 4.5 and 7.7).
+
+    `saved` is what a REFUSED binding rolls back to: the value, the
+    binder and the freshness marks each slot held, restored in reverse
+    and the joint re-placed from what its coordinates then hold, so a
+    rejected `set_state` leaves no half-posed tree.
+    """
+
+    __slots__ = ('binder', 'saved')
+
+    def __init__(self, binder):
+        self.binder = binder
+        self.saved = []
+
+    @staticmethod
+    def names(node_class):
+        """Every joint coordinate `node_class` declares, by the name the
+        port enumeration reports it under."""
+        from solid_node.motion.joints import coordinates_of, declared_joints
+
+        found = []
+        for joint in declared_joints(node_class).values():
+            found.extend(coordinates_of(joint))
+        return found
+
+    def deliver(self, node, entries, path, declared):
+        """Bind the entries naming `node`'s OWN joint coordinates, and
+        record their ids beside the driver ids so the unknown and
+        ambiguous checks cover them. Returns the names consumed."""
+        from solid_node.motion.ports import (binding_as, get_coordinate,
+                                             set_coordinate)
+
+        consumed = []
+        for name in self.names(type(node)):
+            if name not in entries:
+                continue
+            declared.setdefault(name, []).append(driver_id(path, name))
+            slot = get_coordinate(node, name)
+            self.saved.append((node, name, slot, slot._value, slot.binder,
+                               slot._enum_marker, slot._bound_by))
+            with binding_as(self.binder):
+                set_coordinate(node, name, entries[name])
+            consumed.append(name)
+        return consumed
+
+    def restore(self):
+        from solid_node.motion.joints import declared_joints
+        from solid_node.motion.ports import get_coordinate
+
+        while self.saved:
+            node, name, slot, value, binder, marker, bound_by = self.saved.pop()
+            slot._value = value
+            slot.binder = binder
+            slot._enum_marker = marker
+            slot._bound_by = bound_by
+            for joint in declared_joints(type(node)).values():
+                if name not in joint.coordinates:
+                    continue
+                held = [get_coordinate(node, owned)._value
+                        for owned in joint.coordinates]
+                if any(one is None for one in held):
+                    joint.clear(node)
+                else:
+                    joint.place(node,
+                                held[0] if len(held) == 1 else None)
+                break
+
+
+def _coordinate_delivery(node):
+    """The coordinate delivery `set_state` performs from `node`, or
+    `None` under any root but a running one -- where a joint coordinate
+    id is refused exactly as an undeclared name is, because outside a
+    run a coordinate has no history for a snapshot entry to carry."""
+    root = top_of(node)
+    base = declared_time(type(root))
+    if base is None or base.mode != 'running':
+        return None
+    return CoordinateDelivery(root.__dict__.get('_run_binder'))
 
 
 def _names_for(names, child_name):
@@ -346,7 +451,8 @@ class AssemblyNode(InternalNode):
         judged = [name for name in states if name != 'time']
         declared = {}
         saved = [] if judged else None
-        self._receive_state(states, (), declared, saved)
+        coordinates = _coordinate_delivery(self)
+        self._receive_state(states, (), declared, saved, coordinates)
         publishes = {identifier
                      for ids in declared.values() for identifier in ids}
         unknown = [name for name in judged
@@ -355,7 +461,7 @@ class AssemblyNode(InternalNode):
         ambiguous = {name: declared[name] for name in judged
                      if '.' not in name and len(declared.get(name, ())) > 1}
         if unknown:
-            self._undo(saved)
+            self._undo(saved, coordinates)
             known = ', '.join(sorted(publishes)) or 'none'
             raise ValueError(
                 f'undeclared driver name in set_state: '
@@ -364,7 +470,7 @@ class AssemblyNode(InternalNode):
                 f'driver is read as an attribute of the node declaring '
                 f'it; declared: {known}.')
         if ambiguous:
-            self._undo(saved)
+            self._undo(saved, coordinates)
             detail = '; '.join(
                 f"'{name}' could mean {', '.join(sorted(ids))}"
                 for name, ids in sorted(ambiguous.items()))
@@ -381,10 +487,13 @@ class AssemblyNode(InternalNode):
         # `whole-tree-fixpoint`).
         self.render()
 
-    def _undo(self, saved):
+    def _undo(self, saved, coordinates=None):
         """Restore the snapshot every node held before a binding this
         call is about to refuse, so a rejected `set_state` leaves no
-        half-bound tree."""
+        half-bound tree -- and, under a running root, every joint
+        coordinate this call bound as well."""
+        if coordinates is not None:
+            coordinates.restore()
         for node, previous in saved:
             node._states.clear()
             node._states.update(previous)
@@ -400,9 +509,10 @@ class AssemblyNode(InternalNode):
         if all(name in previous
                for node, previous in saved
                for name in declared_drivers_of(type(node))):
-            self._receive_state({}, (), {}, None)
+            self._receive_state({}, (), {}, None, None)
 
-    def _receive_state(self, entries, path, declared, saved):
+    def _receive_state(self, entries, path, declared, saved,
+                       coordinates=None):
         """One node's share of a `set_state` propagation.
 
         Binds the entries addressed to this node (the undotted ones,
@@ -416,9 +526,18 @@ class AssemblyNode(InternalNode):
         """
         if saved is not None:
             saved.append((self, dict(self._states)))
+        # A name this node's own JOINT reports is this node's coordinate
+        # and not a snapshot entry: it is bound through `set_coordinate`
+        # before the dotted split, so `chassis.pose.roll` reaches
+        # `pose.roll` on `chassis` and never becomes an attribute of
+        # that name. Under any other root `coordinates` is None and
+        # nothing here changes.
+        consumed = ()
+        if coordinates is not None:
+            consumed = coordinates.deliver(self, entries, path, declared)
         self._states.update(
             {name: value for name, value in entries.items()
-             if '.' not in name})
+             if '.' not in name and name not in consumed})
         for name in declared_drivers_of(type(self)):
             # driver_id validates the path, so a driver reachable only
             # through a list-held child's `<attr>-<index>` name fails
@@ -426,8 +545,9 @@ class AssemblyNode(InternalNode):
             # subtraction.
             declared.setdefault(name, []).append(driver_id(path, name))
         for child in _rest_children(self):
-            child._receive_state(_entries_for(entries, child.name),
-                                 path + (child.name,), declared, saved)
+            child._receive_state(
+                _entries_for(entries, child.name, consumed),
+                path + (child.name,), declared, saved, coordinates)
 
     def clear_state(self, *names):
         """The inverse of set_state: drop the named driver values, or
@@ -555,7 +675,12 @@ def read_time(node):
         root = parent
         parent = getattr(root, '_parent', None)
     base = declared_time(type(root))
-    if base is None:
+    if base is None or base.loop is None:
+        # No loop: an undeclared root, or the RUNNING base, whose
+        # elapsed seconds never wrap and have no symbolic form until a
+        # compiled program is published. Both read bare `$t`, so a
+        # running root's document is the document an undeclared root
+        # publishes (OpenSpec change ``run-owns-the-coordinates``).
         return get_animation_time()
     return get_animation_time() * base.loop
 

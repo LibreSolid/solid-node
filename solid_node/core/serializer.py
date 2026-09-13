@@ -212,6 +212,14 @@ def instructions_table(instructions):
     The conversion to native state belongs to the driver declaration --
     the one place that knows what a native unit is worth -- and happens
     once, in the client, exactly as ``Driver.native`` performs it.
+
+    A RELATIVE instruction -- one stating ``by=`` rather than ``targets=``
+    -- is OMITTED until a later change publishes the compiled program
+    under a new schema version: the shipped viewer reads ``targets`` off
+    every entry of this table and would fail on one without them, so a
+    root whose instructions are all relative publishes an empty table and
+    the rest of its document is unchanged (OpenSpec change
+    ``run-owns-the-coordinates``).
     """
     return {
         name: {
@@ -220,6 +228,7 @@ def instructions_table(instructions):
             'duration': instruction.duration,
         }
         for name, (path, instruction) in sorted(instructions.items())
+        if instruction.targets is not None
     }
 
 
@@ -239,7 +248,10 @@ def animation_block(root, fps=30, frames=360):
     """
     block = {'fps': fps, 'frames': frames}
     base = declared_time(type(root))
-    if base is not None:
+    if base is not None and base.loop is not None:
+        # A `loop` of None is the RUNNING base, which has no loop: its
+        # document is byte-identical to an undeclared root's, so the key
+        # is absent rather than null.
         block['loop'] = base.loop
     return block
 

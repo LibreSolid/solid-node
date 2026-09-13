@@ -125,19 +125,38 @@ base mesh itself is never mutated.
 ### Requirement: Declared time base
 
 A root assembly MAY declare its time base as a class attribute named `time`
-holding a `Time(loop=<seconds>)` declaration, exported from
-`solid_node.motion.ports` — the module that answers what moves, alongside
-the port kinds — and no longer from `solid_node.node`.
-`loop` SHALL be a positive finite number of seconds: the span of machine time
-one turn of the animation timeline covers. The declaration SHALL be frozen
-class metadata readable off the class (`Root.time.loop`); assigning
-`self.time` SHALL fail naming `set_keyframe`.
+holding one of two declarations exported from `solid_node.motion.ports` —
+the module that answers what moves, alongside the port kinds — and no
+longer from `solid_node.node`: `Time(loop=<seconds>)`, the LOOPING base,
+or `Time.running()`, the RUNNING base. Under the looping base `loop` SHALL
+be a positive finite number of seconds: the span of machine time one turn
+of the animation timeline covers. Under the running base `loop` SHALL be
+`None`, because elapsed simulation seconds never wrap. `Time()` with
+neither SHALL be refused naming both spellings. The declaration SHALL be
+frozen class metadata readable off the class (`Root.time.loop`, and
+`Root.time.mode` reading `'loop'` or `'running'`); assigning `self.time`
+SHALL fail naming `set_keyframe`.
 
-A `Time` declaration SHALL be refused at class-definition time when it is
-bound to any attribute name other than `time`, or when the declaring class is
-not an `AssemblyNode`, each with an error naming the rule.
+A `Time` declaration of either base SHALL be refused at class-definition
+time when it is bound to any attribute name other than `time`, or when the
+declaring class is not an `AssemblyNode`, each with an error naming the
+rule.
 
-Under a declared time base `self.time` SHALL read machine time in seconds on
+Under the RUNNING base `self.time` SHALL read elapsed simulation seconds
+when bound — by a running simulation, which binds `k*dt` as the
+`simulation` capability states, or by `set_keyframe`/`set_state(time=)`,
+which callers state in seconds — and, unbound, bare `$t` exactly as an
+undeclared root reads, because elapsed seconds have no symbolic form until
+a compiled program is published. Every producer that reads the declaration
+SHALL treat a `loop` of `None` as no loop: the document's `animation`
+object SHALL carry no `loop` key, a snapshot at a fraction of the timeline
+SHALL keyframe the fraction as it does for an undeclared root, and a
+running root's document SHALL therefore be the document an undeclared root
+publishes. What the running base changes is what a simulation over the
+root owns and integrates, stated by the `simulation` capability; nothing
+else about the tree changes.
+
+Under the LOOPING base `self.time` SHALL read machine time in seconds on
 every path:
 
 - unbound, it SHALL be the symbolic expression `$t * loop`, so the normalized
@@ -220,6 +239,37 @@ of the "Normalized animation time" requirement unchanged.
 - **THEN** the declaration behaves exactly as it did when `Time` came from
   `solid_node.node`, and `from solid_node.node import Time` raises
   `ImportError` naming `solid_node.motion.ports`
+
+#### Scenario: The running base is declared and readable off the class
+
+- **WHEN** a root declares `time = Time.running()`
+- **THEN** `type(root).time.mode` reads `'running'`, `type(root).time.loop`
+  reads `None`, `declared_time(type(root))` returns that declaration, and
+  `Time()` with no argument raises naming `Time(loop=...)` and
+  `Time.running()`
+
+#### Scenario: Under the running base unbound time reads bare $t
+
+- **WHEN** a root declaring `Time.running()` is rendered with nothing bound
+- **THEN** `self.time` on the root and on a nested assembly reads `$t`,
+  `set_keyframe(2.5)` makes both read `2.5`, and clearing restores `$t`
+
+#### Scenario: The running base obeys the declaration rules
+
+- **WHEN** a leaf class declares `time = Time.running()`, a class body binds
+  `clock = Time.running()`, or a linked child assembly declares it under a
+  root and its `simulate()` reads `self.time`
+- **THEN** the first two fail at class definition naming the rule and the
+  third fails at the read naming the child and the root, exactly as
+  `Time(loop=...)` does
+
+#### Scenario: A running root publishes no loop
+
+- **WHEN** a root declaring `Time.running()` is exported and snapshotted at
+  a fraction of the timeline
+- **THEN** the document's `animation` object carries no `loop` key and is
+  byte-identical to an undeclared root's, and the snapshot keyframes the
+  fraction
 
 ### Requirement: Normalized animation time
 
@@ -788,6 +838,19 @@ snapshot entry with no declaration and SHALL remain bindable. A
 refused binding SHALL leave the tree's snapshot exactly as it was, in
 the same way an ambiguous binding does.
 
+Under a root declaring `Time.running()` a bound name MAY instead be the
+qualified id of a JOINT COORDINATE the tree publishes — `first.turn`,
+`chassis.pose.roll` — the same id the port enumeration reports under the
+owning node's instance path. Such an entry SHALL be delivered to the node
+that owns the coordinate, a leaf included, and bound through the one
+binding path a coordinate assignment takes, so the joint's declared range
+and placement apply as for any binding and the binder that called
+`set_state` is recorded; a name of several segments SHALL reach the joint
+that owns it and never set an attribute of that name. The ambiguity rule
+and the rollback rule SHALL cover such an entry as they cover a driver's.
+Under any other root a joint coordinate id SHALL be refused exactly as an
+undeclared name is.
+
 `render()` SHALL read a driver DECLARED on that node as an attribute of
 the node, under the name the declaration was made with: a node
 declaring `x = Driver(...)` reads its bound value as `self.x`. This
@@ -825,7 +888,9 @@ static placement applied outside any assembly render SHALL survive,
 exactly as the idempotent-render requirement already guarantees.
 
 On nodes that do not animate (leaves, fusions), `set_state` and
-`clear_state` SHALL be no-ops, mirroring `set_keyframe`.
+`clear_state` SHALL be no-ops, mirroring `set_keyframe` — except that,
+under a running root, an entry addressed to a leaf's own joint coordinate
+SHALL bind it as stated above.
 
 #### Scenario: A declared driver reads as an attribute
 
@@ -955,6 +1020,29 @@ On nodes that do not animate (leaves, fusions), `set_state` and
   `set_state(step=10)`
 - **THEN** the child reads `90` throughout that enumeration, including
   while its parent's phase runs, rather than `10`
+
+#### Scenario: A joint coordinate id binds under a running root
+
+- **WHEN** `set_state(**{'first.turn': 12.0, 'chassis.pose.roll': 3.0})` is
+  called on a root declaring `Time.running()`, `first` being a leaf owning
+  the joint `turn` and `chassis` an assembly owning a six-coordinate joint
+- **THEN** `first.turn` reads `12.0` and `chassis.pose.roll` reads `3.0`
+  on their owning nodes, both bodies are placed by the values, and no
+  attribute named `pose.roll` was set anywhere
+
+#### Scenario: A joint coordinate id is refused under a looping root
+
+- **WHEN** `set_state(**{'first.turn': 12.0})` is called on a root
+  declaring `Time(loop=2.0)` or no time base
+- **THEN** binding fails naming `first.turn` and listing the declared
+  driver ids, and no entry is left bound anywhere in the tree
+
+#### Scenario: A refused binding restores coordinates too
+
+- **WHEN** `set_state(**{'first.turn': 12.0, 'nobody.turn': 1.0})` is called
+  on a running root
+- **THEN** binding fails naming `nobody.turn` and `first.turn` reads what
+  it read before the call
 
 ### Requirement: Instance-qualified driver identity
 

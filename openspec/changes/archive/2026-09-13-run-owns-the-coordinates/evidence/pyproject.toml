@@ -1,0 +1,5 @@
+# The probe below is a real Solid project for the same reason the test
+# fixtures are: the framework discovers a root through a manifest.
+
+[tool.solid-node]
+model = "probe_binder:Body"

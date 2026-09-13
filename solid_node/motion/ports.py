@@ -60,8 +60,8 @@ import math
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-from solid_node.node.phase import (current_enumeration, note_bound, note_read,
-                                   note_unbound_read)
+from solid_node.node.phase import (current, current_enumeration, note_bound,
+                                   note_read, note_unbound_read)
 
 
 class BoundPort:
@@ -265,6 +265,42 @@ _wiring_depth = 0
 _binder = None
 
 
+class RunBinder:
+    """What a RUNNING SIMULATION binds as: the binder kind of the run
+    that owns a tree's coordinates (OpenSpec change
+    ``run-owns-the-coordinates``).
+
+    A marker and nothing else -- one instance per run, so a slot's
+    binder IS the run that bound it -- and it lives here, next to
+    `bind`, so the one binding path can recognize it and the solver can
+    reason about it without either of them importing the simulation
+    layer. It carries no import of its own, which is what keeps the
+    motion package's import cost exactly what it was.
+
+    The run binds OUTSIDE every enumeration, in `set_state`'s delivery
+    walk, and rebinds the whole bank on every tick. Two consequences
+    live in this module: a slot the run owns accepts a binding from no
+    one else (`bind` below), and a WIRED coordinate the run owns is the
+    run's to bind rather than the wiring's -- the wiring is marked
+    applied instead, so nothing overwrites the run's value and the
+    "a wired coordinate has one binder" rule still holds, with the run
+    as that binder.
+    """
+
+    def described(self):
+        return 'the running simulation'
+
+    def __repr__(self):
+        return '<the running simulation>'
+
+
+def run_owned(slot):
+    """Whether `slot` is a coordinate a running simulation currently
+    owns: it holds a value and a `RunBinder` put it there."""
+    return (getattr(slot, '_value', None) is not None
+            and isinstance(getattr(slot, 'binder', None), RunBinder))
+
+
 @contextmanager
 def binding_as(binder):
     """Inside this, every binding records `binder` as what bound it."""
@@ -308,7 +344,28 @@ def bind(sink, source):
     a once-only render() would bind once and never rebind.
     """
     note_read('bound port', sink.name)
-    if sink.wired_from is not None and not _wiring_depth:
+    if run_owned(sink) and _binder is not sink.binder:
+        # A coordinate the run owns has exactly one binder, and it is
+        # the run. Raised as the couplings capability's own kind --
+        # imported here rather than at module scope, because a run
+        # binding exists only when couplings is already loaded, and a
+        # module-scope import would close the cycle ADR-089 keeps open.
+        from solid_node.motion.couplings import DoublyBound, where
+
+        phase = current()
+        stated_by = (f'{type(phase.assembly).__name__}.simulate()'
+                     if phase is not None
+                     else f'{type(sink.node).__name__}')
+        raise DoublyBound(
+            f'{where(sink.node)}.{sink.name} is owned by '
+            f'{sink.binder.described()}, and {stated_by} would bind it '
+            f'too. A coordinate has exactly one binder, and under a '
+            f'running root the run is it: a law stated imperatively in '
+            f'simulate() belongs in a relation, which the run integrates '
+            f'over every tick. Write it as a relation, or bind the '
+            f'coordinate only under a guard that finds it unbound.')
+    if (sink.wired_from is not None and not _wiring_depth
+            and not isinstance(_binder, RunBinder)):
         parent, attribute, keyword = sink.wired_from
         raise ValueError(
             f"cannot bind '{keyword}' of {attribute}: {parent} declares "
@@ -465,19 +522,61 @@ def get_coordinate(node, name):
 
 @dataclass(frozen=True)
 class Time:
-    """A root assembly's time base: `time = Time(loop=<seconds>)`.
+    """A root assembly's time base, in one of TWO spellings:
+    `time = Time(loop=<seconds>)` and `time = Time.running()`.
 
     Frozen on purpose, like a driver declaration: an attribute that
     could be assigned here would be state shared by every node of the
-    class. Readable off the class (`Root.time.loop`) without
-    constructing anything, so a producer can publish the loop the way
-    it publishes the driver table.
+    class. Readable off the class (`Root.time.loop`, `Root.time.mode`)
+    without constructing anything, so a producer can publish the loop
+    the way it publishes the driver table.
+
+    `loop` is the one field, and it is what tells the two bases apart:
+    the LOOPING base states the span of machine time one turn of the
+    timeline covers, and the RUNNING base has none -- elapsed
+    simulation seconds never wrap -- so its `loop` is `None`. A
+    constructor per base rather than a second field that must be
+    exclusive with the first: the declaration reads as the thing it
+    declares, and `Time()` with neither is refused naming both.
     """
 
-    loop: float
+    loop: float = None
+
+    @classmethod
+    def running(cls):
+        """The RUNNING base: elapsed simulation seconds that never wrap,
+        and mechanics that retain state (OpenSpec change
+        ``run-owns-the-coordinates``).
+
+        Built without `__init__` because `loop` is deliberately absent
+        here and present-and-validated there: one field, two bases, and
+        no sentinel to leak into a published document.
+        """
+        base = object.__new__(cls)
+        object.__setattr__(base, 'loop', None)
+        return base
+
+    @property
+    def mode(self):
+        """`'loop'` or `'running'`: which base this declaration is.
+
+        A property rather than a stored field so the two can never
+        disagree, and readable off the class through the declaration
+        exactly as `loop` is.
+        """
+        return 'running' if self.loop is None else 'loop'
 
     def __post_init__(self):
         loop = self.loop
+        if loop is None:
+            # TypeError, as it always was when `loop` was a required
+            # argument: this is a constructor that was not told which
+            # base it declares, not a loop of a wrong value.
+            raise TypeError(
+                'Time() states no base. Write Time(loop=<seconds>) -- the '
+                'span of machine time one turn of the timeline covers -- '
+                'or Time.running(), elapsed simulation seconds that never '
+                'wrap.')
         if (isinstance(loop, bool) or not isinstance(loop, (int, float))
                 or not math.isfinite(loop) or loop <= 0):
             raise ValueError(
@@ -492,7 +591,7 @@ class Time:
                 f"{owner.__name__}.{name}: a time base is declared as "
                 f"'time', the property every simulate() reads; "
                 f"'{name}' would leave nothing to tie it to. Write "
-                f"time = Time(loop=...).")
+                f"time = Time(loop=...), or time = Time.running().")
         from solid_node.node.assembly import AssemblyNode
         if not issubclass(owner, AssemblyNode):
             raise TypeError(

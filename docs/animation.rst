@@ -251,6 +251,46 @@ control to watch it faster — a twelve-hour clock at ×720 turns its hour
 hand once a minute; an older viewer that does not read the key keeps
 playing ``frames / fps`` seconds a turn, at the right pose throughout.
 
+A machine that never wraps: `Time.running()`
+===========================================
+
+A loop is one turn of a cycle. A machine that is *operated* — a
+calculator cranked twice, a printer executing a program, a dial advanced
+a step at a time — has no cycle to normalize against, and its pose
+depends on where it already stood. For those the root declares the other
+base:
+
+.. code-block:: python
+
+    from solid_node.motion.ports import Time
+
+    class Pascaline(AssemblyNode):
+
+        time = Time.running()
+
+`type(root).time.mode` reads ``'running'`` where a looping root's reads
+``'loop'``, and `loop` reads `None` — there is no span, because elapsed
+simulation seconds never wrap. `Time()` with neither is refused naming
+both spellings, and the declaration obeys the same rules a looping one
+does: only on the name ``time``, only on an `AssemblyNode`, only on the
+root.
+
+What the base changes is what a :doc:`simulation <scenarios>` over the
+root owns. Under it `Sim` owns every driver **and every joint
+coordinate** of the linked tree, keeps their history, and moves them by
+increments: a crank turned ten degrees twice leaves its arbor at forty,
+not at twenty. Nothing else about the tree changes.
+
+What it does not change yet is the published document. Unbound,
+`self.time` under a running root reads bare ``$t``, exactly as an
+undeclared root reads it, because elapsed seconds have no symbolic form
+until a later release publishes the compiled program; the ``animation``
+object carries no ``loop`` key, and `solid build`, `solid develop` and
+`solid snapshot` behave exactly as they do for a root declaring no base.
+So the preview plays the machine as if time ran from 0 to 1 second —
+`set_keyframe(2.5)` still binds seconds — and the running behaviour lives
+in the simulation.
+
 Beyond the timeline: drivers
 ============================
 
