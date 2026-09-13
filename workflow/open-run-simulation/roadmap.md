@@ -6,6 +6,10 @@ first scope, sufficient to develop and validate the running feature. The full
 historical Pascaline follows second, then Curta third; both are stress tests.
 Their remaining restoration and migration work does not gate the first
 feature increment. Framework release target remains **0.7 or 0.8, undecided**.
+Updated later on 2026-09-13: the pilot replaced the `running(r)` law
+protocol with the integrated-law reading and gave the feature-start
+go-ahead; see the design note's "Decision 2026-09-13" and the execution
+section at the end of this file.
 
 This changes project priority and the first acceptance scope. It does not
 claim that the module's assembly or mechanics are already validated. Complete
@@ -73,12 +77,14 @@ project integration destinations follow their own branch state.
 ## Preserved shared decisions
 
 - Keep component/joint declarations, existing frames, `.drives(...)`, grouped
-  ends and project law factories. A returned law may add build-time
-  `running(r)` to declare retained local state, position/movement constraints,
-  event updates and admissible engagement. Live state belongs to the run.
-- Supported `forward`/`inverse` laws retain absolute-position semantics.
-  Start with the piecewise-affine solver class; compilation refuses unsupported
-  laws rather than executing arbitrary project Python in the browser.
+  ends and project law factories. Superseded 2026-09-13: a law declares
+  nothing for running mode; the run integrates the existing law along the
+  input's movement and owns every coordinate (design note, "Decision
+  2026-09-13"). Live state belongs to the run.
+- Supported `forward`/`inverse` laws keep absolute-position semantics in
+  untimed and looping documents and are integrated in running mode. Start with
+  continuous laws, then the five discontinuous primitives; compilation refuses
+  unsupported laws rather than executing arbitrary project Python in the browser.
 - Compile one compact mechanical program and geometry bindings through the
   framework build. Python and the viewer worker consume that description.
   The framework contains no calculator-specific engine.
@@ -155,7 +161,9 @@ is not an extra first-module acceptance condition.
 
 **Gate:** complete proposal ratification, supported OpenSpec validation and the
 pilot's explicit feature-start go-ahead before production implementation.
-This planning adjustment does not start feature development.
+This planning adjustment does not start feature development. The go-ahead was
+given on 2026-09-13; per-cycle ratification is delegated to the repository
+agent's adversarial review of each proposal, and integration stays the pilot's.
 
 ## 3. Build and qualify the feature with the Pascaline module
 
@@ -289,3 +297,29 @@ Committed project handoffs for this resequencing:
 All three are documentation-only commits; the mechanical checkpoints above
 remain the evidence bases. The framework planning update stays in its existing
 isolated `open-run-simulation` worktree, based on primary `6e41f2d`.
+
+## Execution, 2026-09-13
+
+Pilot direction after the interface review. The framework cycles stack in
+this worktree rather than one worktree per change, the viewer cycle runs in
+`solid-node-viewer/WTs/open-run-simulation`, and the module's work runs in
+`projects/Calculators/Pascaline-module/WTs/open-run-simulation`. Every `main`
+stays the pilot's.
+
+| Cycle | Repository | Depends on |
+| --- | --- | --- |
+| 1. The run owns the coordinates | framework | this record |
+| 2. Jumps | framework | 1 |
+| 3. Stops | framework | 2 |
+| 4. Export | framework | 2 (3 when landed) |
+| 5. Viewer | viewer | 4 |
+| Fit, carry pair, three columns | module | nothing |
+| Running migration | module | 1, 2 |
+| Ratchet retention | module | 3 |
+| Browser acceptance | module | 4, 5 |
+
+Framework and viewer: one agent proposes, another implements, the repository
+agent reviews adversarially as the ratification gate. Module: one agent
+proposes and implements each cycle. The campaign's goal is the module
+simulated in the browser, with the shop opened from the worktrees on port 9001
+for the pilot to test. Release placement is still undecided.

@@ -1,11 +1,120 @@
 # Open-run mechanical simulation
 
-Status: proposed architecture and authorized experimental work, 2026-09-12.
+Status: proposed architecture and authorized experimental work, 2026-09-12;
+feature-start go-ahead and the integrated-law decision recorded 2026-09-13
+(see "Decision 2026-09-13" below).
 This is the full design proposed in the pilot conversation, followed by a
 mechanism spike campaign. It is not an accepted ADR, an OpenSpec baseline, or
 an implemented public API. The pilot explicitly authorized this folder and its
 spikes on framework `main`; framework and viewer production code stay outside
 this experiment. Initial framework HEAD: `518bed114c94697a58d95e85ad2831c8fcd9f3a3`.
+
+## Decision 2026-09-13: a law is integrated, not declared
+
+Status: pilot decision, 2026-09-13, after reviewing the Python-side state
+interface in conversation. It supersedes the `running(r)` law protocol
+ratified on 2026-09-12 (retained below as history) and gives the feature-start
+go-ahead the roadmap's stage two asked for. It is the interface the cycles
+below implement; it becomes ratified behaviour only through those cycles'
+OpenSpec changes and ADRs.
+
+### The interface
+
+1. **A third time base.** `time = Time.running()` on the root selects elapsed
+   simulation seconds that never wrap and mechanics that retain state.
+   Untimed models and `Time(loop=)` are unchanged.
+2. **Coordinates are the state.** The run retains every driver and every joint
+   coordinate of the linked tree, by qualified id. There is no separate memory
+   bank and the author declares no state. The initial state is the untimed
+   rest pose at the requested driver values, admissible by construction.
+   Snapshot, restore and reset act on that bank; restore refuses a snapshot
+   whose program identity or `dt` differs, before touching live state.
+3. **One law, two readings.** Untimed and looping, a relation sets the driven
+   coordinate to `f(driver)`. Running, the driven coordinate moves by the
+   continuous part of `f` along the driver's movement, from where it stood.
+   Over one tick a continuous law contributes exactly `f(end) - f(start)`,
+   which is already exact across the kinks of `abs`, `min`, `max` and their
+   compositions. A law containing a discontinuous primitive (`floor`, `ceil`,
+   `sign`, `%`, a comparison) has its jump crossings located inside the tick
+   and subtracted. A jump never moves a part: a gate factor such as
+   `step(sleeve - 0.5)` behaves as a clutch, holding when open and
+   re-engaging without a jump.
+4. **Propagation.** Increments propagate over the relation graph as values do
+   today: forward through a law, backward through an invertible one. A law
+   whose slope is zero at this instant contributes nothing, which is what
+   disengagement is. A coordinate that receives no increment holds. Two
+   nonzero increments that disagree on one coordinate are a conflict, refused
+   with the relation and coordinate identities, and a failed tick restores its
+   pre-tick state.
+5. **Refusals.** A law whose slope is zero everywhere, moving nothing except
+   by jumps, is refused as arithmetic. An author `simulate()` binding of a
+   run-owned coordinate is refused as doubly bound. A reverse move on an input
+   is refused until ranges become physical stops.
+6. **Stops.** In running mode a joint's `range` is a physical stop, localized
+   inside the tick, blocking the connected group while unrelated drives
+   continue. A range may be an expression over coordinates evaluated at the
+   committed state; a ratchet's lower bound is the last seated tooth.
+7. **Commands.** `Sim(machine, dt, state=...)`, `move(input, by=|to=,
+   duration=)`, `rate(input, rate)` and `trigger(name)` are one path with one
+   ownership rule: only a declared input can be moved, one owner at a time,
+   and every request reports completed, blocked, refused or cancelled with the
+   travel actually admitted. Recording is bounded and completed commands are
+   retired.
+8. **Instructions and controls.** `Instruction(by=..., duration=)` is the
+   relative request running mode needs; `targets=` keeps its absolute ramp
+   contract in existing modes and `to=` maps onto a move to a position. The
+   input, instruction and control relationship ratified on 2026-09-12 stands
+   unchanged.
+9. **Not deduced, and explicit later.** A push that does not pull, for a pin
+   or cam against a held lever, is one new law kind in the slot `Affine`
+   occupies and is not needed by the Pascaline module. Phase admissibility on
+   re-engagement is not in the first increment and is said so.
+10. **Export and viewer.** The document publishes the compiled program:
+    coordinate table, inputs, relation expression graphs over coordinate ids,
+    instructions, initial state, under a version an old viewer refuses. The
+    browser worker integrates with the same rule over the expression evaluator
+    the widget already has. Python and browser share a conformance corpus.
+
+The illustration the pilot accepted is the Curta's `InputMesh` bench, two
+edits from its committed form: `Time.running()` on the root, and the tooth
+window made periodic in the existing law,
+`4 + 72 * clamp01((angle - 360 * floor(angle / 360) - 113.5) / 11.25)`. One
+crank turn leaves the pinion at 76, the second at 148, and untimed the same
+law still poses the pinion within one cycle.
+
+### Cycles
+
+Framework cycles are stacked in this worktree, `solid-node/WTs/open-run-simulation`,
+by pilot direction, one OpenSpec change each under `skills/framework-change/SKILL.md`:
+
+1. **The run owns the coordinates.** `Time.running()`, joint coordinates by
+   qualified id, `set_state` accepting them, the run as a binder the solver
+   leaves alone, increment integration for continuous laws, propagation, hold,
+   conflict, commands, `by=` instructions, snapshot, restore, reset, bounded
+   recording. No retained history yet: its value is the interface.
+2. **Jumps.** Jump surfaces for the five discontinuous primitives, crossings
+   located inside the tick and subtracted. This is where history appears.
+3. **Stops.** Ranges as physical stops, expression-valued ranges at the
+   committed state, blocked reporting and replanning.
+4. **Export.** The compiled program in the document, versioned.
+5. **Viewer**, in `solid-node-viewer/WTs/open-run-simulation`: the worker
+   integrator, the non-wrapping clock, nudge, jog, instruction buttons, run,
+   pause, step, speed, reset, and the conformance corpus.
+
+Project work happens in `projects/Calculators/Pascaline-module/WTs/open-run-simulation`
+under the project's own OpenSpec records: fit the module, the carry pair,
+three columns, the running migration (after cycles 1 and 2), ratchet
+retention (after cycle 3), browser acceptance (after cycles 4 and 5).
+
+### Orchestration and gates
+
+Pilot direction, 2026-09-13: on the framework and viewer, one agent proposes,
+another implements, and the repository agent reviews adversarially as the
+ratification gate; on the Pascaline module, one agent proposes and implements
+each cycle. The goal of the campaign is the Pascaline module simulated in the
+browser, with the shop opened from the worktrees on port 9001 for the pilot to
+test. Integration into any `main` and the release placement remain the pilot's
+decisions.
 
 The mechanical-law, browser-interface and current-planning sections record the
 pilot's subsequent acceptance of action-based controls and ratification of the
@@ -174,6 +283,13 @@ closed loops need explicit support boundaries. Nonlinear loops may require a
 numeric solver; a propagation-only solver must refuse what it cannot solve.
 
 ### Running law protocol — pilot ratification, 2026-09-12
+
+> Superseded 2026-09-13 by "Decision 2026-09-13: a law is integrated, not
+> declared" above. Retained as history: no `running(r)` method, `r.state`,
+> `r.event` or `r.equal` is implemented, and a law declares no running
+> behaviour. The compatibility points 1 and 5 below survive in the new
+> decision; point 1 in the sense that untimed and looping documents keep the
+> absolute reading and running mode integrates the same law.
 
 The pilot explicitly ratified adding one optional method, `running(r)`, to
 the existing project-owned law protocol. Keep nodes, joints, frame conventions,
