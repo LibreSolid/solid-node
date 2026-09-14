@@ -34,7 +34,7 @@ from unittest import TestCase, skipUnless
 from unittest.mock import patch
 
 from solid_node.cli import COMMANDS, manage
-from solid_node.viewers.bundle import has_bundle
+from solid_node.viewers.bundle import describe, has_bundle
 
 from .import_probe import probe
 
@@ -174,7 +174,14 @@ class CommandImportIsolationTest(TestCase):
 
         self.assertEqual(result.status, 0, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(sorted(report), ['apiVersion', 'index', 'path', 'version'])
+        # Four keys are the framework's own contract with the viewer, and
+        # the report may carry more of the viewer's own -- a viewer
+        # released before `documentVersions` existed does not carry it.
+        # So the oracle for "unchanged" is what the installed viewer says
+        # in THIS process, where every command module is loaded already.
+        self.assertLessEqual({'apiVersion', 'index', 'path', 'version'},
+                             set(report))
+        self.assertEqual(report, json.loads(json.dumps(describe())))
         self.assertIsInstance(report['apiVersion'], int)
         # The lookup is an entry point that imports only the standard
         # library; the viewer's own server and capture never load here.
