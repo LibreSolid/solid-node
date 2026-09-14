@@ -2017,3 +2017,75 @@ is the one place these findings are kept; see `libresolid-studio/CLAUDE.md`,
   `dist/` cannot be described as current — or have the shop/framework
   compare bundle and declaration mtimes and warn before serving. Filed here;
   triage open.
+
+# Pin tumbler lock (2026-09-14, running-command cancellation)
+
+Recorded at the pilot's request while preparing
+`projects/Locks/Pin_tumbler_lock` for `Time.running()` and updating the
+shop's public API skill. Found in a minimal API probe before changing the
+lock; this is not a failure observed in the lock's existing browser demo.
+**Status: filed here; triage open.** No external issue opened, interface
+ratification or implementation authorized by this entry.
+
+- **Symptom.** A Python running command's `cancel()` changes its status to
+  `cancelled`, but the command continues moving its input and keeps owning
+  it. A replacement request fails saying to cancel the command that is
+  already cancelled. The skill therefore has to warn projects not to rely
+  on cancellation to stop or replace a move.
+- **Evidence.** First reproduced at framework `9238ef8`; reproduced again
+  at `00398f4` on 2026-09-14 with the workspace Python environment. With
+  `dt=0.02`, a 5 mm move over 0.2 s cancelled before the first tick still
+  moves both the input and its carriage by 0.5 mm on the next tick. The
+  handle reports `cancelled`, `admitted == 0.5`, and remains the one entry
+  in `sim.commands`. A new move on the same input raises `ValueError`:
+  `'feed' is already owned by <move feed cancelled: 0.5 admitted>`.
+  In `solid_node/simulation/run.py`, `Command.cancel()` only updates the
+  status; `Run.integrate()` still asks every held command for admissions,
+  `Command.admits()` does not exclude cancelled commands, and
+  `Run._claim()` rejects any held owner. The public baseline is
+  `openspec/specs/simulation/spec.md`, "Commands have one owner per input
+  and report their outcome"; `Command.cancel()` itself promises to stop
+  the command where it stands.
+- **Skill text a fix would delete.** The shop's
+  `shop-skills/solid-node-api/SKILL.md`, added in shop commit `99611ce`:
+  "Do not rely on it to stop or replace a move until the framework fixes
+  this; `rate(input, 0)` releases an active rate, and restore/reset replace
+  the run state." Releasing a rate or restoring state is not equivalent
+  to cancelling one finite move while preserving other commands.
+- **Candidate correction, not ratified.** Keep the existing
+  `handle.cancel()` interface: stop admitting travel for that command,
+  release its input so a replacement can be issued immediately, and keep
+  the retired handle's `cancelled` status and already-admitted travel.
+  Verify cancellation before the first tick and midway through a move or
+  rate, immediate replacement, repeated cancellation, unrelated inputs
+  continuing, and snapshot/restore behavior. No framework code changed.
+
+Minimal reproduction: save this as `probe.py` in a directory with a
+`pyproject.toml` containing `[tool.solid-node]` and `model = "probe:Feed"`,
+then run it with Python using the affected framework installation. It
+needs no CAD build or viewer:
+
+```python
+from solid_node.node import AssemblyNode
+from solid_node.motion.ports import Time
+from solid_node.motion.joints import Prismatic
+from solid_node.simulation import Driver, Sim
+
+class Carriage(AssemblyNode):
+    travel = Prismatic(axis=(1, 0, 0), range=(0, 12), unit="mm")
+
+class Feed(AssemblyNode):
+    time = Time.running()
+    feed = Driver(default=0, unit="mm")
+    carriage = Carriage()
+    feed.drives(carriage.travel)
+
+sim = Sim(Feed(), dt=0.02)
+command = sim.move("feed", by=5, duration=0.2)
+command.cancel()
+sim.run(0.02)
+print(command.status, command.admitted, sim.state, len(sim.commands))
+# Observed: cancelled 0.5 {'carriage.travel': 0.5, 'feed': 0.5} 1
+# Expected after cancellation before the first tick: no travel, no owner.
+sim.move("feed", by=1, duration=0.02)  # observed: ValueError, already owned
+```
