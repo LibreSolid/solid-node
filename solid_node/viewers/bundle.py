@@ -91,6 +91,51 @@ def api_version():
     return describe()['apiVersion']
 
 
+#: What a report that carries no ``documentVersions`` means: every viewer
+#: released before the field existed renders exactly these, so an older
+#: viewer beside a newer framework keeps working and is described
+#: truthfully.
+DOCUMENT_VERSIONS_BEFORE_THE_FIELD = [1, 2, 3, 4]
+
+
+def document_versions():
+    """The node-tree document schema versions the installed viewer renders.
+
+    Asked of the report rather than inferred from the viewer's own release
+    counter: a framework channel about to publish or photograph a document
+    needs the fact it is asking for, and the report should state it.
+    """
+    return describe().get('documentVersions',
+                          DOCUMENT_VERSIONS_BEFORE_THE_FIELD)
+
+
+def unreadable_document(version):
+    """The three facts about a document the installed viewer cannot read,
+    as one sentence, or None when there is nothing to say.
+
+    The version written, the versions the installed viewer renders and
+    the viewer's package version -- and None both when the viewer renders
+    it and when no viewer is installed at all, which is not a document
+    problem. What to DO about it is the caller's: a producer writes the
+    document anyway and warns, a capture refuses before it starts.
+    """
+    try:
+        rendered = document_versions()
+    except ViewerUnavailable:
+        return None
+    if version in rendered:
+        return None
+    try:
+        installed = describe().get('version')
+    except ViewerUnavailable:  # pragma: no cover - describe just answered
+        installed = None
+    return (
+        f'this model needs document version {version}, and the installed '
+        f'browser viewer renders '
+        f'{", ".join(str(one) for one in rendered)} '
+        f'(solid-node-viewer {installed})')
+
+
 def viewer_command():
     """The viewer's command line, run through this interpreter.
 

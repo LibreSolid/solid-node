@@ -310,3 +310,158 @@ class SnapshotTimeTest(TestCase):
     def test_an_undeclared_root_is_keyframed_at_the_fraction(self):
         keyframe = self.prepare(Undeclared(), 0.5)
         keyframe.assert_called_once_with(0.5)
+
+
+##############################################
+# The RUNNING base (OpenSpec change ``run-owns-the-coordinates``)
+
+
+class Running(AssemblyNode):
+    """A root declaring elapsed simulation seconds that never wrap."""
+
+    time = Time.running()
+
+    def __init__(self):
+        self.pointer = Pointer()
+        super().__init__()
+
+    def render(self):
+        return [self.pointer]
+
+
+class RunningBaseDeclarationTest(TestCase):
+    """`Time.running()` is a second base with the same declaration rules
+    and its own `mode`."""
+
+    def test_the_running_declaration_is_readable_off_the_class(self):
+        self.assertIsInstance(Running.time, Time)
+        self.assertIsNone(Running.time.loop)
+        self.assertEqual(Running.time.mode, 'running')
+        self.assertIs(declared_time(Running), Running.time)
+
+    def test_the_looping_declaration_reports_its_own_mode(self):
+        self.assertEqual(Clock.time.mode, 'loop')
+
+    def test_time_with_neither_base_is_refused_naming_both_spellings(self):
+        with self.assertRaises(TypeError) as caught:
+            Time()
+        message = str(caught.exception)
+        self.assertIn('Time(loop=', message)
+        self.assertIn('Time.running()', message)
+        with self.assertRaises(TypeError):
+            Time(loop=None)
+
+    def test_only_the_name_time_may_hold_a_running_declaration(self):
+        with self.assertRaises(TypeError) as caught:
+            class Misnamed(AssemblyNode):
+                clock = Time.running()
+        self.assertIn('time', str(caught.exception))
+
+    def test_only_an_assembly_may_declare_the_running_base(self):
+        with self.assertRaises(TypeError) as caught:
+            class Leaf(Solid2Node):
+                time = Time.running()
+
+                def render(self):
+                    return cube(1)
+        self.assertIn('AssemblyNode', str(caught.exception))
+
+    def test_a_running_declaration_below_the_root_is_refused_when_read(self):
+        class RunningChild(AssemblyNode):
+            time = Time.running()
+
+            def __init__(self):
+                self.cube = Cube()
+                super().__init__()
+
+            def render(self):
+                return [self.cube]
+
+            def simulate(self):
+                self.cube.rotate(6 * self.time, [0, 0, 1])
+
+        class Composing(AssemblyNode):
+
+            def __init__(self):
+                self.child = RunningChild()
+                super().__init__()
+
+            def render(self):
+                return [self.child]
+
+        node = Composing()
+        with self.assertRaises(TypeError) as caught:
+            node.assemble()
+        message = str(caught.exception)
+        self.assertIn('child', message)
+        self.assertIn('Composing', message)
+
+
+class RunningBaseReadsTest(BaseNodeTest):
+    """Unbound, a running root reads bare `$t`, exactly as an undeclared
+    root does: elapsed seconds have no symbolic form until the compiled
+    program is published."""
+
+    def test_unbound_time_is_bare_t_on_root_and_descendant(self):
+        node = Running()
+        node.assemble()
+        self.assertEqual(str(node.time), '$t')
+        self.assertEqual(str(node.pointer.time), '$t')
+        self.assertEqual(rotation_strings(node.pointer.cube),
+                         [['r', '((360 * $t) / 3600)', [0, 0, 1]]])
+
+    def test_keyframes_bind_seconds_and_clearing_restores_the_symbol(self):
+        node = Running()
+        node.assemble()
+        node.set_keyframe(2.5)
+        self.assertEqual(node.time, 2.5)
+        self.assertEqual(node.pointer.time, 2.5)
+        node.clear_keyframe()
+        self.assertEqual(str(node.time), '$t')
+
+
+class RunningBasePublicationTest(BaseNodeTest):
+    """A running root's document is the document an undeclared root
+    publishes: no `loop` key, and a snapshot keyframes the fraction."""
+
+    def test_animation_block_of_a_running_root_carries_no_loop(self):
+        self.assertEqual(animation_block(Running()),
+                         {'fps': 30, 'frames': 360})
+        self.assertEqual(animation_block(Running()),
+                         animation_block(Undeclared()))
+
+    def test_a_running_root_has_no_timeline_to_keyframe(self):
+        """A non-zero `--time` used to keyframe a bare fraction into a
+        running root's clock and change nothing the machine does. Cycle
+        4 refuses it by name and points at `--drive`, which poses the
+        rest pose at given driver values (OpenSpec change
+        ``publish-the-mechanical-program``, design section 8.2)."""
+        from solid_node.manager.snapshot import (Snapshot,
+                                                 SnapshotOptionError)
+        snapshot = Snapshot.__new__(Snapshot)
+        snapshot.path = 'model.py'
+        snapshot.time = 0.5
+        node = Running()
+        with (patch('solid_node.manager.snapshot.load_node',
+                    return_value=node),
+              patch('solid_node.manager.snapshot.project_build_lock'),
+              patch.object(node, 'set_keyframe') as keyframe,
+              patch.object(node, 'assemble')):
+            with self.assertRaises(SnapshotOptionError) as raised:
+                snapshot._load_and_prepare_node()
+        self.assertIn('--drive', str(raised.exception))
+        keyframe.assert_not_called()
+
+    def test_a_running_root_is_keyframed_at_zero(self):
+        from solid_node.manager.snapshot import Snapshot
+        snapshot = Snapshot.__new__(Snapshot)
+        snapshot.path = 'model.py'
+        snapshot.time = 0.0
+        node = Running()
+        with (patch('solid_node.manager.snapshot.load_node',
+                    return_value=node),
+              patch('solid_node.manager.snapshot.project_build_lock'),
+              patch.object(node, 'set_keyframe') as keyframe,
+              patch.object(node, 'assemble')):
+            snapshot._load_and_prepare_node()
+        keyframe.assert_called_once_with(0.0)

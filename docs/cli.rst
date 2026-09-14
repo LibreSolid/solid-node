@@ -160,7 +160,7 @@ solid snapshot
 
 ::
 
-    solid snapshot [reference] [options]
+    solid snapshot [reference] [--drive NAME=VALUE ...] [options]
 
 Renders the node to a PNG image without opening a viewer. The default
 OpenSCAD renderer is the fast inspection path; the optional web renderer
@@ -172,6 +172,7 @@ in headless Chromium and preserves a real alpha channel for compositing.
     $ solid snapshot -o front.png --viewall --autocenter
     $ solid snapshot windmill.windmill:Sail --time 0.25 --imgsize 800x600 --projection ortho
     $ solid snapshot --renderer web -o transparent.png
+    $ solid snapshot --drive units_entry=3 -o entered.png
 
 ``--renderer``
     ``openscad`` (default) or ``web``. The default stays ``openscad``
@@ -187,7 +188,37 @@ in headless Chromium and preserves a real alpha channel for compositing.
 ``--time``
     Animation time to render, between 0.0 and 1.0. Default: 0.0. This
     poses the model through ``$t`` only; a driven machine renders at
-    its declared driver defaults.
+    its declared driver defaults unless ``--drive`` says otherwise.
+    Under a root declaring ``time = Time(loop=...)`` the fraction is
+    keyframed as the seconds it means, so the image shows what the
+    viewer's slider shows at that position. Under a root declaring
+    ``time = Time.running()`` there is no timeline to be a position on —
+    elapsed simulation seconds never wrap — so a non-zero ``--time`` is
+    refused by name, pointing at ``--drive``; ``--time 0.0``, the
+    default, is the instant the rest pose is defined at.
+
+``--drive NAME=VALUE``
+    Bind a declared driver by its qualified id before the image is
+    taken; repeatable. Drivers left unnamed stand at their declared
+    defaults.
+
+    .. code-block:: bash
+
+        $ solid snapshot --drive units_entry=3 --drive tens_entry=1
+
+    It is distinct from ``--set``, which reaches the root's declared
+    *parameters*: a driver is not a parameter. A name that is no
+    declared driver of the tree fails listing the drivers the tree
+    publishes, and writes no image.
+
+    Under a running root the image is the untimed **rest pose** at those
+    driver values — the state a simulation itself starts from, and
+    admissible by construction. A ``--drive`` naming a JOINT COORDINATE
+    of a running root is refused by name: a coordinate's value is what
+    the run makes of it, and with no run to own it the enumeration that
+    binding runs would recompute it from the drivers and discard the
+    value. A state carrying HISTORY is not posed from the command line;
+    only a run knows which banks are reachable.
 
 ``--camera``
     Camera specification in OpenSCAD format. Either gimbal
@@ -227,6 +258,13 @@ With ``--renderer web``, explicitly supplying ``--projection``,
 ``--colorscheme``, ``--view``, ``--render``, or ``--preview`` is an error;
 the command names every unsupported option rather than silently ignoring it.
 ``--camera`` accepts both OpenSCAD camera forms under either renderer.
+
+``--renderer web`` also refuses, before it starts the browser, a document
+whose schema version the installed viewer does not render — naming the
+version, the versions the viewer renders and the viewer's package
+version, writing no image and leaving no staging directory. A running
+root publishes document version 5 (:doc:`Embedding models <embedding>`),
+so photographing one needs a viewer that reads it.
 
 solid export
 ============

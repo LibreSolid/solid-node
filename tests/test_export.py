@@ -646,3 +646,56 @@ class ExportCliTest(TestCase):
 
         args = handle.call_args[0][0]
         self.assertFalse(args.widget)
+
+
+class RunningPublicationWarningTest(BaseNodeTest):
+    """(7.4) A producer that writes a document the installed viewer
+    cannot read says so once, and writes it anyway: the build, the STLs
+    and a viewerless watch loop are unaffected by a browser that cannot
+    render, and the document's own refusal is the consumer's to make."""
+
+    def setUp(self):
+        super().setUp()
+        from solid_node.simulation.enumeration import bind_declared_defaults
+        from tests.running_project.machine import Train, TrainBody
+
+        self.temporary = tempfile.TemporaryDirectory(prefix='solid-running-')
+        self.addCleanup(self.temporary.cleanup)
+        self.running = Train()
+        bind_declared_defaults(self.running)
+        self.untimed = TrainBody()
+        bind_declared_defaults(self.untimed)
+
+    def export(self, node, message):
+        from solid_node.core import export as export_module
+
+        output = os.path.join(self.temporary.name, node.name)
+        with patch.object(export_module.viewer_bundle, 'unreadable_document',
+                          return_value=message) as asked:
+            with self.assertLogs('core.export', level='WARNING') as logged:
+                # One record at least: the assertion below counts the
+                # ones this cycle adds.
+                logging_probe = logged
+                manifest = export_node(node, output, widget=False)
+        return manifest, logged.output, asked
+
+    def test_a_version_five_export_warns_once_and_is_written_anyway(self):
+        manifest, records, asked = self.export(
+            self.running,
+            'document version 5; the installed viewer renders 1, 2, 3, 4 '
+            '(solid-node-viewer 0.1.0)')
+        warnings = [line for line in records if 'document version 5' in line]
+        self.assertEqual(len(warnings), 1, records)
+        self.assertIn('1, 2, 3, 4', warnings[0])
+        self.assertIn('0.1.0', warnings[0])
+        self.assertEqual(manifest['version'], 5)
+        asked.assert_called_once_with(5)
+
+    def test_a_viewer_that_can_read_it_is_not_warned_about(self):
+        from solid_node.core import export as export_module
+
+        output = os.path.join(self.temporary.name, 'quiet')
+        with patch.object(export_module.viewer_bundle, 'unreadable_document',
+                          return_value=None):
+            manifest = export_node(self.running, output, widget=False)
+        self.assertEqual(manifest['version'], 5)

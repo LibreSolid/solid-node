@@ -1,0 +1,146 @@
+{
+  "format": "solid-node-export",
+  "version": 4,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {
+    "crank": {
+      "default": 0.0,
+      "range": null,
+      "unit": "deg",
+      "dtype": null,
+      "scale": null
+    },
+    "lever": {
+      "default": 100.0,
+      "range": [
+        100,
+        140
+      ],
+      "unit": "deg",
+      "dtype": null,
+      "scale": null
+    }
+  },
+  "instructions": {
+    "Park": {
+      "targets": {
+        "crank": 40.0
+      },
+      "duration": 0.5
+    }
+  },
+  "bindings": [
+    {
+      "name": "_b0",
+      "expression": "(2.0 * crank)"
+    }
+  ],
+  "root": {
+    "name": "TrainBody",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": null,
+    "operations": [
+      [
+        "r",
+        "crank",
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    ],
+    "children": [
+      {
+        "name": "first",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "_b0",
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        ],
+        "model": "first"
+      },
+      {
+        "name": "second",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "r",
+            "(-1.5 * _b0)",
+            [
+              0,
+              0,
+              1
+            ]
+          ],
+          [
+            "t",
+            [
+              "30.0",
+              "0.0",
+              "0.0"
+            ]
+          ]
+        ],
+        "model": "second"
+      },
+      {
+        "name": "slide",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "t",
+            [
+              "(4 + (72 * min(max(((lever - 113.5) / 11.25), 0.0), 1.0)))",
+              "0",
+              "0"
+            ]
+          ],
+          [
+            "t",
+            [
+              "0.0",
+              "40.0",
+              "0.0"
+            ]
+          ]
+        ],
+        "model": "slide"
+      },
+      {
+        "name": "wheel",
+        "type": "LeafNode",
+        "color": null,
+        "mtime": null,
+        "operations": [
+          [
+            "t",
+            [
+              "0.0",
+              "-40.0",
+              "0.0"
+            ]
+          ]
+        ],
+        "model": "wheel"
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "format": "solid-node-export",
+  "version": 4,
+  "animation": {
+    "fps": 30,
+    "frames": 360
+  },
+  "drivers": {
+    "valvetrain.lift": {
+      "default": 0.0,
+      "range": [
+        0.0,
+        12.0
+      ],
+      "unit": "mm",
+      "dtype": null,
+      "scale": null
+    }
+  },
+  "instructions": {},
+  "bindings": [
+    {
+      "name": "_b0",
+      "expression": "(46.8 - valvetrain.lift)"
+    }
+  ],
+  "root": {
+    "name": "Engine",
+    "type": "AssemblyNode",
+    "color": null,
+    "mtime": null,
+    "operations": [],
+    "children": [
+      {
+        "name": "valvetrain",
+        "type": "AssemblyNode",
+        "color": null,
+        "mtime": null,
+        "operations": [],
+        "children": [
+          {
+            "name": "retainer",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [
+              [
+                "t",
+                [
+                  "0",
+                  "0",
+                  "_b0"
+                ]
+              ]
+            ],
+            "model": "retainer"
+          },
+          {
+            "name": "spring",
+            "type": "LeafNode",
+            "color": null,
+            "mtime": null,
+            "operations": [],
+            "flexible": {
+              "tech": "molejo",
+              "spec": {
+                "molejo": "0.1",
+                "profile": {
+                  "type": "circle",
+                  "radius": 2.0
+                },
+                "path": [
+                  {
+                    "type": "helix",
+                    "radius": 14.0,
+                    "turns": 6.5,
+                    "height": {
+                      "param": "height"
+                    }
+                  }
+                ],
+                "loop": false,
+                "tessellation": {
+                  "path": 240,
+                  "profile": 16
+                }
+              },
+              "params": {
+                "height": "_b0"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

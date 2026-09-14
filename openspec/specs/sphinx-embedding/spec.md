@@ -9,6 +9,7 @@ never runs the CAD stack — it only consumes committed export artifacts.
 Code: `solid_node/sphinx.py`; used throughout `docs/` (e.g. `testing.rst`),
 committed exports under `docs/_exports/`.
 ## Requirements
+
 ### Requirement: Directive registration
 
 The system SHALL register a `solid-node` directive when
@@ -32,6 +33,16 @@ two name the offending path and expected format). It SHALL also detect
 two different exports colliding on one output name, and register the
 manifest as a dependency so docs rebuild when the export changes.
 
+It SHALL additionally WARN, without failing the build, when the embedded
+manifest declares a document version the installed viewer does not report as
+one it renders — naming the export, the version the manifest declares and the
+versions the viewer renders. The export being embedded is a committed
+artifact the documentation build does not produce and cannot change, and the
+embedded widget refuses such a document in the page, visibly; the warning is
+what tells the author why, at build time, without failing a docs build over
+an artifact it does not own. The check SHALL read the version off the
+manifest the directive already opens and SHALL NOT load the CAD runtime.
+
 #### Scenario: Missing export
 
 - **WHEN** the directive's argument is not a directory
@@ -41,6 +52,19 @@ manifest as a dependency so docs rebuild when the export changes.
   manifest format
 - **THEN** the build fails naming the path and the expected
   `solid-node-export` format
+
+#### Scenario: An embedded export the viewer cannot render
+
+- **WHEN** a doc embeds an export whose manifest declares version 5 and the
+  installed viewer reports that it renders versions 1 to 4
+- **THEN** the build completes and warns naming the export, the declared
+  version and the versions the viewer renders
+
+#### Scenario: An embedded export the viewer can render
+
+- **WHEN** a doc embeds an export whose version the installed viewer reports
+  it renders
+- **THEN** the build completes with no such warning
 
 ### Requirement: Iframe rendering
 
@@ -78,4 +102,3 @@ documentation build run with `-W`, as this project's own is.
   installed
 - **THEN** the build warns naming the extra, and a build run with `-W` fails
   on that warning rather than emitting an iframe onto a page that cannot render
-

@@ -8,6 +8,191 @@ Changelog
 Unreleased
 ----------
 
+**A running root's document publishes the compiled program, under schema
+version 5.** Cycles one to three built a machine that runs in Python and
+nothing of it reached the browser: a running root's document was
+byte-identical to an untimed root's, so its pose expressions were the law
+read *absolutely* at the driver values — the reading that makes a
+register snap back at every carry window. It now carries a ``program``
+object beside the geometry: the coordinate table with each bank id's
+kind, rest value, declared unit and domain, the intermediates, the
+compiled edges in program order with their expressions, per-end affine
+flags and jump plans, the spans, the candidate table of which inputs
+reach what, the program identity, the clock name, and the constants the
+algorithm is defined by — everything compile time decided, and nothing
+the tick computes.
+
+**A committed bank poses the geometry.** Under a running root every joint
+coordinate of the tree is serialized as its own qualified id, so a
+joint's placement publishes as that coordinate's name and every plain
+port, derived coordinate and flexible ``params`` expression publishes as
+an expression over the bank. A consumer evaluates exactly the expressions
+it always evaluated, from a scope holding the bank it just committed
+instead of the driver values alone. The clock leaves with it: a version 5
+document carries the free name ``time``, declared as ``program.clock``,
+never ``$t``; every other reading of an unbound ``time`` is unchanged.
+
+Both instruction forms are published under version 5 — each entry
+carrying exactly one of ``targets`` and ``by`` — where versions 2 to 4 go
+on publishing only the absolute form. An untimed or looping root's
+document is unchanged in every byte.
+
+The bump is **not additive**: a consumer ignoring ``program`` would read
+a document whose joint placements are bare coordinate names it can bind
+nothing to. The framework asks the installed viewer which document
+versions it renders (``solid viewer``'s new ``documentVersions`` field; a
+viewer without it renders 1 to 4). ``solid build``, ``solid develop`` and
+``solid export`` publish a version 5 document and **warn once**, naming
+the version written, the versions the viewer renders and its package
+version; the Sphinx directive warns about a committed export it embeds,
+without failing the build; and ``solid snapshot --renderer web``
+**refuses** before it starts the browser, because a capture is a one-shot.
+A browser that runs the machine is the viewer package's own next release.
+
+**A conformance corpus pins the two runtimes to each other.**
+``tools/generate_running_corpus.py`` writes ``tests/running-corpus.json``
+from the framework's own run over thirteen scenarios across eleven small
+running roots — every tick, with its bank, crossings, stops and command
+outcomes — and refuses to write one missing any of the features the
+export contract lists. The suite replays it exactly for discrete state
+and within the run's own ``1e-9`` agreement window for floats.
+
+**``solid snapshot --drive NAME=VALUE``**, repeatable, binds a declared
+driver by its qualified id before the image is taken; drivers left
+unnamed stand at their declared defaults. It works under every root — a
+driver-declaring untimed project had the same gap — and it is distinct
+from ``--set``, which reaches the root's declared *parameters*. Under a
+running root the image is the untimed rest pose at those driver values,
+the state a simulation itself starts from. A ``--drive`` naming a joint
+coordinate of a running root is refused by name, and a non-zero
+``--time`` on a running root is refused too: elapsed simulation seconds
+never wrap, so there is no timeline to be a position on.
+
+**One simulation owns a tree at a time, and the newest takes it.**
+Constructing a ``Sim`` over a tree a previous run owns now releases that
+ownership before the rest render, instead of failing as doubly bound —
+which is what makes ``ScenarioTest.simulation()``'s "fresh per call"
+promise true over a node built once per class, so two scenarios of one
+running class run. The released run refuses to advance, naming both,
+rather than binding over the simulation that now poses the tree. An
+author's ``simulate()`` binding a run-owned coordinate is still refused
+exactly as before. ``time`` is reserved: a driver or joint coordinate
+qualifying to that id is refused at construction.
+
+**A joint's range is a physical stop, located inside the tick.** Under a
+running root a declared ``range`` is now the mechanical limit it states
+rather than a refusal of the tick: when a tick would take a banked
+coordinate outside a bound, and further outside than it stood at the
+start, the run locates the fraction of the tick at which it reaches that
+bound, commits it there exactly, and the tick commits. What stops with it
+is the connected group — every input whose own movement pushes the
+stopped coordinate, and everything those inputs alone determine. An
+unrelated input runs its full tick, and so does one coupled to the
+stopped coordinate only through a law that is currently disengaged: an
+open clutch does not stop its crank. A coordinate determined by both a
+stopped input and a free one goes on moving on what the free one
+contributes. The tick becomes segments, each integrated by exactly the
+procedure above, and stays atomic across them: a conflict or an
+unintegrable law in any segment commits nothing. Both bounds stay
+inclusive, so a move landing exactly on one is no stop at all.
+
+A command whose input is stopped is retired reporting ``blocked``, with
+the travel it actually admitted — fractional within the tick, in design
+units — and it never resumes: nothing remembers the travel it did not
+make. A ``rate`` on a stopped input is retired ``blocked`` too, and a new
+command on that input is accepted at once. **Reverse moves and reverse
+rates are admitted**, meeting a stop exactly as forward ones do; a rate's
+cumulative travel on an integer input is now truncated toward zero, so
+the two directions round alike.
+
+**A range bound may be an expression over the joint's own coordinate**,
+written as a callable of one argument inside the ``(lo, hi)`` pair, and
+either bound may be ``None`` for unbounded on that side.
+``range=(lambda turn: 36 * floor(turn / 36), None)`` is a ten-tooth
+ratchet whose lower bound is the last seated tooth. Under a running root
+it is compiled once, like a law, and evaluated at the start of every tick
+from the committed bank; everywhere else it is evaluated at the value
+being bound, so one declaration poses and runs. A jump in a bound is
+evaluated, never integrated. ``record=N`` keeps a third bounded ring,
+read through ``sim.stops``, of the most recent ``N`` stops; a crossing
+located inside a segment is still recorded at its fraction of the TICK.
+
+**A jump is located inside the tick and subtracted.** A running law may
+now contain ``floor``, ``ceil``, ``sign``, ``%`` or a comparison — the
+periodic and gated shapes a real mechanism is written in. Over one tick
+the run cuts the path its sources take at every crossing of every jump
+surface it meets; on each piece every jump node holds one BRANCH, read at
+the piece's midpoint, which makes the law continuous there; and the
+increment is the sum of the branch-substituted law's change over the
+pieces. So a jump never moves a part: the Curta's tooth window leaves its
+pinion at ``4`` at rest, ``76`` after one crank turn and ``148`` after
+two, and the tick in which the crank passes 360 degrees contributes
+exactly zero. Every crossing inside the tick is found, not only the
+difference of its ends — a crank passing three tooth windows in one tick
+adds three throws — including several jump nodes and a jump nested in
+another's argument. ``wrap()`` integrates as the ``ceil`` it is built on,
+so a wrapped law reads as the unwrapped travel, and ``piecewise()``
+needed nothing of its own. Disengagement is a law's own business and both
+its shapes are now expressible: a gate factor in a multi-source law
+(``-2 * shaft * (sleeve > 0.5)``, which re-engages mid-tick without a
+jump) and the zero-slope region of a single-source one.
+
+Two laws are refused at construction, by relation identity: one that can
+move its coordinate ONLY by jumping, because every jump is subtracted so
+it can never move anything — it states arithmetic, not a mechanism — and
+a jumping law none of whose driven ends the run owns, because a
+subtracted jump implies a history and only an owned coordinate keeps one.
+A tick that would cross more than a thousand surfaces of one law, or that
+meets a ``%`` whose divisor is zero, refuses the tick and commits
+nothing. ``record=N`` now keeps a second bounded ring, read through
+``sim.crossings``, of the most recent ``N`` crossings located inside a
+tick.
+
+**A machine can keep its history: the run owns the coordinates.** A pose
+was a function of the current input values and nothing else, so a Curta
+pinion posed at any crank angle was right and turned through two crank
+revolutions was wrong. A root may now declare a third time base,
+``time = Time.running()`` — elapsed simulation seconds that never wrap —
+and under it a ``Sim`` owns a BANK of every driver AND every joint
+coordinate of the linked tree, by the same qualified ids the document
+publishes, initialized from the untimed rest pose and advanced by
+INCREMENTS: over one tick a continuous law contributes exactly
+``f(end) - f(start)`` to its driven coordinate, from where it stood,
+exact across the kinks of ``abs``, ``min``, ``max`` and the compositions
+built on them. Increments propagate in the direction the rest render
+solved each relation, a coordinate no increment reaches holds, and two
+that disagree are a conflict that rolls the tick back.
+
+The run is a BINDER the solver recognizes rather than a second kind of
+state: it binds the whole bank through ``set_state``, so ``render()`` and
+``simulate()`` stay pure over the snapshot and an inspection or an extra
+render advances nothing; the freshness clear leaves its slots alone, a
+relation whose driven ends it owns is recorded as solved by the run, and
+an author's ``simulate()`` that binds one is refused as doubly bound.
+There is no memory bank and the author declares no state.
+
+Requests replace bindings: ``sim.move(input, by=|to=, duration=)``,
+``sim.rate(input, rate)`` and ``sim.trigger(name)`` are one path with one
+ownership rule — only a declared driver can be moved, one owner at a
+time — and each returns a handle reporting ``active``, ``completed``,
+``blocked``, ``refused`` or ``cancelled`` and the travel actually
+admitted. ``Instruction(by=..., duration=)`` is the relative form, and
+ramps relatively under every time base. ``sim.snapshot()``,
+``sim.restore()`` and ``sim.reset()`` act on the bank, and recording is
+explicit and bounded (``record=N`` keeps a ring; the default keeps
+nothing). Under a running root ``set_state`` also accepts a qualified
+joint-coordinate id, delivered to the node that owns it, a leaf
+included.
+
+This first increment refuses, by name, what it cannot yet do: a law that
+cannot be applied to a symbol, a relation into a run-owned
+coordinate sourced from a plain port ``simulate()`` binds, a reverse
+move, and a joint coordinate leaving its declared range, which fails the
+tick rather than stopping the group. Nothing about an untimed or looping
+model changes: a running root's document is byte-identical to an
+undeclared root's, ``Time(loop=...)`` is untouched, and a model that
+declares no running time imports none of the new modules.
+
 **OpenSCAD is no longer an interactive viewer.** OpenSCAD was solid-node's
 first reliable development viewer, but the browser viewer became the faithful
 machine surface as simulation gained independent drivers, instructions and

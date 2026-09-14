@@ -19,8 +19,8 @@ from watchdog.events import FileSystemEventHandler
 from .loader import (ProjectManifestError, load_node,
                      project_root, project_source_generation, read_project)
 from .serializer import (
-    animation_block, bind_document,
-    DOCUMENT_FORMAT, document_version, drivers_table, instructions_table,
+    compiled_program, document_body,
+    DOCUMENT_FORMAT, drivers_table, instructions_table,
     serialize_node, symbolic_document,
 )
 from . import pieces
@@ -29,9 +29,27 @@ from solid_node._artifact import ArtifactChanged
 from solid_node import currency
 from solid_node.node.base import StlRenderStart
 from solid_node.source_generation import (SourceChanged, current_phase)
+from solid_node.viewers import bundle as viewer_bundle
 
 
 logger = logging.getLogger('core.builder')
+
+
+def _warn_unreadable(version):
+    """Say, once, that the installed viewer cannot read the document just
+    published -- and publish it anyway.
+
+    `solid develop` serves it and the browser refuses it BY NAME, which is
+    the designed behaviour: the build, the STLs and the tests are still
+    useful, and `--no-web` is unaffected.
+    """
+    message = viewer_bundle.unreadable_document(version)
+    if message is not None:
+        logger.warning(
+            f'{message}. The document is published anyway: the build, its '
+            f'artifacts, the tests and a viewerless watch loop are '
+            f'unaffected by a browser that cannot render, and the '
+            f"document's own refusal is the consumer's to make.")
 
 
 _build_locks = threading.local()
@@ -626,6 +644,9 @@ class Builder(FileSystemEventHandler):
     def _write_viewer_snapshot_with_inventory(self, inventory):
         """Serialize while artifact snapshots stay pinned through publish."""
         os.makedirs(self.build_dir, exist_ok=True)
+        # Compiled off the NUMERIC rest render, before the symbolic walk,
+        # and `(None, None)` under any root but a running one.
+        program, initial = compiled_program(self.node)
         with symbolic_document(self.node) as (declarations, instructions):
             root = serialize_node(
                 self.node,
@@ -635,25 +656,19 @@ class Builder(FileSystemEventHandler):
                 graph_values=True,
             )
             drivers = drivers_table(declarations)
-            events = instructions_table(instructions)
-        bindings = bind_document(root, drivers.keys())
-        snapshot = {'format': DOCUMENT_FORMAT,
-                    # The lowest version this tree's content needs: a
-                    # project with no flexible part and nothing shared
-                    # publishes the document it always did (ADR-080).
-                    'version': document_version(root, bindings),
-                    'animation': animation_block(self.node),
-                    'drivers': drivers,
-                    'instructions': events}
-        if bindings:
-            # Beside `drivers` and `instructions`, ahead of `root`, and
-            # deterministically ordered (design.md D5) -- which is what
-            # keeps the byte comparison below correct: rebuilding an
-            # unchanged model must not republish merely because its
-            # bindings were named or ordered differently.
-            snapshot['bindings'] = bindings
+            events = instructions_table(instructions,
+                                        running=program is not None)
+        # The version its content needs, or 5 where the ROOT declares a
+        # running base; `bindings` and `program` beside `drivers` and
+        # `instructions`, ahead of `root`, and deterministically ordered
+        # (design.md D5) -- which is what keeps the byte comparison below
+        # correct: rebuilding an unchanged model must not republish
+        # merely because a name was minted differently.
+        snapshot = document_body(self.node, root, drivers, events,
+                                 program, initial)
         snapshot['root'] = root
         snapshot['pieces'] = inventory.pieces()
+        _warn_unreadable(snapshot['version'])
         document = json.dumps(snapshot).encode()
         phase = current_phase()
         if phase is not None:

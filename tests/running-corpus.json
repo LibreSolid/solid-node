@@ -1,0 +1,7313 @@
+{
+  "generated_by": "tools/generate_running_corpus.py",
+  "corpus": "tests/running_project/machine.py",
+  "tolerance": {
+    "float": 1e-09
+  },
+  "machines": [
+    {
+      "name": "Train",
+      "dt": 0.05,
+      "steps": 30,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 0.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "lever": {
+            "default": 100.0,
+            "range": [
+              100,
+              140
+            ],
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {
+          "Advance": {
+            "by": {
+              "crank": 10.0
+            },
+            "duration": 0.5
+          },
+          "Park": {
+            "targets": {
+              "crank": 40.0
+            },
+            "duration": 0.5
+          },
+          "Wind": {
+            "by": {
+              "crank": 10.0,
+              "lever": 5.0
+            },
+            "duration": 0.5
+          }
+        },
+        "program": {
+          "identity": "2e6bc694e025b77c3a80210d59e399a6ce1ca033ea7bb998fc32945524eb1d1f",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "lever": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "first.turn": {
+              "kind": "coordinate",
+              "initial": 0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "second.turn": {
+              "kind": "coordinate",
+              "initial": -0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "slide.travel": {
+              "kind": "coordinate",
+              "initial": 4.0,
+              "unit": "mm",
+              "domain": "translational"
+            },
+            "spindle": {
+              "kind": "coordinate",
+              "initial": 0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [
+            "wheel.turn"
+          ],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "first.turn"
+              ],
+              "description": "crank drives first.turn",
+              "stated_by": "Train",
+              "expressions": [
+                "(2.0 * crank)"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "lever"
+              ],
+              "gives": [
+                "slide.travel"
+              ],
+              "description": "lever drives slide.travel",
+              "stated_by": "Train",
+              "expressions": [
+                "(4 + (72 * min(max(((lever - 113.5) / 11.25), 0.0), 1.0)))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "spindle"
+              ],
+              "description": "crank drives spindle",
+              "stated_by": "Train",
+              "expressions": [
+                "crank"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "first.turn"
+              ],
+              "gives": [
+                "second.turn"
+              ],
+              "description": "first.turn drives second.turn",
+              "stated_by": "Train",
+              "expressions": [
+                "(-1.5 * first.turn)"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "first.turn": [
+              "crank"
+            ],
+            "lever": [
+              "lever"
+            ],
+            "second.turn": [
+              "crank"
+            ],
+            "slide.travel": [
+              "lever"
+            ],
+            "spindle": [
+              "crank"
+            ],
+            "wheel.turn": []
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 20.0,
+            "duration": 0.5
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 2,
+          "rate": {
+            "input": "lever",
+            "rate": 4.0
+          },
+          "handle": "h1"
+        },
+        {
+          "tick": 14,
+          "trigger": "Advance",
+          "handles": [
+            "h2"
+          ]
+        },
+        {
+          "tick": 20,
+          "snapshot": "a"
+        },
+        {
+          "tick": 25,
+          "restore": "a"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 2.0,
+            "first.turn": 4.0,
+            "lever": 100.0,
+            "second.turn": -6.0,
+            "slide.travel": 4.0,
+            "spindle": 2.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 4.0,
+            "first.turn": 8.0,
+            "lever": 100.2,
+            "second.turn": -12.0,
+            "slide.travel": 4.0,
+            "spindle": 4.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 4.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.2
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 6.0,
+            "first.turn": 12.0,
+            "lever": 100.4,
+            "second.turn": -18.0,
+            "slide.travel": 4.0,
+            "spindle": 6.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 6.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.4
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 8.0,
+            "first.turn": 16.0,
+            "lever": 100.60000000000001,
+            "second.turn": -24.0,
+            "slide.travel": 4.0,
+            "spindle": 8.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 8.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.6000000000000001
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 10.0,
+            "first.turn": 20.0,
+            "lever": 100.80000000000001,
+            "second.turn": -30.0,
+            "slide.travel": 4.0,
+            "spindle": 10.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.8
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 12.0,
+            "first.turn": 24.0,
+            "lever": 101.00000000000001,
+            "second.turn": -36.0,
+            "slide.travel": 4.0,
+            "spindle": 12.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 12.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 14.0,
+            "first.turn": 28.0,
+            "lever": 101.20000000000002,
+            "second.turn": -42.0,
+            "slide.travel": 4.0,
+            "spindle": 14.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 14.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.2000000000000002
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 16.0,
+            "first.turn": 32.0,
+            "lever": 101.40000000000002,
+            "second.turn": -48.0,
+            "slide.travel": 4.0,
+            "spindle": 16.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 16.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.4000000000000001
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 18.0,
+            "first.turn": 36.0,
+            "lever": 101.60000000000002,
+            "second.turn": -54.0,
+            "slide.travel": 4.0,
+            "spindle": 18.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 18.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.6
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 20.0,
+            "first.turn": 40.0,
+            "lever": 101.80000000000003,
+            "second.turn": -60.0,
+            "slide.travel": 4.0,
+            "spindle": 20.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.8
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 20.0,
+            "first.turn": 40.0,
+            "lever": 102.00000000000003,
+            "second.turn": -60.0,
+            "slide.travel": 4.0,
+            "spindle": 20.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 20.0,
+            "first.turn": 40.0,
+            "lever": 102.20000000000003,
+            "second.turn": -60.0,
+            "slide.travel": 4.0,
+            "spindle": 20.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.2
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 20.0,
+            "first.turn": 40.0,
+            "lever": 102.40000000000003,
+            "second.turn": -60.0,
+            "slide.travel": 4.0,
+            "spindle": 20.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.4000000000000004
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 21.0,
+            "first.turn": 42.0,
+            "lever": 102.60000000000004,
+            "second.turn": -63.0,
+            "slide.travel": 4.0,
+            "spindle": 21.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.6
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 1.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 22.0,
+            "first.turn": 44.0,
+            "lever": 102.80000000000004,
+            "second.turn": -66.0,
+            "slide.travel": 4.0,
+            "spindle": 22.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.8000000000000003
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 23.0,
+            "first.turn": 46.0,
+            "lever": 103.00000000000004,
+            "second.turn": -69.0,
+            "slide.travel": 4.0,
+            "spindle": 23.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 3.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 24.0,
+            "first.turn": 48.0,
+            "lever": 103.20000000000005,
+            "second.turn": -72.0,
+            "slide.travel": 4.0,
+            "spindle": 24.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.2
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 4.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 25.0,
+            "first.turn": 50.0,
+            "lever": 103.40000000000005,
+            "second.turn": -75.0,
+            "slide.travel": 4.0,
+            "spindle": 25.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.4000000000000004
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 26.0,
+            "first.turn": 52.0,
+            "lever": 103.60000000000005,
+            "second.turn": -78.0,
+            "slide.travel": 4.0,
+            "spindle": 26.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.6
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 6.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 27.0,
+            "first.turn": 54.0,
+            "lever": 103.80000000000005,
+            "second.turn": -81.0,
+            "slide.travel": 4.0,
+            "spindle": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.8000000000000003
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 7.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "crank": 28.0,
+            "first.turn": 56.0,
+            "lever": 104.00000000000006,
+            "second.turn": -84.0,
+            "slide.travel": 4.0,
+            "spindle": 28.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 8.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "crank": 29.0,
+            "first.turn": 58.0,
+            "lever": 104.20000000000006,
+            "second.turn": -87.0,
+            "slide.travel": 4.0,
+            "spindle": 29.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.2
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "crank": 30.0,
+            "first.turn": 60.0,
+            "lever": 104.40000000000006,
+            "second.turn": -90.0,
+            "slide.travel": 4.0,
+            "spindle": 30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.4
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "crank": 30.0,
+            "first.turn": 60.0,
+            "lever": 104.60000000000007,
+            "second.turn": -90.0,
+            "slide.travel": 4.0,
+            "spindle": 30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 27.0,
+            "first.turn": 54.0,
+            "lever": 103.80000000000005,
+            "second.turn": -81.0,
+            "slide.travel": 4.0,
+            "spindle": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "crank": 28.0,
+            "first.turn": 56.0,
+            "lever": 104.00000000000006,
+            "second.turn": -84.0,
+            "slide.travel": 4.0,
+            "spindle": 28.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "crank": 29.0,
+            "first.turn": 58.0,
+            "lever": 104.20000000000006,
+            "second.turn": -87.0,
+            "slide.travel": 4.0,
+            "spindle": 29.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "crank": 30.0,
+            "first.turn": 60.0,
+            "lever": 104.40000000000006,
+            "second.turn": -90.0,
+            "slide.travel": 4.0,
+            "spindle": 30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "crank": 30.0,
+            "first.turn": 60.0,
+            "lever": 104.60000000000007,
+            "second.turn": -90.0,
+            "slide.travel": 4.0,
+            "spindle": 30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 25,
+          "bank": {
+            "crank": 30.0,
+            "first.turn": 60.0,
+            "lever": 104.80000000000007,
+            "second.turn": -90.0,
+            "slide.travel": 4.0,
+            "spindle": 30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 20.0
+            },
+            {
+              "handle": "h1",
+              "status": "cancelled",
+              "admitted": 4.6000000000000005
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Train",
+      "dt": 0.1,
+      "steps": 20,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 0.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "lever": {
+            "default": 100.0,
+            "range": [
+              100,
+              140
+            ],
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {
+          "Advance": {
+            "by": {
+              "crank": 10.0
+            },
+            "duration": 0.5
+          },
+          "Park": {
+            "targets": {
+              "crank": 40.0
+            },
+            "duration": 0.5
+          },
+          "Wind": {
+            "by": {
+              "crank": 10.0,
+              "lever": 5.0
+            },
+            "duration": 0.5
+          }
+        },
+        "program": {
+          "identity": "2e6bc694e025b77c3a80210d59e399a6ce1ca033ea7bb998fc32945524eb1d1f",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "lever": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "first.turn": {
+              "kind": "coordinate",
+              "initial": 0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "second.turn": {
+              "kind": "coordinate",
+              "initial": -0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "slide.travel": {
+              "kind": "coordinate",
+              "initial": 4.0,
+              "unit": "mm",
+              "domain": "translational"
+            },
+            "spindle": {
+              "kind": "coordinate",
+              "initial": 0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [
+            "wheel.turn"
+          ],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "first.turn"
+              ],
+              "description": "crank drives first.turn",
+              "stated_by": "Train",
+              "expressions": [
+                "(2.0 * crank)"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "lever"
+              ],
+              "gives": [
+                "slide.travel"
+              ],
+              "description": "lever drives slide.travel",
+              "stated_by": "Train",
+              "expressions": [
+                "(4 + (72 * min(max(((lever - 113.5) / 11.25), 0.0), 1.0)))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "spindle"
+              ],
+              "description": "crank drives spindle",
+              "stated_by": "Train",
+              "expressions": [
+                "crank"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "first.turn"
+              ],
+              "gives": [
+                "second.turn"
+              ],
+              "description": "first.turn drives second.turn",
+              "stated_by": "Train",
+              "expressions": [
+                "(-1.5 * first.turn)"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "first.turn": [
+              "crank"
+            ],
+            "lever": [
+              "lever"
+            ],
+            "second.turn": [
+              "crank"
+            ],
+            "slide.travel": [
+              "lever"
+            ],
+            "spindle": [
+              "crank"
+            ],
+            "wheel.turn": []
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "to": 40.0,
+            "duration": 0.5
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 9,
+          "trigger": "Wind",
+          "handles": [
+            "h1",
+            "h2"
+          ]
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 8.0,
+            "first.turn": 16.0,
+            "lever": 100.0,
+            "second.turn": -24.0,
+            "slide.travel": 4.0,
+            "spindle": 8.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 8.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 16.0,
+            "first.turn": 32.0,
+            "lever": 100.0,
+            "second.turn": -48.0,
+            "slide.travel": 4.0,
+            "spindle": 16.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 16.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 24.0,
+            "first.turn": 48.0,
+            "lever": 100.0,
+            "second.turn": -72.0,
+            "slide.travel": 4.0,
+            "spindle": 24.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 24.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 32.0,
+            "first.turn": 64.0,
+            "lever": 100.0,
+            "second.turn": -96.0,
+            "slide.travel": 4.0,
+            "spindle": 32.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 32.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 40.0,
+            "first.turn": 80.0,
+            "lever": 100.0,
+            "second.turn": -120.0,
+            "slide.travel": 4.0,
+            "spindle": 40.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 40.0,
+            "first.turn": 80.0,
+            "lever": 100.0,
+            "second.turn": -120.0,
+            "slide.travel": 4.0,
+            "spindle": 40.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 40.0,
+            "first.turn": 80.0,
+            "lever": 100.0,
+            "second.turn": -120.0,
+            "slide.travel": 4.0,
+            "spindle": 40.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 40.0,
+            "first.turn": 80.0,
+            "lever": 100.0,
+            "second.turn": -120.0,
+            "slide.travel": 4.0,
+            "spindle": 40.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 42.0,
+            "first.turn": 84.0,
+            "lever": 101.0,
+            "second.turn": -126.0,
+            "slide.travel": 4.0,
+            "spindle": 42.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 1.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 44.0,
+            "first.turn": 88.0,
+            "lever": 102.0,
+            "second.turn": -132.0,
+            "slide.travel": 4.0,
+            "spindle": 44.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 46.0,
+            "first.turn": 92.0,
+            "lever": 103.0,
+            "second.turn": -138.0,
+            "slide.travel": 4.0,
+            "spindle": 46.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 6.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 3.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 48.0,
+            "first.turn": 96.0,
+            "lever": 104.0,
+            "second.turn": -144.0,
+            "slide.travel": 4.0,
+            "spindle": 48.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 8.0
+            },
+            {
+              "handle": "h2",
+              "status": "active",
+              "admitted": 4.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 50.0,
+            "first.turn": 100.0,
+            "lever": 105.0,
+            "second.turn": -150.0,
+            "slide.travel": 4.0,
+            "spindle": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h2",
+              "status": "completed",
+              "admitted": 5.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Window",
+      "dt": 0.05,
+      "steps": 24,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 100.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(crank / 360)"
+          }
+        ],
+        "program": {
+          "identity": "9d98bb8bdb0d21782a7a6290d9aaa06056ae6647ee6969fb84bab83b33772292",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "pinion.turn": {
+              "kind": "coordinate",
+              "initial": 4.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "pinion.turn"
+              ],
+              "description": "crank drives pinion.turn",
+              "stated_by": "Window",
+              "expressions": [
+                "(4 + (72 * min(max((((crank - (360 * floor(_b0))) - 113.5) / 11.25), 0.0), 1.0)))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                {
+                  "skeleton": "(4 + (72 * min(max((((crank - (360 * _j0)) - 113.5) / 11.25), 0.0), 1.0)))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "floor",
+                      "level": "_b0",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "pinion.turn": [
+              "crank"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 500.0,
+            "duration": 1.0
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 125.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 25.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 150.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 50.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 175.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 75.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 200.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 100.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 225.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 125.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 250.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 150.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 275.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 175.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 300.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 200.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 325.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 225.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 350.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 250.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 375.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [
+            {
+              "relation": "crank drives pinion.turn",
+              "coordinate": "pinion.turn",
+              "primitive": "floor",
+              "level": 1.0,
+              "t": 0.3999999999999997
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 275.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 400.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 300.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 425.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 325.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 450.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 350.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 475.0,
+            "pinion.turn": 85.6
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 375.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 500.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 400.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 525.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 425.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 550.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 450.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 575.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 475.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Remainder",
+      "dt": 0.05,
+      "steps": 24,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 100.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "program": {
+          "identity": "45df705c03fdbe69ab834e182321eda90a9575133f5cd9b1a3645900b1546d2a",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "pinion.turn": {
+              "kind": "coordinate",
+              "initial": 4.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "pinion.turn"
+              ],
+              "description": "crank drives pinion.turn",
+              "stated_by": "Remainder",
+              "expressions": [
+                "(4 + (72 * min(max((((crank % 360) - 113.5) / 11.25), 0.0), 1.0)))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                {
+                  "skeleton": "(4 + (72 * min(max((((crank - (_j0 * 360)) - 113.5) / 11.25), 0.0), 1.0)))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "%",
+                      "level": "(crank / 360)",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "pinion.turn": [
+              "crank"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 500.0,
+            "duration": 1.0
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 125.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 25.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 150.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 50.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 175.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 75.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 200.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 100.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 225.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 125.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 250.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 150.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 275.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 175.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 300.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 200.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 325.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 225.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 350.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 250.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 375.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [
+            {
+              "relation": "crank drives pinion.turn",
+              "coordinate": "pinion.turn",
+              "primitive": "%",
+              "level": 1.0,
+              "t": 0.3999999999999997
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 275.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 400.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 300.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 425.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 325.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 450.0,
+            "pinion.turn": 76.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 350.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 475.0,
+            "pinion.turn": 85.6
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 375.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 500.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 400.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 525.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 425.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 550.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 450.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 575.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 475.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 148.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wrapped",
+      "dt": 0.05,
+      "steps": 20,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 100.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(crank - 180.0)"
+          },
+          {
+            "name": "_b1",
+            "expression": "(_b0 / 360.0)"
+          }
+        ],
+        "program": {
+          "identity": "b95215b439b27b59d3aa29cf487e3802dda50854e06c78fee6a4d50b2a3ec436",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "pinion.turn": {
+              "kind": "coordinate",
+              "initial": 200.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "pinion.turn"
+              ],
+              "description": "crank drives pinion.turn",
+              "stated_by": "Wrapped",
+              "expressions": [
+                "(2 * (crank - (360.0 * ceil(_b1))))"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                {
+                  "skeleton": "(2 * (crank - (360.0 * _j0)))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "ceil",
+                      "level": "_b1",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "pinion.turn": [
+              "crank"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 800.0,
+            "duration": 0.8
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 150.0,
+            "pinion.turn": 300.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 50.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 200.0,
+            "pinion.turn": 400.0
+          },
+          "crossings": [
+            {
+              "relation": "crank drives pinion.turn",
+              "coordinate": "pinion.turn",
+              "primitive": "ceil",
+              "level": 0.0,
+              "t": 0.6
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 100.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 250.0,
+            "pinion.turn": 500.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 150.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 300.0,
+            "pinion.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 200.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 350.0,
+            "pinion.turn": 700.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 250.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 400.0,
+            "pinion.turn": 800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 300.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 450.0,
+            "pinion.turn": 900.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 350.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 500.0,
+            "pinion.turn": 1000.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 400.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 550.0,
+            "pinion.turn": 1100.0
+          },
+          "crossings": [
+            {
+              "relation": "crank drives pinion.turn",
+              "coordinate": "pinion.turn",
+              "primitive": "ceil",
+              "level": 1.0,
+              "t": 0.8000000000000006
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 450.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 600.0,
+            "pinion.turn": 1200.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 650.0,
+            "pinion.turn": 1300.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 550.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 700.0,
+            "pinion.turn": 1400.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 600.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 750.0,
+            "pinion.turn": 1500.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 650.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 800.0,
+            "pinion.turn": 1600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 700.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 850.0,
+            "pinion.turn": 1700.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 750.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 900.0,
+            "pinion.turn": 1800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 800.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 900.0,
+            "pinion.turn": 1800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 800.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 900.0,
+            "pinion.turn": 1800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 800.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 900.0,
+            "pinion.turn": 1800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 800.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 900.0,
+            "pinion.turn": 1800.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 800.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Throwing",
+      "dt": 0.05,
+      "steps": 20,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 40.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(5 * crank)"
+          },
+          {
+            "name": "_b1",
+            "expression": "(crank - 50.0)"
+          }
+        ],
+        "program": {
+          "identity": "d38ce5557cb163c53ff3f990ae3ab3223daae61e897496ff855f48caac35d040",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 40.0,
+              "domain": null
+            },
+            "pinion.turn": {
+              "kind": "coordinate",
+              "initial": -200.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "pinion.turn"
+              ],
+              "description": "crank drives pinion.turn",
+              "stated_by": "Throwing",
+              "expressions": [
+                "(_b0 * sign(_b1))"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                {
+                  "skeleton": "(_b0 * _j0)",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "sign",
+                      "level": "_b1",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "pinion.turn": [
+              "crank"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 40.0,
+            "duration": 0.8
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 42.5,
+            "pinion.turn": -212.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 2.5
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 45.0,
+            "pinion.turn": -225.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 47.5,
+            "pinion.turn": -237.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 7.5
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 50.0,
+            "pinion.turn": -250.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 52.5,
+            "pinion.turn": -237.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 12.5
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 55.0,
+            "pinion.turn": -225.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 57.5,
+            "pinion.turn": -212.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 17.5
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 60.0,
+            "pinion.turn": -200.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 20.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 62.5,
+            "pinion.turn": -187.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 22.5
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 65.0,
+            "pinion.turn": -175.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 25.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 67.5,
+            "pinion.turn": -162.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 27.5
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 70.0,
+            "pinion.turn": -150.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 30.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "crank": 72.5,
+            "pinion.turn": -137.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 32.5
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "crank": 75.0,
+            "pinion.turn": -125.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 35.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "crank": 77.5,
+            "pinion.turn": -112.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 37.5
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "crank": 80.0,
+            "pinion.turn": -100.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "crank": 80.0,
+            "pinion.turn": -100.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "crank": 80.0,
+            "pinion.turn": -100.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "crank": 80.0,
+            "pinion.turn": -100.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "crank": 80.0,
+            "pinion.turn": -100.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 40.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Clutch",
+      "dt": 0.05,
+      "steps": 24,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "shaft": {
+            "default": 10.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "sleeve": {
+            "default": 0.0,
+            "range": null,
+            "unit": "mm",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(-2 * shaft)"
+          }
+        ],
+        "program": {
+          "identity": "d5a6f9e866aacdf7dd392a81a128995016430bfac022023d28aceabd6ee17ea7",
+          "clock": "time",
+          "coordinates": {
+            "shaft": {
+              "kind": "input",
+              "initial": 10.0,
+              "domain": null
+            },
+            "sleeve": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "wheel.turn": {
+              "kind": "coordinate",
+              "initial": -0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "shaft",
+                "sleeve"
+              ],
+              "gives": [
+                "wheel.turn"
+              ],
+              "description": "(shaft, sleeve) drives wheel.turn",
+              "stated_by": "Clutch",
+              "expressions": [
+                "(_b0 * (sleeve > 0.5))"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                {
+                  "skeleton": "(_b0 * _j0)",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": ">",
+                      "level": "(sleeve - 0.5)",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "shaft": [
+              "shaft"
+            ],
+            "sleeve": [
+              "sleeve"
+            ],
+            "wheel.turn": [
+              "shaft",
+              "sleeve"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "shaft",
+            "by": 60.0,
+            "duration": 1.0
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 4,
+          "move": {
+            "input": "sleeve",
+            "by": 2.0,
+            "duration": 0.4
+          },
+          "handle": "h1"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "shaft": 13.0,
+            "sleeve": 0.0,
+            "wheel.turn": 0.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 3.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "shaft": 16.0,
+            "sleeve": 0.0,
+            "wheel.turn": 0.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 6.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "shaft": 19.0,
+            "sleeve": 0.0,
+            "wheel.turn": 0.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "shaft": 22.0,
+            "sleeve": 0.25,
+            "wheel.turn": 0.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 12.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.25
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "shaft": 25.0,
+            "sleeve": 0.5,
+            "wheel.turn": 0.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 15.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.5
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "shaft": 28.0,
+            "sleeve": 0.75,
+            "wheel.turn": -6.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 18.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.75
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "shaft": 31.0,
+            "sleeve": 1.0,
+            "wheel.turn": -12.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 21.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "shaft": 34.0,
+            "sleeve": 1.25,
+            "wheel.turn": -18.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 24.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.25
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "shaft": 37.0,
+            "sleeve": 1.5,
+            "wheel.turn": -24.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 27.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.5
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "shaft": 40.0,
+            "sleeve": 1.75,
+            "wheel.turn": -30.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 30.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.75
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "shaft": 43.0,
+            "sleeve": 2.0,
+            "wheel.turn": -36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 33.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "shaft": 46.0,
+            "sleeve": 2.0,
+            "wheel.turn": -42.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 36.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "shaft": 49.0,
+            "sleeve": 2.0,
+            "wheel.turn": -48.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 39.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "shaft": 52.0,
+            "sleeve": 2.0,
+            "wheel.turn": -54.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 42.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "shaft": 55.0,
+            "sleeve": 2.0,
+            "wheel.turn": -60.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 45.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "shaft": 58.0,
+            "sleeve": 2.0,
+            "wheel.turn": -66.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 48.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "shaft": 61.0,
+            "sleeve": 2.0,
+            "wheel.turn": -72.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 51.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "shaft": 64.0,
+            "sleeve": 2.0,
+            "wheel.turn": -78.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 54.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "shaft": 67.0,
+            "sleeve": 2.0,
+            "wheel.turn": -84.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 57.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "shaft": 70.0,
+            "sleeve": 2.0,
+            "wheel.turn": -90.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 60.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "shaft": 70.0,
+            "sleeve": 2.0,
+            "wheel.turn": -90.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 60.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "shaft": 70.0,
+            "sleeve": 2.0,
+            "wheel.turn": -90.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 60.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "shaft": 70.0,
+            "sleeve": 2.0,
+            "wheel.turn": -90.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 60.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "shaft": 70.0,
+            "sleeve": 2.0,
+            "wheel.turn": -90.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 60.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CarryLead",
+      "dt": 0.05,
+      "steps": 24,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "column": {
+            "default": 100.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "tens_entry": {
+            "default": 0.0,
+            "range": null,
+            "unit": "digit",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(36.0 * tens_entry)"
+          },
+          {
+            "name": "_b1",
+            "expression": "(units.turn - 100.0)"
+          },
+          {
+            "name": "_b2",
+            "expression": "(_b1 / 360.0)"
+          },
+          {
+            "name": "_b3",
+            "expression": "floor(_b2)"
+          },
+          {
+            "name": "_b4",
+            "expression": "(360.0 * _b3)"
+          },
+          {
+            "name": "_b5",
+            "expression": "(units.turn - _b4)"
+          },
+          {
+            "name": "_b6",
+            "expression": "(360.0 * _j0)"
+          },
+          {
+            "name": "_b7",
+            "expression": "(units.turn - _b6)"
+          }
+        ],
+        "program": {
+          "identity": "3836f48342eeaf1dec8132f9a143d359f0016f2c28784d2546b59f97fa8ff410",
+          "clock": "time",
+          "coordinates": {
+            "column": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "tens_entry": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "tens.turn": {
+              "kind": "coordinate",
+              "initial": 1.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "units.turn": {
+              "kind": "coordinate",
+              "initial": 100.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "column"
+              ],
+              "gives": [
+                "units.turn"
+              ],
+              "description": "column drives units.turn",
+              "stated_by": "CarryLead",
+              "expressions": [
+                "column"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "tens_entry",
+                "units.turn"
+              ],
+              "gives": [
+                "tens.turn"
+              ],
+              "description": "(tens_entry, units.turn) drives tens.turn",
+              "stated_by": "CarryLead",
+              "expressions": [
+                "(_b0 + (((60.0 * _b3) + (20.0 * min(max((((_b5 - 100.0) + 0.5) / 10.0), 0.0), 1.0))) + (40.0 * min(max((((_b5 - 110.0) + 0.5) / 40.0), 0.0), 1.0))))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                {
+                  "skeleton": "(_b0 + (((60.0 * _j0) + (20.0 * min(max((((_b7 - 100.0) + 0.5) / 10.0), 0.0), 1.0))) + (40.0 * min(max((((_b7 - 110.0) + 0.5) / 40.0), 0.0), 1.0))))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "floor",
+                      "level": "_b2",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "column": [
+              "column"
+            ],
+            "tens.turn": [
+              "column",
+              "tens_entry"
+            ],
+            "tens_entry": [
+              "tens_entry"
+            ],
+            "units.turn": [
+              "column"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "column",
+            "by": 500.0,
+            "duration": 1.0
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 6,
+          "move": {
+            "input": "tens_entry",
+            "by": 2.0,
+            "duration": 0.4
+          },
+          "handle": "h1"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "column": 125.0,
+            "tens.turn": 35.5,
+            "tens_entry": 0.0,
+            "units.turn": 125.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 25.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "column": 150.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 150.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 50.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "column": 175.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 175.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 75.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "column": 200.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 200.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 100.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "column": 225.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 225.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 125.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "column": 250.0,
+            "tens.turn": 69.0,
+            "tens_entry": 0.25,
+            "units.turn": 250.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 150.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.25
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "column": 275.0,
+            "tens.turn": 78.0,
+            "tens_entry": 0.5,
+            "units.turn": 275.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 175.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.5
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "column": 300.0,
+            "tens.turn": 87.0,
+            "tens_entry": 0.75,
+            "units.turn": 300.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 200.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.75
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "column": 325.0,
+            "tens.turn": 96.0,
+            "tens_entry": 1.0,
+            "units.turn": 325.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 225.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "column": 350.0,
+            "tens.turn": 105.0,
+            "tens_entry": 1.25,
+            "units.turn": 350.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 250.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.25
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "column": 375.0,
+            "tens.turn": 114.0,
+            "tens_entry": 1.5,
+            "units.turn": 375.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 275.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.5
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "column": 400.0,
+            "tens.turn": 123.0,
+            "tens_entry": 1.75,
+            "units.turn": 400.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 300.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.75
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "column": 425.0,
+            "tens.turn": 132.0,
+            "tens_entry": 2.0,
+            "units.turn": 425.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 325.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "column": 450.0,
+            "tens.turn": 132.0,
+            "tens_entry": 2.0,
+            "units.turn": 450.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 350.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "column": 475.0,
+            "tens.turn": 156.5,
+            "tens_entry": 2.0,
+            "units.turn": 475.0
+          },
+          "crossings": [
+            {
+              "relation": "(tens_entry, units.turn) drives tens.turn",
+              "coordinate": "tens.turn",
+              "primitive": "floor",
+              "level": 1.0,
+              "t": 0.3999999999999997
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 375.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "column": 500.0,
+            "tens.turn": 181.5,
+            "tens_entry": 2.0,
+            "units.turn": 500.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 400.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "column": 525.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 525.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 425.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "column": 550.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 550.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 450.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "column": 575.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 575.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 475.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 21,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 22,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 23,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        },
+        {
+          "tick": 24,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 191.0,
+            "tens_entry": 2.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 2.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CarryLead",
+      "dt": 0.1,
+      "steps": 14,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "column": {
+            "default": 100.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "tens_entry": {
+            "default": 0.0,
+            "range": null,
+            "unit": "digit",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(36.0 * tens_entry)"
+          },
+          {
+            "name": "_b1",
+            "expression": "(units.turn - 100.0)"
+          },
+          {
+            "name": "_b2",
+            "expression": "(_b1 / 360.0)"
+          },
+          {
+            "name": "_b3",
+            "expression": "floor(_b2)"
+          },
+          {
+            "name": "_b4",
+            "expression": "(360.0 * _b3)"
+          },
+          {
+            "name": "_b5",
+            "expression": "(units.turn - _b4)"
+          },
+          {
+            "name": "_b6",
+            "expression": "(360.0 * _j0)"
+          },
+          {
+            "name": "_b7",
+            "expression": "(units.turn - _b6)"
+          }
+        ],
+        "program": {
+          "identity": "3836f48342eeaf1dec8132f9a143d359f0016f2c28784d2546b59f97fa8ff410",
+          "clock": "time",
+          "coordinates": {
+            "column": {
+              "kind": "input",
+              "initial": 100.0,
+              "domain": null
+            },
+            "tens_entry": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "tens.turn": {
+              "kind": "coordinate",
+              "initial": 1.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "units.turn": {
+              "kind": "coordinate",
+              "initial": 100.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "column"
+              ],
+              "gives": [
+                "units.turn"
+              ],
+              "description": "column drives units.turn",
+              "stated_by": "CarryLead",
+              "expressions": [
+                "column"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "tens_entry",
+                "units.turn"
+              ],
+              "gives": [
+                "tens.turn"
+              ],
+              "description": "(tens_entry, units.turn) drives tens.turn",
+              "stated_by": "CarryLead",
+              "expressions": [
+                "(_b0 + (((60.0 * _b3) + (20.0 * min(max((((_b5 - 100.0) + 0.5) / 10.0), 0.0), 1.0))) + (40.0 * min(max((((_b5 - 110.0) + 0.5) / 40.0), 0.0), 1.0))))"
+              ],
+              "affine": [
+                false
+              ],
+              "plans": [
+                {
+                  "skeleton": "(_b0 + (((60.0 * _j0) + (20.0 * min(max((((_b7 - 100.0) + 0.5) / 10.0), 0.0), 1.0))) + (40.0 * min(max((((_b7 - 110.0) + 0.5) / 40.0), 0.0), 1.0))))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "floor",
+                      "level": "_b2",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {},
+          "sources": {
+            "column": [
+              "column"
+            ],
+            "tens.turn": [
+              "column",
+              "tens_entry"
+            ],
+            "tens_entry": [
+              "tens_entry"
+            ],
+            "units.turn": [
+              "column"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "column",
+            "by": 500.0,
+            "duration": 1.0
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "column": 150.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 150.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 50.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "column": 200.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 200.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 100.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "column": 250.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 250.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 150.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "column": 300.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 300.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 200.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "column": 350.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 350.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 250.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "column": 400.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 400.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 300.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "column": 450.0,
+            "tens.turn": 60.0,
+            "tens_entry": 0.0,
+            "units.turn": 450.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 350.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "column": 500.0,
+            "tens.turn": 109.5,
+            "tens_entry": 0.0,
+            "units.turn": 500.0
+          },
+          "crossings": [
+            {
+              "relation": "(tens_entry, units.turn) drives tens.turn",
+              "coordinate": "tens.turn",
+              "primitive": "floor",
+              "level": 1.0,
+              "t": 0.2
+            }
+          ],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 400.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "column": 550.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 550.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 450.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "column": 600.0,
+            "tens.turn": 119.0,
+            "tens_entry": 0.0,
+            "units.turn": 600.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 500.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ratchet",
+      "dt": 0.05,
+      "steps": 20,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "arbor": {
+            "default": 40.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "program": {
+          "identity": "63e1af4025158eec39076b695d25df8a79636d8262979231bd98e7f3cac876a8",
+          "clock": "time",
+          "coordinates": {
+            "arbor": {
+              "kind": "input",
+              "initial": 40.0,
+              "domain": null
+            },
+            "wheel.turn": {
+              "kind": "coordinate",
+              "initial": 40.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "arbor"
+              ],
+              "gives": [
+                "wheel.turn"
+              ],
+              "description": "arbor drives wheel.turn",
+              "stated_by": "Ratchet",
+              "expressions": [
+                "arbor"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            }
+          ],
+          "spans": {
+            "wheel.turn": {
+              "low": {
+                "expression": "(36 * floor((wheel.turn / 36)))"
+              },
+              "high": null
+            }
+          },
+          "sources": {
+            "arbor": [
+              "arbor"
+            ],
+            "wheel.turn": [
+              "arbor"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "arbor",
+            "by": 10.0,
+            "duration": 0.2
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 8,
+          "move": {
+            "input": "arbor",
+            "by": -20.0,
+            "duration": 0.4
+          },
+          "handle": "h1"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "arbor": 42.5,
+            "wheel.turn": 42.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 2.5
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "arbor": 45.0,
+            "wheel.turn": 45.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "arbor": 47.5,
+            "wheel.turn": 47.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 7.5
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "arbor": 50.0,
+            "wheel.turn": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "arbor": 50.0,
+            "wheel.turn": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "arbor": 50.0,
+            "wheel.turn": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "arbor": 50.0,
+            "wheel.turn": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "arbor": 47.5,
+            "wheel.turn": 47.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": -2.5
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "arbor": 45.0,
+            "wheel.turn": 45.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": -5.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "arbor": 42.5,
+            "wheel.turn": 42.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": -7.5
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "arbor": 40.0,
+            "wheel.turn": 40.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": -10.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "arbor": 37.5,
+            "wheel.turn": 37.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": -12.5
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [
+            {
+              "coordinate": "wheel.turn",
+              "bound": "low",
+              "value": 36.0,
+              "t": 0.6,
+              "inputs": [
+                "arbor"
+              ]
+            }
+          ],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 17,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 18,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 19,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        },
+        {
+          "tick": 20,
+          "bank": {
+            "arbor": 36.0,
+            "wheel.turn": 36.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "completed",
+              "admitted": 10.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": -14.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Swept",
+      "dt": 0.01,
+      "steps": 16,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "motor": {
+            "default": 0.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "steer": {
+            "default": 45.0,
+            "range": null,
+            "unit": "mm",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {
+          "Sweep": {
+            "by": {
+              "steer": 10.0,
+              "motor": 9.0
+            },
+            "duration": 0.1
+          }
+        },
+        "program": {
+          "identity": "77f8ac022704ac73278f2783bec4207c2ce60323f6050e0f56b25b9171a84b46",
+          "clock": "time",
+          "coordinates": {
+            "motor": {
+              "kind": "input",
+              "initial": 0.0,
+              "domain": null
+            },
+            "steer": {
+              "kind": "input",
+              "initial": 45.0,
+              "domain": null
+            },
+            "rack.travel": {
+              "kind": "coordinate",
+              "initial": 45.0,
+              "unit": "mm",
+              "domain": "translational"
+            },
+            "wheel.turn": {
+              "kind": "coordinate",
+              "initial": 0.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "steer"
+              ],
+              "gives": [
+                "rack.travel"
+              ],
+              "description": "steer drives rack.travel",
+              "stated_by": "Swept",
+              "expressions": [
+                "steer"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "motor"
+              ],
+              "gives": [
+                "wheel.turn"
+              ],
+              "description": "motor drives wheel.turn",
+              "stated_by": "Swept",
+              "expressions": [
+                "(3.0 * motor)"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            }
+          ],
+          "spans": {
+            "rack.travel": {
+              "low": null,
+              "high": 50.0
+            }
+          },
+          "sources": {
+            "motor": [
+              "motor"
+            ],
+            "rack.travel": [
+              "steer"
+            ],
+            "steer": [
+              "steer"
+            ],
+            "wheel.turn": [
+              "motor"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "trigger": "Sweep",
+          "handles": [
+            "h0",
+            "h1"
+          ]
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "motor": 0.9,
+            "rack.travel": 46.0,
+            "steer": 46.0,
+            "wheel.turn": 2.7
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 1.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 0.9
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "motor": 1.8,
+            "rack.travel": 47.0,
+            "steer": 47.0,
+            "wheel.turn": 5.4
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 1.8
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "motor": 2.7,
+            "rack.travel": 48.0,
+            "steer": 48.0,
+            "wheel.turn": 8.100000000000001
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 3.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 2.7
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "motor": 3.6,
+            "rack.travel": 49.0,
+            "steer": 49.0,
+            "wheel.turn": 10.8
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 4.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 3.6
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "motor": 4.5,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 13.5
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.5
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "motor": 5.4,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 16.200000000000003
+          },
+          "crossings": [],
+          "stops": [
+            {
+              "coordinate": "rack.travel",
+              "bound": "high",
+              "value": 50.0,
+              "t": 0.0,
+              "inputs": [
+                "steer"
+              ]
+            }
+          ],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 5.4
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "motor": 6.3,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 18.9
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 6.3
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "motor": 7.2,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 21.6
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 7.2
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "motor": 8.1,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 24.299999999999997
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 8.1
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 13,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 14,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 15,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        },
+        {
+          "tick": 16,
+          "bank": {
+            "motor": 9.0,
+            "rack.travel": 50.0,
+            "steer": 50.0,
+            "wheel.turn": 27.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 5.0
+            },
+            {
+              "handle": "h1",
+              "status": "completed",
+              "admitted": 9.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TwoStops",
+      "dt": 0.05,
+      "steps": 12,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "lever_in": {
+            "default": 18.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          },
+          "steer": {
+            "default": 45.0,
+            "range": null,
+            "unit": "mm",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "program": {
+          "identity": "81f06486452bb5b59031a905e8aa8edb292a7f99f72fd7f1f778ef00f3b2965c",
+          "clock": "time",
+          "coordinates": {
+            "lever_in": {
+              "kind": "input",
+              "initial": 18.0,
+              "domain": null
+            },
+            "steer": {
+              "kind": "input",
+              "initial": 45.0,
+              "domain": null
+            },
+            "lever.turn": {
+              "kind": "coordinate",
+              "initial": 18.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "rack.travel": {
+              "kind": "coordinate",
+              "initial": 45.0,
+              "unit": "mm",
+              "domain": "translational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "lever_in"
+              ],
+              "gives": [
+                "lever.turn"
+              ],
+              "description": "lever_in drives lever.turn",
+              "stated_by": "TwoStops",
+              "expressions": [
+                "lever_in"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "steer"
+              ],
+              "gives": [
+                "rack.travel"
+              ],
+              "description": "steer drives rack.travel",
+              "stated_by": "TwoStops",
+              "expressions": [
+                "steer"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            }
+          ],
+          "spans": {
+            "lever.turn": {
+              "low": null,
+              "high": 20.0
+            },
+            "rack.travel": {
+              "low": null,
+              "high": 50.0
+            }
+          },
+          "sources": {
+            "lever.turn": [
+              "lever_in"
+            ],
+            "lever_in": [
+              "lever_in"
+            ],
+            "rack.travel": [
+              "steer"
+            ],
+            "steer": [
+              "steer"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "lever_in",
+            "by": 10.0,
+            "duration": 0.25
+          },
+          "handle": "h0"
+        },
+        {
+          "tick": 1,
+          "move": {
+            "input": "steer",
+            "by": 20.0,
+            "duration": 0.25
+          },
+          "handle": "h1"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 49.0,
+            "steer": 49.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "active",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "active",
+              "admitted": 4.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [
+            {
+              "coordinate": "lever.turn",
+              "bound": "high",
+              "value": 20.0,
+              "t": 0.0,
+              "inputs": [
+                "lever_in"
+              ]
+            },
+            {
+              "coordinate": "rack.travel",
+              "bound": "high",
+              "value": 50.0,
+              "t": 0.25,
+              "inputs": [
+                "steer"
+              ]
+            }
+          ],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "lever.turn": 20.0,
+            "lever_in": 20.0,
+            "rack.travel": 50.0,
+            "steer": 50.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 2.0
+            },
+            {
+              "handle": "h1",
+              "status": "blocked",
+              "admitted": 5.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "StopAndJump",
+      "dt": 0.05,
+      "steps": 12,
+      "document": {
+        "format": "solid-node-export",
+        "version": 5,
+        "drivers": {
+          "crank": {
+            "default": 130.0,
+            "range": null,
+            "unit": "deg",
+            "dtype": null,
+            "scale": null
+          }
+        },
+        "instructions": {},
+        "bindings": [
+          {
+            "name": "_b0",
+            "expression": "(crank - 45.0)"
+          },
+          {
+            "name": "_b1",
+            "expression": "(_b0 / 90.0)"
+          }
+        ],
+        "program": {
+          "identity": "7699b735971ee59f55408cff21d86e1edc4b4f84cf49a8abf204482935110e4a",
+          "clock": "time",
+          "coordinates": {
+            "crank": {
+              "kind": "input",
+              "initial": 130.0,
+              "domain": null
+            },
+            "first.turn": {
+              "kind": "coordinate",
+              "initial": 130.0,
+              "unit": "deg",
+              "domain": "rotational"
+            },
+            "folder.turn": {
+              "kind": "coordinate",
+              "initial": 80.0,
+              "unit": "deg",
+              "domain": "rotational"
+            }
+          },
+          "intermediates": [],
+          "edges": [
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "first.turn"
+              ],
+              "description": "crank drives first.turn",
+              "stated_by": "StopAndJump",
+              "expressions": [
+                "crank"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                null
+              ]
+            },
+            {
+              "kind": "law",
+              "needs": [
+                "crank"
+              ],
+              "gives": [
+                "folder.turn"
+              ],
+              "description": "crank drives folder.turn",
+              "stated_by": "StopAndJump",
+              "expressions": [
+                "(2 * (crank - (90.0 * ceil(_b1))))"
+              ],
+              "affine": [
+                true
+              ],
+              "plans": [
+                {
+                  "skeleton": "(2 * (crank - (90.0 * _j0)))",
+                  "jumps": [
+                    {
+                      "name": "_j0",
+                      "primitive": "ceil",
+                      "level": "_b1",
+                      "affine": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "spans": {
+            "first.turn": {
+              "low": null,
+              "high": 145.0
+            }
+          },
+          "sources": {
+            "crank": [
+              "crank"
+            ],
+            "first.turn": [
+              "crank"
+            ],
+            "folder.turn": [
+              "crank"
+            ]
+          },
+          "limits": {
+            "crossing_tolerance": 1e-12,
+            "subdivisions": 64,
+            "bisection_rounds": 64,
+            "max_crossings": 1000,
+            "agreement": 1e-09
+          }
+        }
+      },
+      "script": [
+        {
+          "tick": 1,
+          "move": {
+            "input": "crank",
+            "by": 30.0,
+            "duration": 0.05
+          },
+          "handle": "h0"
+        }
+      ],
+      "ticks": [
+        {
+          "tick": 1,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [
+            {
+              "relation": "crank drives folder.turn",
+              "coordinate": "folder.turn",
+              "primitive": "ceil",
+              "level": 1.0,
+              "t": 0.16666666666666666
+            }
+          ],
+          "stops": [
+            {
+              "coordinate": "first.turn",
+              "bound": "high",
+              "value": 145.0,
+              "t": 0.5,
+              "inputs": [
+                "crank"
+              ]
+            }
+          ],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 2,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 3,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 4,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 5,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 6,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 7,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 8,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 9,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 10,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 11,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        },
+        {
+          "tick": 12,
+          "bank": {
+            "crank": 145.0,
+            "first.turn": 145.0,
+            "folder.turn": 110.0
+          },
+          "crossings": [],
+          "stops": [],
+          "commands": [
+            {
+              "handle": "h0",
+              "status": "blocked",
+              "admitted": 15.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

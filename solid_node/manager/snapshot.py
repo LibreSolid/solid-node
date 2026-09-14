@@ -16,6 +16,11 @@ logger = logging.getLogger('manager.snapshot')
 OPENSCAD_RENDERER = OpenScadRenderer()
 
 
+class SnapshotOptionError(ValueError):
+    """An option names something this node does not have, or something a
+    still image cannot be posed by."""
+
+
 # OpenSCAD color schemes
 COLORSCHEMES = [
     'Cornfield', 'Metallic', 'Sunset', 'Starnight', 'BeforeDawn',
@@ -117,6 +122,18 @@ class Snapshot:
             help=f'Comma-separated view options: {", ".join(VIEW_OPTIONS)}'
         )
 
+        # Drivers. Distinct from --set, which reaches the root's declared
+        # PARAMETERS: a driver is not a parameter and a parameter is not a
+        # driver, and a driver-declaring project could not be posed for a
+        # still at all before this.
+        parser.add_argument(
+            '--drive',
+            action='append',
+            metavar='NAME=VALUE',
+            help='Bind a declared driver by its qualified id before the '
+                 'image is taken; repeatable'
+        )
+
     def handle(self, args):
         """Main entry point for the snapshot command."""
         try:
@@ -127,6 +144,7 @@ class Snapshot:
         selection.anchor()
         self.path = selection.reference
         self.overrides = list(getattr(args, 'set', None) or [])
+        self.drives = list(getattr(args, 'drive', None) or [])
         self.output = args.output
         self.time = args.time
         renderer = getattr(args, 'renderer', 'openscad')
@@ -173,6 +191,9 @@ class Snapshot:
             node = self._load_and_prepare_node()
             if self.output is None:
                 self.output = f'{node.__class__.__name__.lower()}.png'
+        except SnapshotOptionError as error:
+            sys.stderr.write(f'Error: {error}\n')
+            sys.exit(1)
         except Exception as e:
             sys.stderr.write(f"Error loading node: {e}\n")
             sys.exit(1)
@@ -216,16 +237,84 @@ class Snapshot:
             return False
 
     def _load_and_prepare_node(self):
-        """Load the node and prepare it for rendering."""
+        """Load the node, pose its named drivers, and prepare it for
+        rendering."""
         with project_build_lock():
             node = load_node(self.path,
                              overrides=getattr(self, 'overrides', None))
+            self._drive(node)
             # set_keyframe is a no-op for non-animated nodes. --time is a
             # position on the 0..1 timeline under either renderer; a root
             # declaring a time base is keyframed at the seconds that
             # position means, so the image shows what the slider shows.
             base = declared_time(type(node))
-            node.set_keyframe(self.time * base.loop if base else self.time)
+            loop = base.loop if base is not None else None
+            if base is not None and base.mode == 'running' and self.time:
+                raise SnapshotOptionError(
+                    f'--time {self.time} names a position on an animation '
+                    f'timeline, and {type(node).__name__} declares '
+                    f'time = Time.running(): elapsed simulation seconds '
+                    f'never wrap, so there is no timeline to be a position '
+                    f'on and the document publishes no loop. Pose it with '
+                    f'--drive NAME=VALUE instead, which gives the REST '
+                    f'POSE at those driver values -- the state a '
+                    f'simulation itself starts from.')
+            node.set_keyframe(self.time * loop if loop is not None
+                              else self.time)
             node.assemble()
 
         return node
+
+    def _drive(self, node):
+        """Bind each `--drive NAME=VALUE` through `set_state`.
+
+        A DECLARED DRIVER only. A joint coordinate of a running root is
+        refused by name rather than accepted and lost: `set_state` takes
+        one under that base (the run's own door), and with no run to own
+        it the enumeration that binding runs immediately recomputes the
+        coordinate from the drivers, so the requested value would be
+        silently discarded.
+        """
+        requested = getattr(self, 'drives', None)
+        if not requested:
+            return
+        from solid_node.simulation.enumeration import qualified_drivers
+
+        declared = qualified_drivers(node)
+        state = {}
+        for entry in requested:
+            name, separator, text = entry.partition('=')
+            if not separator:
+                raise SnapshotOptionError(
+                    f"--drive {entry!r} states no value: a driver is posed "
+                    f'as --drive NAME=VALUE.')
+            name = name.strip()
+            if name not in declared:
+                self._refuse_driver(node, name, declared)
+            try:
+                state[name] = float(text)
+            except ValueError:
+                raise SnapshotOptionError(
+                    f"--drive {name}={text!r} is not a number. A driver's "
+                    f'value is a plain number in its native '
+                    f'unit.') from None
+        node.set_state(**state)
+
+    def _refuse_driver(self, node, name, declared):
+        known = ', '.join(sorted(declared)) or 'none'
+        base = declared_time(type(node))
+        if base is not None and base.mode == 'running':
+            from solid_node.simulation.program import qualified_coordinates
+
+            if name in qualified_coordinates(node):
+                raise SnapshotOptionError(
+                    f"--drive names '{name}', which is a JOINT COORDINATE "
+                    f'the run owns rather than a declared driver. A '
+                    f"coordinate's value is what the run makes of it: with "
+                    f'no run to own it, the enumeration that binding runs '
+                    f'recomputes it from the drivers and the value is lost. '
+                    f'Ask for the drivers instead -- {known} -- or drive '
+                    f'the machine in a scenario or in the browser.')
+        raise SnapshotOptionError(
+            f"--drive names '{name}', which no node of this tree declares "
+            f'as a driver. The drivers it publishes are: {known}.')

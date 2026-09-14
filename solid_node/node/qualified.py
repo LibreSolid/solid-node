@@ -268,10 +268,16 @@ def drive_tree(root, resolve, visit=None):
     was; this is a different door, and it never leaves holes -- it binds
     every declared driver of the tree or raises.
 
-    `visit(node, path)`, when given, is called for every assembly in the
-    walk after its drivers are bound and before anything in the tree
-    renders, so a caller that also needs something else declared per
-    node (instructions) pays for one walk rather than two.
+    `visit(node, path, children)`, when given, is called for every
+    assembly in the walk after its drivers are bound and before anything
+    in the tree renders, so a caller that also needs something else
+    declared per node (instructions, a joint coordinate) pays for one
+    walk rather than two. `children` is what the walk is about to
+    descend into, handed over rather than looked up again: a LEAF holds
+    no snapshot, so the walk never visits it on its own, and a caller
+    that has to reach a leaf's declarations -- a joint may be declared
+    on one -- would otherwise have to re-derive the structure and risk
+    getting a different generation of a legacy render's children.
     """
     # Deferred: `assembly` is `qualified`'s own caller (AssemblyNode's
     # module already imports THIS one, for `declared_drivers_of` and
@@ -291,12 +297,13 @@ def drive_tree(root, resolve, visit=None):
             identifier = driver_id(path, name)
             found[identifier] = declaration
             states[name] = resolve(node, path, name, declaration)
-        if visit is not None:
-            visit(node, path)
         # Rest-only: discovers structure and links exactly as a render()
         # would, without opening a phase or an enumeration, so every
         # node's OWN drivers are bound before ANY of them simulates.
-        for child in _rest_children(node):
+        children = _rest_children(node)
+        if visit is not None:
+            visit(node, path, children)
+        for child in children:
             deliver(child, path + (child.name,))
 
     deliver(root, ())

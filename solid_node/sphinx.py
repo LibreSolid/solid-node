@@ -109,6 +109,8 @@ class SolidNode(SphinxDirective):
                 f'"{MANIFEST_FORMAT}" manifest'
             )
 
+        self.warn_unreadable(rel_path, manifest)
+
         # Rebuild this document when the export is regenerated
         self.env.note_dependency(os.path.join(rel_path, 'manifest.json'))
 
@@ -139,6 +141,37 @@ class SolidNode(SphinxDirective):
             height=self.options.get('height', DEFAULT_HEIGHT),
         )
         return [node]
+
+    def warn_unreadable(self, rel_path, manifest):
+        """Warn, without failing the build, about an embedded export the
+        installed viewer cannot render.
+
+        The export is a COMMITTED artifact the documentation build does
+        not produce and cannot change, and the embedded widget refuses
+        such a document in the page, visibly; this is what tells the
+        author why, at build time, without failing a docs build over an
+        artifact it does not own. The version is read off the manifest
+        this directive already opened, and no CAD runtime is loaded to
+        do it.
+        """
+        version = manifest.get('version')
+        if not isinstance(version, int):
+            return
+        try:
+            rendered = viewer_bundle.document_versions()
+        except viewer_bundle.ViewerUnavailable:
+            # No viewer to embed and nothing to say about what it reads;
+            # `copy_exports` reports the missing bundle where it matters.
+            return
+        if version in rendered:
+            return
+        logger.warning(
+            f'solid-node: the export "{rel_path}" declares document '
+            f'version {version}, and the installed viewer renders '
+            f'{", ".join(str(one) for one in rendered)}. The embedded '
+            f'widget will refuse it in the page. The export is a '
+            f'committed artifact this build does not produce: regenerate '
+            f'it with a viewer that renders it, or install one.')
 
 
 def visit_solid_node_iframe(self, node):

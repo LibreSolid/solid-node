@@ -919,3 +919,125 @@ class SnapshotConstantsTest(TestCase):
         self.assertIn('edges', VIEW_OPTIONS)
         self.assertIn('wireframe', VIEW_OPTIONS)
         self.assertEqual(len(VIEW_OPTIONS), 5)
+
+
+class SnapshotDriveTest(TestCase):
+    """(8.1, 8.2) `--drive` poses a declared driver for a still, and a
+    running root has no timeline for `--time` to be a position on."""
+
+    def setUp(self):
+        from tests.base import BUILD_DIR as TESTS_BUILD_DIR
+
+        if os.path.exists(TESTS_BUILD_DIR):
+            shutil.rmtree(TESTS_BUILD_DIR)
+        self.addCleanup(shutil.rmtree, TESTS_BUILD_DIR, ignore_errors=True)
+
+    def prepared(self, node, drives=(), time=0.0):
+        snapshot = Snapshot.__new__(Snapshot)
+        snapshot.path = 'model.py'
+        snapshot.time = time
+        snapshot.overrides = []
+        snapshot.drives = list(drives)
+        with patch('solid_node.manager.snapshot.load_node',
+                   return_value=node), \
+             patch('solid_node.manager.snapshot.project_build_lock'), \
+             patch.object(node, 'assemble'):
+            return snapshot._load_and_prepare_node()
+
+    def test_a_declared_driver_is_posed_and_the_rest_stand_at_defaults(self):
+        from tests.running_project.machine import TrainBody
+
+        node = TrainBody()
+        self.prepared(node, drives=['crank=30'])
+        self.assertEqual(node.crank, 30.0)
+        self.assertEqual(node.lever, 100.0)
+
+    def test_a_running_root_is_posed_at_its_rest_pose(self):
+        from solid_node.motion.ports import get_coordinate
+        from tests.running_project.machine import Train
+
+        node = Train()
+        self.prepared(node, drives=['crank=30'])
+        self.assertEqual(node.crank, 30.0)
+        self.assertEqual(get_coordinate(node.first, 'turn')._value, 60.0)
+
+    def test_a_name_that_is_no_declared_driver_lists_the_drivers(self):
+        from solid_node.manager.snapshot import SnapshotOptionError
+        from tests.running_project.machine import TrainBody
+
+        node = TrainBody()
+        with self.assertRaises(SnapshotOptionError) as raised:
+            self.prepared(node, drives=['crnak=3'])
+        message = str(raised.exception)
+        self.assertIn('crnak', message)
+        self.assertIn('crank', message)
+        self.assertIn('lever', message)
+
+    def test_a_joint_coordinate_is_refused_by_name(self):
+        from solid_node.manager.snapshot import SnapshotOptionError
+        from tests.running_project.machine import Train
+
+        node = Train()
+        with self.assertRaises(SnapshotOptionError) as raised:
+            self.prepared(node, drives=['first.turn=99'])
+        message = str(raised.exception)
+        self.assertIn('first.turn', message)
+        self.assertIn('run', message)
+        self.assertIn('crank', message)
+
+    def test_a_non_numeric_value_is_refused(self):
+        from solid_node.manager.snapshot import SnapshotOptionError
+        from tests.running_project.machine import TrainBody
+
+        with self.assertRaises(SnapshotOptionError):
+            self.prepared(TrainBody(), drives=['crank=sideways'])
+
+    def test_a_missing_equals_sign_is_refused(self):
+        from solid_node.manager.snapshot import SnapshotOptionError
+        from tests.running_project.machine import TrainBody
+
+        with self.assertRaises(SnapshotOptionError):
+            self.prepared(TrainBody(), drives=['crank'])
+
+    def test_a_non_zero_time_on_a_running_root_is_refused(self):
+        from solid_node.manager.snapshot import SnapshotOptionError
+        from tests.running_project.machine import Train
+
+        with self.assertRaises(SnapshotOptionError) as raised:
+            self.prepared(Train(), time=0.5)
+        message = str(raised.exception)
+        self.assertIn('--drive', message)
+        self.assertIn('timeline', message)
+
+    def test_the_default_time_on_a_running_root_keyframes_zero(self):
+        from tests.running_project.machine import Train
+
+        node = Train()
+        with patch.object(node, 'set_keyframe') as keyframe:
+            self.prepared(node, time=0.0)
+        keyframe.assert_called_once_with(0.0)
+
+    def test_the_command_writes_no_image_when_an_option_is_refused(self):
+        from tests.running_project.machine import Train
+
+        node = Train()
+        errors = io.StringIO()
+        args = argparse.Namespace(
+            path='model.py', output='shot.png', time=0.5, camera=None,
+            autocenter=False, viewall=False, imgsize='100x100',
+            projection=None, colorscheme=None, render=False, preview=False,
+            view=None, renderer='openscad', drive=None, set=None)
+        snapshot = Snapshot()
+        with patch('solid_node.manager.snapshot.select_model') as selected, \
+             patch('solid_node.manager.snapshot.load_node',
+                   return_value=node), \
+             patch('solid_node.manager.snapshot.project_build_lock'), \
+             patch('solid_node.manager.snapshot.OPENSCAD_RENDERER.render') as drawn, \
+             patch.object(node, 'assemble'), \
+             patch.object(sys, 'stderr', errors):
+            selected.return_value.reference = 'model.py'
+            with self.assertRaises(SystemExit) as raised:
+                snapshot.handle(args)
+        self.assertEqual(raised.exception.code, 1)
+        drawn.assert_not_called()
+        self.assertIn('--drive', errors.getvalue())

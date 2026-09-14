@@ -245,6 +245,8 @@ parent assembly binds it every ``simulate()`` with
 
 .. autofunction:: solid_node.motion.ports.get_coordinate
 
+.. autoclass:: solid_node.motion.ports.RunBinder
+
 Joints
 ======
 
@@ -322,13 +324,47 @@ scenario tests.
 .. autoclass:: solid_node.simulation.RampProgram
 
 .. autoclass:: solid_node.simulation.Sim
-   :members: at, every, trigger, run, state, time,
-             cadence_costs, assertion_stats
+   :members: at, every, trigger, run, state, time, trajectory, crossings,
+             stops, running, move, rate, commands, snapshot, restore,
+             reset, initial, program, cadence_costs, assertion_stats
 
-   .. attribute:: trajectory
+Running simulation
+------------------
 
-      The recorded ``(tick, states)`` history of the run, one entry
-      per stepped tick.
+Under a root declaring ``Time.running()`` a simulation owns every driver
+and every joint coordinate of the linked tree, keeps their history and
+moves them by increments. The engine and the compile step below are
+imported only when such a simulation is constructed.
+
+.. autoclass:: solid_node.simulation.run.Run
+
+.. autoclass:: solid_node.simulation.run.Command
+   :members: requested, admitted, remaining, rate, cancel
+
+.. autoclass:: solid_node.simulation.run.RunSnapshot
+
+.. autoexception:: solid_node.simulation.RunConflict
+
+.. autoclass:: solid_node.simulation.program.Program
+   :members: described, published, published_names
+
+.. autofunction:: solid_node.simulation.program.compile_program
+
+.. autofunction:: solid_node.simulation.program.program_of
+
+.. autofunction:: solid_node.simulation.program.release_tree
+
+.. autofunction:: solid_node.simulation.program.qualified_coordinates
+
+.. autoclass:: solid_node.simulation.program.JumpPlan
+
+.. autoclass:: solid_node.simulation.Crossing
+
+.. autoclass:: solid_node.simulation.Stop
+
+.. autoexception:: solid_node.simulation.UnsupportedLaw
+
+.. autoexception:: solid_node.simulation.TooManyCrossings
 
 .. autoclass:: solid_node.simulation.ScenarioTest
    :members: simulation, scenario_node
@@ -336,6 +372,30 @@ scenario tests.
 .. autofunction:: solid_node.simulation.qualified_drivers
 
 .. autofunction:: solid_node.simulation.qualified_instructions
+
+The conformance corpus
+----------------------
+
+``tools/generate_running_corpus.py`` writes ``tests/running-corpus.json``
+from the framework's own run: for each of a set of small running roots,
+the program-bearing keys of the document it publishes, a script of
+commands, and every tick of the run with its bank, crossings, stops and
+command outcomes. Every expected value in it is a value the run
+PRODUCED, never one recomputed a second way, so a disagreement means the
+other runtime drifted. The framework's suite replays it
+(``tests/test_running_corpus.py``) and the browser viewer replays its own
+committed copy.
+
+The generator refuses to write a corpus that misses any of the features
+the export capability lists — each discontinuous primitive, a
+multi-source law, a stop inside a tick, an expression bound, a blocked
+command, a rate, a snapshot and a restore, both instruction forms, and a
+tick carrying both a crossing and a stop — so the corpus's width cannot
+narrow by accident.
+
+.. code-block:: bash
+
+    $ PYTHONPATH="$PWD" python tools/generate_running_corpus.py
 
 Expression math
 ========

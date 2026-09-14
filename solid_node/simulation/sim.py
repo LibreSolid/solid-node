@@ -30,6 +30,8 @@ of stepping.
 import time
 from collections import namedtuple
 
+from solid_node.motion.ports import declared_time
+
 from .driver import DriverState
 from .enumeration import qualified_drivers, qualified_instructions
 from .timebase import finite_seconds
@@ -110,13 +112,14 @@ class Sim:
     never touch the artifact path, so this happens once, here.
     """
 
-    def __init__(self, node, dt, meshes=False):
+    def __init__(self, node, dt, meshes=False, state=None, record=None):
         dt = finite_seconds(dt, 'dt')
         if dt <= 0:
             raise ValueError(f'dt must be greater than zero, not {dt!r}')
         self.node = node
         self.dt = dt
         self.tick = 0
+        self._run = None
         # Enumerated across the WHOLE linked tree, not off the root
         # class: a machine's drivers live on its mechanisms, and a
         # machine whose root declares none would otherwise get an empty
@@ -126,22 +129,175 @@ class Sim:
         self.drivers = {identifier: DriverState(identifier, declaration)
                         for identifier, declaration
                         in qualified_drivers(node).items()}
+        # After the instruction walk, not before: `qualified_instructions`
+        # is another `drive_tree`, and it rebinds every declared default
+        # as it descends. The rest render below has to be the LAST thing
+        # that poses the tree before the run reads its coordinates off it.
         self.instructions = qualified_instructions(node)
-        self.trajectory = []
+        self._trajectory = []
         self._at = {}
         self._every = []
-        node.set_state(**self._binding())
+        base = declared_time(type(node))
+        if base is not None and base.mode == 'running':
+            # ONE simulation owns a tree at a time, and the NEWEST takes
+            # it. A previous run's claim is released BEFORE the rest
+            # render below, so that render finds a tree no run owns and
+            # poses it exactly as it would a tree no run ever touched --
+            # which is what makes `ScenarioTest.simulation()`'s "fresh
+            # per call" true over a node built once per class. The
+            # released run then refuses to advance rather than binding
+            # over this one.
+            from .program import release_tree
+
+            release_tree(node)
+        self._bind_initial(state)
+        if base is not None and base.mode == 'running':
+            # The running engine and the compile step are imported HERE,
+            # and nowhere else: a model that declares no running time
+            # never loads either (capability `cli-startup-cost`). The
+            # construction that follows is design.md section 4 -- the
+            # untimed rest render above, the bank read off the tree, the
+            # program compiled from what that render solved, the initial
+            # snapshot, and then the run's own binding of the whole bank.
+            from .run import Run
+
+            self._run = Run(self, record)
         if meshes:
             node.assemble()
             node.build_stls()
 
+    def _bind_initial(self, state):
+        """Bind the declared defaults, overridden by `state=`, and render
+        once: the untimed rest pose every simulation starts from.
+
+        A name in `state` that is not a declared driver id is refused
+        here rather than delivered: a joint coordinate id among them is
+        refused too, because under a running root the initial
+        coordinates come from the rest pose and nowhere else.
+        """
+        for identifier, value in (state or {}).items():
+            try:
+                self.drivers[identifier].value = value
+            except KeyError:
+                known = ', '.join(sorted(self.drivers)) or 'none'
+                raise ValueError(
+                    f"state={{'{identifier}': ...}} names no declared "
+                    f'driver of {type(self.node).__name__}. An initial '
+                    f'state names a driver by its qualified id -- a joint '
+                    f"coordinate's initial value comes from the rest pose "
+                    f'the declared drivers produce, never from here; '
+                    f'declared: {known}.') from None
+        self.node.set_state(**self._binding())
+
+    @property
+    def running(self):
+        """Whether this simulation's root declares `Time.running()`, and
+        the run therefore owns its coordinates."""
+        return self._run is not None
+
+    def _running(self, what):
+        if self._run is None:
+            raise TypeError(
+                f'{what} belongs to a RUNNING simulation, and '
+                f'{type(self.node).__name__} declares no time base or a '
+                f'looping one. Declare time = Time.running() on the root '
+                f'to have the simulation own its coordinates, retain their '
+                f'history and take commands.')
+        return self._run
+
+    ##############################################
+    # The running surface
+
+    def move(self, input_id, by=None, to=None, duration=None):
+        """Move a declared input BY a travel or TO a value, over
+        `duration` seconds, and return the handle reporting what the run
+        admits. A duration of zero -- or none -- settles at the current
+        tick without advancing the clock."""
+        return self._running('move()').move(input_id, by=by, to=to,
+                                            duration=duration)
+
+    def rate(self, input_id, rate):
+        """Run a declared input at `rate` design units per simulated
+        second until released with `rate(input, 0)`."""
+        return self._running('rate()').rate(input_id, rate)
+
+    @property
+    def commands(self):
+        """The handles of the commands currently owning an input."""
+        return self._running('commands').commands
+
+    @property
+    def program(self):
+        """The compiled program the run integrates."""
+        return self._running('program').program
+
+    @property
+    def initial(self):
+        """The snapshot taken at construction: the rest pose."""
+        return self._running('initial').initial
+
+    def snapshot(self):
+        """This run's whole state as a value object."""
+        return self._running('snapshot()').snapshot()
+
+    def restore(self, snapshot):
+        """Put this run back to `snapshot`, refusing one taken over a
+        different program or a different `dt` before touching
+        anything."""
+        return self._running('restore()').restore(snapshot)
+
+    def reset(self):
+        """Restore the initial snapshot."""
+        return self._running('reset()').reset()
+
     @property
     def state(self):
-        """The current snapshot by qualified driver id: a fresh dict, so
-        a caller holding one holds a value and not a view of the running
-        simulation."""
+        """The current snapshot by qualified id: a fresh dict, so a
+        caller holding one holds a value and not a view of the running
+        simulation.
+
+        Under a RUNNING root that is the run's whole bank -- every driver
+        AND every joint coordinate of the linked tree -- because under
+        that base the coordinates are the state. Under any other root it
+        is the driver bank, exactly as it always was."""
+        if self._run is not None:
+            return self._run.state
         return {name: driver.value
                 for name, driver in sorted(self.drivers.items())}
+
+    @property
+    def trajectory(self):
+        """What was recorded, oldest first.
+
+        Under a running root that is the bounded ring `record=` asked
+        for, and `[]` when it asked for none; under any other root the
+        list every tick is appended to, as before."""
+        if self._run is not None:
+            return self._run.trajectory
+        return self._trajectory
+
+    @property
+    def crossings(self):
+        """Every jump surface met inside a tick, oldest first.
+
+        The bounded ring `record=` asked for, and `[]` when it asked for
+        none: each entry names the tick, the relation as written, the
+        driven coordinate, the primitive that jumped, the surface it
+        reached and the fraction of the tick at which it did.
+        """
+        return self._running('crossings').crossings
+
+    @property
+    def stops(self):
+        """Every declared bound reached inside a tick, oldest first.
+
+        The bounded ring `record=` asked for, and `[]` when it asked for
+        none: each entry names the tick, the coordinate that stopped,
+        which bound it reached and that bound's evaluated value, the
+        fraction of the tick at which it was reached, and the inputs the
+        stop blocked.
+        """
+        return self._running('stops').stops
 
     @property
     def time(self):
@@ -216,11 +372,23 @@ class Sim:
         makes "home the X axis" home only the X axis.
         """
         path, instruction = self._instruction(name)
+        if self._run is not None:
+            # Under a running root an instruction is the run's own
+            # command: `targets=` a move TO each target, `by=` a move BY
+            # each travel, every input claimed before any of them starts.
+            return self._run.trigger(path, instruction, name)
         ticks = self._ticks(instruction.duration,
                             f"duration of instruction '{name}'")
-        for driver_name, target in instruction.targets.items():
+        for driver_name, amount in (instruction.targets
+                                    or instruction.by).items():
             driver = self._driver('.'.join(path + (driver_name,)), name)
-            driver.ramp_to(driver.declaration.native(target), ticks, self.tick)
+            native = driver.declaration.native(amount)
+            if instruction.relative:
+                # A relative instruction ramps from where the driver
+                # stands, which is well defined over a driver bank under
+                # every time base.
+                native = driver.value + native
+            driver.ramp_to(native, ticks, self.tick)
         if ticks == 0:
             # A zero-tick ramp is complete at the trigger instant. Rebind
             # once after every target has settled so the node sees one
@@ -244,11 +412,18 @@ class Sim:
         end = self.tick + self._ticks(duration, 'duration')
         self._fire(self.tick)
         while self.tick < end:
-            self.tick += 1
-            states = {name: driver.advance(self.tick)
-                      for name, driver in sorted(self.drivers.items())}
-            self.node.set_state(**dict(states, time=self.time))
-            self.trajectory.append((self.tick, states))
+            if self._run is not None:
+                # One tick of design.md section 7: the increments the
+                # active commands admit, propagated over the compiled
+                # program, committed only once nothing refused them, and
+                # bound as the run.
+                self._run.advance()
+            else:
+                self.tick += 1
+                states = {name: driver.advance(self.tick)
+                          for name, driver in sorted(self.drivers.items())}
+                self.node.set_state(**dict(states, time=self.time))
+                self._trajectory.append((self.tick, states))
             self._fire(self.tick)
             for slot in self._every:
                 if self.tick % slot.period_ticks == 0:

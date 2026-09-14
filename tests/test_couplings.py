@@ -3587,3 +3587,80 @@ class SubclassReplacesRelationTest(BaseNodeTest):
 
         with self.assertRaises(AttributeError):
             ReplaceBase.drive.__get__(preview)
+
+
+##############################################
+# The RUNNING SIMULATION as a binder kind
+# (OpenSpec change ``run-owns-the-coordinates``)
+
+from solid_node.motion.ports import RunBinder, binding_as, set_coordinate
+from .running_project.machine import BackDriven, TrainBody
+
+
+class RunBinderTest(BaseNodeTest):
+    """A running simulation binds outside every enumeration and owns
+    what it bound: the freshness clear leaves its slots alone, a relation
+    whose driven ends it owns is solved BY THE RUN, and a relation that
+    would read backwards into one of its coordinates is refused naming
+    it."""
+
+    def bind_as_run(self, bindings):
+        binder = RunBinder()
+        with binding_as(binder):
+            for node, name, value in bindings:
+                set_coordinate(node, name, value)
+        return binder
+
+    def test_a_run_bound_coordinate_survives_the_freshness_clear(self):
+        node = TrainBody()
+        node.set_state(crank=10.0, lever=100.0)
+        # The values the run holds are NOT the ones the relations would
+        # produce from the bound drivers, so a re-solve would show.
+        owned = [(node.first, 'turn', 40.0),
+                 (node.second, 'turn', -60.0),
+                 (node.slide, 'travel', 76.0),
+                 (node, 'spindle', 20.0)]
+        binder = self.bind_as_run(owned)
+        for enumeration in range(3):
+            with self.subTest(enumeration=enumeration):
+                node.render()
+                for owner, name, value in owned:
+                    slot = declared_ports(type(owner))[name].__get__(owner)
+                    self.assertEqual(slot._value, value)
+                    self.assertIs(slot.binder, binder)
+
+    def test_every_relation_into_a_run_owned_coordinate_is_the_runs(self):
+        node = TrainBody()
+        node.set_state(crank=10.0, lever=100.0)
+        self.bind_as_run([(node.first, 'turn', 40.0),
+                          (node.second, 'turn', -60.0),
+                          (node.slide, 'travel', 76.0),
+                          (node, 'spindle', 20.0)])
+        node.render()
+        for record in node.__dict__['_relations']:
+            with self.subTest(relation=record.described()):
+                self.assertEqual(record.direction, 'run')
+
+    def test_a_wiring_into_a_run_bound_joint_is_the_runs(self):
+        arbor = Arbor(index=0, wheel_teeth=60, pinion_teeth=8)
+        binder = self.bind_as_run([(arbor, 'turn', 30.0),
+                                   (arbor.rod, 'turn', 30.0)])
+        arbor.render()
+        rod = declared_ports(type(arbor.rod))['turn'].__get__(arbor.rod)
+        self.assertEqual(rod._value, 30.0)
+        self.assertIs(rod.binder, binder)
+        wheel = declared_ports(type(arbor.wheel))['turn'].__get__(arbor.wheel)
+        self.assertEqual(wheel._value, 30.0)
+        self.assertNotIsInstance(wheel.binder, RunBinder)
+
+    def test_a_backward_solve_into_a_run_bound_source_is_refused(self):
+        node = BackDriven()
+        node.set_state()
+        self.bind_as_run([(node.first, 'turn', 3.0)])
+        with self.assertRaises(DoublyBound) as caught:
+            node.render()
+        message = str(caught.exception)
+        self.assertIn('gauge', message)
+        self.assertIn('first.turn', message)
+        self.assertIn('running simulation', message)
+        self.assertIn("author's simulate()", message)

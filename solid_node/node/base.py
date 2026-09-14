@@ -786,10 +786,18 @@ class AbstractBaseNode(metaclass=NodeMeta):
         No-op for non-animated nodes; overridden by AssemblyNode."""
         pass
 
-    def _receive_state(self, entries, path, declared, saved):
+    def _receive_state(self, entries, path, declared, saved,
+                       coordinates=None):
         """This node's share of a set_state propagation.
-        No-op for non-animated nodes; overridden by AssemblyNode."""
-        pass
+        No-op for non-animated nodes; overridden by AssemblyNode --
+        except that under a RUNNING root an entry addressed to a leaf's
+        own joint coordinate binds it, because a joint may be declared
+        on a leaf and the run owns every joint coordinate of the tree
+        (OpenSpec change ``run-owns-the-coordinates``). The delivery
+        object is the assembly layer's; this node only hands itself to
+        it, so nothing about the motion layer is imported here."""
+        if coordinates is not None:
+            coordinates.deliver(self, entries, path, declared)
 
     def _receive_clear(self, names):
         """This node's share of a clear_state propagation.

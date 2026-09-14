@@ -7,6 +7,7 @@
 import argparse
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -318,3 +319,77 @@ class BrowserSnapshotEndToEndTest(TestCase):
             alpha = Image.open(output).convert("RGBA").getchannel("A")
             self.assertEqual(alpha.getpixel((0, 0)), 0)
             self.assertIn(255, alpha.getdata())
+
+
+class UnreadableDocumentRefusalTest(TestCase):
+    """(7.3) A capture is a one-shot: a document the installed viewer
+    cannot read is refused BEFORE the browser starts, rather than
+    surfacing as an opaque non-zero exit from a headless page."""
+
+    def setUp(self):
+        from tests.base import BUILD_DIR
+        from solid_node.simulation.enumeration import bind_declared_defaults
+        from tests.running_project.machine import Train, TrainBody
+
+        if os.path.exists(BUILD_DIR):
+            shutil.rmtree(BUILD_DIR)
+        os.makedirs(BUILD_DIR)
+        self.addCleanup(shutil.rmtree, BUILD_DIR, ignore_errors=True)
+        self.build_dir = BUILD_DIR
+        self.renderer = BrowserRenderer()
+        self.running = Train()
+        bind_declared_defaults(self.running)
+        self.running.assemble()
+        self.running.build_stls()
+        self.untimed = TrainBody()
+        bind_declared_defaults(self.untimed)
+        self.untimed.assemble()
+        self.untimed.build_stls()
+
+    def siblings(self):
+        parent = os.path.dirname(self.build_dir)
+        return {name for name in os.listdir(parent)
+                if 'web-snapshot' in name}
+
+    def test_a_running_model_is_refused_naming_the_three_facts(self):
+        before = self.siblings()
+        with patch.object(browser_module.viewer_bundle, 'has_bundle',
+                          return_value=True), \
+             patch.object(browser_module.viewer_bundle, 'document_versions',
+                          return_value=[1, 2, 3, 4]), \
+             patch.object(browser_module.viewer_bundle, 'describe',
+                          return_value={'version': '0.1.0'}), \
+             patch.object(browser_module, 'run') as started:
+            with self.assertRaises(BrowserSnapshotError) as raised:
+                self.renderer.render(self.running, snapshot_args(),
+                                     os.path.join(self.build_dir, 'shot.png'))
+        message = str(raised.exception)
+        self.assertIn('5', message)
+        self.assertIn('1, 2, 3, 4', message)
+        self.assertIn('0.1.0', message)
+        started.assert_not_called()
+        self.assertFalse(os.path.exists(
+            os.path.join(self.build_dir, 'shot.png')))
+        self.assertEqual(self.siblings(), before)
+
+    def test_a_viewer_that_can_read_it_stages_as_before(self):
+        with patch.object(browser_module.viewer_bundle, 'has_bundle',
+                          return_value=True), \
+             patch.object(browser_module.viewer_bundle, 'document_versions',
+                          return_value=[1, 2, 3, 4, 5]):
+            staging = self.renderer.stage(self.running, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+        with open(os.path.join(staging, 'viewer.json')) as handle:
+            document = json.load(handle)
+        self.assertEqual(document['version'], 5)
+
+    def test_an_untimed_model_is_unaffected(self):
+        with patch.object(browser_module.viewer_bundle, 'has_bundle',
+                          return_value=True), \
+             patch.object(browser_module.viewer_bundle, 'document_versions',
+                          return_value=[1, 2, 3, 4]):
+            staging = self.renderer.stage(self.untimed, self.build_dir)
+        self.addCleanup(self.renderer.remove_stage, staging)
+        with open(os.path.join(staging, 'viewer.json')) as handle:
+            document = json.load(handle)
+        self.assertLess(document['version'], 5)

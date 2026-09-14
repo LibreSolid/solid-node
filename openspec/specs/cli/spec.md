@@ -11,6 +11,7 @@ orchestration retained after ADR-018.
 Code: `solid_node/cli.py`, `solid_node/manager/{develop,test,snapshot,new,
 export}.py`.
 ## Requirements
+
 ### Requirement: Command-first grammar with migration guard
 
 The system SHALL parse `solid <command> <path> [options]` with one argparse
@@ -342,8 +343,29 @@ node), `--time` (0.0–1.0, validated, default
 `--autocenter`, `--viewall`, `--imgsize` (default `1920x1080`, validated),
 `--projection` (`ortho`|`perspective`), `--colorscheme` (the 11 OpenSCAD
 schemes, default Cornfield), mutually exclusive `--render`/`--preview`,
-`--view` (comma-separated of axes, crosshairs, edges, scales, wireframe), and
-`--renderer` (`openscad`|`web`, default `openscad`).
+`--view` (comma-separated of axes, crosshairs, edges, scales, wireframe),
+`--renderer` (`openscad`|`web`, default `openscad`), and `--drive NAME=VALUE`
+(repeatable).
+
+`--drive` SHALL bind a DECLARED DRIVER by its qualified id, to a value parsed
+as a number and checked by the declaration exactly as `set_state` checks it,
+after the node is loaded and before it is keyframed and assembled, under
+either renderer. It is distinct from `--set`, which reaches the root's
+declared parameters; a driver is not a parameter and a parameter is not a
+driver. A name that is not a declared driver of the tree SHALL fail listing
+the drivers the tree publishes, and nothing SHALL be rendered.
+
+A `--drive` naming a JOINT COORDINATE of a running root SHALL be REFUSED by
+name, saying that a coordinate's value is what the run makes of it and
+naming the drivers that can be set instead. The refusal states a fact rather
+than a preference: with no run to own it, the enumeration that binding runs
+immediately recomputes that coordinate from the drivers, so the value would
+be silently discarded.
+
+Under a running root the image is therefore the untimed REST POSE at the
+requested driver values — the state a simulation itself starts from, and
+admissible by construction. A state carrying HISTORY is not posed from the
+command line: only a run knows which banks are reachable.
 
 The default renderer SHALL remain `openscad` regardless of whether the
 project's model is exact, regardless of whether the binary is installed, and
@@ -374,6 +396,26 @@ write no image.
 Node preparation SHALL hold the project build lock, and SHALL release it before
 the render begins, so a snapshot never blocks a rebuild while an image is being
 produced.
+
+#### Scenario: A driver posed for a still
+
+- **WHEN** an agent runs `solid snapshot --drive units_entry=3` on a project
+  declaring that driver
+- **THEN** the image shows the machine posed at that driver value, and the
+  drivers left unnamed stand at their declared defaults
+
+#### Scenario: A coordinate is not a driver
+
+- **WHEN** an agent runs `solid snapshot --drive units.drum.turn=108` on a
+  running root
+- **THEN** the command fails naming that id as a joint coordinate the run
+  owns, lists the declared drivers, and writes no image
+
+#### Scenario: A name that is neither
+
+- **WHEN** `--drive crnak=3` names no declared driver
+- **THEN** the command fails listing the drivers the tree publishes, and
+  writes no image
 
 #### Scenario: Headless snapshot
 
@@ -442,6 +484,14 @@ before rendering, so the image shows the same instant the viewer shows at
 that slider position; when the root declares none it SHALL keyframe the
 fraction as before. Validation of the option does not change.
 
+When the snapshotted root declares `time = Time.running()` there is no
+timeline to be a position on: elapsed simulation seconds never wrap and the
+document publishes no loop. A non-zero `--time` on such a root SHALL be
+REFUSED by name, saying that a running root has no timeline and naming
+`--drive` as the way to pose it; `--time 0.0`, the default, SHALL be
+accepted and SHALL keyframe zero, which is the instant the rest pose is
+defined at.
+
 #### Scenario: A fraction lands on the declared instant
 
 - **WHEN** `solid snapshot --time 0.5` runs on a project whose root declares
@@ -454,6 +504,18 @@ fraction as before. Validation of the option does not change.
 - **WHEN** `solid snapshot --time 0.5` runs on a project whose root declares
   no time base
 - **THEN** the node is keyframed at `0.5`, exactly as before
+
+#### Scenario: A running root has no timeline
+
+- **WHEN** `solid snapshot --time 0.5` runs on a project whose root declares
+  `time = Time.running()`
+- **THEN** the command fails saying a running root has no timeline, naming
+  `--drive`, and writes no image
+
+#### Scenario: The default time is accepted on a running root
+
+- **WHEN** `solid snapshot` runs on a running root with no `--time`
+- **THEN** the node is keyframed at zero and the image shows the rest pose
 
 ### Requirement: New command
 

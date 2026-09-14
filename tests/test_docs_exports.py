@@ -221,3 +221,54 @@ class DocumentationExportsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EmbeddedExportVersionWarningTest(unittest.TestCase):
+    """(7.4b) The directive embeds a COMMITTED export it does not
+    produce and cannot fix. It warns about a version the installed
+    viewer cannot read and does not fail the build -- and it reads the
+    version off the manifest it already opened, loading no CAD runtime
+    to do it."""
+
+    def warned(self, manifest, versions):
+        from unittest.mock import Mock, patch
+
+        from solid_node import sphinx as sphinx_module
+
+        directive = sphinx_module.SolidNode.__new__(sphinx_module.SolidNode)
+        logger = Mock()
+        with patch.object(sphinx_module, 'logger', logger), \
+             patch.object(sphinx_module.viewer_bundle, 'document_versions',
+                          return_value=versions):
+            directive.warn_unreadable('docs/export', manifest)
+        return logger
+
+    def test_an_embedded_version_five_export_warns(self):
+        logger = self.warned({'format': 'solid-node-export', 'version': 5},
+                             [1, 2, 3, 4])
+        self.assertEqual(logger.warning.call_count, 1)
+        message = logger.warning.call_args[0][0]
+        self.assertIn('docs/export', message)
+        self.assertIn('5', message)
+        self.assertIn('1, 2, 3, 4', message)
+
+    def test_an_export_the_viewer_can_read_warns_about_nothing(self):
+        logger = self.warned({'format': 'solid-node-export', 'version': 5},
+                             [1, 2, 3, 4, 5])
+        logger.warning.assert_not_called()
+
+    def test_the_extension_loads_no_cad_runtime(self):
+        import ast
+        import inspect
+
+        from solid_node import sphinx as sphinx_module
+
+        tree = ast.parse(inspect.getsource(sphinx_module))
+        modules = {node.module for node in ast.walk(tree)
+                   if isinstance(node, ast.ImportFrom) and node.module}
+        modules |= {alias.name for node in ast.walk(tree)
+                    if isinstance(node, ast.Import) for alias in node.names}
+        heavy = {name for name in modules
+                 if name.startswith('solid_node.')
+                 and not name.startswith('solid_node.viewers')}
+        self.assertEqual(heavy, set(), heavy)

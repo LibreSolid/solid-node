@@ -365,7 +365,8 @@ class MidTraversalMutationTest(TestCase):
         # still reflects the entry order: the read that matters for a
         # qualified id happens once, at delivery, not at this re-link.
         drive_tree(parent, lambda *arguments: 0,
-                   visit=lambda node, path: visited.append((node, path)))
+                   visit=lambda node, path, children:
+                   visited.append((node, path)))
         self.assertEqual((mutator.name, sibling.name), ('parts-1', 'parts-0'))
         self.assertIs(sibling._parent, parent)
         self.assertEqual(visited,
@@ -375,7 +376,8 @@ class MidTraversalMutationTest(TestCase):
 
         visited.clear()
         drive_tree(parent, lambda *arguments: 0,
-                   visit=lambda node, path: visited.append((node, path)))
+                   visit=lambda node, path, children:
+                   visited.append((node, path)))
         self.assertEqual((sibling.name, mutator.name), ('parts-0', 'parts-1'))
         self.assertEqual(visited,
                          [(parent, ()),
