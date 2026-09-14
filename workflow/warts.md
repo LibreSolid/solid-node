@@ -1976,3 +1976,44 @@ verification. No external issue was opened.
   STEP files. The 180-solid frame builds through ordinary `StepNode`.
   This repeats the YouCanBuildDog and orcahand findings. Selector changes are
   not part of `voron-faceted-contact`; workaround retained, triage open.
+
+# solid-node-viewer bundle staleness (2026-09-14, shop floor, Pascaline-module)
+
+Met opening the shop on port 9000 after fast-forwarding `solid-node-viewer`
+main to the `open-run-simulation` campaign branch (`f25c5a1`) and merging the
+same branch into `solid-node` main. Not a project finding; no mechanical
+project's simulation code was touched. This is a `solid-node-viewer`-owned
+contract, `solid_node_viewer/bundle.py`, recorded here because `workflow/`
+is the one place these findings are kept; see `libresolid-studio/CLAUDE.md`,
+"solid-node-viewer work".
+
+- **`document_versions()` can promise a document the served bundle refuses.**
+  The Pascaline module's exported document declared version 5; the browser
+  reported "this viewer does not render" it, even though the merge that adds
+  version-5 rendering was already on both mains and `solid viewer` reported
+  `documentVersions: [1, 2, 3, 4, 5]`. Cause: `solid_node_viewer/widget/dist/
+  solid-widget.js` is a gitignored build artifact (`.gitignore:14`), so
+  `git merge --ff-only` moved the widget's TypeScript source and
+  `package.json`'s `solidNodeDocumentVersions` field but left the primary
+  checkout's built `dist/` at its last `npm run build` (546,459 bytes, built
+  2026-09-08, declaring `[1,2,3,4]`) untouched. `bundle.py:document_versions()`
+  reads `package.json` alone — the field that *did* move — so `describe()`
+  reported five renderable versions while the file it also names as `path`
+  could read only four. The docstring's claim that the two "can never
+  disagree" holds only when `dist/` is rebuilt in lockstep with
+  `package.json`; nothing enforces that, and no producer (`solid build`,
+  `solid export`, shop session preparation) rebuilds the widget or compares
+  bundle contents against the declaration before serving it. Worked around
+  by hand: `npm run build` in the primary viewer checkout produced a
+  659,294-byte bundle, md5 `baf972b885ce80ce03c532165ffffffa`, byte-identical
+  to the campaign worktree's own build; re-fetching the same live session's
+  `/api/sessions/<id>/viewer/solid-widget.js` after the rebuild returned that
+  bundle and the document rendered. Evidence: session
+  `kpvQF8FXYy8wrX-5xZI4XfhcCgPSQJyC` on the shop hub at port 9000,
+  2026-09-14; before/after bundle sizes and md5 above are the reproduction.
+  No `bundle.py` change was made. Candidate framework/viewer work: have
+  `document_versions()` (or `describe()` generally) read what the built
+  bundle itself declares rather than `package.json` alone, so a stale
+  `dist/` cannot be described as current — or have the shop/framework
+  compare bundle and declaration mtimes and warn before serving. Filed here;
+  triage open.
